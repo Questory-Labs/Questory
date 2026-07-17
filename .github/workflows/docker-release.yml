@@ -1,0 +1,96 @@
+name: Docker Release
+
+# Tag examples:
+#   docker-api-1.0.0
+#   docker-web-1.2.3
+#   docker-cron-0.1.0
+on:
+  push:
+    tags:
+      - "docker-api-*"
+      - "docker-web-*"
+      - "docker-cron-*"
+
+permissions:
+  contents: write
+
+env:
+  DOCKERHUB_NAMESPACE: santoshpanna
+  DOCKER_IMAGE_PREFIX: questorylabs
+
+jobs:
+  release:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: meta
+        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build shared
+        run: pnpm --filter @questorylabs/shared build
+
+      - name: Detect tests
+        id: detect
+        run: |
+          if node scripts/ci-has-tests.mjs "${{ steps.meta.outputs.service }}"; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+            echo "No test script for ${{ steps.meta.outputs.service }} — skipping tests."
+          fi
+
+      - name: Run tests
+        if: steps.detect.outputs.has_tests == 'true'
+        run: pnpm --filter "${{ steps.meta.outputs.package }}" test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+        run: |
+          export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:4000}"
+          node scripts/docker-publish.mjs "${{ steps.meta.outputs.service }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Docker ${{ steps.meta.outputs.service }} ${{ steps.meta.outputs.version }}
+          generate_release_notes: true
+          body: |
+            ## Docker image
+
+            | | |
+            |---|---|
+            | Service | `${{ steps.meta.outputs.service }}` |
+            | Version | `${{ steps.meta.outputs.version }}` |
+            | Image | `${{ steps.meta.outputs.image_tag }}` |
+            | Latest | `${{ steps.meta.outputs.image_latest }}` |
+
+            Pull:
+            ```bash
+            docker pull ${{ steps.meta.outputs.image_tag }}
+            ```
+
+            Deploy this version with a service tag:
+            ```bash
+            git tag service-${{ steps.meta.outputs.service }}-${{ steps.meta.outputs.version }}
+            git push origin service-${{ steps.meta.outputs.service }}-${{ steps.meta.outputs.version }}
+            ```

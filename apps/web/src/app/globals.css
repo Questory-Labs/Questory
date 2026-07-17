@@ -1,0 +1,310 @@
+@import "tailwindcss";
+
+:root {
+  --bg-0: #101012;
+  --bg-1: #16161a;
+  --bg-2: #1f1f24;
+  --bg-3: #2a2a31;
+  --ink: #f2efe8;
+  --muted: #9a958c;
+  --faint: #6b665e;
+  --accent: #7dd3c0;
+  --accent-dim: rgba(125, 211, 192, 0.14);
+  --warm: #e0b86a;
+  --danger: #e06b56;
+  --line: rgba(242, 239, 232, 0.09);
+  --line-strong: rgba(242, 239, 232, 0.18);
+  --hatch: rgba(242, 239, 232, 0.08);
+  --hatch-strong: rgba(242, 239, 232, 0.14);
+  --hatch-shadow: #121214;
+  --hatch-line: rgba(242, 239, 232, 0.12);
+  --surface: #25252c;
+  --surface-2: #2c2c34;
+  --paper: #141416;
+  --radius: 8px;
+  --shadow-offset: 6px;
+  --shadow-offset-sm: 4px;
+  --shadow-offset-lg: 10px;
+}
+
+@theme inline {
+  --font-display: "Bricolage Grotesque", sans-serif;
+  --font-body: "Figtree", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-warm: var(--warm);
+  --color-danger: var(--danger);
+  --color-line: var(--line);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-body);
+  background-color: var(--bg-0);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 0% -10%, rgba(125, 211, 192, 0.07), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(224, 184, 106, 0.05), transparent 50%),
+    linear-gradient(180deg, #121214 0%, var(--bg-0) 40%, #0c0c0e 100%);
+  background-attachment: fixed;
+}
+
+/* Generative field — soft dots behind the app chrome */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.7;
+  background-image:
+    radial-gradient(circle at 18% 72%, rgba(224, 184, 106, 0.04) 0, transparent 22%),
+    radial-gradient(circle at 78% 28%, rgba(125, 211, 192, 0.05) 0, transparent 26%),
+    radial-gradient(rgba(242, 239, 232, 0.055) 0.7px, transparent 0.8px),
+    radial-gradient(rgba(125, 211, 192, 0.04) 0.55px, transparent 0.65px);
+  background-size:
+    auto,
+    auto,
+    18px 18px,
+    18px 18px;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    9px 9px;
+}
+
+/* Fine paper grain */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--ink);
+}
+
+/* Pencil hatch fill (surfaces, not shadows) */
+.hatch-fill {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 2px,
+    var(--hatch) 2px,
+    var(--hatch) 3px
+  );
+}
+
+.hatch-fill-dense {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 1px,
+    var(--hatch-strong) 1px,
+    var(--hatch-strong) 2px
+  );
+}
+
+/*
+ * Pencil hatch cast shadows
+ * Structure (see HatchShadow):
+ *   .hatch-shadow > .hatch-cast  (offset slab, behind)
+ *   .hatch-shadow > .hatch-face  (opaque surface, in front)
+ * Never use ::before with z-index:-1 — it stacks over content.
+ */
+.hatch-shadow {
+  --_shadow-offset: var(--shadow-offset);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding-right: var(--_shadow-offset);
+  padding-bottom: var(--_shadow-offset);
+}
+
+.hatch-shadow--sm {
+  --_shadow-offset: var(--shadow-offset-sm);
+}
+
+.hatch-shadow--md {
+  --_shadow-offset: var(--shadow-offset);
+}
+
+.hatch-shadow--lg {
+  --_shadow-offset: var(--shadow-offset-lg);
+}
+
+.hatch-cast {
+  position: absolute;
+  top: var(--_shadow-offset);
+  left: var(--_shadow-offset);
+  width: calc(100% - var(--_shadow-offset));
+  height: calc(100% - var(--_shadow-offset));
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--radius);
+  background-color: var(--hatch-shadow);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent 3px,
+    var(--hatch-line) 3px,
+    var(--hatch-line) 4px
+  );
+}
+
+.hatch-face {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Opaque panels — elevated surface above page bg */
+.panel {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.panel-accent {
+  background-color: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* Nav active underline drawn as a hatch stroke */
+.nav-hatch {
+  position: relative;
+}
+
+.nav-hatch[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: 0.15rem;
+  height: 3px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--accent),
+    var(--accent) 3px,
+    transparent 3px,
+    transparent 5px
+  );
+  opacity: 0.85;
+}
+
+/* Soft generative orb used sparingly behind hero sections */
+.gen-orb {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(125, 211, 192, 0.18), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(224, 184, 106, 0.1), transparent 50%),
+    repeating-linear-gradient(
+      35deg,
+      transparent,
+      transparent 6px,
+      rgba(242, 239, 232, 0.03) 6px,
+      rgba(242, 239, 232, 0.03) 7px
+    );
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Scrollbar — quiet, on-theme */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg-3);
+    border: 2px solid var(--bg-0);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--faint);
+  }
+}
+
+/* Dual-thumb range on one track (players, years, …) */
+.dual-range {
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+  margin: 0;
+  height: 100%;
+}
+
+.dual-range::-webkit-slider-runnable-track {
+  appearance: none;
+  background: transparent;
+  height: 4px;
+}
+
+.dual-range::-webkit-slider-thumb {
+  appearance: none;
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  border: 2px solid var(--bg-0);
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(125, 211, 192, 0.35);
+}
+
+.dual-range::-moz-range-track {
+  background: transparent;
+  border: none;
+  height: 4px;
+}
+
+.dual-range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid var(--bg-0);
+  background: var(--accent);
+  cursor: pointer;
+}

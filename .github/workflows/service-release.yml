@@ -1,0 +1,124 @@
+name: Service Release
+
+# Deploys / releases a service using an already-published Docker image.
+# Tag examples (version should match a prior docker-* release):
+#   service-api-1.0.0
+#   service-web-1.2.3
+#   service-cron-0.1.0
+on:
+  push:
+    tags:
+      - "service-api-*"
+      - "service-web-*"
+      - "service-cron-*"
+
+permissions:
+  contents: write
+
+env:
+  DOCKERHUB_NAMESPACE: santoshpanna
+  DOCKER_IMAGE_PREFIX: questorylabs
+
+jobs:
+  release:
+    name: Release service from Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: meta
+        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Verify image exists
+        run: |
+          set -euo pipefail
+          echo "Pulling ${{ steps.meta.outputs.image_tag }}"
+          docker pull "${{ steps.meta.outputs.image_tag }}"
+          echo "Also available as latest:"
+          docker pull "${{ steps.meta.outputs.image_latest }}" || true
+          docker image inspect "${{ steps.meta.outputs.image_tag }}" --format '{{.Id}} {{.RepoTags}}'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Service ${{ steps.meta.outputs.service }} ${{ steps.meta.outputs.version }}
+          generate_release_notes: true
+          body: |
+            ## Service release
+
+            Uses the published Docker image (no rebuild).
+
+            | | |
+            |---|---|
+            | Service | `${{ steps.meta.outputs.service }}` |
+            | Version | `${{ steps.meta.outputs.version }}` |
+            | Image | `${{ steps.meta.outputs.image_tag }}` |
+
+            ### Compose deploy
+
+            ```bash
+            export IMAGE_TAG=${{ steps.meta.outputs.version }}
+            docker compose --profile selfhosted-full pull ${{ steps.meta.outputs.service }}
+            docker compose --profile selfhosted-full up -d ${{ steps.meta.outputs.service }}
+            ```
+
+            For lite (`api` → `api-lite`):
+            ```bash
+            export IMAGE_TAG=${{ steps.meta.outputs.version }}
+            docker compose --profile selfhosted pull api-lite
+            docker compose --profile selfhosted up -d api-lite
+            ```
+
+  deploy:
+    name: Remote deploy
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_SERVICE_DEPLOY == 'true' }}
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: meta
+        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ vars.DEPLOY_PATH || '.' }}"
+            export IMAGE_TAG="${{ steps.meta.outputs.version }}"
+            export DOCKERHUB_NAMESPACE="${{ env.DOCKERHUB_NAMESPACE }}"
+            SERVICE="${{ steps.meta.outputs.service }}"
+            if [ "$SERVICE" = "api" ] && docker compose --profile selfhosted config --services 2>/dev/null | grep -qx api-lite; then
+              # Prefer whichever profile is active; try full first then lite
+              if docker compose --profile selfhosted-full ps --services 2>/dev/null | grep -qx api; then
+                docker compose --profile selfhosted-full pull api
+                docker compose --profile selfhosted-full up -d api
+              else
+                docker compose --profile selfhosted pull api-lite
+                docker compose --profile selfhosted up -d api-lite
+              fi
+            else
+              docker compose --profile selfhosted-full --profile production pull "$SERVICE"
+              docker compose --profile selfhosted-full --profile production up -d "$SERVICE"
+            fi

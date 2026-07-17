@@ -1,0 +1,39 @@
+{
+  "name": "questorylabs",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev": "pnpm run dev:all",
+    "dev:all": "pnpm -r --parallel --filter @questorylabs/api --filter @questorylabs/web run dev",
+    "dev:api": "pnpm --filter @questorylabs/api run dev",
+    "dev:web": "pnpm --filter @questorylabs/web run dev",
+    "dev:cron": "pnpm --filter @questorylabs/cron run dev",
+    "build": "pnpm db:schema && pnpm -r run build",
+    "db:schema": "node scripts/sync-prisma-schema.mjs",
+    "db:generate": "pnpm db:schema && pnpm --filter @questorylabs/api exec prisma generate",
+    "db:push": "pnpm db:schema && pnpm --filter @questorylabs/api exec prisma db push",
+    "db:migrate": "pnpm db:schema && pnpm --filter @questorylabs/api exec prisma migrate dev",
+    "setup": "pnpm install && pnpm --filter @questorylabs/shared build && pnpm db:generate && pnpm db:push",
+    "docker:infra": "node scripts/docker-profile.mjs infra",
+    "docker:selfhosted": "node scripts/docker-profile.mjs selfhosted",
+    "docker:selfhosted-full": "node scripts/docker-profile.mjs selfhosted-full",
+    "docker:prod": "node scripts/docker-profile.mjs production",
+    "docker:up": "pnpm run docker:selfhosted-full",
+    "docker:down": "docker compose --profile selfhosted --profile selfhosted-full --profile production --profile infra down",
+    "docker:publish": "node scripts/docker-publish.mjs",
+    "docker:build": "node scripts/docker-publish.mjs --no-push"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "prisma",
+      "@prisma/client",
+      "@prisma/engines",
+      "better-sqlite3",
+      "sharp",
+      "msgpackr-extract"
+    ]
+  }
+}

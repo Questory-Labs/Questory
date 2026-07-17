@@ -1,0 +1,142 @@
+x-api-build: &api-build
+  context: .
+  dockerfile: apps/api/Dockerfile
+  args:
+    DATABASE_PROVIDER: ${DATABASE_PROVIDER:-postgresql}
+
+x-api-env-common: &api-env-common
+  SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+  STEAM_API_KEY: ${STEAM_API_KEY:-}
+  STEAM_REALM: ${STEAM_REALM:-http://localhost:4000}
+  STEAM_RETURN_URL: ${STEAM_RETURN_URL:-http://localhost:4000/auth/steam/callback}
+  API_PORT: 4000
+  WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+  COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+  ALLOWED_STEAM_IDS: ${ALLOWED_STEAM_IDS:-}
+  ITAD_API_KEY: ${ITAD_API_KEY:-}
+  IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+  IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["infra", "selfhosted-full", "production"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: questorylabs
+      POSTGRES_PASSWORD: questorylabs
+      POSTGRES_DB: questorylabs
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U questorylabs -d questorylabs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["infra", "selfhosted-full", "production"]
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Minimal self-host: SQLite + inline sync (no Postgres/Redis)
+  # Same published api image as full — provider is selected at runtime
+  api-lite:
+    profiles: ["selfhosted"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}"
+    build: *api-build
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - api
+    environment:
+      <<: *api-env-common
+      APP_MODE: ${APP_MODE:-selfhosted}
+      DATABASE_PROVIDER: sqlite
+      DATABASE_URL: file:/data/questorylabs.db
+      REDIS_URL: ""
+      USE_INLINE_SYNC: "true"
+    volumes:
+      - sqlite_data:/data
+    ports:
+      - "4000:4000"
+
+  # Durable self-host / production: Postgres + Redis + BullMQ
+  api:
+    profiles: ["selfhosted-full", "production"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}"
+    build: *api-build
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *api-env-common
+      APP_MODE: ${APP_MODE:-selfhosted-full}
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://questorylabs:questorylabs@postgres:5432/questorylabs
+      REDIS_URL: redis://redis:6379
+      USE_INLINE_SYNC: "false"
+      CRON_SECRET: ${CRON_SECRET:-}
+    ports:
+      - "4000:4000"
+
+  web:
+    profiles: ["selfhosted", "selfhosted-full", "production"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-web:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    depends_on:
+      api-lite:
+        required: false
+      api:
+        required: false
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "3000:3000"
+
+  # Scheduler only — calls API internal cron endpoints (disabled unless CRON_ENABLED)
+  cron:
+    profiles: ["selfhosted-full", "production"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-cron:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: apps/cron/Dockerfile
+    pull_policy: ${PULL_POLICY:-missing}
+    # on-failure: exit 0 when CRON_ENABLED is off (no restart loop)
+    restart: on-failure
+    depends_on:
+      - api
+    environment:
+      CRON_ENABLED: ${CRON_ENABLED:-false}
+      CRON_SECRET: ${CRON_SECRET:-}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
+      CRON_DAILY_SCHEDULE: ${CRON_DAILY_SCHEDULE:-0 3 * * *}
+      CRON_RECOVERY_SCHEDULE: ${CRON_RECOVERY_SCHEDULE:-*/15 * * * *}
+
+volumes:
+  postgres_data:
+  redis_data:
+  sqlite_data:

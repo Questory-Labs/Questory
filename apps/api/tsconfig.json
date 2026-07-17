@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2022",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true
+  },
+  "include": ["src"]
+}
