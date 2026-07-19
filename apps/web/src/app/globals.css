@@ -3,11 +3,11 @@
 :root {
   --bg-0: #101012;
   --bg-1: #16161a;
-  --bg-2: #1f1f24;
+  --bg-2: #0f0f11;
   --bg-3: #2a2a31;
   --ink: #f2efe8;
   --muted: #9a958c;
-  --faint: #6b665e;
+  --faint: #777168;
   --accent: #7dd3c0;
   --accent-dim: rgba(125, 211, 192, 0.14);
   --warm: #e0b86a;

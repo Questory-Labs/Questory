@@ -133,7 +133,7 @@ export default function DashboardPage() {
             hint={
               d?.lifetimeAtCurrent
                 ? `Library ~${formatMoney(d.lifetimeAtCurrent, d.currency || "USD")}`
-                : "Refresh prices on Cost"
+                : "See Cost for library value"
             }
             href="/cost"
             delay={0.2}
@@ -230,7 +230,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <EmptyState
-            title="No recent play sessions yet. Refresh to pull your Steam library."
+            title="No recent play sessions yet. Link Steam from Connections to sync your library."
             description={
               <Link
                 href="/library"

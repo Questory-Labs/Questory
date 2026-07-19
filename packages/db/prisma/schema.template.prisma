@@ -24,6 +24,11 @@ datasource db {
 /** Shared identity across Steam, music, and watch. */
 model User {
   id           String    @id @default(cuid())
+  /** Primary login identity (email+password). Normalized lowercase. */
+  email        String?   @unique
+  passwordHash String?
+  /** App admin; also granted when email ∈ ADMIN_EMAILS. */
+  isAdmin      Boolean   @default(false)
   personaName  String
   avatarUrl    String?
   profileUrl   String?
@@ -55,6 +60,31 @@ model User {
   watchHourBuckets   WatchHourBucket[]
   importJobs         ImportJob[]
   titleListStates    TitleListState[]
+}
+
+/** Instance-level key/value config (e.g. signupEnabled). */
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/** Cron / admin-triggered job run history. */
+model CronRun {
+  id                 String    @id @default(cuid())
+  jobName            String
+  status             String    @default("running")
+  /** cron | admin | system */
+  triggeredBy        String    @default("cron")
+  triggeredByUserId  String?
+  startedAt          DateTime  @default(now())
+  finishedAt         DateTime?
+  error              String?
+  meta               String    @default("{}")
+
+  @@index([jobName, startedAt])
+  @@index([status, startedAt])
+  @@index([startedAt])
 }
 
 /**

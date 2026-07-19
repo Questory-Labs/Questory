@@ -10,8 +10,12 @@ import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 const ACCOUNT_LINKS = [
-  { href: "/settings/profile", label: "Profile", hint: "Price region & account" },
-  { href: "/settings/stores", label: "Stores", hint: "Steam, Epic, GOG" },
+  { href: "/settings/profile", label: "Profile", hint: "Account & price region" },
+  {
+    href: "/settings/connections",
+    label: "Connections",
+    hint: "Steam, stores, music, watch",
+  },
 ] as const;
 
 const BASE_NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
@@ -64,7 +68,9 @@ const WATCH_NAV_GROUP = {
 type MeResponse = {
   user: {
     id: string;
-    steamId: string;
+    steamId: string | null;
+    email?: string | null;
+    isAdmin?: boolean;
     personaName: string;
     avatarUrl: string | null;
     countryCode?: string | null;
@@ -190,6 +196,21 @@ function AccountMenu({
                 </li>
               );
             })}
+            {user.isAdmin ? (
+              <li>
+                <Link
+                  href="/admin"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2.5 text-[var(--ink)] transition hover:bg-[var(--bg-2)]"
+                >
+                  <div className="text-sm font-medium">Admin</div>
+                  <div className="mt-0.5 text-[11px] text-[var(--muted)]">
+                    Instance overview & ops
+                  </div>
+                </Link>
+              </li>
+            ) : null}
           </ul>
           <div className="border-t border-[var(--line)] p-1">
             <button
@@ -311,19 +332,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const authReady = me.isSuccess || me.isError;
   const isAuthed = Boolean(user);
 
-  const jobs = useQuery({
-    queryKey: ["sync-jobs"],
-    queryFn: () =>
-      api<{ jobs: { status: string; type: string }[] }>("/sync/jobs"),
-    enabled: isAuthed,
-    refetchInterval: (q) => {
-      const list = q.state.data?.jobs || [];
-      return list.some((j) => j.status === "pending" || j.status === "running")
-        ? 2000
-        : false;
-    },
-  });
-
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = useQuery({
     queryKey: ["notifications-unread"],
@@ -354,16 +362,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   });
 
-  const refresh = useMutation({
-    mutationFn: () => api("/sync/refresh", { method: "POST" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["library"] });
-      qc.invalidateQueries({ queryKey: ["notifications-unread"] });
-    },
-  });
-
   const logout = useMutation({
     mutationFn: () => api("/auth/logout", { method: "POST" }),
     onSuccess: () => {
@@ -374,7 +372,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authReady) return;
-    if (!isAuthed) router.replace("/");
+    if (!isAuthed) router.replace("/login");
   }, [authReady, isAuthed, router]);
 
   useEffect(() => {
@@ -393,10 +391,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       document.body.style.overflow = "";
     };
   }, [menuOpen]);
-
-  const syncing = (jobs.data?.jobs || []).some(
-    (j) => j.status === "pending" || j.status === "running",
-  );
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -528,7 +522,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <ul className="max-h-72 overflow-y-auto">
                     {(notifications.data || []).length === 0 && (
                       <li className="px-3 py-4 text-sm text-[var(--muted)]">
-                        No deal alerts yet. Set wishlist targets and refresh.
+                        No deal alerts yet. Set wishlist targets to get notified.
                       </li>
                     )}
                     {(notifications.data || []).map((n) => (
@@ -563,20 +557,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => refresh.mutate()}
-              disabled={refresh.isPending || syncing}
-              className="inline-flex shrink-0 items-center gap-2 border border-[var(--line)] px-2.5 py-2 text-xs text-[var(--muted)] transition hover:border-[var(--line-strong)] hover:text-[var(--ink)] disabled:opacity-60"
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-sm ${
-                  syncing ? "animate-pulse bg-[var(--warm)]" : "bg-[var(--accent)]"
-                }`}
-              />
-              <span className="hidden sm:inline">{syncing ? "Syncing…" : "Refresh"}</span>
-            </button>
 
             {user.avatarUrl ? (
               <div className="hidden items-center gap-2 border-l border-[var(--line)] pl-3 lg:hidden">

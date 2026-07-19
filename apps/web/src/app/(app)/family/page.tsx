@@ -243,7 +243,7 @@ export default function FamilyPage() {
             {!friends.isLoading && !importable.length && (
               <p className="text-sm text-[var(--muted)]">
                 {(friends.data?.friends || []).length === 0
-                  ? "No friends synced yet. Open Friends or refresh sync first."
+                  ? "No friends synced yet. Open Friends after Steam is linked."
                   : "All synced friends are already in your family group."}
               </p>
             )}

@@ -37,7 +37,7 @@ export class StoresController {
   @Post("stores/:store/sync")
   @UseGuards(SteamAuthGuard)
   async resync(
-    @CurrentUser() user: { userId: string; steamId: string },
+    @CurrentUser() user: { userId: string; steamId: string | null },
     @Param("store") store: string,
   ) {
     if (!isStoreId(store)) return { ok: false, error: "invalid_store" };
@@ -47,6 +47,9 @@ export class StoresController {
         error: "coming_later",
         message: "Live sync for this store is not available yet.",
       };
+    }
+    if (!user.steamId) {
+      return { ok: false, error: "steam_not_linked" };
     }
     await this.sync.enqueue(user.userId, user.steamId, "library-sync");
     await this.sync.enqueue(user.userId, user.steamId, "wishlist-sync");

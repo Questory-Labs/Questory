@@ -13,22 +13,40 @@ async function mockUnauthed(page: import("@playwright/test").Page) {
       });
       return;
     }
+    if (url.includes("/auth/signup-status")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ open: true, reason: "no_admins" }),
+      });
+      return;
+    }
     await route.fulfill({ status: 401, body: "unauthorized" });
   });
 }
 
 test.describe("auth soft gates", () => {
-  test("unauthed deep link redirects to landing", async ({ page }) => {
+  test("unauthed deep link redirects to login", async ({ page }) => {
     await mockUnauthed(page);
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
   });
 
-  test("music route redirects when feature disabled", async ({ page }) => {
+  test("landing shows email sign in", async ({ page }) => {
+    await mockUnauthed(page);
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole("link", { name: "Sign in with Steam" }),
+    ).toHaveCount(0);
+  });
+
+  test("music route redirects when unauthed", async ({ page }) => {
     await mockUnauthed(page);
     await page.goto("/music");
-    // NEXT_PUBLIC_ENABLE_MUSIC defaults false → MusicGate → /dashboard → AppShell → /
-    await expect(page).toHaveURL(/\/(dashboard)?$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
   });
 });
 
@@ -43,19 +61,13 @@ test.describe("authed smoke", () => {
           body: JSON.stringify({
             user: {
               id: "u1",
-              steamId: "76561198000000000",
+              steamId: null,
+              email: "alice@example.com",
+              isAdmin: false,
               personaName: "Alice",
               avatarUrl: null,
             },
           }),
-        });
-        return;
-      }
-      if (url.includes("/sync/jobs")) {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ jobs: [] }),
         });
         return;
       }

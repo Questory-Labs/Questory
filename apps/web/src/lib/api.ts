@@ -21,11 +21,16 @@ export async function api<T>(
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Request failed: ${res.status}`);
+    const err = new Error(text || `Request failed: ${res.status}`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
   }
   return res.json() as Promise<T>;
 }
 
+/** @deprecated Steam is link-only via Connections; use steamLinkUrl from auth-api. */
 export function steamLoginUrl() {
   return `${API_URL}/auth/steam`;
 }

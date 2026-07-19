@@ -9,5 +9,6 @@ import { InternalCronService } from "./internal-cron.service";
   imports: [SyncModule, SteamModule],
   controllers: [InternalCronController],
   providers: [InternalCronService, CronSecretGuard],
+  exports: [InternalCronService],
 })
 export class CronModule {}

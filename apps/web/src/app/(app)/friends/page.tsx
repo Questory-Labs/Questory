@@ -68,7 +68,7 @@ export default function FriendsPage() {
         ))}
         {!friends.isLoading && !list.length && (
           <p className="text-sm text-[var(--muted)]">
-            No friends synced yet. Make sure your Steam friends list is public, then refresh.
+            No friends synced yet. Make sure your Steam friends list is public.
           </p>
         )}
       </div>

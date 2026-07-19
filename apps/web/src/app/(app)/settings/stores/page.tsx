@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { StoreBadge } from "@/components/StoreBadge";
-import { Button, PageHeader, Panel } from "@/components/ui";
+import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Store, StoreAccountStatus } from "@questorylabs/shared";
 
@@ -11,7 +11,7 @@ const STORE_COPY: Record<Store, { title: string; blurb: string }> = {
   steam: {
     title: "Steam",
     blurb:
-      "Primary login. Your library, wishlist, friends, and prices sync from Steam.",
+      "Linked from Connections. Library, wishlist, friends, and prices sync from Steam.",
   },
   epic: {
     title: "Epic Games",
@@ -47,21 +47,9 @@ const FALLBACK: StoreAccountStatus[] = [
 ];
 
 function StoresContent() {
-  const qc = useQueryClient();
-
   const stores = useQuery({
     queryKey: ["stores"],
     queryFn: () => api<StoreAccountStatus[]>("/stores"),
-  });
-
-  const resync = useMutation({
-    mutationFn: () => api(`/stores/steam/sync`, { method: "POST" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["stores"] });
-      qc.invalidateQueries({ queryKey: ["library"] });
-      qc.invalidateQueries({ queryKey: ["wishlist"] });
-      qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-    },
   });
 
   const rows = stores.data?.length ? stores.data : FALLBACK;
@@ -93,13 +81,9 @@ function StoresContent() {
               <p className="mt-2 text-sm text-[var(--muted)]">{copy.blurb}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {status.store === "steam" ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => resync.mutate()}
-                    className="px-3 py-1.5"
-                  >
-                    Re-sync Steam
-                  </Button>
+                  <span className="border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--muted)]">
+                    Sync runs automatically
+                  </span>
                 ) : (
                   <span className="border border-dashed border-[var(--line)] px-3 py-1.5 text-sm text-[var(--faint)]">
                     Manual import planned

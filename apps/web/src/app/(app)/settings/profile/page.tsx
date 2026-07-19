@@ -51,18 +51,16 @@ export default function ProfileSettingsPage() {
 
   const save = useMutation({
     mutationFn: async (nextCountry: string) => {
-      const updated = await api<MeResponse>("/users/me", {
+      return api<MeResponse>("/users/me", {
         method: "PATCH",
         body: JSON.stringify({ countryCode: nextCountry }),
       });
-      await api("/cost/refresh-prices", { method: "POST" });
-      return updated;
     },
     onSuccess: (data) => {
       setError(null);
       const currency = data.user?.currency || "USD";
       setMessage(
-        `Price region set to ${data.user?.countryCode || "—"} (${currency}). Refreshing store prices…`,
+        `Price region set to ${data.user?.countryCode || "—"} (${currency}).`,
       );
       qc.invalidateQueries({ queryKey: ["me"] });
       qc.invalidateQueries({ queryKey: ["cost-summary"] });
@@ -141,7 +139,7 @@ export default function ProfileSettingsPage() {
             disabled={!dirty || save.isPending || !countryCode}
             onClick={() => save.mutate(countryCode)}
           >
-            {save.isPending ? "Saving & refreshing…" : "Save & refresh prices"}
+            {save.isPending ? "Saving…" : "Save"}
           </Button>
         </div>
 

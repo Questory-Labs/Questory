@@ -244,7 +244,17 @@ Watch nav appears when `NEXT_PUBLIC_ENABLE_WATCH=true` **and** `${NEXT_PUBLIC_WA
 - `WEB_ORIGIN` is the browser app origin (CORS + post-login redirect).
 - `NEXT_PUBLIC_API_URL` is baked into the web image at **build** time — rebuild web after changing it.
 
-## Steam ID allowlist
+## Auth (email + password)
+
+Sign-up and sign-in use **email + password only**. Steam OpenID is link-only from **Connections** (requires an existing session).
+
+- `ADMIN_EMAILS` — comma-separated emails granted `isAdmin` on register/login (also checked at request time). The first user is **not** admin unless listed here.
+- Signup is always open while `count(isAdmin)=0`. After that, admins toggle signup in **Admin → Settings** (`AppConfig.signupEnabled`).
+- Abuse protection: signed challenges, honeypots, min form-fill time, IP/email rate limits, login lockout, Origin checks. Prefer Redis (`REDIS_URL`) for multi-instance rate limits.
+- `TRUST_PROXY=true` when behind a reverse proxy so client IP / rate limits use `X-Forwarded-For`.
+- `AUTH_BLOCKED_EMAIL_DOMAINS` — extra disposable domains to reject on signup.
+
+## Steam ID allowlist (linking)
 
 Set `ALLOWED_STEAM_IDS` to a comma-separated list of 17-digit SteamIDs (find yours via [steamid.io](https://steamid.io) or similar):
 
@@ -252,8 +262,8 @@ Set `ALLOWED_STEAM_IDS` to a comma-separated list of 17-digit SteamIDs (find you
 ALLOWED_STEAM_IDS=76561198000000000,76561198000000001
 ```
 
-- Non-empty: only listed accounts can complete login (others get `?error=not_allowed`).
-- Empty / unset: anyone who can reach the instance may sign in with Steam.
+- Non-empty: only listed SteamIDs can be **linked** from Connections (others get `?error=not_allowed`).
+- Empty / unset: any Steam account may be linked by a signed-in user.
 
 Recommended for private `selfhosted` / `selfhosted-full` deployments.
 

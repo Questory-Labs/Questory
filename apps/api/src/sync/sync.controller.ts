@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   ForbiddenException,
   Get,
@@ -21,16 +22,19 @@ export class SyncController {
 
   @Post("refresh")
   async refresh(
-    @CurrentUser() user: { userId: string; steamId: string },
+    @CurrentUser() user: { userId: string; steamId: string | null },
     @Query("force") force?: string,
   ) {
+    if (!user.steamId) {
+      throw new BadRequestException("Link a Steam account first");
+    }
     return this.sync.enqueueAll(user.userId, user.steamId, {
       force: force === "1" || force === "true",
     });
   }
 
   @Get("jobs")
-  async jobs(@CurrentUser() user: { userId: string; steamId: string }) {
+  async jobs(@CurrentUser() user: { userId: string; steamId: string | null }) {
     const jobs = await this.sync.latestJobs(user.userId);
     return {
       jobs: jobs.map((j) => ({

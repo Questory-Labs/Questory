@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { steamLoginUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { fetchSignupStatus } from "@/lib/auth-api";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { HatchShadow } from "@/components/HatchShadow";
@@ -15,8 +16,11 @@ export default function LandingPage() {
   const router = useRouter();
   const me = useQuery({
     queryKey: ["me"],
-    queryFn: () =>
-      api<{ user: { id: string } | null }>("/auth/me"),
+    queryFn: () => api<{ user: { id: string } | null }>("/auth/me"),
+  });
+  const signup = useQuery({
+    queryKey: ["signup-status"],
+    queryFn: fetchSignupStatus,
   });
 
   useEffect(() => {
@@ -57,14 +61,24 @@ export default function LandingPage() {
           transition={{ duration: 0.55, delay: 0.24, ease: enterEase }}
           className="mt-10 flex flex-wrap gap-3"
         >
-          <a href={steamLoginUrl()} className="inline-block">
+          <Link href="/login" className="inline-block">
             <HatchShadow
               size="sm"
               faceClassName="bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--bg-0)] hover:brightness-110"
             >
-              Sign in with Steam
+              Sign in
             </HatchShadow>
-          </a>
+          </Link>
+          {signup.data?.open !== false ? (
+            <Link href="/register" className="inline-block">
+              <HatchShadow
+                size="sm"
+                faceClassName="border border-[var(--line)] bg-[var(--bg-1)] px-5 py-3 text-sm font-semibold text-[var(--ink)] hover:border-[var(--line-strong)]"
+              >
+                Create account
+              </HatchShadow>
+            </Link>
+          ) : null}
         </motion.div>
       </div>
     </div>

@@ -167,7 +167,7 @@ export default function TrendingPage() {
           ) : !friends.isLoading &&
             friends.data &&
             !friends.data.games.length ? (
-            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public, sync friends from the sidebar, then refresh." />
+            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
           ) : undefined
         }
       >

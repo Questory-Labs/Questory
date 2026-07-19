@@ -12,6 +12,7 @@ export function Button({
   variant = "primary",
   className = "",
   children,
+  type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
@@ -20,7 +21,7 @@ export function Button({
   return (
     <button
       className={`btn ${variantClass[variant]} ${className}`.trim()}
-      type="button"
+      type={type}
       {...props}
     >
       {children}

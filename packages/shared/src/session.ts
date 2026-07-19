@@ -5,7 +5,8 @@ export const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 14;
 
 export type SessionPayload = {
   userId: string;
-  steamId: string;
+  /** Linked SteamID64 when present; null for email-only users. */
+  steamId: string | null;
   exp: number;
 };
 
@@ -28,7 +29,7 @@ export function encodeSessionCookie(
 ): string {
   const full: SessionPayload = {
     userId: payload.userId,
-    steamId: payload.steamId,
+    steamId: payload.steamId ?? null,
     exp: payload.exp ?? Date.now() + SESSION_MAX_AGE_MS,
   };
   const body = Buffer.from(JSON.stringify(full)).toString("base64url");
@@ -52,9 +53,16 @@ export function parseSessionCookie(
     const payload = JSON.parse(
       Buffer.from(body, "base64url").toString("utf8"),
     ) as SessionPayload;
-    if (!payload.userId || !payload.steamId || !payload.exp) return null;
+    if (!payload.userId || !payload.exp) return null;
     if (payload.exp < now) return null;
-    return payload;
+    return {
+      userId: payload.userId,
+      steamId:
+        typeof payload.steamId === "string" && payload.steamId.length > 0
+          ? payload.steamId
+          : null,
+      exp: payload.exp,
+    };
   } catch {
     return null;
   }

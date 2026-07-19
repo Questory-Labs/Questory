@@ -21,6 +21,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { StoresModule } from "./stores/stores.module";
 import { TrendingModule } from "./trending/trending.module";
 import { CronModule } from "./cron/cron.module";
+import { AdminModule } from "./admin/admin.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { PrivateExtensionsModule } from "./extensions/private-extensions.module";
@@ -59,6 +60,7 @@ const localEnv = resolve(process.cwd(), ".env");
     StoresModule,
     TrendingModule,
     CronModule,
+    AdminModule,
     PrivateExtensionsModule.forRoot(),
   ],
   controllers: [HealthController],

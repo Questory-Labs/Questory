@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -14,7 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { StatCard } from "@/components/StatCard";
-import { Button, PageHeader, Panel } from "@/components/ui";
+import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type { CostRoiRow, CostSummary } from "@questorylabs/shared";
@@ -136,7 +136,6 @@ function HorizontalSpendChart({
 }
 
 export default function CostPage() {
-  const qc = useQueryClient();
   const [bestTab, setBestTab] = useState<ValueTab>("paid");
   const [worstTab, setWorstTab] = useState<ValueTab>("paid");
   const summary = useQuery({
@@ -147,15 +146,6 @@ export default function CostPage() {
     queryKey: ["cost-roi"],
     queryFn: () => api<CostRoiRow[]>("/cost/roi"),
   });
-  const refreshPrices = useMutation({
-    mutationFn: () => api("/cost/refresh-prices", { method: "POST", body: "{}" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cost-summary"] });
-      qc.invalidateQueries({ queryKey: ["cost-roi"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-  });
-
   const s = summary.data;
   const rows = roi.data || [];
 
@@ -230,17 +220,6 @@ export default function CostPage() {
       <PageHeader
         title="Cost Analytics"
         description="Estimate-only library value from store / ITAD prices — not what you spent. Steam does not expose purchase history; we never ask you to enter prices."
-        actions={
-          <Button
-            variant="secondary"
-            onClick={() => refreshPrices.mutate()}
-            disabled={refreshPrices.isPending}
-          >
-            {refreshPrices.isPending
-              ? "Refreshing prices…"
-              : "Refresh store prices"}
-          </Button>
-        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -456,7 +435,7 @@ export default function CostPage() {
           {bestValue.length === 0 && (
             <p className="text-sm text-[var(--muted)]">
               {analytics.ranked.length === 0
-                ? "Refresh store prices to rank games by value."
+                ? "Price data will appear after the next store sync."
                 : `No ${bestTab} games with playtime to rank.`}
             </p>
           )}
@@ -492,7 +471,7 @@ export default function CostPage() {
           {worstValue.length === 0 && (
             <p className="text-sm text-[var(--muted)]">
               {analytics.ranked.length === 0
-                ? "Refresh store prices to rank games by value."
+                ? "Price data will appear after the next store sync."
                 : `No ${worstTab} games with playtime to rank.`}
             </p>
           )}

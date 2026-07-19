@@ -30,12 +30,37 @@ export const UserSchema = z.object({
   id: z.string(),
   /** From Account(provider=steam); null for non-Steam identities. */
   steamId: z.string().nullable(),
+  email: z.string().nullable().optional(),
+  isAdmin: z.boolean().optional(),
+  hasPassword: z.boolean().optional(),
   personaName: z.string(),
   avatarUrl: z.string().nullable(),
   profileUrl: z.string().nullable(),
   countryCode: z.string().nullable().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
+
+export const AuthChallengeKindSchema = z.enum(["register", "login"]);
+export type AuthChallengeKind = z.infer<typeof AuthChallengeKindSchema>;
+
+export const AuthCredentialsSchema = z.object({
+  email: z.string().trim().email().max(254),
+  password: z.string().min(10).max(128),
+  challengeId: z.string().min(1).max(128),
+  challengeToken: z.string().min(1).max(512),
+  website: z.string().max(200).optional().default(""),
+  company: z.string().max(200).optional().default(""),
+  username: z.string().max(200).optional().default(""),
+});
+export type AuthCredentialsInput = z.infer<typeof AuthCredentialsSchema>;
+
+export const AuthRegisterSchema = AuthCredentialsSchema.extend({
+  confirmPassword: z.string().min(10).max(128).optional(),
+}).refine(
+  (v) => v.confirmPassword === undefined || v.confirmPassword === v.password,
+  { message: "Passwords do not match", path: ["confirmPassword"] },
+);
+export type AuthRegisterInput = z.infer<typeof AuthRegisterSchema>;
 
 export const ApiKeyTypeSchema = z.enum(["music_ingest", "watch_webhook"]);
 export type ApiKeyType = z.infer<typeof ApiKeyTypeSchema>;

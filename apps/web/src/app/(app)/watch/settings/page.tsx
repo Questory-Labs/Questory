@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
-import { Button, PageHeader } from "@/components/ui";
+import { PageHeader, Panel } from "@/components/ui";
 import { WATCH_URL, watchFetch, watchUrl } from "@/lib/watch";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 type ConnStatus = {
   connected: boolean;
@@ -12,23 +12,58 @@ type ConnStatus = {
   lastSyncedAt?: string | null;
 };
 
-function SourceSection({
-  title,
+function StatusPill({
+  tone,
   children,
 }: {
+  tone: "ok" | "idle" | "warn";
+  children: ReactNode;
+}) {
+  const cls =
+    tone === "ok"
+      ? "bg-[var(--accent-dim)] text-[var(--accent)]"
+      : tone === "warn"
+        ? "bg-[var(--bg-3)] text-[var(--ink)]"
+        : "bg-[var(--bg-2)] text-[var(--faint)]";
+  return (
+    <span
+      className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SourceCard({
+  label,
+  title,
+  blurb,
+  status,
+  children,
+}: {
+  label: string;
   title: string;
-  children: React.ReactNode;
+  blurb: string;
+  status: ReactNode;
+  children?: ReactNode;
 }) {
   return (
-    <section className="border-t border-[var(--line)] pt-8">
+    <Panel className="flex h-full flex-col p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+          {label}
+        </span>
+        {status}
+      </div>
       <h2
-        className="font-display text-xl text-[var(--ink)]"
+        className="mt-3 font-display text-xl tracking-tight text-[var(--ink)]"
         style={{ fontWeight: 700 }}
       >
         {title}
       </h2>
-      <div className="mt-3">{children}</div>
-    </section>
+      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{blurb}</p>
+      {children ? <div className="mt-auto pt-5">{children}</div> : null}
+    </Panel>
   );
 }
 
@@ -44,22 +79,6 @@ export default function WatchSettingsPage() {
   const anilist = useQuery({
     queryKey: ["anilist-status"],
     queryFn: () => watchFetch<ConnStatus>("/anilist/status"),
-  });
-
-  const syncTrakt = useMutation({
-    mutationFn: () => watchFetch("/trakt/sync", { method: "POST" }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["trakt-status"] });
-      void qc.invalidateQueries({ queryKey: ["watch-overview"] });
-    },
-  });
-
-  const syncAni = useMutation({
-    mutationFn: () => watchFetch("/anilist/sync", { method: "POST" }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["anilist-status"] });
-      void qc.invalidateQueries({ queryKey: ["watch-overview"] });
-    },
   });
 
   async function onLetterboxd(file: File | null) {
@@ -90,62 +109,89 @@ export default function WatchSettingsPage() {
     }
   }
 
+  const traktConnected = Boolean(trakt.data?.connected);
+  const anilistConnected = Boolean(anilist.data?.connected);
+  const importOk = importMsg?.startsWith("Imported") ?? false;
+  const importFailed =
+    importMsg != null &&
+    !importMsg.startsWith("Imported") &&
+    !importMsg.startsWith("Import");
+
   return (
     <>
       <PageHeader
+        eyebrow="Watch"
         title="Sources"
         description="Connect Trakt, import a Letterboxd diary, or point Plex / Jellyfin webhooks here."
       />
 
-      <div className="space-y-2">
-        <SourceSection title="Trakt">
-          <p className="text-sm text-[var(--muted)]">
-            {trakt.data?.connected
-              ? `Connected · last sync ${trakt.data.lastSyncedAt || "never"}`
-              : "Not connected"}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
+      <div className="grid gap-4 md:grid-cols-2">
+        <SourceCard
+          label="OAuth"
+          title="Trakt"
+          blurb={
+            traktConnected
+              ? `Connected · last sync ${trakt.data?.lastSyncedAt || "never"}`
+              : "Connect Trakt to sync your watched history and keep Watch up to date."
+          }
+          status={
+            traktConnected ? (
+              <StatusPill tone="ok">Connected</StatusPill>
+            ) : (
+              <StatusPill tone="idle">Connect</StatusPill>
+            )
+          }
+        >
+          <div className="flex flex-wrap gap-3">
             <a href={watchUrl("/trakt/authorize")} className="btn btn-secondary">
               Connect Trakt
             </a>
-            <Button
-              variant="secondary"
-              disabled={syncTrakt.isPending || !trakt.data?.connected}
-              onClick={() => syncTrakt.mutate()}
-            >
-              {syncTrakt.isPending ? "Syncing…" : "Sync now"}
-            </Button>
           </div>
-        </SourceSection>
+        </SourceCard>
 
-        <SourceSection title="AniList">
-          <p className="text-sm text-[var(--muted)]">
-            {anilist.data?.connected
-              ? `Connected · last sync ${anilist.data.lastSyncedAt || "never"}`
-              : "Not connected"}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
+        <SourceCard
+          label="OAuth"
+          title="AniList"
+          blurb={
+            anilistConnected
+              ? `Connected · last sync ${anilist.data?.lastSyncedAt || "never"}`
+              : "Connect AniList to sync anime progress into your Watch library."
+          }
+          status={
+            anilistConnected ? (
+              <StatusPill tone="ok">Connected</StatusPill>
+            ) : (
+              <StatusPill tone="idle">Connect</StatusPill>
+            )
+          }
+        >
+          <div className="flex flex-wrap gap-3">
             <a
               href={watchUrl("/anilist/authorize")}
               className="btn btn-secondary"
             >
               Connect AniList
             </a>
-            <Button
-              variant="secondary"
-              disabled={syncAni.isPending || !anilist.data?.connected}
-              onClick={() => syncAni.mutate()}
-            >
-              {syncAni.isPending ? "Syncing…" : "Sync now"}
-            </Button>
           </div>
-        </SourceSection>
+        </SourceCard>
 
-        <SourceSection title="Letterboxd">
-          <p className="text-sm text-[var(--muted)]">
-            Upload the diary CSV from Letterboxd&apos;s official data export.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+        <SourceCard
+          label="Import"
+          title="Letterboxd"
+          blurb="Upload the diary CSV from Letterboxd’s official data export."
+          status={
+            importOk ? (
+              <StatusPill tone="ok">Done</StatusPill>
+            ) : importFailed ? (
+              <StatusPill tone="warn">Error</StatusPill>
+            ) : importMsg?.startsWith("Import") ? (
+              <StatusPill tone="warn">Running</StatusPill>
+            ) : (
+              <StatusPill tone="idle">Upload</StatusPill>
+            )
+          }
+        >
+          <div className="flex flex-wrap items-center gap-3">
             <label className="btn btn-secondary inline-flex cursor-pointer">
               Choose CSV
               <input
@@ -157,22 +203,40 @@ export default function WatchSettingsPage() {
                 }
               />
             </label>
-            <span className="text-sm text-[var(--faint)]">
+            <span className="truncate text-sm text-[var(--faint)]">
               {fileName || "No file selected"}
             </span>
           </div>
           {importMsg && (
-            <p className="mt-2 text-sm text-[var(--muted)]">{importMsg}</p>
+            <p
+              className={`mt-3 text-sm ${
+                importOk
+                  ? "text-[var(--accent)]"
+                  : importMsg.startsWith("Import")
+                    ? "text-[var(--muted)]"
+                    : "text-[var(--danger)]"
+              }`}
+            >
+              {importMsg}
+            </p>
           )}
-        </SourceSection>
+        </SourceCard>
 
-        <SourceSection title="Plex / Jellyfin">
-          <p className="text-sm text-[var(--muted)]">
-            Point player webhooks at these URLs, then generate a personal key.
-          </p>
-          <ul className="mt-3 space-y-1.5 font-mono text-xs text-[var(--faint)]">
-            <li>POST {WATCH_URL}/webhooks/plex</li>
-            <li>POST {WATCH_URL}/webhooks/jellyfin</li>
+        <SourceCard
+          label="Live ingest"
+          title="Plex / Jellyfin"
+          blurb="Point player webhooks at these URLs, then generate a personal key."
+          status={<StatusPill tone="idle">API</StatusPill>}
+        >
+          <ul className="mb-4 space-y-1.5 rounded border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2.5 font-mono text-[11px] text-[var(--muted)]">
+            <li className="break-all">
+              <span className="text-[var(--faint)]">POST</span> {WATCH_URL}
+              /webhooks/plex
+            </li>
+            <li className="break-all">
+              <span className="text-[var(--faint)]">POST</span> {WATCH_URL}
+              /webhooks/jellyfin
+            </li>
           </ul>
           <ApiKeyPanel
             embedded
@@ -180,7 +244,7 @@ export default function WatchSettingsPage() {
             title="Webhook key"
             description="Shown once when generated. Rotate anytime."
           />
-        </SourceSection>
+        </SourceCard>
       </div>
     </>
   );

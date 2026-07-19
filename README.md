@@ -96,7 +96,8 @@ Compose uses Docker Hub images (`santoshpanna/questorylabs-api`, `santoshpanna/q
 cp .env.production.example .env
 # set strong SESSION_SECRET, STEAM_API_KEY
 # set public HTTPS STEAM_*, WEB_ORIGIN, NEXT_PUBLIC_API_URL
-# leave ALLOWED_STEAM_IDS empty for open signup
+# set ADMIN_EMAILS=you@example.com for the first admin
+# signup opens until an admin exists, then toggle in Admin settings
 
 pnpm docker:prod
 ```
@@ -113,12 +114,14 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 | `REDIS_URL` | Set for Redis cache + BullMQ; empty = in-memory + inline sync |
 | `USE_INLINE_SYNC` | `true` forces inline sync even when Redis is set |
 | `SESSION_SECRET` | Cookie signing secret |
+| `ADMIN_EMAILS` | Emails granted admin on signup/login |
+| `TRUST_PROXY` | Trust `X-Forwarded-For` for auth rate limits |
 | `STEAM_API_KEY` | Steam Web API |
-| `STEAM_REALM` / `STEAM_RETURN_URL` | OpenID on the **API** origin |
+| `STEAM_REALM` / `STEAM_RETURN_URL` | OpenID on the **API** origin (link-only) |
 | `WEB_ORIGIN` | Browser app origin (CORS + redirect) |
 | `NEXT_PUBLIC_API_URL` | API URL baked into the web client |
 | `COOKIE_DOMAIN` | Optional shared cookie domain (prod split hosts) |
-| `ALLOWED_STEAM_IDS` | Optional comma-separated SteamIDs; empty = open signup |
+| `ALLOWED_STEAM_IDS` | Optional SteamIDs allowed to **link**; empty = any |
 | `CRON_ENABLED` | `true` / `TRUE` / `1` to run the cron scheduler; otherwise off |
 | `CRON_SECRET` | Shared secret for `/v1/internal/cron/*` (API + cron service) |
 | `API_INTERNAL_URL` | Base URL the cron service uses to reach the API |
