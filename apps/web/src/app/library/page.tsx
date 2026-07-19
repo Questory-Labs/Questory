@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { GameTile } from "@/components/GameTile";
 import { StoreBadgeRow } from "@/components/StoreBadge";
+import { PageHeader, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useMemo, useState, Suspense } from "react";
 import type { Store } from "@questorylabs/shared";
@@ -75,25 +76,18 @@ function LibraryContent() {
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1
-            className="font-[family-name:var(--font-display)] text-4xl"
-            style={{ fontWeight: 700 }}
-          >
-            Library
-          </h1>
-          <p className="mt-2 text-[var(--muted)]">
-            {library.data?.total ?? 0} games
-          </p>
-        </div>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search games"
-          className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none"
-        />
-      </div>
+      <PageHeader
+        title="Library"
+        description={`${library.data?.total ?? 0} games`}
+        actions={
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search games"
+            className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none"
+          />
+        }
+      />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {STORE_CHIPS.map((chip) => {
@@ -173,7 +167,9 @@ function LibraryContent() {
 export default function LibraryPage() {
   return (
     <AppShell>
-      <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+      <Suspense
+        fallback={<StateMessage variant="loading">Loading…</StateMessage>}
+      >
         <LibraryContent />
       </Suspense>
     </AppShell>

@@ -27,7 +27,7 @@ test.describe("auth soft gates", () => {
   test("music route redirects when feature disabled", async ({ page }) => {
     await mockUnauthed(page);
     await page.goto("/music");
-    // NEXT_PUBLIC_ENABLE_MUSIC defaults false → MusicGate → /dashboard → AuthGate → /
+    // NEXT_PUBLIC_ENABLE_MUSIC defaults false → MusicGate → /dashboard → AppShell → /
     await expect(page).toHaveURL(/\/(dashboard)?$/, { timeout: 15_000 });
   });
 });

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { MusicTopItem } from "@questorylabs/shared";
 import { MusicGate } from "@/components/MusicGate";
+import { PageHeader, StateMessage } from "@/components/ui";
 import { musicFetch } from "@/lib/music";
 
 function TopList({
@@ -24,7 +25,9 @@ function TopList({
         {title}
       </h2>
       {q.isLoading && (
-        <p className="mt-2 text-sm text-[var(--muted)]">Loading…</p>
+        <StateMessage variant="loading" className="mt-2">
+          Loading…
+        </StateMessage>
       )}
       <ol className="mt-3 space-y-1.5">
         {(q.data || []).map((item, i) => (
@@ -52,14 +55,11 @@ function TopList({
 export default function MusicChartsPage() {
   return (
     <MusicGate>
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="font-display text-3xl text-[var(--ink)]">Top charts</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">Last 7 days.</p>
-        <div className="mt-8 grid gap-10 sm:grid-cols-3">
-          <TopList title="Artists" kind="artists" />
-          <TopList title="Tracks" kind="tracks" />
-          <TopList title="Genres" kind="genres" />
-        </div>
+      <PageHeader title="Top charts" description="Last 7 days." />
+      <div className="grid gap-10 sm:grid-cols-3">
+        <TopList title="Artists" kind="artists" />
+        <TopList title="Tracks" kind="tracks" />
+        <TopList title="Genres" kind="genres" />
       </div>
     </MusicGate>
   );

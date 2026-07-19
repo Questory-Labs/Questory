@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
@@ -93,22 +94,13 @@ export default function ProfileSettingsPage() {
 
   return (
     <AppShell>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Profile
-      </h1>
-      <p className="mt-2 max-w-xl text-[var(--muted)]">
-        Set your Steam store price region. This controls Cost, wishlist deals,
-        library value, and family pricing — pick India for INR.
-      </p>
+      <PageHeader
+        title="Profile"
+        description="Set your Steam store price region. This controls Cost, wishlist deals, library value, and family pricing — pick India for INR."
+      />
 
-      <section className="panel mt-8 max-w-lg p-5">
-        <h2
-          className="text-lg"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-        >
+      <Panel elevated className="max-w-lg" faceClassName="p-5">
+        <h2 className="font-display text-lg font-bold tracking-tight">
           Price region
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
@@ -146,27 +138,27 @@ export default function ProfileSettingsPage() {
         )}
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
+          <Button
             disabled={!dirty || save.isPending || !countryCode}
             onClick={() => save.mutate(countryCode)}
-            className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#0b1218] disabled:opacity-50"
           >
             {save.isPending ? "Saving & refreshing…" : "Save & refresh prices"}
-          </button>
+          </Button>
         </div>
 
         {message && (
           <p className="mt-3 text-sm text-[var(--accent)]">{message}</p>
         )}
-        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-      </section>
+        {error && (
+          <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
+        )}
+      </Panel>
 
       {music.showMusicNav && (
         <ApiKeyPanel
           type="music_ingest"
           title="Music ingest (ListenBrainz)"
-          description="Generate a personal token for multi-scrobbler / ListenBrainz clients. Send as Authorization: Token … — not an env var."
+          description="Generate a personal token for multi-scrobbler / ListenBrainz clients."
           endpointHint={`Endpoint: ${MUSIC_URL}/1/`}
         />
       )}
@@ -175,7 +167,7 @@ export default function ProfileSettingsPage() {
         <ApiKeyPanel
           type="watch_webhook"
           title="Watch webhook key"
-          description="Personal secret for Plex/Jellyfin webhooks. Send as header x-watch-webhook-secret so events attach to your account."
+          description="Personal secret for Plex/Jellyfin webhooks."
           endpointHint={`POST ${WATCH_URL}/webhooks/plex · ${WATCH_URL}/webhooks/jellyfin`}
         />
       )}

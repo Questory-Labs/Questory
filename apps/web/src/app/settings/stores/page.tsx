@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { AppShell } from "@/components/AppShell";
 import { StoreBadge } from "@/components/StoreBadge";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Store, StoreAccountStatus } from "@questorylabs/shared";
 
@@ -68,57 +69,45 @@ function StoresContent() {
 
   return (
     <>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Stores
-      </h1>
-      <p className="mt-2 max-w-xl text-[var(--muted)]">
-        Steam powers sync today. Epic and GOG appear in library filters and badges;
-        account import will land when the data sources are solid enough.
-      </p>
+      <PageHeader
+        title="Stores"
+        description="Steam powers sync today. Epic and GOG appear in library filters and badges; account import will land when the data sources are solid enough."
+      />
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         {rows.map((status) => {
           const copy = STORE_COPY[status.store];
           const comingLater =
             status.store !== "steam" &&
             (status.status === "coming_later" || status.syncEnabled === false);
           return (
-            <div
-              key={status.store}
-              className="border border-[var(--line)] bg-[var(--bg-1)] p-4"
-            >
+            <Panel key={status.store} className="p-4">
               <div className="flex items-center justify-between gap-2">
                 <StoreBadge store={status.store} />
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                   {comingLater ? "Coming later" : "Connected"}
                 </span>
               </div>
-              <h2
-                className="mt-3 text-lg"
-                style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-              >
+              <h2 className="mt-3 font-display text-lg font-bold tracking-tight">
                 {copy.title}
               </h2>
               <p className="mt-2 text-sm text-[var(--muted)]">{copy.blurb}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {status.store === "steam" ? (
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     onClick={() => resync.mutate()}
-                    className="border border-[var(--line)] px-3 py-1.5 text-sm hover:border-[var(--line-strong)]"
+                    className="px-3 py-1.5"
                   >
                     Re-sync Steam
-                  </button>
+                  </Button>
                 ) : (
                   <span className="border border-dashed border-[var(--line)] px-3 py-1.5 text-sm text-[var(--faint)]">
                     Manual import planned
                   </span>
                 )}
               </div>
-            </div>
+            </Panel>
           );
         })}
       </div>

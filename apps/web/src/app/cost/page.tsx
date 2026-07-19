@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type { CostRoiRow, CostSummary } from "@questorylabs/shared";
@@ -87,7 +88,7 @@ function HorizontalSpendChart({
   currency: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] p-4">
+    <Panel className="p-4">
       <h2 className="mb-4 text-sm uppercase tracking-[0.14em] text-[var(--muted)]">
         {title}
       </h2>
@@ -131,7 +132,7 @@ function HorizontalSpendChart({
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -227,31 +228,23 @@ export default function CostPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1
-            className="font-[family-name:var(--font-display)] text-4xl"
-            style={{ fontWeight: 700 }}
+      <PageHeader
+        title="Cost Analytics"
+        description="Estimate-only library value from store / ITAD prices — not what you spent. Steam does not expose purchase history; we never ask you to enter prices."
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => refreshPrices.mutate()}
+            disabled={refreshPrices.isPending}
           >
-            Cost Analytics
-          </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Estimate-only library value from store / ITAD prices — not what you
-            spent. Steam does not expose purchase history; we never ask you to
-            enter prices.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => refreshPrices.mutate()}
-          disabled={refreshPrices.isPending}
-          className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--accent)] disabled:opacity-60"
-        >
-          {refreshPrices.isPending ? "Refreshing prices…" : "Refresh store prices"}
-        </button>
-      </div>
+            {refreshPrices.isPending
+              ? "Refreshing prices…"
+              : "Refresh store prices"}
+          </Button>
+        }
+      />
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Library value"
           value={s ? money(s.lifetimeAtCurrent) : "—"}
@@ -307,7 +300,7 @@ export default function CostPage() {
 
       {(analytics.buckets.length > 0 || analytics.freeVsPaid.length > 0) && (
         <section className="mt-10 grid gap-8 lg:grid-cols-2">
-          <div className="rounded-xl border border-[var(--line)] p-4">
+          <Panel className="p-4">
             <h2 className="mb-1 text-sm uppercase tracking-[0.14em] text-[var(--muted)]">
               Value by playtime
             </h2>
@@ -357,9 +350,9 @@ export default function CostPage() {
                 </ResponsiveContainer>
               </div>
             )}
-          </div>
+          </Panel>
 
-          <div className="rounded-xl border border-[var(--line)] p-4">
+          <Panel className="p-4">
             <h2 className="mb-1 text-sm uppercase tracking-[0.14em] text-[var(--muted)]">
               Paid vs free
             </h2>
@@ -424,16 +417,13 @@ export default function CostPage() {
                 </div>
               </div>
             )}
-          </div>
+          </Panel>
         </section>
       )}
 
       {analytics.unplayed.length > 0 && (
         <section className="mt-10">
-          <h2
-            className="mb-1 font-[family-name:var(--font-display)] text-2xl"
-            style={{ fontWeight: 700 }}
-          >
+          <h2 className="mb-1 font-display text-2xl font-bold tracking-tight">
             Shelfware
           </h2>
           <p className="mb-4 text-sm text-[var(--muted)]">
@@ -444,7 +434,7 @@ export default function CostPage() {
             {analytics.unplayed.map((row) => (
               <div
                 key={row.appId}
-                className="flex items-center justify-between gap-4 rounded-lg border border-[var(--line)] px-4 py-3 text-sm"
+                className="panel-outline flex items-center justify-between gap-4 px-4 py-3 text-sm"
               >
                 <span className="min-w-0 truncate">{row.name}</span>
                 <span className="shrink-0 font-mono text-[var(--muted)]">
@@ -458,10 +448,7 @@ export default function CostPage() {
 
       <section className="mt-10">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <h2
-            className="font-[family-name:var(--font-display)] text-2xl"
-            style={{ fontWeight: 700 }}
-          >
+          <h2 className="font-display text-2xl font-bold tracking-tight">
             Best value (lowest cost/hour)
           </h2>
           <ValueTabs value={bestTab} onChange={setBestTab} />
@@ -477,7 +464,7 @@ export default function CostPage() {
           {bestValue.map((row) => (
             <div
               key={row.appId}
-              className="flex items-center justify-between gap-4 rounded-lg border border-[var(--line)] px-4 py-3 text-sm"
+              className="panel-outline flex items-center justify-between gap-4 px-4 py-3 text-sm"
             >
               <span className="min-w-0 truncate">{row.name}</span>
               <span className="shrink-0 text-right text-[var(--muted)]">
@@ -497,10 +484,7 @@ export default function CostPage() {
 
       <section className="mt-10">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <h2
-            className="font-[family-name:var(--font-display)] text-2xl"
-            style={{ fontWeight: 700 }}
-          >
+          <h2 className="font-display text-2xl font-bold tracking-tight">
             Least value (highest cost/hour)
           </h2>
           <ValueTabs value={worstTab} onChange={setWorstTab} />
@@ -516,7 +500,7 @@ export default function CostPage() {
           {worstValue.map((row) => (
             <div
               key={row.appId}
-              className="flex items-center justify-between gap-4 rounded-lg border border-[var(--line)] px-4 py-3 text-sm"
+              className="panel-outline flex items-center justify-between gap-4 px-4 py-3 text-sm"
             >
               <span className="min-w-0 truncate">{row.name}</span>
               <span className="shrink-0 text-right text-[var(--muted)]">

@@ -7,7 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { GameShelf, GameShelfItem } from "@/components/GameShelf";
 import { GameTile } from "@/components/GameTile";
-import { HatchShadow } from "@/components/HatchShadow";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { TrendingGame, TrendingResponse } from "@questorylabs/shared";
 
@@ -118,7 +118,7 @@ export default function TrendingPage() {
 
   return (
     <AppShell>
-      <section className="relative mb-10 overflow-hidden">
+      <section className="relative overflow-hidden">
         <div
           className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 opacity-60 gen-orb"
           aria-hidden
@@ -128,19 +128,11 @@ export default function TrendingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
-            What&apos;s hot
-          </p>
-          <h1
-            className="font-display mt-2 max-w-2xl text-4xl tracking-tight sm:text-5xl"
-            style={{ fontWeight: 700 }}
-          >
-            Trending
-          </h1>
-          <p className="mt-3 max-w-lg text-[var(--muted)]">
-            Friends activity, live concurrent charts, Steam Deck picks, and top
-            new releases — pulled from Steam&apos;s chart APIs.
-          </p>
+          <PageHeader
+            eyebrow="What's hot"
+            title="Trending"
+            description="Friends activity, live concurrent charts, Steam Deck picks, and top new releases — pulled from Steam's chart APIs."
+          />
         </motion.div>
       </section>
 
@@ -165,21 +157,18 @@ export default function TrendingPage() {
         }
         empty={
           friends.isError ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--danger)]">
-                Could not load friend trending. Steam may be rate-limiting —
-                try again shortly.
-              </p>
-            </HatchShadow>
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load friend trending. Steam may be rate-limiting —
+                  try again shortly.
+                </span>
+              }
+            />
           ) : !friends.isLoading &&
             friends.data &&
             !friends.data.games.length ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--muted)]">
-                No recent friend playtime yet. Make sure your friends list is
-                public, sync friends from the sidebar, then refresh.
-              </p>
-            </HatchShadow>
+            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public, sync friends from the sidebar, then refresh." />
           ) : undefined
         }
       >
@@ -210,19 +199,17 @@ export default function TrendingPage() {
         }
         empty={
           concurrent.isError ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--danger)]">
-                Could not load concurrent charts.
-              </p>
-            </HatchShadow>
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load concurrent charts.
+                </span>
+              }
+            />
           ) : !concurrent.isLoading &&
             concurrent.data &&
             !concurrent.data.games.length ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--muted)]">
-                Concurrent chart unavailable right now.
-              </p>
-            </HatchShadow>
+            <EmptyState title="Concurrent chart unavailable right now." />
           ) : undefined
         }
       >
@@ -257,19 +244,17 @@ export default function TrendingPage() {
         }
         empty={
           global.isError ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--danger)]">
-                Could not load Steam Charts.
-              </p>
-            </HatchShadow>
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load Steam Charts.
+                </span>
+              }
+            />
           ) : !global.isLoading &&
             global.data &&
             !global.data.games.length ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--muted)]">
-                Steam Charts unavailable right now.
-              </p>
-            </HatchShadow>
+            <EmptyState title="Steam Charts unavailable right now." />
           ) : undefined
         }
       >
@@ -295,17 +280,15 @@ export default function TrendingPage() {
         loading={deck.isLoading}
         empty={
           deck.isError ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--danger)]">
-                Could not load Deck charts.
-              </p>
-            </HatchShadow>
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load Deck charts.
+                </span>
+              }
+            />
           ) : !deck.isLoading && deck.data && !deck.data.games.length ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--muted)]">
-                Deck chart unavailable right now.
-              </p>
-            </HatchShadow>
+            <EmptyState title="Deck chart unavailable right now." />
           ) : undefined
         }
       >
@@ -331,19 +314,17 @@ export default function TrendingPage() {
         loading={topReleases.isLoading}
         empty={
           topReleases.isError ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--danger)]">
-                Could not load top releases.
-              </p>
-            </HatchShadow>
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load top releases.
+                </span>
+              }
+            />
           ) : !topReleases.isLoading &&
             topReleases.data &&
             !topReleases.data.games.length ? (
-            <HatchShadow faceClassName="panel px-5 py-8 text-center">
-              <p className="text-sm text-[var(--muted)]">
-                Top releases unavailable right now.
-              </p>
-            </HatchShadow>
+            <EmptyState title="Top releases unavailable right now." />
           ) : undefined
         }
       >

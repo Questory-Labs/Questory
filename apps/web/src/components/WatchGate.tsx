@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
-import { AuthGate } from "@/components/AuthGate";
+import { StateMessage } from "@/components/ui";
 
 /** Redirect away from /watch/* when flag off or health fails. */
 export function WatchGate({ children }: { children: React.ReactNode }) {
@@ -22,16 +22,22 @@ export function WatchGate({ children }: { children: React.ReactNode }) {
 
   if (!flag || health.isLoading) {
     return (
-      <div className="p-8 text-sm text-[var(--muted)]">Loading watch…</div>
+      <div className="py-8">
+        <StateMessage variant="loading" className="mt-0">
+          Loading watch…
+        </StateMessage>
+      </div>
     );
   }
   if (!enabled) {
     return (
-      <div className="p-8 text-sm text-[var(--muted)]">
-        Watch analytics is unavailable. Start the watch service and set
-        NEXT_PUBLIC_ENABLE_WATCH=true.
+      <div className="py-8">
+        <StateMessage variant="error" className="mt-0">
+          Watch analytics is unavailable. Start the watch service and set
+          NEXT_PUBLIC_ENABLE_WATCH=true.
+        </StateMessage>
       </div>
     );
   }
-  return <AuthGate>{children}</AuthGate>;
+  return <>{children}</>;
 }

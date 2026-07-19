@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type {
@@ -159,17 +160,12 @@ export default function FamilyPage() {
 
   return (
     <AppShell>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Family Dashboard
-      </h1>
-      <p className="mt-2 text-[var(--muted)]">
-        Browse shareable family games by member, with ownership and price stats
-      </p>
+      <PageHeader
+        title="Family Dashboard"
+        description="Browse shareable family games by member, with ownership and price stats"
+      />
 
-      <div className="mt-6 flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <form
           className="flex flex-wrap gap-2"
           onSubmit={(e) => {
@@ -186,55 +182,51 @@ export default function FamilyPage() {
             placeholder="Add member SteamID64"
             className="min-w-[260px] rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm"
           />
-          <button
+          <Button
             type="submit"
             disabled={add.isPending || !steamId.trim()}
-            className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#0b1218] disabled:opacity-50"
           >
             {add.isPending ? "Adding…" : "Add member"}
-          </button>
+          </Button>
         </form>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={() => setShowImport((v) => !v)}
-          className="rounded-md border border-[var(--line)] px-4 py-2 text-sm font-medium hover:border-[var(--accent)]"
         >
           {showImport ? "Hide friends" : "Import from friends"}
-        </button>
+        </Button>
       </div>
-      {addError && <p className="mt-2 text-sm text-red-400">{addError}</p>}
+      {addError && (
+        <p className="mt-2 text-sm text-[var(--danger)]">{addError}</p>
+      )}
 
       {showImport && (
-        <section className="mt-6 rounded-xl border border-[var(--line)] p-4">
+        <Panel className="mt-6 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2
-              className="text-lg"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-            >
+            <h2 className="font-display text-lg font-bold tracking-tight">
               Import from friends
             </h2>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={toggleAllVisible}
                 disabled={!importable.length}
-                className="rounded-md border border-[var(--line)] px-3 py-1.5 text-xs disabled:opacity-50"
+                className="px-3 py-1.5 text-xs"
               >
                 {importable.length &&
                 importable.every((f) => selected.has(f.steamId))
                   ? "Deselect all"
                   : "Select all"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 disabled={selected.size === 0 || importFriends.isPending}
                 onClick={() => importFriends.mutate([...selected])}
-                className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[#0b1218] disabled:opacity-50"
+                className="px-3 py-1.5 text-xs"
               >
                 {importFriends.isPending
                   ? "Importing…"
                   : `Add selected (${selected.size})`}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -261,7 +253,7 @@ export default function FamilyPage() {
               return (
                 <label
                   key={f.steamId}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[rgba(26,40,54,0.45)]"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[var(--bg-2)]"
                 >
                   <input
                     type="checkbox"
@@ -284,7 +276,7 @@ export default function FamilyPage() {
               );
             })}
           </div>
-        </section>
+        </Panel>
       )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -310,7 +302,7 @@ export default function FamilyPage() {
         />
       </div>
 
-      <section className="mt-6 overflow-x-auto rounded-xl border border-[var(--line)]">
+      <section className="panel-outline mt-6 overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--line)] text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
@@ -348,7 +340,7 @@ export default function FamilyPage() {
             {(d?.members || []).map((m) => (
               <tr
                 key={m.steamId}
-                className="border-b border-[var(--line)] last:border-0 hover:bg-[rgba(26,40,54,0.35)]"
+                className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--bg-2)]"
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -402,10 +394,7 @@ export default function FamilyPage() {
       <section className="mt-10">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2
-              className="text-xl"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-            >
+            <h2 className="font-display text-xl font-bold tracking-tight">
               Family shareable games
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -434,7 +423,7 @@ export default function FamilyPage() {
             }}
             className={`shrink-0 rounded-md px-3 py-1.5 text-sm ${
               activeMember === "all"
-                ? "bg-[var(--accent)] font-semibold text-[#0b1218]"
+                ? "bg-[var(--accent)] font-semibold text-[var(--bg-0)]"
                 : "border border-[var(--line)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
             }`}
           >
@@ -450,7 +439,7 @@ export default function FamilyPage() {
               }}
               className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
                 activeMember === m.steamId
-                  ? "bg-[var(--accent)] font-semibold text-[#0b1218]"
+                  ? "bg-[var(--accent)] font-semibold text-[var(--bg-0)]"
                   : "border border-[var(--line)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
               }`}
             >
@@ -482,7 +471,7 @@ export default function FamilyPage() {
               index={index}
               onClick={() => setSelectedAppId(item.appId)}
               badge={
-                <div className="flex items-end justify-between gap-2 text-[11px] text-[#f2efe8]">
+                <div className="flex items-end justify-between gap-2 text-[11px] text-[var(--ink)]">
                   <span className="font-medium">
                     {item.ownerCount} family
                     {item.ownerCount === 1 ? " owner" : " owners"}
@@ -520,34 +509,31 @@ export default function FamilyPage() {
 
         {library.data && library.data.total > library.data.pageSize && (
           <div className="mt-6 flex items-center justify-center gap-3">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-md border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-40"
+              className="px-3 py-1.5"
             >
               Previous
-            </button>
+            </Button>
             <span className="font-mono text-xs text-[var(--muted)]">
               {page} / {totalPages}
             </span>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded-md border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-40"
+              className="px-3 py-1.5"
             >
               Next
-            </button>
+            </Button>
           </div>
         )}
       </section>
 
       <section className="mt-12">
-        <h2
-          className="mb-4 text-xl"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-        >
+        <h2 className="mb-4 font-display text-xl font-bold tracking-tight">
           License conflicts
         </h2>
         <p className="mb-3 text-sm text-[var(--muted)]">
@@ -559,7 +545,7 @@ export default function FamilyPage() {
               key={c.appId}
               type="button"
               onClick={() => setSelectedAppId(c.appId)}
-              className="flex w-full items-center justify-between rounded-lg border border-[var(--line)] px-4 py-3 text-left text-sm hover:border-[var(--accent)]"
+              className="panel-outline flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:border-[var(--accent)]"
             >
               <span>{c.name}</span>
               <span className="text-[var(--muted)]">

@@ -163,7 +163,11 @@ function AccountMenu({
           </div>
           <ul className="py-1">
             {ACCOUNT_LINKS.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isActive(
+                pathname,
+                item.href,
+                ACCOUNT_LINKS.map((l) => l.href),
+              );
               return (
                 <li key={item.href}>
                   <Link
@@ -205,9 +209,20 @@ function AccountMenu({
   );
 }
 
-function isActive(pathname: string, href: string) {
+function pathMatches(pathname: string, href: string) {
   const pathOnly = href.split("?")[0];
   return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+}
+
+/** Prefer the longest matching nav href so /music doesn't stay active on /music/listening. */
+function isActive(pathname: string, href: string, candidates: string[]) {
+  const pathOnly = href.split("?")[0];
+  if (!pathMatches(pathname, pathOnly)) return false;
+  const best = candidates
+    .map((h) => h.split("?")[0])
+    .filter((h) => pathMatches(pathname, h))
+    .reduce((a, b) => (b.length > a.length ? b : a));
+  return best === pathOnly;
 }
 
 function NavLinks({
@@ -219,6 +234,8 @@ function NavLinks({
   onNavigate?: () => void;
   groups: { label: string; items: { href: string; label: string }[] }[];
 }) {
+  const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+
   return (
     <div className="space-y-5">
       {groups.map((group) => (
@@ -228,7 +245,7 @@ function NavLinks({
           </div>
           <ul className="space-y-0.5">
             {group.items.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isActive(pathname, item.href, allHrefs);
               return (
                 <li key={item.href}>
                   <Link
@@ -393,7 +410,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_1fr]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[rgba(16,16,18,0.92)] backdrop-blur-xl lg:flex">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-0)_92%,transparent)] backdrop-blur-xl lg:flex">
         <div className="flex h-14 shrink-0 items-center px-4 shadow-[inset_0_-1px_0_0_var(--line)]">
           <Link
             href="/dashboard"
@@ -429,7 +446,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-40 bg-[rgba(16,16,18,0.88)] backdrop-blur-xl">
+        <header className="sticky top-0 z-40 bg-[color-mix(in_srgb,var(--bg-0)_88%,transparent)] backdrop-blur-xl">
           <div className="flex h-14 shrink-0 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--line)] sm:px-6">
             <button
               type="button"

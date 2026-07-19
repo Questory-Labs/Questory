@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { WatchRecentEvent } from "@questorylabs/shared";
 import { WatchGate } from "@/components/WatchGate";
+import { EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { watchFetch } from "@/lib/watch";
 
 export default function WatchHistoryPage() {
@@ -13,17 +14,23 @@ export default function WatchHistoryPage() {
 
   return (
     <WatchGate>
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="font-display text-3xl text-[var(--ink)]">History</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Recent watch events across all connected sources.
-        </p>
+      <PageHeader
+        title="History"
+        description="Recent watch events across all connected sources."
+      />
 
-        {recent.isLoading && (
-          <p className="mt-8 text-sm text-[var(--muted)]">Loading…</p>
-        )}
-        <ul className="mt-8 space-y-3">
-          {(recent.data || []).map((e) => (
+      {recent.isLoading && (
+        <StateMessage variant="loading">Loading…</StateMessage>
+      )}
+      {!recent.isLoading && (recent.data || []).length === 0 && (
+        <EmptyState
+          title="No watch events yet"
+          description="Connect a source under Watch → Sources to start ingesting."
+        />
+      )}
+      {recent.data && recent.data.length > 0 && (
+        <ul className="space-y-3">
+          {recent.data.map((e) => (
             <li
               key={e.id}
               className="border-b border-[var(--line)] pb-3 text-sm"
@@ -45,7 +52,7 @@ export default function WatchHistoryPage() {
             </li>
           ))}
         </ul>
-      </div>
+      )}
     </WatchGate>
   );
 }

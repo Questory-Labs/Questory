@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { HatchShadow } from "@/components/HatchShadow";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type { DashboardStats, PlayNextItem } from "@questorylabs/shared";
@@ -47,7 +47,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <section className="relative mb-10 overflow-hidden">
+      <section className="relative overflow-hidden">
         <div
           className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 opacity-60 gen-orb"
           aria-hidden
@@ -57,33 +57,30 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
-            Library overview
-          </p>
-          <h1
-            className="font-display mt-2 max-w-2xl text-4xl tracking-tight sm:text-5xl"
-            style={{ fontWeight: 700 }}
-          >
-            {name ? (
+          <PageHeader
+            eyebrow="Library overview"
+            title={
+              name ? (
+                <>
+                  Hey, <span className="text-[var(--accent)]">{name}</span>
+                </>
+              ) : (
+                "Dashboard"
+              )
+            }
+            description={
               <>
-                Hey, <span className="text-[var(--accent)]">{name}</span>
+                Playtime, backlog, and wishlist signals in one place.
+                {syncing ? " Syncing Steam data…" : ""}
               </>
-            ) : (
-              "Dashboard"
-            )}
-          </h1>
-          <p className="mt-3 max-w-lg text-[var(--muted)]">
-            Playtime, backlog, and wishlist signals in one place.
-            {syncing ? " Syncing Steam data…" : ""}
-          </p>
+            }
+          />
         </motion.div>
       </section>
 
       <section aria-label="Key stats">
         <div className="mb-3 flex items-end justify-between gap-4">
-          <h2 className="font-display text-lg" style={{ fontWeight: 600 }}>
-            At a glance
-          </h2>
+          <h2 className="font-display text-lg font-semibold">At a glance</h2>
           {syncing && (
             <span className="font-mono text-[11px] text-[var(--warm)]">
               sync in progress
@@ -160,10 +157,7 @@ export default function DashboardPage() {
       <section className="mt-12">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
-            <h2
-              className="font-display text-2xl tracking-tight"
-              style={{ fontWeight: 700 }}
-            >
+            <h2 className="font-display text-2xl font-bold tracking-tight">
               Play next
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -191,21 +185,14 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <HatchShadow faceClassName="panel px-5 py-8 text-center">
-            <p className="text-sm text-[var(--muted)]">
-              Sync your library to get weekly play-next picks.
-            </p>
-          </HatchShadow>
+          <EmptyState title="Sync your library to get weekly play-next picks." />
         )}
       </section>
 
       <section className="mt-12">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
-            <h2
-              className="font-display text-2xl tracking-tight"
-              style={{ fontWeight: 700 }}
-            >
+            <h2 className="font-display text-2xl font-bold tracking-tight">
               Recently played
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -243,17 +230,17 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <HatchShadow faceClassName="panel px-5 py-8 text-center">
-            <p className="text-sm text-[var(--muted)]">
-              No recent play sessions yet. Refresh to pull your Steam library.
-            </p>
-            <Link
-              href="/library"
-              className="mt-3 inline-block text-sm text-[var(--accent)] hover:underline"
-            >
-              Open library
-            </Link>
-          </HatchShadow>
+          <EmptyState
+            title="No recent play sessions yet. Refresh to pull your Steam library."
+            description={
+              <Link
+                href="/library"
+                className="text-[var(--accent)] hover:underline"
+              >
+                Open library
+              </Link>
+            }
+          />
         )}
       </section>
     </AppShell>

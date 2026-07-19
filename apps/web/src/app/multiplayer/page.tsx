@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { GameTile } from "@/components/GameTile";
+import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import {
   formatPlayerMaxLabel,
@@ -128,19 +129,13 @@ export default function MultiplayerPage() {
 
   return (
     <AppShell>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Multiplayer Planner
-      </h1>
-      <p className="mt-2 text-[var(--muted)]">
-        Find multiplayer games for your group — strict library match, filters, or
-        trending suggestions
-      </p>
+      <PageHeader
+        title="Multiplayer Planner"
+        description="Find multiplayer games for your group — strict library match, filters, or trending suggestions"
+      />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
-        <div className="space-y-4 rounded-xl border border-[var(--line)] p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
+        <Panel className="space-y-4 p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
           <label className="block text-sm text-[var(--muted)]">
             Sort by
             <select
@@ -285,7 +280,7 @@ export default function MultiplayerPage() {
                 )}
             </div>
           </div>
-        </div>
+        </Panel>
 
         <div>
           {plan.isLoading && (
@@ -322,7 +317,7 @@ export default function MultiplayerPage() {
                   if (!label) return undefined;
                   return (
                     <span
-                      className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-[#0b1218] shadow-sm"
+                      className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-[var(--bg-0)] shadow-sm"
                       title={
                         g.playerCountSource === "igdb"
                           ? "IGDB mode maxes"
@@ -490,7 +485,7 @@ function OwnershipBadge({
   if (ownership === "unowned") {
     return (
       <div className="space-y-0.5">
-        <span className="inline-block rounded bg-[var(--warm)]/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1a1410]">
+        <span className="inline-block rounded bg-[var(--warm)]/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--bg-0)]">
           {prefix}Not owned
         </span>
       </div>
@@ -513,7 +508,7 @@ function OwnershipBadge({
 
   return (
     <div className="space-y-0.5">
-      <span className="inline-block rounded bg-[var(--accent)]/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#0b1218]">
+      <span className="inline-block rounded bg-[var(--accent)]/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--bg-0)]">
         {prefix}
         {ownerLabel}
       </span>

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { FriendsListResponse } from "@questorylabs/shared";
 import Link from "next/link";
@@ -17,34 +18,32 @@ export default function FriendsPage() {
 
   return (
     <AppShell>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Friends
-      </h1>
-      <p className="mt-2 text-[var(--muted)]">
-        Compare libraries and find mutual ground
-      </p>
+      <PageHeader
+        title="Friends"
+        description={
+          <>
+            <p>Compare libraries and find mutual ground</p>
+            {meta ? (
+              <p className="mt-2 font-mono text-[11px] text-[var(--faint)]">
+                {meta.librariesCached}/{meta.totalFriends} libraries cached
+                {meta.truncated
+                  ? ` · truncated (first ${meta.libraryCacheLimit} friends, ${meta.gamesPerFriendLimit} games each)`
+                  : ""}
+                {meta.lastSyncedAt
+                  ? ` · synced ${new Date(meta.lastSyncedAt).toLocaleDateString()}`
+                  : ""}
+              </p>
+            ) : null}
+          </>
+        }
+      />
 
-      {meta && (
-        <p className="mt-3 font-mono text-[11px] text-[var(--faint)]">
-          {meta.librariesCached}/{meta.totalFriends} libraries cached
-          {meta.truncated
-            ? ` · truncated (first ${meta.libraryCacheLimit} friends, ${meta.gamesPerFriendLimit} games each)`
-            : ""}
-          {meta.lastSyncedAt
-            ? ` · synced ${new Date(meta.lastSyncedAt).toLocaleDateString()}`
-            : ""}
-        </p>
-      )}
-
-      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((f) => (
           <Link
             key={f.steamId}
             href={`/friends/${f.steamId}`}
-            className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[rgba(26,40,54,0.45)] p-4 transition hover:border-[var(--accent)]"
+            className="panel-outline flex items-center gap-3 p-4 transition hover:border-[var(--accent)]"
           >
             {f.avatarUrl && (
               // eslint-disable-next-line @next/next/no-img-element

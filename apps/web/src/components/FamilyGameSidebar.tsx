@@ -9,6 +9,7 @@ import {
   OwnerRow,
   SectionTitle,
 } from "@/components/GameDetailStats";
+import { Button } from "@/components/ui";
 
 export function FamilyGameSidebar({
   appId,
@@ -86,20 +87,17 @@ export function FamilyGameSidebar({
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
               Game details
             </p>
-            <h2
-              className="mt-1 truncate text-xl"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-            >
+            <h2 className="mt-1 truncate font-display text-xl font-bold tracking-tight">
               {d?.name || (detail.isLoading ? "Loading…" : "Game")}
             </h2>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={onClose}
-            className="rounded-md border border-[var(--line)] px-2.5 py-1 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
+            className="px-2.5 py-1 text-[var(--muted)]"
           >
             Esc
-          </button>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -107,7 +105,9 @@ export function FamilyGameSidebar({
             <p className="text-sm text-[var(--muted)]">Loading stats…</p>
           )}
           {detail.isError && (
-            <p className="text-sm text-red-400">Could not load game details.</p>
+            <p className="text-sm text-[var(--danger)]">
+              Could not load game details.
+            </p>
           )}
           {d && (
             <div className="space-y-8">

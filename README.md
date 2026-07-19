@@ -11,7 +11,7 @@ Questory Labs community code is **source-available** under the [PolyForm Noncomm
 - Keep the license terms and the `Required Notice` when you redistribute.
 ## Stack
 
-- **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion
+- **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion — [UI style guide](docs/style-guide.md)
 - **API**: NestJS, Prisma, BullMQ (when Redis is configured)
 - **Music** (optional): NestJS ListenBrainz ingest + analytics (`apps/music`); **shared DB** with the API; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
 - **Data**: SQLite **or** PostgreSQL (env-selected)

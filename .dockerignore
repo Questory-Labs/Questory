@@ -5,6 +5,7 @@ node_modules
 .git
 .env
 .env.local
+.db
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 apps/music/prisma/*.db

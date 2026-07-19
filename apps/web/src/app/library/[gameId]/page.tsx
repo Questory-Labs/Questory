@@ -9,6 +9,7 @@ import {
   SectionTitle,
 } from "@/components/GameDetailStats";
 import { StoreBadge, StoreBadgeRow } from "@/components/StoreBadge";
+import { Panel, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type { GameDetail, Store } from "@questorylabs/shared";
@@ -81,16 +82,16 @@ export default function LibraryGamePage() {
       </p>
 
       {(entry.isLoading || (appId && detail.isLoading)) && (
-        <p className="mt-8 text-sm text-[var(--muted)]">Loading game…</p>
+        <StateMessage variant="loading">Loading game…</StateMessage>
       )}
       {entry.isError && (
-        <p className="mt-8 text-sm text-red-400">Could not load this game.</p>
+        <StateMessage variant="error">Could not load this game.</StateMessage>
       )}
 
       {e && (
         <>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-            <div className="overflow-hidden border border-[var(--line)]">
+            <Panel className="overflow-hidden">
               {e.game.headerImage || d?.headerImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -103,15 +104,12 @@ export default function LibraryGamePage() {
                   No art
                 </div>
               )}
-            </div>
+            </Panel>
             <div>
               <div className="mb-2">
                 <StoreBadgeRow stores={stores} />
               </div>
-              <h1
-                className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl"
-                style={{ fontWeight: 700 }}
-              >
+              <h1 className="font-display text-3xl font-bold sm:text-4xl">
                 {name}
               </h1>
               <p className="mt-3 text-sm text-[var(--muted)]">
@@ -123,15 +121,15 @@ export default function LibraryGamePage() {
                   .join(" · ") || "No genres yet"}
               </p>
               <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-                <div className="border border-[var(--line)] bg-[var(--bg-1)] p-3">
+                <Panel className="p-3">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                     Your playtime
                   </div>
                   <div className="mt-1 text-lg">
                     {Math.round((e.playtimeForever / 60) * 10) / 10}h
                   </div>
-                </div>
-                <div className="border border-[var(--line)] bg-[var(--bg-1)] p-3">
+                </Panel>
+                <Panel className="p-3">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                     Store estimate
                   </div>
@@ -142,19 +140,19 @@ export default function LibraryGamePage() {
                         ? formatMoney(e.game.currentPrice, currency)
                         : "—"}
                   </div>
-                </div>
+                </Panel>
                 {d?.review && (
-                  <div className="border border-[var(--line)] bg-[var(--bg-1)] p-3">
+                  <Panel className="p-3">
                     <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                       Reviews
                     </div>
                     <div className="mt-1 text-lg">
                       {d.review.score != null ? `${d.review.score}%` : "—"}
                     </div>
-                  </div>
+                  </Panel>
                 )}
                 {d?.hltb && (
-                  <div className="border border-[var(--line)] bg-[var(--bg-1)] p-3">
+                  <Panel className="p-3">
                     <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                       HLTB main
                     </div>
@@ -163,7 +161,7 @@ export default function LibraryGamePage() {
                         ? `${d.hltb.mainHours}h`
                         : "—"}
                     </div>
-                  </div>
+                  </Panel>
                 )}
               </div>
 
@@ -172,7 +170,7 @@ export default function LibraryGamePage() {
                   <>
                     <a
                       href={`steam://run/${appId}`}
-                      className="inline-flex items-center justify-center gap-1.5 border border-[var(--accent)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--bg-0)] hover:opacity-90"
+                      className="btn btn-primary"
                     >
                       Play
                     </a>
@@ -180,7 +178,7 @@ export default function LibraryGamePage() {
                       href={`https://store.steampowered.com/app/${appId}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center gap-1 border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] hover:border-[var(--accent)]"
+                      className="btn btn-secondary"
                     >
                       Open on Steam →
                     </a>
@@ -199,7 +197,7 @@ export default function LibraryGamePage() {
                       href={url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 border border-[var(--line)] px-3 py-2 text-sm text-[var(--accent)] hover:border-[var(--accent)]"
+                      className="btn btn-secondary gap-2 text-[var(--accent)]"
                     >
                       <StoreBadge store={o.store} compact />
                       Open store →
@@ -212,13 +210,8 @@ export default function LibraryGamePage() {
 
           {e.ownerships && e.ownerships.length > 1 && (
             <section className="mt-10">
-              <h2
-                className="mb-3 text-xl"
-                style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-              >
-                Owned on
-              </h2>
-              <ul className="divide-y divide-[var(--line)] border border-[var(--line)]">
+              <h2 className="mb-3 font-display text-xl font-bold">Owned on</h2>
+              <ul className="divide-y divide-[var(--line)] panel-outline">
                 {e.ownerships.map((o) => (
                   <li
                     key={o.store}
@@ -238,17 +231,14 @@ export default function LibraryGamePage() {
           )}
 
           {detail.isError && (
-            <p className="mt-10 text-sm text-red-400">
+            <StateMessage variant="error">
               Could not load enriched game stats.
-            </p>
+            </StateMessage>
           )}
 
           {d && (
             <section className="mt-10">
-              <h2
-                className="mb-6 text-xl"
-                style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-              >
+              <h2 className="mb-6 font-display text-xl font-bold">
                 Game details
               </h2>
               <div className="max-w-4xl">

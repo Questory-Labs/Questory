@@ -19,6 +19,12 @@
       "default": "./dist/oauth-state.js"
     }
   },
+  "typesVersions": {
+    "*": {
+      "session": ["./dist/session.d.ts"],
+      "oauth-state": ["./dist/oauth-state.d.ts"]
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",

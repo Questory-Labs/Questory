@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
+import { PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { FriendCompare } from "@questorylabs/shared";
 import { useParams } from "next/navigation";
@@ -19,21 +20,22 @@ export default function FriendComparePage() {
 
   return (
     <AppShell>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        {d?.friend.personaName || "Friend"}
-      </h1>
-      <p className="mt-2 text-[var(--muted)]">Library comparison</p>
-      {d?.meta?.friendLibraryTruncated && (
-        <p className="mt-2 font-mono text-[11px] text-[var(--warm)]">
-          Friend library cache may be truncated (max{" "}
-          {d.meta.gamesPerFriendLimit} games).
-        </p>
-      )}
+      <PageHeader
+        title={d?.friend.personaName || "Friend"}
+        description={
+          <>
+            Library comparison
+            {d?.meta?.friendLibraryTruncated ? (
+              <p className="mt-2 font-mono text-[11px] text-[var(--warm)]">
+                Friend library cache may be truncated (max{" "}
+                {d.meta.gamesPerFriendLimit} games).
+              </p>
+            ) : null}
+          </>
+        }
+      />
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Common games" value={d?.commonGames ?? "—"} />
         <StatCard label="Unique to you" value={d?.uniqueToYou ?? "—"} />
         <StatCard label="Unique to them" value={d?.uniqueToFriend ?? "—"} />
@@ -41,7 +43,7 @@ export default function FriendComparePage() {
       </div>
 
       <section className="mt-10">
-        <h2 className="mb-4 text-xl" style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}>
+        <h2 className="mb-4 font-display text-xl font-bold tracking-tight">
           Challenge mode — both unplayed
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -52,7 +54,7 @@ export default function FriendComparePage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="mb-4 text-xl" style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}>
+        <h2 className="mb-4 font-display text-xl font-bold tracking-tight">
           Games in common
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

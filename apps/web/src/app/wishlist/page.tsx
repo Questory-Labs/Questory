@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { GameTile } from "@/components/GameTile";
 import { StoreBadge } from "@/components/StoreBadge";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type { DealAlert, Store, WishlistItem } from "@questorylabs/shared";
@@ -88,18 +89,12 @@ export default function WishlistPage() {
 
   return (
     <AppShell>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Wishlist
-      </h1>
-      <p className="mt-2 text-[var(--muted)]">
-        Should-buy scores, price targets, and deal signals across Steam, Epic, and
-        GOG
-      </p>
+      <PageHeader
+        title="Wishlist"
+        description="Should-buy scores, price targets, and deal signals across Steam, Epic, and GOG"
+      />
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         {STORE_CHIPS.map((chip) => {
           const active = storeFilter === chip.id;
           return (
@@ -121,17 +116,12 @@ export default function WishlistPage() {
 
       {filteredDeals.length > 0 && (
         <section className="mt-8">
-          <h2
-            className="mb-3 text-xl"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-          >
-            Deal alerts
-          </h2>
+          <h2 className="mb-3 font-display text-xl font-bold">Deal alerts</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredDeals.slice(0, 6).map((d) => (
-              <div
+              <Panel
                 key={`${d.store}-${d.externalId || d.appId}-${d.reason}`}
-                className="flex gap-3 border border-[var(--line)] bg-[var(--bg-1)] p-3"
+                className="flex gap-3 bg-[var(--bg-1)] p-3"
               >
                 {d.headerImage && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -153,7 +143,7 @@ export default function WishlistPage() {
                       : ""}
                   </div>
                 </div>
-              </div>
+              </Panel>
             ))}
           </div>
         </section>
@@ -161,10 +151,7 @@ export default function WishlistPage() {
 
       {filteredRecs.length > 0 && (
         <section className="mt-10">
-          <h2
-            className="mb-3 text-xl"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-          >
+          <h2 className="mb-3 font-display text-xl font-bold">
             Recommended buys
           </h2>
           <p className="mb-4 text-sm text-[var(--muted)]">
@@ -192,7 +179,7 @@ export default function WishlistPage() {
         </section>
       )}
 
-      <div className="mt-10 overflow-x-auto rounded-xl border border-[var(--line)]">
+      <Panel className="mt-10 overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-[var(--bg-2)] text-[var(--muted)]">
             <tr>
@@ -254,14 +241,13 @@ export default function WishlistPage() {
                           onChange={(ev) => setTarget(ev.target.value)}
                           className="w-20 rounded border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1"
                         />
-                        <button type="submit" className="text-[var(--accent)]">
+                        <Button type="submit" variant="ghost">
                           Save
-                        </button>
+                        </Button>
                       </form>
                     ) : (
-                      <button
-                        type="button"
-                        className="text-[var(--accent)]"
+                      <Button
+                        variant="ghost"
                         onClick={() => {
                           setEditing(editKey);
                           setTarget(
@@ -274,7 +260,7 @@ export default function WishlistPage() {
                         {item.targetPrice != null
                           ? formatMoney(item.targetPrice, currency)
                           : "Set"}
-                      </button>
+                      </Button>
                     )}
                   </td>
                   <td className="px-4 py-3 text-[var(--warm)]">
@@ -285,7 +271,7 @@ export default function WishlistPage() {
             })}
           </tbody>
         </table>
-      </div>
+      </Panel>
     </AppShell>
   );
 }

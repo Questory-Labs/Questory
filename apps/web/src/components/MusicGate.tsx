@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
-import { AuthGate } from "@/components/AuthGate";
+import { StateMessage } from "@/components/ui";
 
 /** Redirect away from /music/* when flag off or health fails. */
 export function MusicGate({ children }: { children: React.ReactNode }) {
@@ -23,11 +23,13 @@ export function MusicGate({ children }: { children: React.ReactNode }) {
   if (!flagOn) return null;
   if (isLoading) {
     return (
-      <div className="px-4 py-10 text-sm text-[var(--muted)]">
-        Checking music service…
+      <div className="py-8">
+        <StateMessage variant="loading" className="mt-0">
+          Checking music service…
+        </StateMessage>
       </div>
     );
   }
   if (!showMusicNav) return null;
-  return <AuthGate>{children}</AuthGate>;
+  return <>{children}</>;
 }

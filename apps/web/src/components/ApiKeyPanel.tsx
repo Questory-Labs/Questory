@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Button, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 
 type ApiKeyMeta = {
@@ -32,9 +33,17 @@ type Props = {
   title: string;
   description: string;
   endpointHint?: string;
+  /** Drop outer panel chrome when nested in another section. */
+  embedded?: boolean;
 };
 
-export function ApiKeyPanel({ type, title, description, endpointHint }: Props) {
+export function ApiKeyPanel({
+  type,
+  title,
+  description,
+  endpointHint,
+  embedded = false,
+}: Props) {
   const qc = useQueryClient();
   const [plainToken, setPlainToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +85,9 @@ export function ApiKeyPanel({ type, title, description, endpointHint }: Props) {
     },
   });
 
-  return (
-    <section className="panel mt-8 max-w-lg p-5">
-      <h2
-        className="text-lg"
-        style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-      >
+  const body = (
+    <>
+      <h2 className="font-display text-lg font-bold text-[var(--ink)]">
         {title}
       </h2>
       <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
@@ -112,7 +118,7 @@ export function ApiKeyPanel({ type, title, description, endpointHint }: Props) {
       )}
 
       {plainToken && (
-        <div className="mt-3 rounded-md border border-[var(--accent)] bg-[var(--bg-2)] p-3">
+        <div className="mt-3 border border-[var(--accent)] bg-[var(--bg-2)] p-3">
           <p className="text-xs text-[var(--muted)]">
             Copy now — this plaintext is shown once.
           </p>
@@ -123,31 +129,41 @@ export function ApiKeyPanel({ type, title, description, endpointHint }: Props) {
       )}
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <button
-          type="button"
+        <Button
+          variant="primary"
           disabled={create.isPending}
           onClick={() => create.mutate()}
-          className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#0b1218] disabled:opacity-50"
         >
           {create.isPending
             ? "Generating…"
             : key
               ? "Rotate key"
               : "Generate key"}
-        </button>
+        </Button>
         {key && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             disabled={revoke.isPending}
             onClick={() => revoke.mutate(key.id)}
-            className="rounded-md border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] disabled:opacity-50"
           >
             Revoke
-          </button>
+          </Button>
         )}
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-    </section>
+      {error && (
+        <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return <section className="mt-5">{body}</section>;
+  }
+
+  return (
+    <Panel elevated className="mt-8 max-w-lg" faceClassName="p-5">
+      {body}
+    </Panel>
   );
 }

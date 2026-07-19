@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { WatchGate } from "@/components/WatchGate";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
+import { Button, PageHeader } from "@/components/ui";
 import { WATCH_URL, watchFetch, watchUrl } from "@/lib/watch";
 import { useState } from "react";
 
@@ -12,9 +13,30 @@ type ConnStatus = {
   lastSyncedAt?: string | null;
 };
 
+function SourceSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border-t border-[var(--line)] pt-8">
+      <h2
+        className="font-display text-xl text-[var(--ink)]"
+        style={{ fontWeight: 700 }}
+      >
+        {title}
+      </h2>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
 export default function WatchSettingsPage() {
   const qc = useQueryClient();
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const trakt = useQuery({
     queryKey: ["trakt-status"],
@@ -26,8 +48,7 @@ export default function WatchSettingsPage() {
   });
 
   const syncTrakt = useMutation({
-    mutationFn: () =>
-      watchFetch("/trakt/sync", { method: "POST" }),
+    mutationFn: () => watchFetch("/trakt/sync", { method: "POST" }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["trakt-status"] });
       void qc.invalidateQueries({ queryKey: ["watch-overview"] });
@@ -35,8 +56,7 @@ export default function WatchSettingsPage() {
   });
 
   const syncAni = useMutation({
-    mutationFn: () =>
-      watchFetch("/anilist/sync", { method: "POST" }),
+    mutationFn: () => watchFetch("/anilist/sync", { method: "POST" }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["anilist-status"] });
       void qc.invalidateQueries({ queryKey: ["watch-overview"] });
@@ -45,6 +65,7 @@ export default function WatchSettingsPage() {
 
   async function onLetterboxd(file: File | null) {
     if (!file) return;
+    setFileName(file.name);
     setImportMsg("Importing…");
     const body = new FormData();
     body.append("file", file);
@@ -72,107 +93,95 @@ export default function WatchSettingsPage() {
 
   return (
     <WatchGate>
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="font-display text-3xl text-[var(--ink)]">Sources</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Connect Trakt for day/hour history, import Letterboxd diary CSV
-          (official export only — no scraping), and optionally AniList for
-          anime lists.
-        </p>
+      <PageHeader
+        title="Sources"
+        description="Connect Trakt, import a Letterboxd diary, or point Plex / Jellyfin webhooks here."
+      />
 
-        <section className="mt-10 space-y-6">
-          <div className="border border-[var(--line)] p-5">
-            <h2 className="font-display text-lg text-[var(--ink)]">Trakt</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              {trakt.data?.connected
-                ? `Connected. Last sync: ${trakt.data.lastSyncedAt || "never"}`
-                : "Not connected"}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={watchUrl("/trakt/authorize")}
-                className="border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface)]"
-              >
-                Connect Trakt
-              </a>
-              <button
-                type="button"
-                disabled={syncTrakt.isPending || !trakt.data?.connected}
-                onClick={() => syncTrakt.mutate()}
-                className="border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] disabled:opacity-40"
-              >
-                {syncTrakt.isPending ? "Syncing…" : "Sync now"}
-              </button>
-            </div>
+      <div className="space-y-2">
+        <SourceSection title="Trakt">
+          <p className="text-sm text-[var(--muted)]">
+            {trakt.data?.connected
+              ? `Connected · last sync ${trakt.data.lastSyncedAt || "never"}`
+              : "Not connected"}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a href={watchUrl("/trakt/authorize")} className="btn btn-secondary">
+              Connect Trakt
+            </a>
+            <Button
+              variant="secondary"
+              disabled={syncTrakt.isPending || !trakt.data?.connected}
+              onClick={() => syncTrakt.mutate()}
+            >
+              {syncTrakt.isPending ? "Syncing…" : "Sync now"}
+            </Button>
           </div>
+        </SourceSection>
 
-          <div className="border border-[var(--line)] p-5">
-            <h2 className="font-display text-lg text-[var(--ink)]">AniList</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              {anilist.data?.connected
-                ? `Connected. Last sync: ${anilist.data.lastSyncedAt || "never"}`
-                : "Not connected"}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={watchUrl("/anilist/authorize")}
-                className="border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface)]"
-              >
-                Connect AniList
-              </a>
-              <button
-                type="button"
-                disabled={syncAni.isPending || !anilist.data?.connected}
-                onClick={() => syncAni.mutate()}
-                className="border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] disabled:opacity-40"
-              >
-                {syncAni.isPending ? "Syncing…" : "Sync now"}
-              </button>
-            </div>
+        <SourceSection title="AniList">
+          <p className="text-sm text-[var(--muted)]">
+            {anilist.data?.connected
+              ? `Connected · last sync ${anilist.data.lastSyncedAt || "never"}`
+              : "Not connected"}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a
+              href={watchUrl("/anilist/authorize")}
+              className="btn btn-secondary"
+            >
+              Connect AniList
+            </a>
+            <Button
+              variant="secondary"
+              disabled={syncAni.isPending || !anilist.data?.connected}
+              onClick={() => syncAni.mutate()}
+            >
+              {syncAni.isPending ? "Syncing…" : "Sync now"}
+            </Button>
           </div>
+        </SourceSection>
 
-          <div className="border border-[var(--line)] p-5">
-            <h2 className="font-display text-lg text-[var(--ink)]">
-              Letterboxd CSV
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Upload the diary CSV from Letterboxd&apos;s official data export.
-              Automated scraping is not supported.
-            </p>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              className="mt-4 block text-sm"
-              onChange={(e) => void onLetterboxd(e.target.files?.[0] ?? null)}
-            />
-            {importMsg && (
-              <p className="mt-2 text-sm text-[var(--muted)]">{importMsg}</p>
-            )}
-          </div>
-
-          <div className="border border-[var(--line)] p-5">
-            <h2 className="font-display text-lg text-[var(--ink)]">
-              Plex / Jellyfin
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Point player webhooks at the URLs below. Mint a personal webhook
-              key (shown once) and send it as{" "}
-              <code>x-watch-webhook-secret</code> so scrobbles attach to your
-              account.
-            </p>
-            <ul className="mt-2 space-y-1 font-mono text-xs text-[var(--ink)]">
-              <li>POST {WATCH_URL}/webhooks/plex</li>
-              <li>POST {WATCH_URL}/webhooks/jellyfin</li>
-            </ul>
-            <div className="mt-4 [&_.panel]:mt-0 [&_.panel]:max-w-none [&_.panel]:border-0 [&_.panel]:p-0">
-              <ApiKeyPanel
-                type="watch_webhook"
-                title="Webhook API key"
-                description="Rotate anytime from here or Settings → Profile."
+        <SourceSection title="Letterboxd">
+          <p className="text-sm text-[var(--muted)]">
+            Upload the diary CSV from Letterboxd&apos;s official data export.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label className="btn btn-secondary inline-flex cursor-pointer">
+              Choose CSV
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="sr-only"
+                onChange={(e) =>
+                  void onLetterboxd(e.target.files?.[0] ?? null)
+                }
               />
-            </div>
+            </label>
+            <span className="text-sm text-[var(--faint)]">
+              {fileName || "No file selected"}
+            </span>
           </div>
-        </section>
+          {importMsg && (
+            <p className="mt-2 text-sm text-[var(--muted)]">{importMsg}</p>
+          )}
+        </SourceSection>
+
+        <SourceSection title="Plex / Jellyfin">
+          <p className="text-sm text-[var(--muted)]">
+            Point player webhooks at these URLs, then generate a personal key.
+          </p>
+          <ul className="mt-3 space-y-1.5 font-mono text-xs text-[var(--faint)]">
+            <li>POST {WATCH_URL}/webhooks/plex</li>
+            <li>POST {WATCH_URL}/webhooks/jellyfin</li>
+          </ul>
+          <ApiKeyPanel
+            embedded
+            type="watch_webhook"
+            title="Webhook key"
+            description="Shown once when generated. Rotate anytime."
+          />
+        </SourceSection>
       </div>
     </WatchGate>
   );

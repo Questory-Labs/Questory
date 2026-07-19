@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { SearchResult } from "@questorylabs/shared";
 import { useSearchParams } from "next/navigation";
@@ -19,15 +20,9 @@ function SearchInner() {
 
   return (
     <>
-      <h1
-        className="font-[family-name:var(--font-display)] text-4xl"
-        style={{ fontWeight: 700 }}
-      >
-        Search
-      </h1>
-      <p className="mt-2 text-[var(--muted)]">Results for “{q}”</p>
+      <PageHeader title="Search" description={`Results for “${q}”`} />
 
-      <section className="mt-8 space-y-8">
+      <section className="space-y-8">
         <Block title="Games">
           {(result.data?.games || []).map((g) => (
             <div key={`${g.source}-${g.appId}`} className="text-sm">
