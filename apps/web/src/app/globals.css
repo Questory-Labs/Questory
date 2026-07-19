@@ -17,8 +17,8 @@
   --hatch: rgba(242, 239, 232, 0.08);
   --hatch-strong: rgba(242, 239, 232, 0.14);
   --hatch-shadow: #121214;
-  --hatch-line: rgba(242, 239, 232, 0.12);
-  --surface: #25252c;
+  --hatch-line: rgba(242, 239, 232, 0.02);
+  --surface: rgba(242, 239, 232, 0.04);
   --surface-2: #2c2c34;
   --paper: #141416;
   --radius: 8px;
@@ -177,7 +177,6 @@ a {
   z-index: 0;
   pointer-events: none;
   border-radius: var(--radius);
-  background-color: var(--hatch-shadow);
   background-image: repeating-linear-gradient(
     -45deg,
     transparent 0,

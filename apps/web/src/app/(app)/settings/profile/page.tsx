@@ -98,7 +98,7 @@ export default function ProfileSettingsPage() {
         description="Set your Steam store price region. This controls Cost, wishlist deals, library value, and family pricing — pick India for INR."
       />
 
-      <Panel elevated className="max-w-lg" faceClassName="p-5">
+      <Panel wrapperClassName="max-w-lg" className="p-5">
         <h2 className="font-display text-lg font-bold tracking-tight">
           Price region
         </h2>

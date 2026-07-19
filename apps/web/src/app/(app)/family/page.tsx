@@ -200,7 +200,7 @@ export default function FamilyPage() {
       )}
 
       {showImport && (
-        <Panel className="mt-6 p-4">
+        <Panel wrapperClassName="mt-6" className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-lg font-bold tracking-tight">
               Import from friends

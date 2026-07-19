@@ -17,6 +17,7 @@ import type {
   MusicTimeBucket,
 } from "@questorylabs/shared";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
+import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel, StateMessage } from "@/components/ui";
 import {
   formatDeltaPct,
@@ -164,7 +165,7 @@ export default function MusicInsightsPage() {
 
       {d && (
         <>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
               {
                 label: "Listens",
@@ -199,21 +200,14 @@ export default function MusicInsightsPage() {
                 value: d.uniqueArtists,
               },
             ].map((card) => (
-              <Panel key={card.label} className="p-3">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                  {card.label}
-                </dt>
-                <dd className="mt-1 text-xl tabular-nums text-[var(--ink)]">
-                  {card.value}
-                </dd>
-                {card.hint ? (
-                  <p className="mt-1 text-[11px] text-[var(--muted)]">
-                    {card.hint}
-                  </p>
-                ) : null}
-              </Panel>
+              <StatCard
+                key={card.label}
+                label={card.label}
+                value={card.value}
+                hint={card.hint}
+              />
             ))}
-          </dl>
+          </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
@@ -248,19 +242,12 @@ export default function MusicInsightsPage() {
             ]
               .filter(Boolean)
               .map((card) => (
-                <Panel key={card!.label} className="p-4">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                    {card!.label}
-                  </p>
-                  <p className="mt-1 truncate text-lg text-[var(--ink)]">
-                    {card!.value}
-                  </p>
-                  {card!.hint ? (
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {card!.hint}
-                    </p>
-                  ) : null}
-                </Panel>
+                <StatCard
+                  key={card!.label}
+                  label={card!.label}
+                  value={card!.value}
+                  hint={card!.hint}
+                />
               ))}
           </div>
         </>

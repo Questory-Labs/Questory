@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { WatchOverview, WatchTopItem } from "@questorylabs/shared";
-import { PageHeader, Panel, StateMessage } from "@/components/ui";
+import { StatCard } from "@/components/StatCard";
+import { PageHeader, StateMessage } from "@/components/ui";
 import { watchFetch } from "@/lib/watch";
 
 export default function WatchHomePage() {
@@ -38,21 +39,20 @@ export default function WatchHomePage() {
         <StateMessage variant="loading">Loading overview…</StateMessage>
       )}
       {overview.data && (
-        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             ["Watches", overview.data.totalWatches],
             ["Titles", overview.data.uniqueTitles],
             ["Minutes", overview.data.totalMinutes],
             ["Streak (days)", overview.data.streakDays],
           ].map(([label, value]) => (
-            <Panel key={String(label)} className="p-4">
-              <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                {label}
-              </dt>
-              <dd className="mt-1 text-2xl text-[var(--ink)]">{value}</dd>
-            </Panel>
+            <StatCard
+              key={String(label)}
+              label={String(label)}
+              value={value as string | number}
+            />
           ))}
-        </dl>
+        </div>
       )}
 
       {tops.data && tops.data.length > 0 && (

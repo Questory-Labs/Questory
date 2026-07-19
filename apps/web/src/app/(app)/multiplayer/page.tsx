@@ -134,7 +134,10 @@ export default function MultiplayerPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
-        <Panel className="space-y-4 p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <Panel
+          wrapperClassName="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+          className="space-y-4 p-4"
+        >
           <label className="block text-sm text-[var(--muted)]">
             Sort by
             <select

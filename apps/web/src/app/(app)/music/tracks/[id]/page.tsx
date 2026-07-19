@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { MusicTrackDetail } from "@questorylabs/shared";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCover } from "@/components/music/MusicCover";
+import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel, StateMessage } from "@/components/ui";
 import { formatListenDate, formatListenDateTime, musicFetch } from "@/lib/music";
 
@@ -74,40 +75,18 @@ export default function MusicTrackPage() {
         <div className="grid gap-8 lg:grid-cols-[auto_1fr]">
           <MusicCover src={t.imageUrl} alt={t.title} size="lg" />
           <div>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Panel className="p-3">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                  Listens
-                </dt>
-                <dd className="mt-1 text-xl text-[var(--ink)]">
-                  {detail.data.listenCount}
-                </dd>
-              </Panel>
-              <Panel className="p-3">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                  Duration
-                </dt>
-                <dd className="mt-1 text-xl text-[var(--ink)]">
-                  {formatDuration(t.durationMs)}
-                </dd>
-              </Panel>
-              <Panel className="p-3">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                  First
-                </dt>
-                <dd className="mt-1 text-sm text-[var(--ink)]">
-                  {formatListenDate(detail.data.firstListenAt)}
-                </dd>
-              </Panel>
-              <Panel className="p-3">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                  Latest
-                </dt>
-                <dd className="mt-1 text-sm text-[var(--ink)]">
-                  {formatListenDate(detail.data.latestListenAt)}
-                </dd>
-              </Panel>
-            </dl>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Listens" value={detail.data.listenCount} />
+              <StatCard label="Duration" value={formatDuration(t.durationMs)} />
+              <StatCard
+                label="First"
+                value={formatListenDate(detail.data.firstListenAt)}
+              />
+              <StatCard
+                label="Latest"
+                value={formatListenDate(detail.data.latestListenAt)}
+              />
+            </div>
 
             {t.genres.length > 0 ? (
               <div className="mt-4 flex flex-wrap gap-1.5">
@@ -135,7 +114,10 @@ export default function MusicTrackPage() {
               </ul>
             </section>
 
-            <Panel className="mt-6 p-4 text-sm text-[var(--muted)]">
+            <Panel
+              wrapperClassName="mt-6"
+              className="p-4 text-sm text-[var(--muted)]"
+            >
               <Link
                 href="/music/listening"
                 className="hover:text-[var(--accent)]"

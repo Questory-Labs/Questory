@@ -431,15 +431,15 @@ export default function CostPage() {
           </p>
           <div className="space-y-2">
             {analytics.unplayed.map((row) => (
-              <div
+              <Panel
                 key={row.appId}
-                className="panel-outline flex items-center justify-between gap-4 px-4 py-3 text-sm"
+                className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
               >
                 <span className="min-w-0 truncate">{row.name}</span>
                 <span className="shrink-0 font-mono text-[var(--muted)]">
                   {money(row.amount)}
                 </span>
-              </div>
+              </Panel>
             ))}
           </div>
         </section>
@@ -461,9 +461,9 @@ export default function CostPage() {
             </p>
           )}
           {bestValue.map((row) => (
-            <div
+            <Panel
               key={row.appId}
-              className="panel-outline flex items-center justify-between gap-4 px-4 py-3 text-sm"
+              className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
             >
               <span className="min-w-0 truncate">{row.name}</span>
               <span className="shrink-0 text-right text-[var(--muted)]">
@@ -476,7 +476,7 @@ export default function CostPage() {
                   </span>
                 )}
               </span>
-            </div>
+            </Panel>
           ))}
         </div>
       </section>
@@ -497,9 +497,9 @@ export default function CostPage() {
             </p>
           )}
           {worstValue.map((row) => (
-            <div
+            <Panel
               key={row.appId}
-              className="panel-outline flex items-center justify-between gap-4 px-4 py-3 text-sm"
+              className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
             >
               <span className="min-w-0 truncate">{row.name}</span>
               <span className="shrink-0 text-right text-[var(--muted)]">
@@ -509,7 +509,7 @@ export default function CostPage() {
                 {" · "}
                 {row.hours}h · {money(row.amount)}
               </span>
-            </div>
+            </Panel>
           ))}
         </div>
       </section>

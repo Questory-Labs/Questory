@@ -91,7 +91,10 @@ export default function MusicArtistPage() {
               ) : null}
             </section>
 
-            <Panel className="mt-6 p-4 text-sm text-[var(--muted)]">
+            <Panel
+              wrapperClassName="mt-6"
+              className="p-4 text-sm text-[var(--muted)]"
+            >
               <Link href="/music/charts?kind=artists" className="hover:text-[var(--accent)]">
                 ← Back to charts
               </Link>

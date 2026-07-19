@@ -178,7 +178,7 @@ export default function WishlistPage() {
         </section>
       )}
 
-      <Panel className="mt-10 overflow-x-auto">
+      <Panel wrapperClassName="mt-10" className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-[var(--bg-2)] text-[var(--muted)]">
             <tr>

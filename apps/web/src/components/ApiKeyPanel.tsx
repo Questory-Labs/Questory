@@ -162,7 +162,7 @@ export function ApiKeyPanel({
   }
 
   return (
-    <Panel elevated className="mt-8 max-w-lg" faceClassName="p-5">
+    <Panel wrapperClassName="mt-8 max-w-lg" className="p-5">
       {body}
     </Panel>
   );

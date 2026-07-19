@@ -52,8 +52,8 @@ Use [`PageHeader`](../apps/web/src/components/ui/PageHeader.tsx) for authenticat
 
 ### Panels
 
-- **Elevated** — `HatchShadow` + `.panel` (or `<Panel elevated>`). Use for stats, empty states, primary cards.
-- **Outline** — `.panel-outline` (or `<Panel>`). Use for denser lists, filters, Music/Watch metric cells, non-elevated sections.
+- **Elevated (default)** — `HatchShadow` + `.panel` via `<Panel>`. Same surface as `StatCard`; use for content cards and charts.
+- **Outline** — `.panel-outline` or `<Panel elevated={false}>`. Use for dense lists, filters, and table shells.
 
 ### Buttons
 
@@ -68,7 +68,7 @@ In-app primaries stay flat (`.btn-primary`) for density. Hatch-elevated primary 
 
 ### Existing building blocks
 
-- `StatCard` — metric tiles (elevated panel)
+- `StatCard` — compact hatch-elevated metric tiles (`.panel` face + `HatchShadow`); use everywhere KPIs appear
 - `GameTile` / `GameShelf` — game posters
 - `EmptyState` — centered empty copy in elevated panel
 - `StateMessage` — loading (`muted`) or error (`--danger`)

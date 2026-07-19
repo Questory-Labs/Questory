@@ -11,6 +11,7 @@ import type {
 } from "@questorylabs/shared";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicSparkline } from "@/components/music/MusicSparkline";
+import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel, StateMessage } from "@/components/ui";
 import {
   formatDeltaPct,
@@ -18,28 +19,6 @@ import {
   formatMinutes,
   musicFetch,
 } from "@/lib/music";
-
-function Stat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-}) {
-  return (
-    <Panel className="p-4">
-      <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-        {label}
-      </dt>
-      <dd className="mt-1 text-2xl tabular-nums text-[var(--ink)]">{value}</dd>
-      {hint ? (
-        <p className="mt-1 text-xs text-[var(--muted)]">{hint}</p>
-      ) : null}
-    </Panel>
-  );
-}
 
 function TopTeaser({
   title,
@@ -161,7 +140,10 @@ export default function MusicHomePage() {
       )}
 
       {playing.data?.track ? (
-        <Panel className="mb-8 flex items-center gap-4 p-4">
+        <Panel
+          wrapperClassName="mb-8"
+          className="flex items-center gap-4 p-4"
+        >
           <MusicCover
             src={playing.data.track.imageUrl}
             alt=""
@@ -189,12 +171,12 @@ export default function MusicHomePage() {
 
       {overview.data && (
         <>
-          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            <Stat label="Listens" value={overview.data.totalListens} />
-            <Stat label="Artists" value={overview.data.uniqueArtists} />
-            <Stat label="Tracks" value={overview.data.uniqueTracks} />
-            <Stat label="Streak" value={`${overview.data.streakDays}d`} />
-            <Stat
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <StatCard label="Listens" value={overview.data.totalListens} />
+            <StatCard label="Artists" value={overview.data.uniqueArtists} />
+            <StatCard label="Tracks" value={overview.data.uniqueTracks} />
+            <StatCard label="Streak" value={`${overview.data.streakDays}d`} />
+            <StatCard
               label="This week"
               value={weekListens ?? "—"}
               hint={
@@ -203,7 +185,7 @@ export default function MusicHomePage() {
                   : undefined
               }
             />
-            <Stat
+            <StatCard
               label="Listening time"
               value={
                 insights.data
@@ -216,21 +198,21 @@ export default function MusicHomePage() {
                   : undefined
               }
             />
-            <Stat
+            <StatCard
               label="First listen"
               value={formatListenDate(overview.data.earliestListenAt)}
             />
-            <Stat
+            <StatCard
               label="Latest listen"
               value={formatListenDate(overview.data.latestListenAt)}
             />
-          </dl>
+          </div>
 
           <section className="mt-10">
             <h2 className="font-display text-xl text-[var(--ink)]">
               Last 30 days
             </h2>
-            <Panel className="mt-4 p-4">
+            <Panel wrapperClassName="mt-4" className="p-4">
               {series.isLoading ? (
                 <StateMessage variant="loading">Loading activity…</StateMessage>
               ) : (
@@ -301,19 +283,12 @@ export default function MusicHomePage() {
                   .filter(Boolean)
                   .slice(0, 6)
                   .map((card) => (
-                    <Panel key={card!.label} className="p-4">
-                      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                        {card!.label}
-                      </p>
-                      <p className="mt-1 truncate text-lg text-[var(--ink)]">
-                        {card!.value}
-                      </p>
-                      {card!.hint ? (
-                        <p className="mt-1 text-xs text-[var(--muted)]">
-                          {card!.hint}
-                        </p>
-                      ) : null}
-                    </Panel>
+                    <StatCard
+                      key={card!.label}
+                      label={card!.label}
+                      value={card!.value}
+                      hint={card!.hint}
+                    />
                   ))}
               </div>
             </section>
