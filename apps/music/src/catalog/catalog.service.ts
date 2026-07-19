@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  classifyTagKind,
+  type GenreKind,
+} from "../enrichment/mb-metadata";
 import { hourStartUtc, normalizeName, slugifyGenre } from "../lib/tokens";
 
 export type IncomingListenMeta = {
@@ -22,39 +26,79 @@ export type IncomingListenMeta = {
   rawPayload?: string | null;
 };
 
+/** Per-import lookup cache to avoid repeat artist/release/track round-trips. */
+export type ImportEntityCache = {
+  artists: Map<string, { id: string }>;
+  releases: Map<string, { id: string }>;
+  tracks: Map<string, { id: string }>;
+};
+
+export function createImportEntityCache(): ImportEntityCache {
+  return {
+    artists: new Map(),
+    releases: new Map(),
+    tracks: new Map(),
+  };
+}
+
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsertListen(userId: string, meta: IncomingListenMeta) {
-    const artist = await this.upsertArtist(
-      meta.artistName,
-      meta.artistMbids?.[0] ?? null,
-    );
-    const release = meta.releaseName
-      ? await this.upsertRelease(
+  async upsertListen(
+    userId: string,
+    meta: IncomingListenMeta,
+    cache?: ImportEntityCache,
+  ) {
+    const artistMbid = meta.artistMbids?.[0] ?? null;
+    const artistKey = `${normalizeName(meta.artistName)}|${artistMbid ?? ""}`;
+    let artist = cache?.artists.get(artistKey);
+    if (!artist) {
+      artist = await this.upsertArtist(meta.artistName, artistMbid);
+      cache?.artists.set(artistKey, { id: artist.id });
+    }
+
+    let release: { id: string } | null = null;
+    if (meta.releaseName) {
+      const releaseKey = `${normalizeName(meta.releaseName)}|${artist.id}|${meta.releaseMbid ?? ""}`;
+      release = cache?.releases.get(releaseKey) ?? null;
+      if (!release) {
+        release = await this.upsertRelease(
           meta.releaseName,
           artist.id,
           meta.releaseMbid ?? null,
-        )
-      : null;
+        );
+        cache?.releases.set(releaseKey, { id: release.id });
+      }
+    }
 
-    const track = await this.upsertTrack({
-      title: meta.trackName,
-      artistId: artist.id,
-      releaseId: release?.id ?? null,
-      recordingMbid: meta.recordingMbid ?? null,
-      trackMbid: meta.trackMbid ?? null,
-      isrc: meta.isrc ?? null,
-      spotifyId: meta.spotifyId ?? null,
-      durationMs: meta.durationMs ?? null,
-    });
+    const trackKey = [
+      normalizeName(meta.trackName),
+      artist.id,
+      release?.id ?? "",
+      meta.recordingMbid ?? "",
+      meta.spotifyId ?? "",
+    ].join("|");
+    let track = cache?.tracks.get(trackKey);
+    if (!track) {
+      track = await this.upsertTrack({
+        title: meta.trackName,
+        artistId: artist.id,
+        releaseId: release?.id ?? null,
+        recordingMbid: meta.recordingMbid ?? null,
+        trackMbid: meta.trackMbid ?? null,
+        isrc: meta.isrc ?? null,
+        spotifyId: meta.spotifyId ?? null,
+        durationMs: meta.durationMs ?? null,
+      });
+      cache?.tracks.set(trackKey, { id: track.id });
+    }
 
     if (meta.tags?.length) {
       await this.linkTags(track.id, meta.tags, "payload_tag");
     }
 
-    const listen = await this.prisma.listen.upsert({
+    const existing = await this.prisma.listen.findUnique({
       where: {
         userId_trackId_listenedAt: {
           userId,
@@ -62,7 +106,23 @@ export class CatalogService {
           listenedAt: meta.listenedAt,
         },
       },
-      create: {
+    });
+
+    if (existing) {
+      const listen = await this.prisma.listen.update({
+        where: { id: existing.id },
+        data: {
+          listenType: meta.listenType,
+          mediaPlayer: meta.mediaPlayer ?? null,
+          submissionClient: meta.submissionClient ?? null,
+          musicService: meta.musicService ?? null,
+        },
+      });
+      return { listen, track, artist, release, created: false as const };
+    }
+
+    const listen = await this.prisma.listen.create({
+      data: {
         userId,
         trackId: track.id,
         listenedAt: meta.listenedAt,
@@ -72,16 +132,10 @@ export class CatalogService {
         musicService: meta.musicService ?? null,
         rawPayload: meta.rawPayload ?? null,
       },
-      update: {
-        listenType: meta.listenType,
-        mediaPlayer: meta.mediaPlayer ?? null,
-        submissionClient: meta.submissionClient ?? null,
-        musicService: meta.musicService ?? null,
-      },
     });
 
     await this.bumpHourBucket(userId, meta.listenedAt);
-    return { listen, track, artist, release };
+    return { listen, track, artist, release, created: true as const };
   }
 
   async setPlayingNow(userId: string, meta: IncomingListenMeta) {
@@ -126,16 +180,8 @@ export class CatalogService {
 
   async linkTags(trackId: string, tags: string[], source: string) {
     for (const raw of tags) {
-      const name = raw.trim();
-      if (!name) continue;
-      const slug = slugifyGenre(name) || normalizeName(name).replace(/\s/g, "-");
-      if (!slug) continue;
-
-      const genre = await this.prisma.genre.upsert({
-        where: { slug },
-        create: { name, slug },
-        update: { name },
-      });
+      const genre = await this.upsertGenreFromTag(raw);
+      if (!genre) continue;
 
       await this.prisma.trackGenre.upsert({
         where: {
@@ -145,6 +191,45 @@ export class CatalogService {
         update: {},
       });
     }
+  }
+
+  async linkArtistTags(artistId: string, tags: string[], source: string) {
+    for (const raw of tags) {
+      const genre = await this.upsertGenreFromTag(raw);
+      if (!genre) continue;
+
+      await this.prisma.artistGenre.upsert({
+        where: {
+          artistId_genreId_source: { artistId, genreId: genre.id, source },
+        },
+        create: { artistId, genreId: genre.id, source },
+        update: {},
+      });
+    }
+  }
+
+  private async upsertGenreFromTag(raw: string) {
+    const name = raw.trim();
+    if (!name) return null;
+    const slug = slugifyGenre(name) || normalizeName(name).replace(/\s/g, "-");
+    if (!slug) return null;
+
+    const kind = classifyTagKind(name);
+    const existing = await this.prisma.genre.findUnique({ where: { slug } });
+    if (existing) {
+      const nextKind = promoteGenreKind(existing.kind as GenreKind, kind);
+      if (nextKind !== existing.kind || existing.name !== name) {
+        return this.prisma.genre.update({
+          where: { id: existing.id },
+          data: { name, kind: nextKind },
+        });
+      }
+      return existing;
+    }
+
+    return this.prisma.genre.create({
+      data: { name, slug, kind },
+    });
   }
 
   private async upsertArtist(name: string, mbid: string | null) {
@@ -281,4 +366,11 @@ export class CatalogService {
       update: { listenCount: { increment: 1 } },
     });
   }
+}
+
+/** Prefer mood > genre > tag when re-classifying an existing Genre. */
+function promoteGenreKind(current: GenreKind, next: GenreKind): GenreKind {
+  if (current === "mood" || next === "mood") return "mood";
+  if (current === "genre" || next === "genre") return "genre";
+  return "tag";
 }

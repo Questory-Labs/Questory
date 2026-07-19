@@ -502,6 +502,8 @@ model Genre {
   id        String   @id @default(cuid())
   name      String   @unique
   slug      String   @unique
+  /** genre | mood | tag */
+  kind      String   @default("genre")
   createdAt DateTime @default(now())
 
   tracks    TrackGenre[]
@@ -759,10 +761,12 @@ model SourceConnection {
 model ImportJob {
   id          String    @id @default(cuid())
   userId      String
-  /** letterboxd_csv | ... */
+  /** letterboxd_csv | koito_db | koito_json | spotify_json | maloja_json | lastfm_json | listenbrainz_zip | ... */
   source      String
   status      String    @default("pending")
   fileName    String?
+  /** Known listen count after parse; 0 while still parsing. */
+  total       Int       @default(0)
   accepted    Int       @default(0)
   skipped     Int       @default(0)
   lastError   String?
@@ -773,6 +777,7 @@ model ImportJob {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([userId, status])
   @@index([status])
 }
 

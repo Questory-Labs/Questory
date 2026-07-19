@@ -4,9 +4,9 @@
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
-    "predev": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs",
+    "predev": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
     "dev": "nest start --watch",
-    "prebuild": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs",
+    "prebuild": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
     "build": "nest build",
     "start": "node dist/main.js",
     "prisma:generate": "pnpm --filter @questorylabs/db run generate",

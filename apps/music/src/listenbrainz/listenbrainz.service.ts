@@ -89,7 +89,7 @@ export class ListenBrainzService {
         });
       }
       const result = await this.catalog.setPlayingNow(userId, meta);
-      this.enrichment.enqueueTrack(result.track.id);
+      void this.enrichment.enqueueTrack(result.track.id);
       return { status: "ok" };
     }
 
@@ -105,7 +105,7 @@ export class ListenBrainzService {
       const meta = this.parseItem(item, listenType);
       if (!meta) continue;
       const result = await this.catalog.upsertListen(userId, meta);
-      this.enrichment.enqueueTrack(result.track.id);
+      void this.enrichment.enqueueTrack(result.track.id);
       accepted += 1;
     }
 

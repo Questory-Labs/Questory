@@ -12,6 +12,10 @@ apps/music/prisma/*.db
 apps/music/prisma/*.db-journal
 *.log
 README.md
+temp
+temp/**
+samples
+samples/**
 # Never bake the private nested enterprise tree into public images
 enterprise
 enterprise/**

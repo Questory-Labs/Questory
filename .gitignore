@@ -21,6 +21,7 @@ packages/db/prisma/*.db
 packages/db/prisma/schema.prisma
 packages/db/generated
 packages/db/dist
+packages/db/.prisma-generate.lock
 apps/api/src/generated
 apps/api/prisma/schema.prisma
 apps/music/src/generated
@@ -29,3 +30,7 @@ apps/watch/src/generated
 # Private nested repo — clone separately; see enterprise/README.md
 /enterprise/*
 !/enterprise/README.md
+
+samples
+temp/*
+!temp/.gitkeep

@@ -163,6 +163,21 @@ Music accepts:
 
 Analytics live only on the music service (`/v1/analytics/*`). The Steam API does not proxy music data.
 
+### Import listening history
+
+Bulk-import past listens from **Music → Sources** (or `POST /v1/imports` with multipart field `file`). Formats match [Koito’s importers](https://koito.io/guides/importing/):
+
+| Source | Typical filename hint |
+|--------|------------------------|
+| Koito SQLite DB | `koito.db` / `*.sqlite` |
+| Koito JSON export | `koito*.json` (`version: "1"`) |
+| Spotify extended history | `Streaming_History_Audio*.json` |
+| Maloja export | `*maloja*.json` |
+| Last.fm (ghan.nl JSON) | `*recenttracks*.json` |
+| ListenBrainz export zip | `*listenbrainz*.zip` |
+
+Import runs asynchronously; poll `GET /v1/imports/:jobId` for progress. Duplicates are skipped via `(userId, trackId, listenedAt)`.
+
 ### Frontend menus
 
 The web app shows **Music** nav items only when **both** are true:

@@ -47,6 +47,8 @@ const MUSIC_NAV_GROUP = {
     { href: "/music", label: "Music home" },
     { href: "/music/listening", label: "Listening" },
     { href: "/music/charts", label: "Top charts" },
+    { href: "/music/insights", label: "Insights" },
+    { href: "/music/settings", label: "Sources" },
   ],
 };
 
@@ -235,6 +237,11 @@ function NavLinks({
   groups: { label: string; items: { href: string; label: string }[] }[];
 }) {
   const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [pathname, groups]);
 
   return (
     <div className="space-y-5">
@@ -249,6 +256,7 @@ function NavLinks({
               return (
                 <li key={item.href}>
                   <Link
+                    ref={active ? activeRef : undefined}
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}

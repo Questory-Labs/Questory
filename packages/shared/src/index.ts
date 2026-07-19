@@ -745,6 +745,12 @@ export const MusicTopItemSchema = z.object({
 });
 export type MusicTopItem = z.infer<typeof MusicTopItemSchema>;
 
+export const MusicTopsResponseSchema = z.object({
+  periodListens: z.number(),
+  items: z.array(MusicTopItemSchema),
+});
+export type MusicTopsResponse = z.infer<typeof MusicTopsResponseSchema>;
+
 export const MusicTimeBucketSchema = z.object({
   key: z.string(),
   label: z.string(),
@@ -758,15 +764,151 @@ export const MusicRecentListenSchema = z.object({
   track: z.object({
     id: z.string(),
     title: z.string(),
+    artistId: z.string().optional(),
     artistName: z.string(),
+    releaseId: z.string().nullable().optional(),
     releaseTitle: z.string().nullable(),
     imageUrl: z.string().nullable(),
     genres: z.array(z.string()),
   }),
   mediaPlayer: z.string().nullable().optional(),
   submissionClient: z.string().nullable().optional(),
+  musicService: z.string().nullable().optional(),
 });
 export type MusicRecentListen = z.infer<typeof MusicRecentListenSchema>;
+
+export const MusicInsightNamedCountSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  count: z.number(),
+});
+
+export const MusicInsightsSchema = z.object({
+  range: MusicRangeSchema,
+  periodListens: z.number(),
+  peakHour: z
+    .object({ hour: z.number(), label: z.string(), count: z.number() })
+    .nullable(),
+  peakDow: z
+    .object({ day: z.number(), label: z.string(), count: z.number() })
+    .nullable(),
+  topGenre: MusicInsightNamedCountSchema.nullable(),
+  topMood: MusicInsightNamedCountSchema.nullable(),
+  listeningMinutes: z.number(),
+  listensWithDuration: z.number(),
+  durationCoverage: z.number(),
+  newArtists: z.number(),
+  newTracks: z.number(),
+  topTrackShare: z.number(),
+  uniqueArtists: z.number(),
+  uniqueTracks: z.number(),
+  serviceBreakdown: z.array(
+    z.object({ name: z.string(), count: z.number() }),
+  ),
+  compare: z.object({
+    previousListens: z.number().nullable(),
+    deltaPct: z.number().nullable(),
+  }),
+});
+export type MusicInsights = z.infer<typeof MusicInsightsSchema>;
+
+export const MusicBreakdownResponseSchema = z.object({
+  periodListens: z.number(),
+  items: z.array(MusicTimeBucketSchema),
+});
+export type MusicBreakdownResponse = z.infer<
+  typeof MusicBreakdownResponseSchema
+>;
+
+export const MusicPlayingNowSchema = z
+  .object({
+    updatedAt: z.string(),
+    track: z.object({
+      id: z.string(),
+      title: z.string(),
+      artistId: z.string(),
+      artistName: z.string(),
+      releaseId: z.string().nullable(),
+      releaseTitle: z.string().nullable(),
+      imageUrl: z.string().nullable(),
+    }),
+  })
+  .nullable();
+export type MusicPlayingNow = z.infer<typeof MusicPlayingNowSchema>;
+
+export const MusicTrackDetailSchema = z.object({
+  track: z.object({
+    id: z.string(),
+    title: z.string(),
+    artistName: z.string(),
+    artistId: z.string(),
+    releaseTitle: z.string().nullable(),
+    releaseId: z.string().nullable(),
+    imageUrl: z.string().nullable(),
+    recordingMbid: z.string().nullable().optional(),
+    spotifyId: z.string().nullable().optional(),
+    durationMs: z.number().nullable().optional(),
+    genres: z.array(
+      z.object({
+        name: z.string(),
+        kind: z.string().optional(),
+        source: z.string().optional(),
+      }),
+    ),
+  }),
+  listenCount: z.number(),
+  firstListenAt: z.string().nullable().optional(),
+  latestListenAt: z.string().nullable().optional(),
+  recentListens: z.array(z.string()),
+});
+export type MusicTrackDetail = z.infer<typeof MusicTrackDetailSchema>;
+
+export const MusicArtistDetailSchema = z.object({
+  artist: z.object({
+    id: z.string(),
+    name: z.string(),
+    mbid: z.string().nullable().optional(),
+    imageUrl: z.string().nullable().optional(),
+    genres: z.array(z.string()),
+  }),
+  listenCount: z.number(),
+  firstListenAt: z.string().nullable().optional(),
+  latestListenAt: z.string().nullable().optional(),
+  topTracks: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      releaseTitle: z.string().nullable().optional(),
+      imageUrl: z.string().nullable().optional(),
+      count: z.number(),
+    }),
+  ),
+});
+export type MusicArtistDetail = z.infer<typeof MusicArtistDetailSchema>;
+
+export const MusicAlbumDetailSchema = z.object({
+  album: z.object({
+    id: z.string(),
+    title: z.string(),
+    year: z.number().nullable().optional(),
+    imageUrl: z.string().nullable().optional(),
+    mbid: z.string().nullable().optional(),
+    artistId: z.string().nullable(),
+    artistName: z.string().nullable(),
+  }),
+  listenCount: z.number(),
+  firstListenAt: z.string().nullable().optional(),
+  latestListenAt: z.string().nullable().optional(),
+  topTracks: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      durationMs: z.number().nullable().optional(),
+      count: z.number(),
+    }),
+  ),
+});
+export type MusicAlbumDetail = z.infer<typeof MusicAlbumDetailSchema>;
 
 /* ─── Watch service DTOs ─── */
 

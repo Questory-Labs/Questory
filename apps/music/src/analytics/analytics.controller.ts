@@ -1,7 +1,44 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
-import { AnalyticsService, RangeKey } from "./analytics.service";
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  AnalyticsService,
+  RangeKey,
+  TopsKind,
+} from "./analytics.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentMusicUser } from "../auth/current-music-user.decorator";
+
+const RANGES = new Set<RangeKey>(["day", "week", "month", "year", "all"]);
+const TOPS_KINDS = new Set<TopsKind>([
+  "artists",
+  "albums",
+  "tracks",
+  "genres",
+  "moods",
+]);
+
+function parseLimit(raw: string | undefined, fallback: number, max = 100) {
+  if (raw == null || raw === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > max) {
+    throw new BadRequestException("Invalid limit");
+  }
+  return n;
+}
+
+function parseRange(raw: string | undefined, fallback: RangeKey): RangeKey {
+  if (raw == null || raw === "") return fallback;
+  if (!RANGES.has(raw as RangeKey)) {
+    throw new BadRequestException("Invalid range");
+  }
+  return raw as RangeKey;
+}
 
 @Controller("analytics")
 @UseGuards(SessionUserGuard)
@@ -13,18 +50,52 @@ export class AnalyticsController {
     return this.analytics.overview(user.userId);
   }
 
+  @Get("insights")
+  insights(
+    @CurrentMusicUser() user: { userId: string },
+    @Query("range") range?: string,
+  ) {
+    return this.analytics.insights(user.userId, parseRange(range, "week"));
+  }
+
+  @Get("playing-now")
+  playingNow(@CurrentMusicUser() user: { userId: string }) {
+    return this.analytics.playingNow(user.userId);
+  }
+
+  @Get("breakdown/:kind")
+  breakdown(
+    @CurrentMusicUser() user: { userId: string },
+    @Param("kind") kind: "years" | "services",
+    @Query("range") range?: string,
+    @Query("limit") limit?: string,
+  ) {
+    if (kind !== "years" && kind !== "services") {
+      throw new BadRequestException("Invalid breakdown kind");
+    }
+    return this.analytics.breakdown(
+      user.userId,
+      kind,
+      parseRange(range, "month"),
+      parseLimit(limit, 20),
+    );
+  }
+
   @Get("tops/:kind")
   tops(
     @CurrentMusicUser() user: { userId: string },
-    @Param("kind") kind: "artists" | "albums" | "tracks" | "genres",
-    @Query("range") range: RangeKey = "week",
+    @Param("kind") kind: string,
+    @Query("range") range?: string,
     @Query("limit") limit?: string,
   ) {
+    if (!TOPS_KINDS.has(kind as TopsKind)) {
+      throw new BadRequestException("Invalid tops kind");
+    }
     return this.analytics.tops(
       user.userId,
-      kind,
-      range || "week",
-      limit != null ? Number(limit) : 20,
+      kind as TopsKind,
+      parseRange(range, "week"),
+      parseLimit(limit, 20),
     );
   }
 
@@ -33,12 +104,16 @@ export class AnalyticsController {
     @CurrentMusicUser() user: { userId: string },
     @Query("granularity")
     granularity: "hourOfDay" | "dayOfWeek" | "day" | "week" = "day",
-    @Query("range") range: RangeKey = "month",
+    @Query("range") range?: string,
   ) {
+    const allowed = new Set(["hourOfDay", "dayOfWeek", "day", "week"]);
+    if (!allowed.has(granularity)) {
+      throw new BadRequestException("Invalid granularity");
+    }
     return this.analytics.timeSeries(
       user.userId,
       granularity,
-      range || "month",
+      parseRange(range, "month"),
     );
   }
 
@@ -47,10 +122,7 @@ export class AnalyticsController {
     @CurrentMusicUser() user: { userId: string },
     @Query("limit") limit?: string,
   ) {
-    return this.analytics.recent(
-      user.userId,
-      limit != null ? Number(limit) : 40,
-    );
+    return this.analytics.recent(user.userId, parseLimit(limit, 40));
   }
 
   @Get("tracks/:id")
@@ -67,5 +139,13 @@ export class AnalyticsController {
     @Param("id") id: string,
   ) {
     return this.analytics.artistDetail(user.userId, id);
+  }
+
+  @Get("albums/:id")
+  albumDetail(
+    @CurrentMusicUser() user: { userId: string },
+    @Param("id") id: string,
+  ) {
+    return this.analytics.albumDetail(user.userId, id);
   }
 }

@@ -7,6 +7,7 @@ import { CatalogModule } from "./catalog/catalog.module";
 import { EnrichmentModule } from "./enrichment/enrichment.module";
 import { ListenBrainzModule } from "./listenbrainz/listenbrainz.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { ImportsModule } from "./imports/imports.module";
 
 @Module({
   imports: [
@@ -17,7 +18,9 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     EnrichmentModule,
     ListenBrainzModule,
     AnalyticsModule,
+    ImportsModule,
   ],
   controllers: [HealthController],
 })
 export class AppModule {}
+
