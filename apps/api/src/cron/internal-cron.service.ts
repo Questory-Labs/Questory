@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { SyncService } from "../sync/sync.service";
+import { CatalogService } from "../steam/catalog.service";
 
 const CATALOG_LOCK_KEY = "steam:catalog:sync:lock";
 const STUCK_JOB_MS = 60 * 60 * 1000;
@@ -14,33 +15,41 @@ export class InternalCronService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly sync: SyncService,
+    private readonly catalog: CatalogService,
   ) {}
 
+  syncCatalog(opts: { forceFull?: boolean; maxPages?: number }) {
+    return this.catalog.syncIncremental(opts);
+  }
+
   async dailyRefresh() {
-    const users = await this.prisma.user.findMany({
-      select: { id: true, steamId: true },
+    const steamAccounts = await this.prisma.account.findMany({
+      where: { provider: "steam" },
+      select: { userId: true, providerAccountId: true },
     });
 
     let enqueued = 0;
     let failed = 0;
-    for (const user of users) {
-      if (!user.steamId) continue;
+    for (const account of steamAccounts) {
       try {
-        await this.sync.enqueueDailyPriceStats(user.id, user.steamId);
+        await this.sync.enqueueDailyPriceStats(
+          account.userId,
+          account.providerAccountId,
+        );
         enqueued += 1;
       } catch (err) {
         failed += 1;
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(
-          `Daily refresh enqueue failed for user ${user.id}: ${message}`,
+          `Daily refresh enqueue failed for user ${account.userId}: ${message}`,
         );
       }
     }
 
     this.logger.log(
-      `Daily refresh: users=${users.length} enqueued=${enqueued} failed=${failed}`,
+      `Daily refresh: users=${steamAccounts.length} enqueued=${enqueued} failed=${failed}`,
     );
-    return { users: users.length, enqueued, failed };
+    return { users: steamAccounts.length, enqueued, failed };
   }
 
   async recoverFailedSync() {

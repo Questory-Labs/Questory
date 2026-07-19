@@ -1,3 +1,4 @@
+import { VersioningType } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
 import { loadEnvFiles } from "./load-env";
@@ -24,6 +25,10 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.WEB_ORIGIN || "http://localhost:3000",
     credentials: true,
+  });
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: "1",
   });
   const port = Number(process.env.API_PORT || 4000);
   await app.listen(port);

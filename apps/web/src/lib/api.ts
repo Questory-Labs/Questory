@@ -1,10 +1,16 @@
+import { withApiVersion } from "@questorylabs/shared";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+function apiPath(path: string) {
+  return withApiVersion(path, ["/auth", "/health"]);
+}
 
 export async function api<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${API_URL}${apiPath(path)}`, {
     ...init,
     credentials: "include",
     headers: {

@@ -105,6 +105,10 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_ENABLE_MUSIC: ${NEXT_PUBLIC_ENABLE_MUSIC:-false}
+        NEXT_PUBLIC_MUSIC_URL: ${NEXT_PUBLIC_MUSIC_URL:-http://localhost:4010}
+        NEXT_PUBLIC_ENABLE_WATCH: ${NEXT_PUBLIC_ENABLE_WATCH:-false}
+        NEXT_PUBLIC_WATCH_URL: ${NEXT_PUBLIC_WATCH_URL:-http://localhost:4020}
     pull_policy: ${PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:
@@ -114,8 +118,142 @@ services:
         required: false
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_PUBLIC_ENABLE_MUSIC: ${NEXT_PUBLIC_ENABLE_MUSIC:-false}
+      NEXT_PUBLIC_MUSIC_URL: ${NEXT_PUBLIC_MUSIC_URL:-http://localhost:4010}
+      NEXT_PUBLIC_ENABLE_WATCH: ${NEXT_PUBLIC_ENABLE_WATCH:-false}
+      NEXT_PUBLIC_WATCH_URL: ${NEXT_PUBLIC_WATCH_URL:-http://localhost:4020}
     ports:
       - "3000:3000"
+
+  # Optional music analytics — shares DATABASE_URL with API (same SQLite file / Postgres DB)
+  # Lite:  docker compose --profile selfhosted --profile music up -d
+  # Full:  docker compose --profile selfhosted-full --profile music-pg up -d
+  music-lite:
+    profiles: ["music"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-music:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: apps/music/Dockerfile
+      args:
+        DATABASE_PROVIDER: sqlite
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - music
+    environment:
+      APP_MODE: ${APP_MODE:-selfhosted}
+      MUSIC_PORT: 4010
+      DATABASE_PROVIDER: sqlite
+      DATABASE_URL: file:/data/questorylabs.db
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      MUSICBRAINZ_USER_AGENT: ${MUSICBRAINZ_USER_AGENT:-}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+    volumes:
+      - sqlite_data:/data
+    ports:
+      - "4010:4010"
+
+  music:
+    profiles: ["music-pg"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-music:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: apps/music/Dockerfile
+      args:
+        DATABASE_PROVIDER: postgresql
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - music
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_MODE: ${APP_MODE:-selfhosted-full}
+      MUSIC_PORT: 4010
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://questorylabs:questorylabs@postgres:5432/questorylabs
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      MUSICBRAINZ_USER_AGENT: ${MUSICBRAINZ_USER_AGENT:-}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+    ports:
+      - "4010:4010"
+
+  # Optional watch analytics — shares DATABASE_URL with API (same SQLite file / Postgres DB)
+  # Lite:  docker compose --profile selfhosted --profile watch up -d
+  # Full:  docker compose --profile selfhosted-full --profile watch-pg up -d
+  watch-lite:
+    profiles: ["watch"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-watch:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: apps/watch/Dockerfile
+      args:
+        DATABASE_PROVIDER: sqlite
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - watch
+    environment:
+      APP_MODE: ${APP_MODE:-selfhosted}
+      WATCH_PORT: 4020
+      DATABASE_PROVIDER: sqlite
+      DATABASE_URL: file:/data/questorylabs.db
+      TRAKT_CLIENT_ID: ${TRAKT_CLIENT_ID:-}
+      TRAKT_CLIENT_SECRET: ${TRAKT_CLIENT_SECRET:-}
+      TRAKT_REDIRECT_URI: ${TRAKT_REDIRECT_URI:-http://localhost:4020/v1/trakt/callback}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      ANILIST_CLIENT_ID: ${ANILIST_CLIENT_ID:-}
+      ANILIST_CLIENT_SECRET: ${ANILIST_CLIENT_SECRET:-}
+      ANILIST_REDIRECT_URI: ${ANILIST_REDIRECT_URI:-http://localhost:4020/v1/anilist/callback}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+    volumes:
+      - sqlite_data:/data
+    ports:
+      - "4020:4020"
+
+  watch:
+    profiles: ["watch-pg"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-watch:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: apps/watch/Dockerfile
+      args:
+        DATABASE_PROVIDER: postgresql
+    pull_policy: ${PULL_POLICY:-missing}
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - watch
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_MODE: ${APP_MODE:-selfhosted-full}
+      WATCH_PORT: 4020
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://questorylabs:questorylabs@postgres:5432/questorylabs
+      TRAKT_CLIENT_ID: ${TRAKT_CLIENT_ID:-}
+      TRAKT_CLIENT_SECRET: ${TRAKT_CLIENT_SECRET:-}
+      TRAKT_REDIRECT_URI: ${TRAKT_REDIRECT_URI:-http://localhost:4020/v1/trakt/callback}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      ANILIST_CLIENT_ID: ${ANILIST_CLIENT_ID:-}
+      ANILIST_CLIENT_SECRET: ${ANILIST_CLIENT_SECRET:-}
+      ANILIST_REDIRECT_URI: ${ANILIST_REDIRECT_URI:-http://localhost:4020/v1/anilist/callback}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+    ports:
+      - "4020:4020"
 
   # Scheduler only — calls API internal cron endpoints (disabled unless CRON_ENABLED)
   cron:
@@ -131,10 +269,12 @@ services:
       - api
     environment:
       CRON_ENABLED: ${CRON_ENABLED:-false}
+      WATCH_INTERNAL_URL: ${WATCH_INTERNAL_URL:-http://watch:4020}
       CRON_SECRET: ${CRON_SECRET:-}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
       CRON_DAILY_SCHEDULE: ${CRON_DAILY_SCHEDULE:-0 3 * * *}
       CRON_RECOVERY_SCHEDULE: ${CRON_RECOVERY_SCHEDULE:-*/15 * * * *}
+      CRON_WATCH_SCHEDULE: ${CRON_WATCH_SCHEDULE:-0 */6 * * *}
 
 volumes:
   postgres_data:

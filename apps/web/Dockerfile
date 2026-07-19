@@ -10,7 +10,15 @@ FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_ENABLE_MUSIC=false
+ARG NEXT_PUBLIC_MUSIC_URL=http://localhost:4010
+ARG NEXT_PUBLIC_ENABLE_WATCH=false
+ARG NEXT_PUBLIC_WATCH_URL=http://localhost:4020
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ENABLE_MUSIC=$NEXT_PUBLIC_ENABLE_MUSIC
+ENV NEXT_PUBLIC_MUSIC_URL=$NEXT_PUBLIC_MUSIC_URL
+ENV NEXT_PUBLIC_ENABLE_WATCH=$NEXT_PUBLIC_ENABLE_WATCH
+ENV NEXT_PUBLIC_WATCH_URL=$NEXT_PUBLIC_WATCH_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules

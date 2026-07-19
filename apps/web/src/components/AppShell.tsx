@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { sanitizeAppHref } from "@questorylabs/shared";
 import { api } from "@/lib/api";
-import { useEffect, useId, useRef, useState } from "react";
+import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 const ACCOUNT_LINKS = [
   { href: "/settings/profile", label: "Profile", hint: "Price region & account" },
   { href: "/settings/stores", label: "Stores", hint: "Steam, Epic, GOG" },
 ] as const;
 
-const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
+const BASE_NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
   {
     label: "Overview",
     items: [
@@ -37,6 +40,24 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] 
     ],
   },
 ];
+
+const MUSIC_NAV_GROUP = {
+  label: "Music",
+  items: [
+    { href: "/music", label: "Music home" },
+    { href: "/music/listening", label: "Listening" },
+    { href: "/music/charts", label: "Top charts" },
+  ],
+};
+
+const WATCH_NAV_GROUP = {
+  label: "Watch",
+  items: [
+    { href: "/watch", label: "Watch home" },
+    { href: "/watch/history", label: "History" },
+    { href: "/watch/settings", label: "Sources" },
+  ],
+};
 
 type MeResponse = {
   user: {
@@ -192,13 +213,15 @@ function isActive(pathname: string, href: string) {
 function NavLinks({
   pathname,
   onNavigate,
+  groups,
 }: {
   pathname: string;
   onNavigate?: () => void;
+  groups: { label: string; items: { href: string; label: string }[] }[];
 }) {
   return (
     <div className="space-y-5">
-      {NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.label}>
           <div className="font-mono mb-1.5 px-2.5 text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
             {group.label}
@@ -243,6 +266,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const menuId = useId();
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const { showMusicNav } = useMusicEnabled();
+  const { enabled: showWatchNav } = useWatchEnabled();
+
+  const navGroups = useMemo(() => {
+    const groups = [...BASE_NAV_GROUPS];
+    if (showMusicNav) groups.push(MUSIC_NAV_GROUP);
+    if (showWatchNav) groups.push(WATCH_NAV_GROUP);
+    return groups;
+  }, [showMusicNav, showWatchNav]);
 
   const me = useQuery({
     queryKey: ["me"],
@@ -374,7 +406,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Primary">
-          <NavLinks pathname={pathname} />
+          <NavLinks pathname={pathname} groups={navGroups} />
         </nav>
 
         <div
@@ -481,9 +513,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           n.readAt ? "opacity-60" : ""
                         }`}
                       >
-                        {n.href ? (
+                        {sanitizeAppHref(n.href) ? (
                           <Link
-                            href={n.href}
+                            href={sanitizeAppHref(n.href)!}
                             onClick={() => setNotifOpen(false)}
                             className="block hover:text-[var(--accent)]"
                           >
@@ -571,7 +603,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
 
               <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Mobile">
-                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+                <NavLinks
+                  pathname={pathname}
+                  groups={navGroups}
+                  onNavigate={() => setMenuOpen(false)}
+                />
               </nav>
 
               <div className="border-t border-[var(--line)] p-3">

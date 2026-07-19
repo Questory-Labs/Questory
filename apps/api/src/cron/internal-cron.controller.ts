@@ -1,4 +1,4 @@
-import { Controller, Post, UseGuards } from "@nestjs/common";
+import { Controller, Post, Query, UseGuards } from "@nestjs/common";
 import { CronSecretGuard } from "./cron-secret.guard";
 import { InternalCronService } from "./internal-cron.service";
 
@@ -15,5 +15,16 @@ export class InternalCronController {
   @Post("recover-failed-sync")
   recoverFailedSync() {
     return this.cron.recoverFailedSync();
+  }
+
+  @Post("catalog-sync")
+  catalogSync(
+    @Query("forceFull") forceFull?: string,
+    @Query("maxPages") maxPages?: string,
+  ) {
+    return this.cron.syncCatalog({
+      forceFull: forceFull === "1" || forceFull === "true",
+      maxPages: maxPages ? Number(maxPages) : undefined,
+    });
   }
 }

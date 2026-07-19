@@ -2,15 +2,17 @@
   "name": "@questorylabs/api",
   "version": "0.0.1",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "predev": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs",
     "dev": "nest start --watch",
     "prebuild": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs",
     "build": "nest build",
     "start": "node dist/main.js",
-    "prisma:generate": "node ../../scripts/sync-prisma-schema.mjs && prisma generate",
-    "prisma:migrate": "node ../../scripts/sync-prisma-schema.mjs && prisma migrate dev",
-    "prisma:push": "node ../../scripts/sync-prisma-schema.mjs && prisma db push"
+    "prisma:generate": "pnpm --filter @questorylabs/db run generate",
+    "prisma:migrate": "pnpm --filter @questorylabs/db run migrate",
+    "prisma:push": "pnpm --filter @questorylabs/db run push",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.12",
@@ -20,6 +22,7 @@
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@questorylabs/db": "workspace:*",
     "@questorylabs/shared": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "bullmq": "^5.44.0",
@@ -34,12 +37,18 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.5",
     "@nestjs/schematics": "^11.0.2",
+    "@nestjs/testing": "^11.0.12",
+    "@swc/core": "^1.15.46",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.1",
     "@types/node": "^22.13.10",
     "@types/pg": "^8.20.0",
+    "@types/supertest": "^6.0.3",
     "prisma": "^7.8.0",
-    "typescript": "^5.8.2"
+    "supertest": "^7.1.4",
+    "typescript": "^5.8.2",
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^3.2.4"
   }
 }

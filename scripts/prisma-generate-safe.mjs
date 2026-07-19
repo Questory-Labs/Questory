@@ -1,14 +1,21 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const apiDir = join(__dirname, "..", "apps", "api");
-const generatedClient = join(apiDir, "src", "generated", "prisma", "client.ts");
+const root = join(__dirname, "..");
+const dbDir = join(root, "packages", "db");
+const apiClient = join(root, "apps", "api", "src", "generated", "prisma", "client.ts");
+
+for (const app of ["api", "music", "watch"]) {
+  mkdirSync(join(root, "apps", app, "src", "generated", "prisma"), {
+    recursive: true,
+  });
+}
 
 const result = spawnSync("pnpm", ["exec", "prisma", "generate"], {
-  cwd: apiDir,
+  cwd: dbDir,
   encoding: "utf8",
   shell: true,
   env: process.env,
@@ -19,11 +26,11 @@ if (result.status === 0) {
 }
 
 const output = `${result.stdout || ""}${result.stderr || ""}`;
-const hasClient = existsSync(generatedClient);
+const hasClient = existsSync(apiClient);
 
 if (/EPERM/i.test(output) && hasClient) {
   console.warn(
-    "[prisma] generate skipped — files are locked (stop the API first to regenerate). Using existing client.",
+    "[prisma] generate skipped — files are locked. Using existing client.",
   );
   process.exit(0);
 }

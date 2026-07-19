@@ -15,14 +15,16 @@ export class JobsService implements OnModuleInit {
   onModuleInit() {
     const dailyExpr = process.env.CRON_DAILY_SCHEDULE || "0 3 * * *";
     const recoveryExpr = process.env.CRON_RECOVERY_SCHEDULE || "*/15 * * * *";
+    const watchExpr = process.env.CRON_WATCH_SCHEDULE || "0 */6 * * *";
 
     this.addJob("daily-refresh", dailyExpr, () => this.runDailyRefresh());
     this.addJob("recover-failed-sync", recoveryExpr, () =>
       this.runRecoverFailedSync(),
     );
+    this.addJob("watch-sync", watchExpr, () => this.runWatchSync());
 
     this.logger.log(
-      `Scheduled daily-refresh (${dailyExpr}) and recover-failed-sync (${recoveryExpr})`,
+      `Scheduled daily-refresh (${dailyExpr}), recover-failed-sync (${recoveryExpr}), watch-sync (${watchExpr})`,
     );
   }
 
@@ -49,5 +51,29 @@ export class JobsService implements OnModuleInit {
       "/internal/cron/recover-failed-sync",
     );
     this.logger.log(`recover-failed-sync done: ${JSON.stringify(result)}`);
+  }
+
+  async runWatchSync() {
+    this.logger.log("Starting watch-sync (Trakt + AniList)");
+    try {
+      const trakt = await this.api.postWatchInternal(
+        "/internal/cron/trakt-sync",
+      );
+      this.logger.log(`trakt-sync done: ${JSON.stringify(trakt)}`);
+    } catch (err) {
+      this.logger.warn(
+        `trakt-sync skipped/failed: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+    try {
+      const ani = await this.api.postWatchInternal(
+        "/internal/cron/anilist-sync",
+      );
+      this.logger.log(`anilist-sync done: ${JSON.stringify(ani)}`);
+    } catch (err) {
+      this.logger.warn(
+        `anilist-sync skipped/failed: ${err instanceof Error ? err.message : err}`,
+      );
+    }
   }
 }

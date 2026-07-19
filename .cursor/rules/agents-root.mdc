@@ -1,0 +1,10 @@
+---
+description: Follow root AGENTS.md as the single source of agent instructions
+alwaysApply: true
+---
+
+# Agent instructions root
+
+Read and follow [AGENTS.md](../../AGENTS.md) at the repository root for all project guidance (product, license, monorepo, tooling, conventions, secrets, testing, boundaries).
+
+Do not invent parallel project rules here. This file only points to that root.

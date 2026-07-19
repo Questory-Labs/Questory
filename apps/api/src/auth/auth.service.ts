@@ -2,6 +2,8 @@ import { Inject, Injectable, Logger, forwardRef } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamApiService } from "../steam/steam-api.service";
 import { SyncService } from "../sync/sync.service";
+import { AccountsService } from "../accounts/accounts.service";
+import { ACCOUNT_PROVIDER } from "../accounts/account.constants";
 import { extractSteamId } from "./openid-query";
 
 @Injectable()
@@ -11,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly steam: SteamApiService,
+    private readonly accounts: AccountsService,
     @Inject(forwardRef(() => SyncService))
     private readonly sync: SyncService,
   ) {}
@@ -68,36 +71,60 @@ export class AuthService {
 
   async upsertFromSteam(steamId: string) {
     const [summary] = await this.steam.getPlayerSummaries([steamId]);
-    const existing = await this.prisma.user.findUnique({ where: { steamId } });
+    const linked = await this.accounts.findByProviderAccount(
+      ACCOUNT_PROVIDER.steam,
+      steamId,
+    );
+    const existing = linked?.user ?? null;
     const personaName =
       summary?.personaname ||
       existing?.personaName ||
       `Steam ${steamId}`;
-    const user = await this.prisma.user.upsert({
-      where: { steamId },
-      create: {
+
+    let user;
+    if (existing) {
+      user = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          ...(summary?.personaname ? { personaName: summary.personaname } : {}),
+          ...(summary?.avatarfull ? { avatarUrl: summary.avatarfull } : {}),
+          ...(summary?.profileurl ? { profileUrl: summary.profileurl } : {}),
+          ...(summary?.loccountrycode && !existing.priceRegionLocked
+            ? { countryCode: summary.loccountrycode }
+            : {}),
+        },
+      });
+      await this.accounts.ensureSteamAccount(
+        user.id,
         steamId,
-        personaName,
-        avatarUrl: summary?.avatarfull || null,
-        profileUrl: summary?.profileurl || null,
-        countryCode: summary?.loccountrycode || null,
-      },
-      update: {
-        // Never wipe a real name when Steam summaries are temporarily unavailable.
-        ...(summary?.personaname ? { personaName: summary.personaname } : {}),
-        ...(summary?.avatarfull ? { avatarUrl: summary.avatarfull } : {}),
-        ...(summary?.profileurl ? { profileUrl: summary.profileurl } : {}),
-        // Respect a user-chosen price region (e.g. INR) over Steam's loccountrycode.
-        ...(summary?.loccountrycode && !existing?.priceRegionLocked
-          ? { countryCode: summary.loccountrycode }
-          : {}),
-      },
-    });
+        summary?.personaname || user.personaName,
+      );
+    } else {
+      user = await this.prisma.user.create({
+        data: {
+          personaName,
+          avatarUrl: summary?.avatarfull || null,
+          profileUrl: summary?.profileurl || null,
+          countryCode: summary?.loccountrycode || null,
+          accounts: {
+            create: {
+              provider: ACCOUNT_PROVIDER.steam,
+              providerAccountId: steamId,
+              displayName: personaName,
+            },
+          },
+        },
+      });
+    }
+
     await this.sync.enqueueAll(user.id, steamId);
-    return user;
+    return { ...user, steamId };
   }
 
   async getUser(userId: string) {
-    return this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return null;
+    const steamId = await this.accounts.getSteamId(userId);
+    return { ...user, steamId };
   }
 }

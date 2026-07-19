@@ -5,6 +5,7 @@ import {
   Req,
   Res,
   UseGuards,
+  VERSION_NEUTRAL,
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
@@ -15,7 +16,7 @@ import { openIdQueryFromRequest } from "./openid-query";
 import { currencyFromCountry } from "../lib/currency";
 import { isSteamIdAllowed } from "../lib/runtime-config";
 
-@Controller("auth")
+@Controller({ path: "auth", version: VERSION_NEUTRAL })
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
@@ -36,7 +37,10 @@ export class AuthController {
         );
       }
       const user = await this.auth.upsertFromSteam(steamId);
-      setSession(res, { userId: user.id, steamId: user.steamId });
+      setSession(res, {
+        userId: user.id,
+        steamId: user.steamId,
+      });
       return res.redirect(`${webOrigin}/dashboard`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "auth_failed";

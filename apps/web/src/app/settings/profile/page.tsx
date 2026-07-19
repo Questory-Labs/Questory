@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { api } from "@/lib/api";
+import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { MUSIC_URL } from "@/lib/music";
+import { WATCH_URL } from "@/lib/watch";
 
 type PriceRegion = {
   countryCode: string;
@@ -23,6 +28,8 @@ type MeResponse = {
 
 export default function ProfileSettingsPage() {
   const qc = useQueryClient();
+  const music = useMusicEnabled();
+  const watch = useWatchEnabled();
   const [countryCode, setCountryCode] = useState("IN");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +161,24 @@ export default function ProfileSettingsPage() {
         )}
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
       </section>
+
+      {music.showMusicNav && (
+        <ApiKeyPanel
+          type="music_ingest"
+          title="Music ingest (ListenBrainz)"
+          description="Generate a personal token for multi-scrobbler / ListenBrainz clients. Send as Authorization: Token … — not an env var."
+          endpointHint={`Endpoint: ${MUSIC_URL}/1/`}
+        />
+      )}
+
+      {watch.showWatchNav && (
+        <ApiKeyPanel
+          type="watch_webhook"
+          title="Watch webhook key"
+          description="Personal secret for Plex/Jellyfin webhooks. Send as header x-watch-webhook-secret so events attach to your account."
+          endpointHint={`POST ${WATCH_URL}/webhooks/plex · ${WATCH_URL}/webhooks/jellyfin`}
+        />
+      )}
     </AppShell>
   );
 }

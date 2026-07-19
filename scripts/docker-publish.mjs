@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 
 /**
- * Build and push questorylabs-{api,web,cron} images to Docker Hub.
+ * Build and push questorylabs-{api,web,cron,music} images to Docker Hub.
  *
  * Usage:
  *   docker login
@@ -17,6 +17,9 @@ const prefix = process.env.DOCKER_IMAGE_PREFIX || "questorylabs";
 const tag = process.env.IMAGE_TAG || "latest";
 const nextPublicApiUrl =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const nextPublicEnableMusic = process.env.NEXT_PUBLIC_ENABLE_MUSIC || "false";
+const nextPublicMusicUrl =
+  process.env.NEXT_PUBLIC_MUSIC_URL || "http://localhost:4010";
 
 const allImages = {
   api: {
@@ -25,11 +28,19 @@ const allImages = {
   },
   web: {
     dockerfile: "apps/web/Dockerfile",
-    buildArgs: [`NEXT_PUBLIC_API_URL=${nextPublicApiUrl}`],
+    buildArgs: [
+      `NEXT_PUBLIC_API_URL=${nextPublicApiUrl}`,
+      `NEXT_PUBLIC_ENABLE_MUSIC=${nextPublicEnableMusic}`,
+      `NEXT_PUBLIC_MUSIC_URL=${nextPublicMusicUrl}`,
+    ],
   },
   cron: {
     dockerfile: "apps/cron/Dockerfile",
     buildArgs: [],
+  },
+  music: {
+    dockerfile: "apps/music/Dockerfile",
+    buildArgs: ["DATABASE_PROVIDER=postgresql"],
   },
 };
 

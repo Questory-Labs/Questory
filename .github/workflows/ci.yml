@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, web, cron]
+        service: [api, web, music, watch, cron, shared]
 
     steps:
       - name: Checkout
@@ -39,6 +39,23 @@ jobs:
             echo "No test script for ${{ matrix.service }} — skipping."
           fi
 
-      - name: Run tests
+      - name: Install Playwright browsers
+        if: matrix.service == 'web' && steps.detect.outputs.has_tests == 'true'
+        run: pnpm --filter @questorylabs/web exec playwright install --with-deps chromium
+
+      - name: Run unit tests
         if: steps.detect.outputs.has_tests == 'true'
         run: pnpm --filter "@questorylabs/${{ matrix.service }}" test
+        env:
+          APP_MODE: local
+          SESSION_SECRET: test-session-secret-32chars!!
+          DATABASE_URL: file:./test.db
+          DATABASE_PROVIDER: sqlite
+
+      - name: Run Playwright e2e
+        if: matrix.service == 'web' && steps.detect.outputs.has_tests == 'true'
+        run: pnpm --filter @questorylabs/web test:e2e
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:4000
+          NEXT_PUBLIC_ENABLE_MUSIC: "false"
+          NEXT_PUBLIC_ENABLE_WATCH: "false"

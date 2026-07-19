@@ -21,6 +21,9 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { StoresModule } from "./stores/stores.module";
 import { TrendingModule } from "./trending/trending.module";
 import { CronModule } from "./cron/cron.module";
+import { AccountsModule } from "./accounts/accounts.module";
+import { ApiKeysModule } from "./api-keys/api-keys.module";
+import { PrivateExtensionsModule } from "./extensions/private-extensions.module";
 import { HealthController } from "./health.controller";
 
 const rootEnv = resolve(process.cwd(), "../../.env");
@@ -37,6 +40,8 @@ const localEnv = resolve(process.cwd(), ".env");
     PrismaModule,
     CacheModule,
     SteamModule,
+    AccountsModule,
+    ApiKeysModule,
     AuthModule,
     SyncModule,
     UsersModule,
@@ -54,6 +59,7 @@ const localEnv = resolve(process.cwd(), ".env");
     StoresModule,
     TrendingModule,
     CronModule,
+    PrivateExtensionsModule.forRoot(),
   ],
   controllers: [HealthController],
 })

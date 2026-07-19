@@ -1,27 +1,33 @@
 {
   "name": "questorylabs",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "pnpm run dev:all",
     "dev:all": "pnpm -r --parallel --filter @questorylabs/api --filter @questorylabs/web run dev",
     "dev:api": "pnpm --filter @questorylabs/api run dev",
     "dev:web": "pnpm --filter @questorylabs/web run dev",
+    "dev:music": "pnpm --filter @questorylabs/music run dev",
+    "dev:watch": "pnpm --filter @questorylabs/watch run dev",
     "dev:cron": "pnpm --filter @questorylabs/cron run dev",
-    "build": "pnpm db:schema && pnpm -r run build",
+    "build": "pnpm db:generate && pnpm --filter @questorylabs/db run build && pnpm --filter @questorylabs/shared run build && pnpm -r --filter '!@questorylabs/db' --filter '!@questorylabs/shared' run build",
     "db:schema": "node scripts/sync-prisma-schema.mjs",
-    "db:generate": "pnpm db:schema && pnpm --filter @questorylabs/api exec prisma generate",
-    "db:push": "pnpm db:schema && pnpm --filter @questorylabs/api exec prisma db push",
-    "db:migrate": "pnpm db:schema && pnpm --filter @questorylabs/api exec prisma migrate dev",
-    "setup": "pnpm install && pnpm --filter @questorylabs/shared build && pnpm db:generate && pnpm db:push",
+    "db:generate": "pnpm db:schema && node scripts/prisma-generate-safe.mjs",
+    "db:push": "node scripts/migrate-identity-accounts.mjs && pnpm db:schema && pnpm --filter @questorylabs/db exec prisma db push --accept-data-loss",
+    "db:migrate": "node scripts/migrate-identity-accounts.mjs && pnpm db:schema && pnpm --filter @questorylabs/db exec prisma migrate dev",
+    "setup": "pnpm install && pnpm --filter @questorylabs/shared build && pnpm --filter @questorylabs/db run build && pnpm db:generate && pnpm db:push",
     "docker:infra": "node scripts/docker-profile.mjs infra",
     "docker:selfhosted": "node scripts/docker-profile.mjs selfhosted",
     "docker:selfhosted-full": "node scripts/docker-profile.mjs selfhosted-full",
     "docker:prod": "node scripts/docker-profile.mjs production",
+    "docker:music": "docker compose --profile music up -d --pull missing",
+    "docker:watch": "docker compose --profile watch up -d --pull missing",
     "docker:up": "pnpm run docker:selfhosted-full",
     "docker:down": "docker compose --profile selfhosted --profile selfhosted-full --profile production --profile infra down",
     "docker:publish": "node scripts/docker-publish.mjs",
-    "docker:build": "node scripts/docker-publish.mjs --no-push"
+    "docker:build": "node scripts/docker-publish.mjs --no-push",
+    "test": "pnpm -r --if-present test"
   },
   "engines": {
     "node": ">=20"
@@ -33,7 +39,9 @@
       "@prisma/engines",
       "better-sqlite3",
       "sharp",
-      "msgpackr-extract"
+      "msgpackr-extract",
+      "esbuild",
+      "@swc/core"
     ]
   }
 }

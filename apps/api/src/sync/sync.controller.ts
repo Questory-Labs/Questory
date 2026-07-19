@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { SyncService } from "./sync.service";
 import { CatalogService } from "../steam/catalog.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
@@ -42,14 +49,11 @@ export class SyncController {
     return this.catalog.getStatus();
   }
 
+  /** Global catalog sync is cron-only (see POST /v1/internal/cron/catalog-sync). */
   @Post("catalog")
-  syncCatalog(
-    @Query("forceFull") forceFull?: string,
-    @Query("maxPages") maxPages?: string,
-  ) {
-    return this.catalog.syncIncremental({
-      forceFull: forceFull === "1" || forceFull === "true",
-      maxPages: maxPages ? Number(maxPages) : undefined,
-    });
+  syncCatalog() {
+    throw new ForbiddenException(
+      "Global catalog sync requires cron secret via POST /v1/internal/cron/catalog-sync",
+    );
   }
 }

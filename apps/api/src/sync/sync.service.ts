@@ -16,6 +16,7 @@ import { PlayerCountService } from "../steam/player-count.service";
 import { CollectionsService } from "../collections/collections.service";
 import { GameMergeService } from "../stores/game-merge.service";
 import { StoresService } from "../stores/stores.service";
+import { AccountsService } from "../accounts/accounts.service";
 import {
   parseStringArray,
   stringifyStringArray,
@@ -70,6 +71,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     private readonly catalog: CatalogService,
     private readonly itad: ItadService,
     private readonly playerCounts: PlayerCountService,
+    private readonly accounts: AccountsService,
     @Inject(forwardRef(() => CollectionsService))
     private readonly collections: CollectionsService,
     @Inject(forwardRef(() => GameMergeService))
@@ -829,9 +831,9 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
 
     for (const friend of friends) {
       const summary = summaryMap.get(friend.steamid);
-      const existingUser = await this.prisma.user.findUnique({
-        where: { steamId: friend.steamid },
-      });
+      const existingUser = await this.accounts.findUserBySteamId(
+        friend.steamid,
+      );
       await this.prisma.friendship.upsert({
         where: {
           userId_friendSteamId: { userId, friendSteamId: friend.steamid },

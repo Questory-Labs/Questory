@@ -1,14 +1,23 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { withApiVersion } from "@questorylabs/shared";
 
 @Injectable()
 export class ApiClient {
   private readonly logger = new Logger(ApiClient.name);
 
-  private baseUrl(): string {
+  private apiBaseUrl(): string {
     return (
       process.env.API_INTERNAL_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
       "http://localhost:4000"
+    ).replace(/\/$/, "");
+  }
+
+  private watchBaseUrl(): string {
+    return (
+      process.env.WATCH_INTERNAL_URL ||
+      process.env.NEXT_PUBLIC_WATCH_URL ||
+      "http://localhost:4020"
     ).replace(/\/$/, "");
   }
 
@@ -17,12 +26,21 @@ export class ApiClient {
   }
 
   async postInternal(path: string): Promise<unknown> {
+    return this.post(this.apiBaseUrl(), path);
+  }
+
+  async postWatchInternal(path: string): Promise<unknown> {
+    return this.post(this.watchBaseUrl(), path);
+  }
+
+  private async post(base: string, path: string): Promise<unknown> {
     const secret = this.secret();
     if (!secret) {
       throw new Error("CRON_SECRET is not configured");
     }
 
-    const url = `${this.baseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+    const versioned = withApiVersion(path);
+    const url = `${base}${versioned}`;
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -41,9 +59,9 @@ export class ApiClient {
 
     if (!res.ok) {
       this.logger.error(
-        `POST ${path} failed: ${res.status} ${typeof body === "string" ? body : JSON.stringify(body)}`,
+        `POST ${url} failed: ${res.status} ${typeof body === "string" ? body : JSON.stringify(body)}`,
       );
-      throw new Error(`API ${path} returned ${res.status}`);
+      throw new Error(`${url} returned ${res.status}`);
     }
 
     return body;

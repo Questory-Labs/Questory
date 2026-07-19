@@ -1,6 +1,27 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { config as loadDotenv } from "dotenv";
+import { pathToFileURL } from "node:url";
+
+/**
+ * Resolve relative SQLite file: URLs against apps/api/prisma so API + music
+ * share one DB file regardless of process cwd.
+ */
+function normalizeSharedSqliteUrl() {
+  const url = process.env.DATABASE_URL;
+  if (!url?.startsWith("file:")) return;
+  let pathPart = url.slice("file:".length);
+  // file:/absolute or file:./relative
+  if (pathPart.startsWith("//")) {
+    pathPart = pathPart.slice(1);
+  }
+  if (isAbsolute(pathPart) || /^[A-Za-z]:[\\/]/.test(pathPart)) return;
+
+  // nest outDir dist → __dirname = apps/api/dist → ../prisma = apps/api/prisma
+  const sharedPrismaDir = resolve(__dirname, "../prisma");
+  const abs = resolve(sharedPrismaDir, pathPart);
+  process.env.DATABASE_URL = pathToFileURL(abs).href;
+}
 
 /**
  * Load env before Nest constructs providers.
@@ -22,4 +43,6 @@ export function loadEnvFiles() {
     seen.add(normalized);
     loadDotenv({ path: normalized, override: false });
   }
+
+  normalizeSharedSqliteUrl();
 }

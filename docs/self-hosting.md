@@ -1,5 +1,14 @@
 # Self-hosting Questory Labs
 
+## License limits
+
+Self-hosting of the community stack is allowed only under the [PolyForm Noncommercial License 1.0.0](../LICENSE):
+
+- **Allowed:** personal use, hobby projects, and other noncommercial purposes (including many educational / charitable uses as defined in the license).
+- **Not allowed under this license:** selling the software, charging for access/hosting of this software as a product, or other use primarily for commercial advantage or monetary compensation. Ask the copyright holder for a commercial license if you need that.
+- **Attribution / notices:** if you redistribute the software (or a modified version), you must include the license terms (or the PolyForm URL) and any `Required Notice:` lines from `LICENSE`.
+- This project is **source-available**, not OSI open source. Do not assume MIT/Apache-style commercial rights.
+
 ## Modes
 
 | `APP_MODE` | Stack | Best for |
@@ -43,9 +52,13 @@ pnpm docker:prod
 ```
 
 Web: `http://localhost:3000` (or your `WEB_ORIGIN`)  
-API: `http://localhost:4000` (or your public API URL)
+API: `http://localhost:4000` (or your public API URL)  
+Music (optional): `http://localhost:4010`  
+Watch (optional): `http://localhost:4020`
 
-`GET /health` reports `mode`, database provider, Redis/sync mode, and whether the Steam allowlist is enabled (not the IDs).
+`GET /health` on the API reports `mode`, database provider, Redis/sync mode, and whether the Steam allowlist is enabled (not the IDs). Music exposes `GET /health` (`questorylabs-music`); watch exposes `GET /health` (`questorylabs-watch`).
+
+**One database:** Steam API, music, and watch all use the same `DATABASE_URL` (SQLite file volume or Postgres `questorylabs`). Schema lives in `packages/db`. Identity is a shared `User` row (Steam OpenID, music ingest token, Trakt/AniList connections).
 
 ### Docker Hub images
 
@@ -54,6 +67,8 @@ API: `http://localhost:4000` (or your public API URL)
 | `santoshpanna/questorylabs-api` | `api` / `api-lite` (SQLite or Postgres chosen at runtime) |
 | `santoshpanna/questorylabs-web` | `web` |
 | `santoshpanna/questorylabs-cron` | `cron` |
+| `santoshpanna/questorylabs-music` | `music` / `music-lite` (optional ListenBrainz ingest + analytics) |
+| `santoshpanna/questorylabs-watch` | `watch` / `watch-lite` (optional movie/TV ingest + analytics) |
 
 Optional `.env` overrides:
 
@@ -99,6 +114,113 @@ Pushes/PRs to `main` run CI tests per service when a `test` script exists; other
 NEXT_PUBLIC_API_URL=https://api.example.com pnpm docker:selfhosted-full -- --build
 ```
 
+## Music analytics (optional)
+
+Questory Music is a **separate** service. It does not collect plays itself — deploy [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler) (or any ListenBrainz-compatible client) and point it at Music.
+
+### Enable the stack
+
+Music **shares the same database** as the Steam API (same `DATABASE_URL` — one SQLite file or the `questorylabs` Postgres DB). Schema is owned by `packages/db`.
+
+1. Turn on the web flag (rebuild web after changing `NEXT_PUBLIC_*`). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars):
+
+```env
+NEXT_PUBLIC_ENABLE_MUSIC=true
+NEXT_PUBLIC_MUSIC_URL=http://localhost:4010
+```
+
+Share `SESSION_SECRET` with the API so music analytics can read the session cookie.
+
+2. Start Music alongside your mode (same DB volume / Postgres as API):
+
+```bash
+# Lite — shares sqlite_data / questorylabs.db with api-lite
+docker compose --profile selfhosted --profile music up -d --build
+
+# Full — shares postgres DB questorylabs with api
+docker compose --profile selfhosted-full --profile music-pg up -d --build
+```
+
+Locally without Docker: `pnpm setup` (pushes shared schema) then `pnpm dev:music`.
+
+### Point multi-scrobbler at Questory Music
+
+Use multi-scrobbler’s [ListenBrainz client](https://docs.multi-scrobbler.app/configuration/clients/listenbrainz/) (or the [Koito client](https://docs.multi-scrobbler.app/configuration/clients/koito/) pattern):
+
+| Variable | Value |
+|----------|--------|
+| `LZ_URL` / base URL | `http://<music-host>:4010` (or `http://<music-host>:4010/apis/listenbrainz`) |
+| `LZ_TOKEN` / API key | token from Settings → Profile (music ingest key) |
+| `LZ_USER` | ListenBrainz username shown on Profile (auto-created slug) |
+
+Music accepts:
+
+- `POST /1/submit-listens` and `POST /apis/listenbrainz/1/submit-listens`
+- `GET /1/validate-token`
+- `GET /1/user/:user/listens` (for MS duplicate detection)
+- `GET /1/user/:user/listen-count`
+- `GET /1/user/:user/playing-now`
+
+Analytics live only on the music service (`/v1/analytics/*`). The Steam API does not proxy music data.
+
+### Frontend menus
+
+The web app shows **Music** nav items only when **both** are true:
+
+1. `NEXT_PUBLIC_ENABLE_MUSIC=true` (baked at web image build time)
+2. A successful client ping to `${NEXT_PUBLIC_MUSIC_URL}/health` with `ok: true`
+
+If Music is down or the flag is off, the Steam UI is unchanged.
+
+## Watch analytics (optional)
+
+Questory Watch ingests movie/TV history into the **same shared database** and `User` as Steam/music.
+
+### Enable the stack
+
+```env
+NEXT_PUBLIC_ENABLE_WATCH=true
+NEXT_PUBLIC_WATCH_URL=http://localhost:4020
+TRAKT_CLIENT_ID=...
+TRAKT_CLIENT_SECRET=...
+TRAKT_REDIRECT_URI=http://localhost:4020/v1/trakt/callback
+TMDB_API_KEY=...   # TMDB API key or v4 read token
+# Optional:
+# ANILIST_CLIENT_ID / ANILIST_CLIENT_SECRET / ANILIST_REDIRECT_URI
+# (default redirect: http://localhost:4020/v1/anilist/callback)
+SESSION_SECRET=same-as-api                # watch verifies the Steam session cookie
+```
+
+**Plex / Jellyfin:** mint a `watch_webhook` ApiKey in **Settings → Watch** (or Profile). Send it as header `x-watch-webhook-secret` — there is no global `WATCH_WEBHOOK_SECRET` env.
+
+**Multi-user / non-local:** share `SESSION_SECRET` with the API, and serve API + watch (+ web) under a common site (or `COOKIE_DOMAIN`) so the browser sends `questorylabs_session` to watch. Trakt/AniList/Letterboxd routes require that session (or sole-user fallback only in `local`/`selfhosted` with exactly one user and no `userId` query).
+
+```bash
+# Lite — shares sqlite_data with api-lite
+docker compose --profile selfhosted --profile watch up -d --build
+
+# Full — shares postgres questorylabs with api
+docker compose --profile selfhosted-full --profile watch-pg up -d --build
+```
+
+Locally: `pnpm setup` then `pnpm dev:watch`.
+
+### Sources
+
+| Source | How |
+|--------|-----|
+| **Trakt** | OAuth at `/v1/trakt/authorize` → history + ratings + watchlist sync |
+| **TMDB** | Metadata enrichment (genres, posters, runtime). Attribution required in UI. |
+| **Letterboxd** | Official diary CSV upload only (`POST /v1/imports/letterboxd`) — no scraping |
+| **AniList** | OAuth + list sync (day/unknown precision) |
+| **Plex / Jellyfin** | `POST /webhooks/plex` and `POST /webhooks/jellyfin` (unversioned) |
+
+Cron (when enabled) hits `/v1/internal/cron/trakt-sync` and `/v1/internal/cron/anilist-sync` on the watch service every 6 hours (`CRON_WATCH_SCHEDULE`).
+
+### Frontend menus
+
+Watch nav appears when `NEXT_PUBLIC_ENABLE_WATCH=true` **and** `${NEXT_PUBLIC_WATCH_URL}/health` returns `ok: true`.
+
 ## Steam OpenID URLs
 
 - `STEAM_REALM` and `STEAM_RETURN_URL` must use the **API** origin.
@@ -122,7 +244,9 @@ Recommended for private `selfhosted` / `selfhosted-full` deployments.
 
 ## Reverse proxy tip
 
-Prefer a **same-origin** setup (e.g. `https://games.example.com` for the UI and `https://games.example.com/api` proxied to the API). That avoids cross-site cookie issues. If you use separate hosts (`app.` + `api.`), set HTTPS everywhere, `COOKIE_DOMAIN=.example.com`, and matching CORS `WEB_ORIGIN`.
+Prefer a **same-origin** setup (e.g. `https://games.example.com` for the UI and `https://games.example.com/api` proxied to the API). That avoids cross-site cookie issues. If you use separate hosts (`app.` + `api.` + `watch.`), set HTTPS everywhere, `COOKIE_DOMAIN=.example.com`, matching CORS `WEB_ORIGIN`, and the **same** `SESSION_SECRET` on API and watch so music/watch browser calls can authenticate.
+
+See also [testing.md](./testing.md) for the security test suite.
 
 Example Caddy sketch (same host, path split):
 
@@ -144,20 +268,20 @@ games.example.com {
 }
 ```
 
-Adjust paths to match how you expose the Nest routes (this repo serves API routes at the root of the API service, not under `/api` unless you add a prefix).
+Browser path `/api/v1/library` becomes Nest `/v1/library` after `strip_prefix /api`. Steam auth and health stay unversioned at the API root; resource APIs live under `/v1`.
 
 ## Backups
 
-**Lite (SQLite):** copy the Docker volume file (default DB path inside the container: `/data/questorylabs.db`), or back up the `sqlite_data` volume.
+**Lite (SQLite):** copy the Docker volume file (default DB path inside the container: `/data/questorylabs.db`), or back up the `sqlite_data` volume. API, music, and watch share this file.
 
-**Full / production (Postgres):** use `pg_dump` against the `postgres` service, or snapshot the `postgres_data` volume. Redis holds cache, locks, and in-flight jobs — back it up only if you care about queue state (library data lives in Postgres).
+**Full / production (Postgres):** use `pg_dump` against the `postgres` service, or snapshot the `postgres_data` volume. Steam + music + watch tables live in the same `questorylabs` database. Redis holds cache, locks, and in-flight jobs — back it up only if you care about queue state.
 
 ## Daily sync cron
 
 Full / production Compose profiles include an optional `cron` service. It does **not** talk to Steam directly — it calls API endpoints:
 
-- `POST /internal/cron/daily-refresh` — enqueue `library-sync` + `metadata-refresh` for every logged-in user
-- `POST /internal/cron/recover-failed-sync` — clear stuck `SyncJob` rows and catalog lock/failed state
+- `POST /v1/internal/cron/daily-refresh` — enqueue `library-sync` + `metadata-refresh` for every logged-in user
+- `POST /v1/internal/cron/recover-failed-sync` — clear stuck `SyncJob` rows and catalog lock/failed state
 
 Enable it in `.env`:
 
@@ -181,9 +305,12 @@ pnpm dev:cron
 - `SESSION_SECRET` — long random string (API rejects weak placeholders in non-local modes)
 - `STEAM_API_KEY` — [Steam Web API key](https://steamcommunity.com/dev/apikey)
 - `CRON_SECRET` — required when using the cron service (`CRON_ENABLED=true`)
+- Music ingest / watch webhook tokens — mint per-user ApiKeys in Settings (not env vars)
+- `TRAKT_CLIENT_ID` / `TRAKT_CLIENT_SECRET` — required for Trakt OAuth on watch
+- `TMDB_API_KEY` — required for watch metadata enrichment (keep TMDB attribution in the UI)
 - Change default Postgres password in compose for any internet-facing host
 - Never commit `.env`
 
 ## Schema deploy note
 
-Containers run `prisma db push` on start. That is fine for self-host and early production; a future release may switch to versioned `prisma migrate deploy`.
+Canonical schema: `packages/db/prisma/schema.template.prisma`. Use `pnpm db:generate` / `pnpm db:push` from the repo root. Containers run `prisma db push` on start against that shared schema.

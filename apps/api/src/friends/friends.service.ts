@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { AccountsService } from "../accounts/accounts.service";
 import { parseStringArray } from "../lib/json-arrays";
 
 const LIBRARY_CACHE_LIMIT = 15;
@@ -7,7 +8,10 @@ const GAMES_PER_FRIEND_LIMIT = 200;
 
 @Injectable()
 export class FriendsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accounts: AccountsService,
+  ) {}
 
   async list(userId: string) {
     const friends = await this.prisma.friendship.findMany({
@@ -113,9 +117,7 @@ export class FriendsService {
     const yourWishlist = await this.prisma.wishlistItem.findMany({
       where: { userId },
     });
-    const friendUser = await this.prisma.user.findUnique({
-      where: { steamId: friendSteamId },
-    });
+    const friendUser = await this.accounts.findUserBySteamId(friendSteamId);
     let mutualWishlist = 0;
     if (friendUser) {
       const friendWishlist = await this.prisma.wishlistItem.findMany({

@@ -1,17 +1,54 @@
 import { z } from "zod";
 
+/** URI version segment for Nest apps (api / music / watch). */
+export const API_VERSION = "1";
+export const API_PREFIX = `/v${API_VERSION}`;
+
+/**
+ * Prepend `/v1` unless the path is already versioned (`/vN/...`)
+ * or matches a VERSION_NEUTRAL prefix (`/auth`, `/health`, …).
+ */
+export function withApiVersion(
+  path: string,
+  neutralPrefixes: readonly string[] = [],
+): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (/^\/v\d+(\/|$)/.test(normalized)) return normalized;
+  for (const prefix of neutralPrefixes) {
+    const p = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
+    if (normalized === p || normalized.startsWith(`${p}/`)) {
+      return normalized;
+    }
+  }
+  return `${API_PREFIX}${normalized}`;
+}
+
 export const StoreSchema = z.enum(["steam", "epic", "gog"]);
 export type Store = z.infer<typeof StoreSchema>;
 
 export const UserSchema = z.object({
   id: z.string(),
-  steamId: z.string(),
+  /** From Account(provider=steam); null for non-Steam identities. */
+  steamId: z.string().nullable(),
   personaName: z.string(),
   avatarUrl: z.string().nullable(),
   profileUrl: z.string().nullable(),
   countryCode: z.string().nullable().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
+
+export const ApiKeyTypeSchema = z.enum(["music_ingest", "watch_webhook"]);
+export type ApiKeyType = z.infer<typeof ApiKeyTypeSchema>;
+
+export const ApiKeyMetaSchema = z.object({
+  id: z.string(),
+  type: ApiKeyTypeSchema,
+  tokenPrefix: z.string(),
+  label: z.string().nullable().optional(),
+  createdAt: z.union([z.string(), z.date()]),
+  lastUsedAt: z.union([z.string(), z.date()]).nullable().optional(),
+});
+export type ApiKeyMeta = z.infer<typeof ApiKeyMetaSchema>;
 
 export const StoreAccountStatusSchema = z.object({
   store: StoreSchema,
@@ -665,3 +702,151 @@ export function formatPlayerMaxLabel(
   if (!cleaned.length) return null;
   return `MAX:${cleaned.join("/")}`;
 }
+
+/* ─── Music service DTOs ─── */
+
+export const MusicHealthSchema = z.object({
+  ok: z.boolean(),
+  service: z.literal("questorylabs-music"),
+  mode: z.string().optional(),
+  database: z
+    .object({
+      provider: z.string(),
+      urlConfigured: z.boolean(),
+    })
+    .optional(),
+  ingestConfigured: z.boolean().optional(),
+});
+export type MusicHealth = z.infer<typeof MusicHealthSchema>;
+
+export const MusicRangeSchema = z.enum(["day", "week", "month", "year", "all"]);
+export type MusicRange = z.infer<typeof MusicRangeSchema>;
+
+export const MusicOverviewSchema = z.object({
+  username: z.string(),
+  totalListens: z.number(),
+  uniqueTracks: z.number(),
+  uniqueArtists: z.number(),
+  latestListenAt: z.string().nullable(),
+  earliestListenAt: z.string().nullable(),
+  streakDays: z.number(),
+});
+export type MusicOverview = z.infer<typeof MusicOverviewSchema>;
+
+export const MusicTopItemSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  title: z.string().optional(),
+  artistName: z.string().optional(),
+  releaseTitle: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  slug: z.string().optional(),
+  count: z.number(),
+});
+export type MusicTopItem = z.infer<typeof MusicTopItemSchema>;
+
+export const MusicTimeBucketSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  count: z.number(),
+});
+export type MusicTimeBucket = z.infer<typeof MusicTimeBucketSchema>;
+
+export const MusicRecentListenSchema = z.object({
+  id: z.string(),
+  listenedAt: z.string(),
+  track: z.object({
+    id: z.string(),
+    title: z.string(),
+    artistName: z.string(),
+    releaseTitle: z.string().nullable(),
+    imageUrl: z.string().nullable(),
+    genres: z.array(z.string()),
+  }),
+  mediaPlayer: z.string().nullable().optional(),
+  submissionClient: z.string().nullable().optional(),
+});
+export type MusicRecentListen = z.infer<typeof MusicRecentListenSchema>;
+
+/* ─── Watch service DTOs ─── */
+
+export const WatchHealthSchema = z.object({
+  ok: z.boolean(),
+  service: z.literal("questorylabs-watch"),
+  mode: z.string().optional(),
+  database: z
+    .object({
+      provider: z.string(),
+      urlConfigured: z.boolean(),
+    })
+    .optional(),
+  traktConfigured: z.boolean().optional(),
+  tmdbConfigured: z.boolean().optional(),
+});
+export type WatchHealth = z.infer<typeof WatchHealthSchema>;
+
+export const WatchRangeSchema = z.enum(["day", "week", "month", "year", "all"]);
+export type WatchRange = z.infer<typeof WatchRangeSchema>;
+
+export const WatchOverviewSchema = z.object({
+  userId: z.string(),
+  personaName: z.string(),
+  totalWatches: z.number(),
+  uniqueTitles: z.number(),
+  totalMinutes: z.number(),
+  latestWatchAt: z.string().nullable(),
+  earliestWatchAt: z.string().nullable(),
+  streakDays: z.number(),
+});
+export type WatchOverview = z.infer<typeof WatchOverviewSchema>;
+
+export const WatchTopItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.string().optional(),
+  posterUrl: z.string().nullable().optional(),
+  count: z.number(),
+});
+export type WatchTopItem = z.infer<typeof WatchTopItemSchema>;
+
+export const WatchTimeBucketSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  count: z.number(),
+});
+export type WatchTimeBucket = z.infer<typeof WatchTimeBucketSchema>;
+
+export const WatchRecentEventSchema = z.object({
+  id: z.string(),
+  watchedAt: z.string(),
+  source: z.string(),
+  precision: z.string(),
+  title: z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+    posterUrl: z.string().nullable(),
+    genres: z.array(z.string()),
+  }),
+  episode: z
+    .object({
+      id: z.string(),
+      seasonNumber: z.number(),
+      episodeNumber: z.number(),
+      name: z.string().nullable(),
+    })
+    .nullable(),
+});
+export type WatchRecentEvent = z.infer<typeof WatchRecentEventSchema>;
+
+export { sanitizeAppHref } from "./safe-href";
+
+export {
+  parsePageParam,
+  parsePageSizeParam,
+  SteamId64Schema,
+} from "./pagination";
+
+// Server-only crypto helpers: import from `@questorylabs/shared/session`
+// or `@questorylabs/shared/oauth-state` — never from this browser-safe barrel.
+

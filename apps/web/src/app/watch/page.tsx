@@ -1,0 +1,77 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import type { WatchOverview, WatchTopItem } from "@questorylabs/shared";
+import { WatchGate } from "@/components/WatchGate";
+import { watchFetch } from "@/lib/watch";
+
+export default function WatchHomePage() {
+  const overview = useQuery({
+    queryKey: ["watch-overview"],
+    queryFn: () => watchFetch<WatchOverview>("/analytics/overview"),
+  });
+  const tops = useQuery({
+    queryKey: ["watch-tops-week"],
+    queryFn: () =>
+      watchFetch<WatchTopItem[]>("/analytics/tops/titles?range=week&limit=10"),
+  });
+
+  return (
+    <WatchGate>
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <h1 className="font-display text-3xl text-[var(--ink)]">Watch</h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Movie &amp; TV analytics from Trakt, Letterboxd CSV, AniList, and local
+          player webhooks. Connect sources under Watch → Sources.
+        </p>
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
+          This product uses TMDB and the TMDB APIs but is not endorsed, certified,
+          or otherwise approved by TMDB.
+        </p>
+
+        {overview.isLoading && (
+          <p className="mt-8 text-sm text-[var(--muted)]">Loading overview…</p>
+        )}
+        {overview.data && (
+          <dl className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {[
+              ["Watches", overview.data.totalWatches],
+              ["Titles", overview.data.uniqueTitles],
+              ["Minutes", overview.data.totalMinutes],
+              ["Streak (days)", overview.data.streakDays],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="border border-[var(--line)] p-4">
+                <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+                  {label}
+                </dt>
+                <dd className="mt-1 text-2xl text-[var(--ink)]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {tops.data && tops.data.length > 0 && (
+          <section className="mt-10">
+            <h2 className="font-display text-xl text-[var(--ink)]">This week</h2>
+            <ol className="mt-4 space-y-2">
+              {tops.data.map((t, i) => (
+                <li
+                  key={t.id}
+                  className="flex items-baseline justify-between border-b border-[var(--line)] py-2 text-sm"
+                >
+                  <span className="text-[var(--ink)]">
+                    <span className="mr-3 font-mono text-[var(--faint)]">
+                      {i + 1}.
+                    </span>
+                    {t.name}
+                  </span>
+                  <span className="font-mono text-[var(--muted)]">{t.count}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+      </div>
+    </WatchGate>
+  );
+}

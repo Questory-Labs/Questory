@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { AccountsService } from "../accounts/accounts.service";
 import {
   currencyFromCountry,
   isSupportedPriceCountry,
@@ -9,14 +10,20 @@ import {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accounts: AccountsService,
+  ) {}
 
-  findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id } });
+  async findById(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) return null;
+    const steamId = await this.accounts.getSteamId(id);
+    return { ...user, steamId };
   }
 
   findBySteamId(steamId: string) {
-    return this.prisma.user.findUnique({ where: { steamId } });
+    return this.accounts.findUserBySteamId(steamId);
   }
 
   listPriceRegions() {
@@ -47,11 +54,12 @@ export class UsersService {
         priceRegionLocked: countryCode != null,
       },
     });
+    const steamId = await this.accounts.getSteamId(userId);
 
     return {
       user: {
         id: user.id,
-        steamId: user.steamId,
+        steamId,
         personaName: user.personaName,
         avatarUrl: user.avatarUrl,
         profileUrl: user.profileUrl,

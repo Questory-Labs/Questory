@@ -2,13 +2,21 @@
 
 Analytics and library intelligence for Steam — dashboard, wishlist intel, cost analytics, friend comparison, multiplayer planning, family insights, and smart collections.
 
+## License
+
+Questory Labs community code is **source-available** under the [PolyForm Noncommercial License 1.0.0](LICENSE) (SPDX: `PolyForm-Noncommercial-1.0.0`). It is **not** OSI-approved open source.
+
+- Personal / noncommercial self-hosting is allowed.
+- Commercial use (selling, monetizing, or other commercial advantage) is not granted by this license — contact the copyright holder for a separate commercial license.
+- Keep the license terms and the `Required Notice` when you redistribute.
 ## Stack
 
 - **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion
 - **API**: NestJS, Prisma, BullMQ (when Redis is configured)
+- **Music** (optional): NestJS ListenBrainz ingest + analytics (`apps/music`); **shared DB** with the API; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
 - **Data**: SQLite **or** PostgreSQL (env-selected)
 - **Cache / queues**: in-memory **or** Redis (env-selected)
-- **Deploy**: Docker Compose profiles (lite / full / production)
+- **Deploy**: Docker Compose profiles (lite / full / production; optional `music` / `music-pg`)
 
 ## Prerequisites
 
@@ -49,6 +57,7 @@ pnpm dev
 
 - Web: http://localhost:3000  
 - API: http://localhost:4000  
+- Music (optional): `pnpm dev:music` → http://localhost:4010 — set `NEXT_PUBLIC_ENABLE_MUSIC=true` to show Music menus when `/health` is ok  
 
 Optional: run Postgres/Redis in Docker while developing against Node locally:
 
@@ -111,7 +120,7 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 | `COOKIE_DOMAIN` | Optional shared cookie domain (prod split hosts) |
 | `ALLOWED_STEAM_IDS` | Optional comma-separated SteamIDs; empty = open signup |
 | `CRON_ENABLED` | `true` / `TRUE` / `1` to run the cron scheduler; otherwise off |
-| `CRON_SECRET` | Shared secret for `/internal/cron/*` (API + cron service) |
+| `CRON_SECRET` | Shared secret for `/v1/internal/cron/*` (API + cron service) |
 | `API_INTERNAL_URL` | Base URL the cron service uses to reach the API |
 | `CRON_DAILY_SCHEDULE` | Cron expr for daily price/stats refresh (default `0 3 * * *`) |
 | `CRON_RECOVERY_SCHEDULE` | Cron expr for stuck-sync recovery (default `*/15 * * * *`) |
@@ -119,6 +128,8 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 Prisma cannot take `provider` from env at runtime, so `pnpm db:schema` (and pre-dev/pre-build hooks) generate `schema.prisma` from `schema.template.prisma`.
 
 `GET /health` reports mode, database provider, Redis/sync mode, and whether the allowlist is enabled.
+
+API resource routes are versioned under `/v1` (e.g. `/v1/library`). Unversioned: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks stay at `/webhooks/*`.
 
 ### Steam OpenID (local)
 
@@ -157,7 +168,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 | `docker-api-1.0.0` (also `web` / `cron`) | Test (if present) → build & push Docker image |
 | `service-api-1.0.0` | Release/deploy using that Hub image (no rebuild) |
 
-CI on `main` runs each service’s tests when a `test` script exists. Details: [docs/self-hosting.md](docs/self-hosting.md).
+CI on `main` runs Vitest (and Playwright for web) across `api` / `web` / `music` / `watch` / `cron` / `shared`. See [docs/testing.md](docs/testing.md).
 
 ## Monorepo
 
