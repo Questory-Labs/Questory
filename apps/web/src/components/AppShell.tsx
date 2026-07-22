@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sanitizeAppHref } from "@questorylabs/shared";
 import { api } from "@/lib/api";
+import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -44,6 +45,11 @@ const BASE_NAV_GROUPS: { label: string; items: { href: string; label: string }[]
     ],
   },
 ];
+
+const ENTERPRISE_NAV_GROUP = {
+  label: "For you",
+  items: [{ href: "/recommendations", label: "Recommendations" }],
+};
 
 const MUSIC_NAV_GROUP = {
   label: "Music",
@@ -314,13 +320,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
+  const { enabled: showEnterpriseNav } = useEnterpriseEnabled();
 
   const navGroups = useMemo(() => {
     const groups = [...BASE_NAV_GROUPS];
+    if (showEnterpriseNav) groups.splice(1, 0, ENTERPRISE_NAV_GROUP);
     if (showMusicNav) groups.push(MUSIC_NAV_GROUP);
     if (showWatchNav) groups.push(WATCH_NAV_GROUP);
     return groups;
-  }, [showMusicNav, showWatchNav]);
+  }, [showEnterpriseNav, showMusicNav, showWatchNav]);
 
   const me = useQuery({
     queryKey: ["me"],

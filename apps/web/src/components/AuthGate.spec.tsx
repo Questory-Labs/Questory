@@ -29,14 +29,14 @@ describe("AuthGate", () => {
     vi.mocked(api).mockReset();
   });
 
-  it("redirects unauthenticated users home", async () => {
+  it("redirects unauthenticated users to login", async () => {
     vi.mocked(api).mockResolvedValue({ user: null });
     wrap(
       <AuthGate>
         <div>secret</div>
       </AuthGate>,
     );
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
     expect(screen.queryByText("secret")).toBeNull();
   });
 

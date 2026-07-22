@@ -269,7 +269,13 @@ export default function MusicSettingsPage() {
         }
         return;
       }
-      if (!res.ok) throw new Error(json.message || JSON.stringify(json));
+      if (!res.ok) {
+        throw new Error(
+          typeof json.message === "string" && json.message
+            ? json.message
+            : JSON.stringify(json),
+        );
+      }
       setJobId(json.jobId);
       setMessage(`Import started (${json.source})…`);
       if ("phase" in json) {

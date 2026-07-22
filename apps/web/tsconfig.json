@@ -15,7 +15,11 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      /* Types resolve against the stub (same export surface as the private
+         enterprise UI); the real module is swapped in by the next.config.ts
+         alias when enterprise/packages/web-ui exists. */
+      "@enterprise/web": ["./src/lib/enterprise-stub"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
