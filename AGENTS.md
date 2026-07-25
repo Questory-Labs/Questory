@@ -6,7 +6,7 @@ Canonical guidance for AI coding agents. Tool-specific entrypoints (`GEMINI.md`,
 
 Questory Labs is source-available Steam library and analytics intelligence: dashboard, wishlist intel, cost analytics, friend comparison, multiplayer planning, family insights, and smart collections.
 
-Optional **Music** (ListenBrainz ingest via multi-scrobbler) and **Watch** (Trakt/TMDB/AniList/Letterboxd/webhooks) share the same database and `User` model as the Steam API.
+Optional **Music** (ListenBrainz ingest via multi-scrobbler) and **Watch** (Trakt/TMDB/AniList/Letterboxd/webhooks) live inside the Steam API process (same DB and `User` model). Soft-gated in the UI via feature flags.
 
 Human docs: [README.md](README.md), [docs/self-hosting.md](docs/self-hosting.md), [docs/testing.md](docs/testing.md).
 
@@ -27,43 +27,40 @@ Never relicense as MIT/Apache, strip notices, or imply commercial rights under t
 
 | Path | Role |
 |------|------|
-| `apps/api` | NestJS Steam API |
+| `apps/api` | NestJS API (Steam + music + watch + in-process cron) |
 | `apps/web` | Next.js 15 App Router UI |
-| `apps/cron` | Scheduler → API/watch internal cron |
-| `apps/music` | Optional ListenBrainz + music analytics |
-| `apps/watch` | Optional movies/TV ingest + analytics |
 | `packages/shared` | Zod schemas, session/oauth helpers (`@questorylabs/shared`) |
 | `packages/db` | Shared Prisma schema template + client (`@questorylabs/db`) |
 | `docs/` | Self-hosting, testing |
-| `enterprise/` | Private extensions mount; only `enterprise/README.md` is tracked |
+| `enterprise/` | Private Rust Axum service mount; only `enterprise/README.md` is tracked |
 
 Prisma: edit `packages/db/prisma/schema.template.prisma`. Generated `schema.prisma` / client are produced by `pnpm db:schema` / `db:generate` — do not fork per-app schemas.
 
 ## Tooling
 
 - Node `>=20`, package manager **pnpm** (`packageManager` in root `package.json`)
-- Local ports: web `3000`, API `4000`, music `4010`, watch `4020`
+- Local ports: web `3000`, API `4000` (enterprise Rust service `:4030`, in-process OTLP `:4318` / query `:4040`)
 
 | Command | Purpose |
 |---------|---------|
 | `pnpm setup` | Install, build shared/db, generate + push Prisma |
 | `pnpm dev` | API + web |
-| `pnpm dev:music` / `dev:watch` / `dev:cron` | Optional services |
 | `pnpm db:schema` / `db:generate` / `db:push` / `db:migrate` | Prisma lifecycle |
 | `pnpm test` | Vitest across packages that define `test` |
 | `pnpm docker:selfhosted` / `selfhosted-full` / `prod` | Compose profiles |
-| `pnpm docker:music` / `docker:watch` | Optional compose profiles |
 
 Use `pnpm --filter @questorylabs/<pkg> …` for package-scoped work.
 
-Music/Watch UI: `NEXT_PUBLIC_ENABLE_MUSIC` / `NEXT_PUBLIC_ENABLE_WATCH` plus a healthy `/health` on the service URL.
+Music/Watch UI: `NEXT_PUBLIC_ENABLE_MUSIC` / `NEXT_PUBLIC_ENABLE_WATCH` plus API `/health` reporting `music`/`watch` enabled.
+
+Enterprise: opt-in via `ENTERPRISE=true` (web exposes the flag through `next.config` and soft-gates on the Rust service `GET /v1/enterprise/status` at `NEXT_PUBLIC_ENTERPRISE_URL`). Private mount is Rust-only (`cargo run` under `enterprise/`). Without the flag or a reachable service, Recommendations/Telemetry stay hidden.
 
 ## Code conventions
 
 - Prefer types and Zod schemas from `@questorylabs/shared`; validate with `safeParse` in Nest controllers.
 - Nest: feature `*.module.ts` / `*.controller.ts` / `*.service.ts`; match existing guards/decorators.
-- API resource routes under `/v1`. Unversioned by design: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks at `/webhooks/*`.
-- Web: App Router under `apps/web/src/app`; soft-gate `/music/*` and `/watch/*` with existing gate components.
+- API resource routes under `/v1`. Unversioned by design: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks at `/webhooks/*`. Music/watch session APIs: `/v1/music/*`, `/v1/watch/*`.
+- Web: App Router under `apps/web/src/app`; soft-gate `/music/*`, `/watch/*`, and enterprise routes (`/recommendations`, `/admin/telemetry`) with existing gate hooks/components. Enterprise also requires `ENTERPRISE=true`.
 - Match nearby patterns. Do not invent eslint/prettier configs or lint scripts unless the repo already has them.
 - Keep changes scoped; avoid drive-by refactors and unsolicited markdown docs.
 
@@ -97,5 +94,5 @@ Do not commit `pnpm-lock.yaml` diffs that add an `enterprise` importer.
 **Never**
 
 - Commit secrets or treat the project as MIT/Apache.
-- Publish or commit private `enterprise/` sources.
+- Publish or commit private `enterprise/` sources (Rust service, private docs/compose). Community Recommendations/Telemetry UI under `apps/web` is allowed and expected.
 - Invent parallel Prisma schemas per app.

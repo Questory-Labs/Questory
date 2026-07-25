@@ -1,16 +1,29 @@
 import { withApiVersion, type MusicHealth } from "@questorylabs/shared";
 
+/** Music APIs live on the Steam API origin under `/v1/music/*` (ListenBrainz stays `/1/*`). */
 export const MUSIC_URL =
-  process.env.NEXT_PUBLIC_MUSIC_URL || "http://localhost:4010";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export const MUSIC_FLAG_ENABLED =
   process.env.NEXT_PUBLIC_ENABLE_MUSIC === "true";
 
-function musicPath(path: string) {
-  return withApiVersion(path, ["/health", "/1", "/apis"]);
+function prefixMusicPath(path: string): string {
+  if (
+    path.startsWith("/analytics") ||
+    path.startsWith("/imports") ||
+    path.startsWith("/music/")
+  ) {
+    if (path.startsWith("/music/")) return path;
+    return `/music${path}`;
+  }
+  return path;
 }
 
-/** Absolute URL on the music origin, with `/v1` applied when needed. */
+function musicPath(path: string) {
+  return withApiVersion(prefixMusicPath(path), ["/health", "/1", "/apis"]);
+}
+
+/** Absolute URL on the API origin, with `/v1` / music prefix applied when needed. */
 export function musicUrl(path: string) {
   return `${MUSIC_URL}${musicPath(path)}`;
 }
@@ -48,7 +61,15 @@ export async function fetchMusicHealth(): Promise<MusicHealth> {
     if (!res.ok) {
       return { ok: false, service: "questorylabs-music" };
     }
-    return (await res.json()) as MusicHealth;
+    const body = (await res.json()) as {
+      ok?: boolean;
+      music?: { enabled?: boolean };
+    };
+    const musicOk = body.ok === true && body.music?.enabled !== false;
+    return {
+      ok: musicOk,
+      service: "questorylabs-music",
+    };
   } catch {
     return { ok: false, service: "questorylabs-music" };
   } finally {

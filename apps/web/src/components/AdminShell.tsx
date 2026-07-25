@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { api } from "@/lib/api";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/cron", label: "Cron" },
@@ -25,6 +26,7 @@ type MeResponse = {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { enabled: enterpriseEnabled } = useEnterpriseEnabled();
 
   const me = useQuery({
     queryKey: ["me"],
@@ -34,6 +36,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   const user = me.data?.user ?? null;
   const authReady = me.isSuccess || me.isError;
+
+  const nav = [
+    ...BASE_NAV.slice(0, 4),
+    ...(enterpriseEnabled
+      ? [{ href: "/admin/telemetry", label: "Telemetry" }]
+      : []),
+    BASE_NAV[4],
+  ];
 
   if (!authReady) {
     return (
@@ -73,7 +83,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
         <nav className="flex-1 space-y-0.5 px-2 py-4" aria-label="Admin">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active =
               item.href === "/admin"
                 ? pathname === "/admin"
@@ -109,7 +119,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-0)_88%,transparent)] px-4 backdrop-blur-xl lg:hidden">
           <span className="font-display font-bold">Admin</span>
           <nav className="ml-auto flex gap-2 overflow-x-auto text-xs">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

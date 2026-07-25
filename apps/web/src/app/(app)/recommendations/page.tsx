@@ -1,12 +1,11 @@
 "use client";
 
-import { RecommendationsPanel } from "@enterprise/web";
+import { RecommendationsPanel } from "@/components/enterprise/RecommendationsPanel";
 import { PageHeader } from "@/components/ui";
 
 /**
- * Thin community shell — all real UI lives in the private enterprise tree
- * (enterprise/packages/web-ui). Without it, @enterprise/web resolves to the
- * no-op stub and the EnterpriseGate layout redirects away anyway.
+ * Recommendations UI ships with the community web app. Without the private
+ * Rust enterprise service, EnterpriseGate redirects away.
  */
 export default function RecommendationsPage() {
   return (

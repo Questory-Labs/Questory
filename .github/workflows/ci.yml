@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, web, music, watch, cron, shared]
+        service: [api, web, shared]
 
     steps:
       - name: Checkout

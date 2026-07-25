@@ -14,12 +14,12 @@ const tag = (process.argv[2] || process.env.GITHUB_REF_NAME || "").replace(
 );
 
 const match = tag.match(
-  /^(docker|service)-(api|web|cron)-v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?)$/,
+  /^(docker|service)-(api|web)-v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?)$/,
 );
 
 if (!match) {
   console.error(
-    `Invalid tag "${tag}". Expected docker|service-<api|web|cron>-<semver>`,
+    `Invalid tag "${tag}". Expected docker|service-<api|web>-<semver>`,
   );
   process.exit(1);
 }

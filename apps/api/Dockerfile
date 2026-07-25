@@ -5,8 +5,6 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/
-COPY apps/music/package.json apps/music/
-COPY apps/watch/package.json apps/watch/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
 RUN pnpm install --frozen-lockfile
@@ -22,7 +20,7 @@ COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY . .
 ENV DATABASE_PROVIDER=${DATABASE_PROVIDER}
 ENV DATABASE_URL=postgresql://questorylabs:questorylabs@postgres:5432/questorylabs
-RUN mkdir -p apps/api/src/generated/prisma apps/music/src/generated/prisma apps/watch/src/generated/prisma \
+RUN mkdir -p apps/api/src/generated/prisma \
   && if [ "$DATABASE_PROVIDER" = "sqlite" ] || [ "$DATABASE_PROVIDER" = "sqlite3" ]; then \
       export DATABASE_URL="file:/data/questorylabs.db"; \
     fi \

@@ -7,6 +7,7 @@ import { SyncModule } from "../sync/sync.module";
 import { CostModule } from "../cost/cost.module";
 import { AccountsModule } from "../accounts/accounts.module";
 import { SteamModule } from "../steam/steam.module";
+import { WatchModule } from "../watch/watch.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SteamModule } from "../steam/steam.module";
     CronModule,
     forwardRef(() => SyncModule),
     CostModule,
+    forwardRef(() => WatchModule),
   ],
   controllers: [AdminController],
   providers: [AdminService],

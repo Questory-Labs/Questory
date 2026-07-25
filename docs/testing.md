@@ -11,12 +11,11 @@ pnpm test
 # Per package
 pnpm --filter @questorylabs/shared test
 pnpm --filter @questorylabs/api test
-pnpm --filter @questorylabs/music test
-pnpm --filter @questorylabs/watch test
-pnpm --filter @questorylabs/cron test
 pnpm --filter @questorylabs/web test
 pnpm --filter @questorylabs/web test:e2e
 ```
+
+Music, watch, and in-process cron tests live under `apps/api` (same Nest app).
 
 ## Env for backend tests
 
@@ -25,7 +24,7 @@ Tests set safe defaults in `apps/*/test/setup.ts`:
 - `APP_MODE=local`
 - `SESSION_SECRET=test-session-secret-32chars!!`
 - `DATABASE_PROVIDER=sqlite`
-- `CRON_SECRET=cron-test-secret` (api/watch/cron)
+- `CRON_SECRET=cron-test-secret` (api)
 
 Most Nest tests boot focused modules with mocked Prisma/services — no Redis required.
 

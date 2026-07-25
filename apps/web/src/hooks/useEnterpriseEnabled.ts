@@ -1,35 +1,37 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-
-type EnterpriseStatus = {
-  available: boolean;
-  engine?: { ok: boolean; ready?: boolean; model?: string };
-};
+import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
+import { ENTERPRISE_FLAG_ENABLED } from "@/lib/enterprise";
 
 /**
- * Enterprise gate: the private API extension answers /v1/enterprise/status;
- * a community API 404s, which we treat as disabled. No env flag needed —
- * presence of the extension is the switch.
+ * Enterprise gate: requires ENTERPRISE=true, then GET
+ * `{NEXT_PUBLIC_ENTERPRISE_URL}/v1/enterprise/status`.
  */
 export function useEnterpriseEnabled() {
   const status = useQuery({
     queryKey: ["enterprise-status"],
-    queryFn: () => api<EnterpriseStatus>("/enterprise/status"),
+    queryFn: fetchEnterpriseStatus,
+    enabled: ENTERPRISE_FLAG_ENABLED,
     staleTime: 30_000,
     retry: false,
     refetchOnWindowFocus: true,
   });
 
-  const available = status.data?.available === true && !status.isError;
+  const available =
+    ENTERPRISE_FLAG_ENABLED &&
+    status.data?.available === true &&
+    !status.isError;
 
   return {
-    /** Extension is loaded in the API (nav + route gate). */
+    /** Flag on and enterprise service answered available. */
     enabled: available,
-    /** Rust engine reachable behind the extension. */
-    engineOk: available && status.data?.engine?.ok === true,
-    isLoading: status.isLoading,
+    /** Service healthy behind the status payload. */
+    serviceOk: available && status.data?.service?.ok === true,
+    /** @deprecated use serviceOk */
+    engineOk: available && status.data?.service?.ok === true,
+    flagOn: ENTERPRISE_FLAG_ENABLED,
+    isLoading: ENTERPRISE_FLAG_ENABLED && status.isLoading,
     status,
   };
 }

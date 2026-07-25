@@ -29,6 +29,8 @@ export class HealthController {
       sync: {
         mode: resolveSyncMode(),
       },
+      music: { enabled: true },
+      watch: { enabled: true },
     };
   }
 }

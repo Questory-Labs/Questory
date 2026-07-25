@@ -24,8 +24,10 @@ import { CronModule } from "./cron/cron.module";
 import { AdminModule } from "./admin/admin.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { ApiKeysModule } from "./api-keys/api-keys.module";
-import { PrivateExtensionsModule } from "./extensions/private-extensions.module";
+import { MusicModule } from "./music/music.module";
+import { WatchModule } from "./watch/watch.module";
 import { HealthController } from "./health.controller";
+
 
 const rootEnv = resolve(process.cwd(), "../../.env");
 const localEnv = resolve(process.cwd(), ".env");
@@ -59,9 +61,10 @@ const localEnv = resolve(process.cwd(), ".env");
     NotificationsModule,
     StoresModule,
     TrendingModule,
+    MusicModule,
+    WatchModule,
     CronModule,
     AdminModule,
-    PrivateExtensionsModule.forRoot(),
   ],
   controllers: [HealthController],
 })

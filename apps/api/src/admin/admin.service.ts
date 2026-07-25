@@ -1,13 +1,19 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthAbuseService } from "../auth/abuse/auth-abuse.service";
 import { InternalCronService } from "../cron/internal-cron.service";
+import {
+  WATCH_CRON_SYNC,
+  type WatchCronSync,
+} from "../cron/watch-cron.token";
 import { SyncService } from "../sync/sync.service";
 import { CostService } from "../cost/cost.service";
 import { AccountsService } from "../accounts/accounts.service";
@@ -21,15 +27,6 @@ import {
 } from "../auth/signup-policy";
 import { normalizeEmail } from "../auth/abuse/disposable-emails";
 
-const WATCH_INTERNAL =
-  process.env.WATCH_INTERNAL_URL ||
-  process.env.WATCH_URL ||
-  "http://localhost:4020";
-const MUSIC_URL =
-  process.env.MUSIC_INTERNAL_URL ||
-  process.env.MUSIC_URL ||
-  "http://localhost:4010";
-
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
@@ -42,6 +39,9 @@ export class AdminService {
     private readonly cost: CostService,
     private readonly accounts: AccountsService,
     private readonly catalog: CatalogService,
+    @Optional()
+    @Inject(WATCH_CRON_SYNC)
+    private readonly watchCron: WatchCronSync | null,
   ) {}
 
   async overview() {
@@ -73,10 +73,8 @@ export class AdminService {
       this.catalog.getStatus(),
     ]);
 
-    const [musicHealth, watchHealth] = await Promise.all([
-      this.fetchHealth(MUSIC_URL),
-      this.fetchHealth(WATCH_INTERNAL),
-    ]);
+    const musicHealth = { ok: true, service: "questorylabs-music", embedded: true };
+    const watchHealth = { ok: true, service: "questorylabs-watch", embedded: true };
 
     const recentCron = await this.prisma.cronRun.findMany({
       orderBy: { startedAt: "desc" },
@@ -255,10 +253,16 @@ export class AdminService {
           result = await this.cron.syncCatalog({});
           break;
         case "trakt-sync":
-          result = await this.postWatchCron("trakt-sync");
+          if (!this.watchCron) {
+            throw new BadRequestException("Watch module unavailable");
+          }
+          result = await this.watchCron.runTraktSync();
           break;
         case "anilist-sync":
-          result = await this.postWatchCron("anilist-sync");
+          if (!this.watchCron) {
+            throw new BadRequestException("Watch module unavailable");
+          }
+          result = await this.watchCron.runAnilistSync();
           break;
         default:
           throw new BadRequestException(`Unknown job: ${jobName}`);
@@ -365,41 +369,6 @@ export class AdminService {
     return this.sync.enqueueAll(userId, steamId, { force: true });
   }
 
-  private async postWatchCron(job: string) {
-    const secret = process.env.CRON_SECRET || "";
-    const url = `${WATCH_INTERNAL.replace(/\/$/, "")}/v1/internal/cron/${job}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        "Content-Type": "application/json",
-      },
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(`Watch cron ${job} failed: ${res.status} ${text}`);
-    }
-    try {
-      return JSON.parse(text) as unknown;
-    } catch {
-      return { ok: true, raw: text };
-    }
-  }
-
-  private async fetchHealth(base: string) {
-    try {
-      const res = await fetch(`${base.replace(/\/$/, "")}/health`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      if (!res.ok) return { ok: false, status: res.status };
-      return (await res.json()) as Record<string, unknown>;
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      };
-    }
-  }
 }
 
 function serializeCronRun(run: {

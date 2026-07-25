@@ -12,11 +12,12 @@ Questory Labs community code is **source-available** under the [PolyForm Noncomm
 ## Stack
 
 - **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion — [UI style guide](docs/style-guide.md)
-- **API**: NestJS, Prisma, BullMQ (when Redis is configured)
-- **Music** (optional): NestJS ListenBrainz ingest + analytics (`apps/music`); **shared DB** with the API; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
+- **API**: NestJS, Prisma, BullMQ (when Redis is configured); optional Music + Watch modules and in-process cron
+- **Music** (optional): ListenBrainz ingest + analytics inside the API (`/v1/music/*`, `/1/*`); **shared DB**; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
+- **Watch** (optional): movie/TV ingest + analytics inside the API (`/v1/watch/*`, `/webhooks/*`); **shared DB**
 - **Data**: SQLite **or** PostgreSQL (env-selected)
 - **Cache / queues**: in-memory **or** Redis (env-selected)
-- **Deploy**: Docker Compose profiles (lite / full / production; optional `music` / `music-pg`)
+- **Deploy**: Docker Compose profiles (lite / full / production)
 
 ## Prerequisites
 
@@ -32,7 +33,7 @@ Questory Labs community code is **source-available** under the [PolyForm Noncomm
 | **Local** | `pnpm setup` → `pnpm dev` | SQLite | Off | Development |
 | **Self-hosted (lite)** | `pnpm docker:selfhosted` | SQLite volume | Off | Minimal home server |
 | **Self-hosted (full)** | `pnpm docker:selfhosted-full` | Postgres | On | Durable self-host |
-| **Production** | `pnpm docker:prod` | Postgres | On | Cloud / multi-user |
+| **Production** | `pnpm docker:prod` | Postgres | On | Public HTTPS / multi-user instance |
 
 Copy an env template, then edit secrets:
 
@@ -56,8 +57,9 @@ pnpm dev
 ```
 
 - Web: http://localhost:3000  
-- API: http://localhost:4000  
-- Music (optional): `pnpm dev:music` → http://localhost:4010 — set `NEXT_PUBLIC_ENABLE_MUSIC=true` to show Music menus when `/health` is ok  
+- API: http://localhost:4000 — Steam, optional Music/Watch modules, optional in-process cron  
+- Music menus: set `NEXT_PUBLIC_ENABLE_MUSIC=true` (nav when API `/health` reports `music.enabled`)  
+- Watch menus: set `NEXT_PUBLIC_ENABLE_WATCH=true` (nav when API `/health` reports `watch.enabled`)
 
 Optional: run Postgres/Redis in Docker while developing against Node locally:
 
@@ -88,9 +90,9 @@ pnpm docker:selfhosted-full
 
 `pnpm docker:up` is an alias for `docker:selfhosted-full`.
 
-Compose uses Docker Hub images (`santoshpanna/questorylabs-api`, `santoshpanna/questorylabs-web`, `santoshpanna/questorylabs-cron`) when present; add `-- --build` to build from source instead.
+Prefer building from source (`-- --build`). Compose may pull prebuilt images when configured.
 
-### 4. Production (cloud / multi-user)
+### 4. Production (public HTTPS)
 
 ```bash
 cp .env.production.example .env
@@ -120,19 +122,20 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 | `STEAM_REALM` / `STEAM_RETURN_URL` | OpenID on the **API** origin (link-only) |
 | `WEB_ORIGIN` | Browser app origin (CORS + redirect) |
 | `NEXT_PUBLIC_API_URL` | API URL baked into the web client |
+| `NEXT_PUBLIC_ENABLE_MUSIC` | Show Music UI when API `/health` reports music enabled |
+| `NEXT_PUBLIC_ENABLE_WATCH` | Show Watch UI when API `/health` reports watch enabled |
 | `COOKIE_DOMAIN` | Optional shared cookie domain (prod split hosts) |
 | `ALLOWED_STEAM_IDS` | Optional SteamIDs allowed to **link**; empty = any |
-| `CRON_ENABLED` | `true` / `TRUE` / `1` to run the cron scheduler; otherwise off |
-| `CRON_SECRET` | Shared secret for `/v1/internal/cron/*` (API + cron service) |
-| `API_INTERNAL_URL` | Base URL the cron service uses to reach the API |
+| `CRON_ENABLED` | `true` / `TRUE` / `1` to run in-process cron inside the API; otherwise off |
+| `CRON_SECRET` | Shared secret for `/v1/internal/cron/*` |
 | `CRON_DAILY_SCHEDULE` | Cron expr for daily price/stats refresh (default `0 3 * * *`) |
 | `CRON_RECOVERY_SCHEDULE` | Cron expr for stuck-sync recovery (default `*/15 * * * *`) |
 
 Prisma cannot take `provider` from env at runtime, so `pnpm db:schema` (and pre-dev/pre-build hooks) generate `schema.prisma` from `schema.template.prisma`.
 
-`GET /health` reports mode, database provider, Redis/sync mode, and whether the allowlist is enabled.
+`GET /health` reports mode, database provider, Redis/sync mode, whether the allowlist is enabled, and `music` / `watch` enabled flags.
 
-API resource routes are versioned under `/v1` (e.g. `/v1/library`). Unversioned: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks stay at `/webhooks/*`.
+API resource routes are versioned under `/v1` (e.g. `/v1/library`). Unversioned: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks stay at `/webhooks/*`. Music/watch session APIs: `/v1/music/*`, `/v1/watch/*`.
 
 ### Steam OpenID (local)
 
@@ -152,7 +155,6 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 |---------|-------------|
 | `pnpm setup` | Install, build shared, sync Prisma provider, push schema |
 | `pnpm dev` | Run API + web |
-| `pnpm dev:cron` | Run daily sync scheduler (requires `CRON_ENABLED` + `CRON_SECRET`) |
 | `pnpm db:schema` | Generate `schema.prisma` for the active provider |
 | `pnpm db:push` | Apply schema to the configured database |
 | `pnpm docker:infra` | Start Postgres + Redis only |
@@ -161,25 +163,16 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 | `pnpm docker:prod` | Production profile stack |
 | `pnpm docker:up` | Alias for `docker:selfhosted-full` |
 | `pnpm docker:down` | Stop Compose services |
-| `pnpm docker:publish` | Build + push `santoshpanna/questorylabs-{api,web,cron}` to Docker Hub |
-| `pnpm docker:build` | Build those images locally without pushing |
+| `pnpm docker:build` | Build API/web images locally |
 
-### Releases (GitHub Actions)
-
-| Tag | Action |
-|-----|--------|
-| `docker-api-1.0.0` (also `web` / `cron`) | Test (if present) → build & push Docker image |
-| `service-api-1.0.0` | Release/deploy using that Hub image (no rebuild) |
-
-CI on `main` runs Vitest (and Playwright for web) across `api` / `web` / `music` / `watch` / `cron` / `shared`. See [docs/testing.md](docs/testing.md).
+CI on `main` runs Vitest (and Playwright for web) across packages with a `test` script. See [docs/testing.md](docs/testing.md).
 
 ## Monorepo
 
 ```
 apps/web                 Next.js app
-apps/api                 NestJS API + Prisma
-apps/cron                Daily sync scheduler (calls API internal endpoints)
-apps/api/prisma/schema.template.prisma
+apps/api                 NestJS API + Prisma (music, watch, in-process cron)
+packages/db              Shared Prisma schema + client
 packages/shared          Shared Zod types
 docker-compose.yml       Compose profiles for deploy
 docs/self-hosting.md     Self-host / reverse proxy / backups

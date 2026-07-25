@@ -3,13 +3,11 @@ name: Docker Release
 # Tag examples:
 #   docker-api-1.0.0
 #   docker-web-1.2.3
-#   docker-cron-0.1.0
 on:
   push:
     tags:
       - "docker-api-*"
       - "docker-web-*"
-      - "docker-cron-*"
 
 permissions:
   contents: write

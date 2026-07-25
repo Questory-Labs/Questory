@@ -22,32 +22,6 @@ const GENERATORS = {
     client: join(root, "apps", "api", "src", "generated", "prisma", "client.ts"),
     outDir: join(root, "apps", "api", "src", "generated", "prisma"),
   },
-  musicClient: {
-    app: "music",
-    client: join(
-      root,
-      "apps",
-      "music",
-      "src",
-      "generated",
-      "prisma",
-      "client.ts",
-    ),
-    outDir: join(root, "apps", "music", "src", "generated", "prisma"),
-  },
-  watchClient: {
-    app: "watch",
-    client: join(
-      root,
-      "apps",
-      "watch",
-      "src",
-      "generated",
-      "prisma",
-      "client.ts",
-    ),
-    outDir: join(root, "apps", "watch", "src", "generated", "prisma"),
-  },
 };
 
 /** Match sync-prisma-schema.mjs — generate runs in a fresh process. */

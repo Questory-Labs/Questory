@@ -1,0 +1,672 @@
+/* Styled with the host app's design tokens (CSS variables on :root). */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.tab:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.tabActive {
+  composes: tab;
+  color: var(--bg-0);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.tabActive:hover {
+  color: var(--bg-0);
+  border-color: var(--accent);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.cardImageWrap {
+  position: relative;
+  aspect-ratio: 460 / 215;
+  background: var(--bg-3);
+}
+
+.cardImageWrap[data-portrait="true"] {
+  aspect-ratio: 2 / 1.15;
+}
+
+.cardImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardImageFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  font-family: var(--font-display);
+  font-size: 28px;
+}
+
+.kindBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(16, 16, 18, 0.82);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.cardName {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.25;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scoreTrack {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.scoreFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--warm));
+}
+
+.scoreValue {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reason {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.meta {
+  margin-top: 20px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.message {
+  margin-top: 32px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.messageError {
+  composes: message;
+  color: var(--danger);
+}
+
+/* World-context strip */
+
+.worldStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.worldFaint {
+  color: var(--faint);
+}
+
+.worldAction {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Location settings form */
+
+.settingsForm {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.settingsHint {
+  margin: 0 0 10px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.settingsFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settingsInput {
+  flex: 1;
+  min-width: 140px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.settingsActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.settingsCancel {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settingsError {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* Mood bar */
+
+.moodBar {
+  margin-bottom: 20px;
+}
+
+.moodRow {
+  display: flex;
+  gap: 8px;
+}
+
+.moodInput {
+  flex: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.moodInput::placeholder {
+  color: var(--faint);
+}
+
+.moodSubmit {
+  appearance: none;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg-0);
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.moodSubmit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.moodChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.moodChip {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.moodChip:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.moodSummary {
+  margin: -10px 0 16px;
+  color: var(--faint);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Agent progress view */
+
+.progress {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.progressSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.progressStep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.progressStep[data-state="active"] {
+  color: var(--accent);
+}
+
+.progressStep[data-state="done"] {
+  color: var(--muted);
+}
+
+.progressDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+
+.progressStep[data-state="active"] .progressDot {
+  background: var(--accent);
+  animation: progressPulse 1.2s ease-in-out infinite;
+}
+
+.progressStep[data-state="done"] .progressDot {
+  background: var(--muted);
+}
+
+@keyframes progressPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.progressFeed {
+  max-height: 180px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.progressLine {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.progressStage {
+  color: var(--accent);
+  margin-right: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.progressEscape {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Tonight's plan hero */
+
+.plan {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+.planTitle {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.planSteps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planStep {
+  display: flex;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.planIndex {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-0);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.planItem {
+  color: var(--ink);
+}
+
+/* Taste dossier */
+
+.dossier {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.dossierToggle {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.dossierBody {
+  padding: 0 14px 14px;
+}
+
+.dossierIdentity {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.dossierSections {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dossierSection dt {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 2px;
+}
+
+.dossierSection dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dossierKeywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dossierKeyword {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 2px 10px;
+  font-size: 11px;
+}
+
+/* Blurbs + feedback */
+
+.blurb {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  font-style: italic;
+}
+
+.feedbackRow {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.feedbackBtn {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 4px 10px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.feedbackBtn:hover {
+  border-color: var(--ink);
+}
+
+.feedbackBtn[data-active="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg-0);
+}
+
+.card[data-dismissed="true"] {
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 300ms ease, transform 300ms ease;
+  pointer-events: none;
+}
+
+/* Compact widget */
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.widgetRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.widgetThumb {
+  width: 56px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--bg-3);
+}
+
+.widgetName {
+  color: var(--ink);
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.widgetReason {
+  color: var(--faint);
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.widgetKind {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}

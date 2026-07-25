@@ -1,16 +1,31 @@
 import { withApiVersion, type WatchHealth } from "@questorylabs/shared";
 
+/** Watch APIs live on the Steam API origin under `/v1/watch/*` (webhooks stay `/webhooks/*`). */
 export const WATCH_URL =
-  process.env.NEXT_PUBLIC_WATCH_URL || "http://localhost:4020";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export const WATCH_FLAG_ENABLED =
   process.env.NEXT_PUBLIC_ENABLE_WATCH === "true";
 
-function watchPath(path: string) {
-  return withApiVersion(path, ["/health", "/webhooks"]);
+function prefixWatchPath(path: string): string {
+  if (
+    path.startsWith("/analytics") ||
+    path.startsWith("/imports") ||
+    path.startsWith("/trakt") ||
+    path.startsWith("/anilist") ||
+    path.startsWith("/watch/")
+  ) {
+    if (path.startsWith("/watch/")) return path;
+    return `/watch${path}`;
+  }
+  return path;
 }
 
-/** Absolute URL on the watch origin, with `/v1` applied when needed. */
+function watchPath(path: string) {
+  return withApiVersion(prefixWatchPath(path), ["/health", "/webhooks"]);
+}
+
+/** Absolute URL on the API origin, with `/v1` / watch prefix applied when needed. */
 export function watchUrl(path: string) {
   return `${WATCH_URL}${watchPath(path)}`;
 }
@@ -45,7 +60,15 @@ export async function fetchWatchHealth(): Promise<WatchHealth> {
     if (!res.ok) {
       return { ok: false, service: "questorylabs-watch" };
     }
-    return (await res.json()) as WatchHealth;
+    const body = (await res.json()) as {
+      ok?: boolean;
+      watch?: { enabled?: boolean };
+    };
+    const watchOk = body.ok === true && body.watch?.enabled !== false;
+    return {
+      ok: watchOk,
+      service: "questorylabs-watch",
+    };
   } catch {
     return { ok: false, service: "questorylabs-watch" };
   } finally {

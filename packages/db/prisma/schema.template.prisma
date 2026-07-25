@@ -5,18 +5,6 @@ generator client {
   moduleFormat = "cjs"
 }
 
-generator musicClient {
-  provider     = "prisma-client"
-  output       = "../../../apps/music/src/generated/prisma"
-  moduleFormat = "cjs"
-}
-
-generator watchClient {
-  provider     = "prisma-client"
-  output       = "../../../apps/watch/src/generated/prisma"
-  moduleFormat = "cjs"
-}
-
 datasource db {
   provider = "__PRISMA_PROVIDER__"
 }

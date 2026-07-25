@@ -1,6 +1,3 @@
 packages:
   - "apps/*"
   - "packages/*"
-  - "enterprise"
-  - "enterprise/apps/*"
-  - "enterprise/packages/*"

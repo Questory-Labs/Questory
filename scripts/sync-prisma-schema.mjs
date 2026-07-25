@@ -60,12 +60,10 @@ function syncSharedSchema() {
   const schema = template.replaceAll("__PRISMA_PROVIDER__", provider);
   fs.writeFileSync(outPath, schema, "utf8");
 
-  for (const app of ["api", "music", "watch"]) {
-    fs.mkdirSync(
-      path.join(root, "apps", app, "src", "generated", "prisma"),
-      { recursive: true },
-    );
-  }
+  fs.mkdirSync(
+    path.join(root, "apps", "api", "src", "generated", "prisma"),
+    { recursive: true },
+  );
 
   console.log(
     `[prisma] shared schema provider=${provider} (packages/db, DATABASE_PROVIDER=${process.env.DATABASE_PROVIDER || "auto"}, DATABASE_URL=${process.env.DATABASE_URL ? "set" : "unset"})`,
@@ -73,9 +71,9 @@ function syncSharedSchema() {
 }
 
 const arg = (process.argv[2] || "all").toLowerCase();
-if (!["api", "music", "watch", "db", "all"].includes(arg)) {
+if (!["api", "db", "all"].includes(arg)) {
   console.error(
-    `Usage: node scripts/sync-prisma-schema.mjs [api|music|watch|db|all] (got "${arg}")`,
+    `Usage: node scripts/sync-prisma-schema.mjs [api|db|all] (got "${arg}")`,
   );
   process.exit(1);
 }
