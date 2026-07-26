@@ -11,10 +11,12 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 env:
   DOCKERHUB_NAMESPACE: santoshpanna
   DOCKER_IMAGE_PREFIX: questorylabs
+  GHCR_NAMESPACE: questory-labs
 
 jobs:
   release:
@@ -58,13 +60,55 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         env:
           IMAGE_TAG: ${{ steps.meta.outputs.version }}
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          DOCKER_IMAGE_SOURCE: https://github.com/${{ github.repository }}
         run: |
           export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:4000}"
           node scripts/docker-publish.mjs "${{ steps.meta.outputs.service }}"
+
+      - name: Make Docker Hub image public
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          REPO: ${{ env.DOCKER_IMAGE_PREFIX }}-${{ steps.meta.outputs.service }}
+        run: |
+          set -euo pipefail
+          login="$(curl -fsS -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"username\":\"${DOCKERHUB_USERNAME}\",\"password\":\"${DOCKERHUB_TOKEN}\"}" \
+            https://hub.docker.com/v2/users/login/)"
+          jwt="$(printf '%s' "$login" | jq -r .token)"
+          if [ -z "$jwt" ] || [ "$jwt" = "null" ]; then
+            echo "Failed to obtain Docker Hub JWT"
+            exit 1
+          fi
+          curl -fsS -X PATCH \
+            -H "Authorization: JWT ${jwt}" \
+            -H "Content-Type: application/json" \
+            -d '{"is_private":false}' \
+            "https://hub.docker.com/v2/repositories/${DOCKERHUB_NAMESPACE}/${REPO}/"
+          echo "Docker Hub ${DOCKERHUB_NAMESPACE}/${REPO} set to public"
+
+      - name: Make GHCR package public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG: ${{ env.DOCKER_IMAGE_PREFIX }}-${{ steps.meta.outputs.service }}
+        run: |
+          set -euo pipefail
+          gh api --method PUT \
+            "orgs/${GHCR_NAMESPACE}/packages/container/${PKG}/visibility" \
+            -f visibility=public
+          echo "GHCR package ghcr.io/${GHCR_NAMESPACE}/${PKG} set to public"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -79,12 +123,19 @@ jobs:
             |---|---|
             | Service | `${{ steps.meta.outputs.service }}` |
             | Version | `${{ steps.meta.outputs.version }}` |
-            | Image | `${{ steps.meta.outputs.image_tag }}` |
-            | Latest | `${{ steps.meta.outputs.image_latest }}` |
+            | Docker Hub | `${{ steps.meta.outputs.image_tag }}` |
+            | Docker Hub (latest) | `${{ steps.meta.outputs.image_latest }}` |
+            | GHCR | `${{ steps.meta.outputs.ghcr_image_tag }}` |
+            | GHCR (latest) | `${{ steps.meta.outputs.ghcr_image_latest }}` |
 
-            Pull:
+            Pull (Docker Hub):
             ```bash
             docker pull ${{ steps.meta.outputs.image_tag }}
+            ```
+
+            Pull (GHCR):
+            ```bash
+            docker pull ${{ steps.meta.outputs.ghcr_image_tag }}
             ```
 
             Deploy this version with a service tag:

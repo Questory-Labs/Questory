@@ -1,20 +1,24 @@
 import { spawnSync } from "node:child_process";
 
 /**
- * Build and push questorylabs-{api,web} images to Docker Hub.
+ * Build and push questorylabs-{api,web} images to Docker Hub and optionally GHCR.
  *
  * Usage:
  *   docker login
+ *   # optional GHCR: echo $GITHUB_TOKEN | docker login ghcr.io -u USER --password-stdin
  *   pnpm docker:publish
  *   IMAGE_TAG=0.1.0 pnpm docker:publish
  *   DOCKERHUB_NAMESPACE=myuser pnpm docker:publish
+ *   GHCR_NAMESPACE=questory-labs pnpm docker:publish  # also tag/push ghcr.io/...
  *   pnpm docker:publish -- --no-push          # build + tag only
  *   pnpm docker:publish -- api web            # subset of images
  */
 
-const namespace = process.env.DOCKERHUB_NAMESPACE || "santoshpanna";
+const dockerhubNamespace = process.env.DOCKERHUB_NAMESPACE || "santoshpanna";
+const ghcrNamespace = (process.env.GHCR_NAMESPACE || "").toLowerCase();
 const prefix = process.env.DOCKER_IMAGE_PREFIX || "questorylabs";
 const tag = process.env.IMAGE_TAG || "latest";
+const sourceRepo = process.env.DOCKER_IMAGE_SOURCE || "";
 const nextPublicApiUrl =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const nextPublicEnableMusic = process.env.NEXT_PUBLIC_ENABLE_MUSIC || "false";
@@ -49,8 +53,21 @@ for (const name of names) {
   }
 }
 
-function imageRef(name, imageTag = tag) {
-  return `${namespace}/${prefix}-${name}:${imageTag}`;
+function registries() {
+  const list = [{ host: "docker.io", namespace: dockerhubNamespace }];
+  if (ghcrNamespace) {
+    list.push({ host: "ghcr.io", namespace: ghcrNamespace });
+  }
+  return list;
+}
+
+function imageRef(registry, name, imageTag = tag) {
+  const path = `${registry.namespace}/${prefix}-${name}:${imageTag}`;
+  return registry.host === "docker.io" ? path : `${registry.host}/${path}`;
+}
+
+function allRefs(name, imageTag = tag) {
+  return registries().map((r) => imageRef(r, name, imageTag));
 }
 
 function run(cmd, args) {
@@ -63,27 +80,33 @@ function run(cmd, args) {
 
 for (const name of names) {
   const { dockerfile, buildArgs } = allImages[name];
-  const image = imageRef(name);
-  const args = ["build", "-f", dockerfile, "-t", image];
+  const tags = allRefs(name);
+  if (tag !== "latest") {
+    tags.push(...allRefs(name, "latest"));
+  }
+
+  const args = ["build", "-f", dockerfile];
+  for (const t of tags) {
+    args.push("-t", t);
+  }
   for (const arg of buildArgs) {
     args.push("--build-arg", arg);
   }
-  // Also tag :latest when publishing a version tag
-  if (tag !== "latest") {
-    args.push("-t", imageRef(name, "latest"));
+  if (sourceRepo) {
+    args.push("--label", `org.opencontainers.image.source=${sourceRepo}`);
   }
   args.push(".");
   run("docker", args);
 
   if (!noPush) {
-    run("docker", ["push", image]);
-    if (tag !== "latest") {
-      run("docker", ["push", imageRef(name, "latest")]);
+    for (const t of tags) {
+      run("docker", ["push", t]);
     }
   }
 }
 
-console.log(`\nDone. Images: ${names.map((n) => imageRef(n)).join(", ")}`);
+const published = names.flatMap((n) => allRefs(n));
+console.log(`\nDone. Images: ${published.join(", ")}`);
 if (noPush) {
   console.log("Skipped push (--no-push).");
 }

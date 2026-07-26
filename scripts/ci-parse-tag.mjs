@@ -27,7 +27,11 @@ if (!match) {
 const [, kind, service, version] = match;
 const prefix = process.env.DOCKER_IMAGE_PREFIX || "questorylabs";
 const namespace = process.env.DOCKERHUB_NAMESPACE || "santoshpanna";
+const ghcrNamespace = (
+  process.env.GHCR_NAMESPACE || "questory-labs"
+).toLowerCase();
 const image = `${namespace}/${prefix}-${service}`;
+const ghcrImage = `ghcr.io/${ghcrNamespace}/${prefix}-${service}`;
 
 const outputs = {
   kind,
@@ -36,6 +40,9 @@ const outputs = {
   image,
   image_tag: `${image}:${version}`,
   image_latest: `${image}:latest`,
+  ghcr_image: ghcrImage,
+  ghcr_image_tag: `${ghcrImage}:${version}`,
+  ghcr_image_latest: `${ghcrImage}:latest`,
   package: `@questorylabs/${service}`,
 };
 
