@@ -7,8 +7,17 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { SchedulerRegistry } from "@nestjs/schedule";
+import { CronJob } from "cron";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthAbuseService } from "../auth/abuse/auth-abuse.service";
+import { isCronEnabled } from "../cron/cron-enabled";
+import { CronRunnerService } from "../cron/cron-runner.service";
+import {
+  CRON_JOB_NAMES,
+  getCronSchedule,
+  type ScheduledCronJobName,
+} from "../cron/cron-schedules";
 import { InternalCronService } from "../cron/internal-cron.service";
 import {
   WATCH_CRON_SYNC,
@@ -35,6 +44,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly abuse: AuthAbuseService,
     private readonly cron: InternalCronService,
+    private readonly cronRunner: CronRunnerService,
+    private readonly schedulerRegistry: SchedulerRegistry,
     private readonly sync: SyncService,
     private readonly cost: CostService,
     private readonly accounts: AccountsService,
@@ -134,6 +145,7 @@ export class AdminService {
       },
     });
     return {
+      startFreshEnabled: isDevelopmentMode(),
       users: users.map((u) => ({
         id: u.id,
         email: u.email,
@@ -219,6 +231,71 @@ export class AdminService {
     return { ok: true };
   }
 
+  /**
+   * Wipe all user-owned data while keeping the User row and linked Account
+   * identities (e.g. Steam) so they can sign in and re-sync from a clean slate.
+   * Development only (`NODE_ENV=development`).
+   */
+  async resetUserData(id: string) {
+    if (!isDevelopmentMode()) {
+      throw new ForbiddenException(
+        "Start fresh is only available when NODE_ENV=development",
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        accounts: {
+          where: { provider: "steam" },
+          select: { providerAccountId: true },
+          take: 1,
+        },
+      },
+    });
+    if (!user) throw new NotFoundException("User not found");
+
+    const steamId = user.accounts[0]?.providerAccountId ?? null;
+
+    await this.prisma.$transaction(async (tx) => {
+      // Sequential deletes keep SQLite interactive transactions reliable.
+      await tx.libraryEntry.deleteMany({ where: { userId: id } });
+      await tx.wishlistItem.deleteMany({ where: { userId: id } });
+      await tx.purchase.deleteMany({ where: { userId: id } });
+      await tx.friendship.deleteMany({ where: { userId: id } });
+      await tx.familyGroup.deleteMany({ where: { ownerId: id } });
+      await tx.familyMember.deleteMany({ where: { userId: id } });
+      await tx.collection.deleteMany({ where: { userId: id } });
+      await tx.syncJob.deleteMany({ where: { userId: id } });
+      await tx.notification.deleteMany({ where: { userId: id } });
+      await tx.storeAccount.deleteMany({ where: { userId: id } });
+      await tx.apiKey.deleteMany({ where: { userId: id } });
+      await tx.listen.deleteMany({ where: { userId: id } });
+      await tx.listenHourBucket.deleteMany({ where: { userId: id } });
+      await tx.playingNow.deleteMany({ where: { userId: id } });
+      await tx.sourceConnection.deleteMany({ where: { userId: id } });
+      await tx.watchEvent.deleteMany({ where: { userId: id } });
+      await tx.watchHourBucket.deleteMany({ where: { userId: id } });
+      await tx.importJob.deleteMany({ where: { userId: id } });
+      await tx.titleListState.deleteMany({ where: { userId: id } });
+
+      if (steamId) {
+        await tx.friendLibraryCache.deleteMany({
+          where: { ownerSteamId: steamId },
+        });
+      }
+
+      await tx.user.update({
+        where: { id },
+        data: { lastSyncedAt: null },
+      });
+    });
+
+    this.logger.log(`Reset user data for ${id}`);
+    return { ok: true };
+  }
+
   async listCronRuns(take = 50) {
     const runs = await this.prisma.cronRun.findMany({
       orderBy: { startedAt: "desc" },
@@ -227,125 +304,285 @@ export class AdminService {
     return { runs: runs.map(serializeCronRun) };
   }
 
+  async cronStatus() {
+    const enabled = isCronEnabled();
+    const secretConfigured = Boolean((process.env.CRON_SECRET || "").trim());
+
+    const lastRuns = await this.prisma.cronRun.findMany({
+      orderBy: { startedAt: "desc" },
+      take: 100,
+    });
+    const lastByJob = new Map<string, (typeof lastRuns)[number]>();
+    for (const run of lastRuns) {
+      if (!lastByJob.has(run.jobName)) {
+        lastByJob.set(run.jobName, run);
+      }
+    }
+
+    const statusJobNames = [
+      ...CRON_JOB_NAMES,
+      "trakt-sync",
+      "anilist-sync",
+    ] as const;
+
+    const jobs = statusJobNames.map((name) => {
+      let schedule: string | null = null;
+      if (
+        name === "daily-refresh" ||
+        name === "recover-failed-sync" ||
+        name === "watch-sync"
+      ) {
+        schedule = getCronSchedule(name as ScheduledCronJobName);
+      } else if (name === "trakt-sync" || name === "anilist-sync") {
+        schedule = getCronSchedule("watch-sync");
+      }
+
+      const registryName =
+        name === "trakt-sync" || name === "anilist-sync" ? "watch-sync" : name;
+
+      let registered = false;
+      let running = false;
+      let nextDate: string | null = null;
+      try {
+        const job = this.schedulerRegistry.getCronJob(registryName);
+        registered = true;
+        running = Boolean(job.running);
+        nextDate = cronJobNextDateIso(job);
+      } catch {
+        registered = false;
+      }
+
+      const last = lastByJob.get(name);
+      return {
+        name,
+        schedule,
+        registered,
+        running,
+        nextDate,
+        lastRun: last ? serializeCronRun(last) : null,
+      };
+    });
+
+    return { enabled, secretConfigured, jobs };
+  }
+
   async triggerCron(
     jobName: string,
     adminUserId: string,
   ): Promise<Record<string, unknown>> {
-    const run = await this.prisma.cronRun.create({
-      data: {
-        jobName,
-        status: "running",
-        triggeredBy: "admin",
-        triggeredByUserId: adminUserId,
+    const { runId, result } = await this.cronRunner.run(
+      jobName,
+      "admin",
+      async () => {
+        switch (jobName) {
+          case "daily-refresh":
+            return this.cron.dailyRefresh();
+          case "recover-failed-sync":
+            return this.cron.recoverFailedSync();
+          case "catalog-sync":
+            return this.cron.syncCatalog({});
+          case "trakt-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runTraktSync();
+          case "anilist-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runAnilistSync();
+          default:
+            throw new BadRequestException(`Unknown job: ${jobName}`);
+        }
       },
-    });
-
-    try {
-      let result: unknown;
-      switch (jobName) {
-        case "daily-refresh":
-          result = await this.cron.dailyRefresh();
-          break;
-        case "recover-failed-sync":
-          result = await this.cron.recoverFailedSync();
-          break;
-        case "catalog-sync":
-          result = await this.cron.syncCatalog({});
-          break;
-        case "trakt-sync":
-          if (!this.watchCron) {
-            throw new BadRequestException("Watch module unavailable");
-          }
-          result = await this.watchCron.runTraktSync();
-          break;
-        case "anilist-sync":
-          if (!this.watchCron) {
-            throw new BadRequestException("Watch module unavailable");
-          }
-          result = await this.watchCron.runAnilistSync();
-          break;
-        default:
-          throw new BadRequestException(`Unknown job: ${jobName}`);
-      }
-
-      await this.prisma.cronRun.update({
-        where: { id: run.id },
-        data: {
-          status: "completed",
-          finishedAt: new Date(),
-          meta: JSON.stringify(result ?? {}),
-        },
-      });
-      return { ok: true, runId: run.id, result };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await this.prisma.cronRun.update({
-        where: { id: run.id },
-        data: {
-          status: "failed",
-          finishedAt: new Date(),
-          error: message,
-        },
-      });
-      throw err;
-    }
+      { userId: adminUserId },
+    );
+    return { ok: true, runId, result };
   }
 
-  async enrichmentOverview() {
-    const [musicJobs, titleJobs, syncMeta] = await Promise.all([
-      this.prisma.enrichmentJob.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 30,
-        select: {
-          id: true,
-          trackId: true,
-          status: true,
-          attempts: true,
-          lastError: true,
-          createdAt: true,
-          completedAt: true,
-        },
-      }),
-      this.prisma.titleEnrichmentJob.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 30,
-        select: {
-          id: true,
-          titleId: true,
-          status: true,
-          attempts: true,
-          lastError: true,
-          createdAt: true,
-          completedAt: true,
-        },
-      }),
-      this.prisma.syncJob.findMany({
-        where: { type: "metadata-refresh" },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      }),
+  async enrichmentOverview(opts: {
+    domain: "music" | "watch" | "game";
+    page: number;
+    pageSize: number;
+    status: "all" | "pending" | "running" | "completed" | "failed";
+  }) {
+    const { domain, page, pageSize, status } = opts;
+    const skip = (page - 1) * pageSize;
+    const statusFilter = status === "all" ? undefined : status;
+
+    const [musicCounts, watchCounts, gameCounts] = await Promise.all([
+      this.enrichmentStatusCounts("music"),
+      this.enrichmentStatusCounts("watch"),
+      this.enrichmentStatusCounts("game"),
     ]);
 
+    if (domain === "music") {
+      const where = statusFilter ? { status: statusFilter } : {};
+      const [total, rows] = await Promise.all([
+        this.prisma.enrichmentJob.count({ where }),
+        this.prisma.enrichmentJob.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: pageSize,
+          select: {
+            id: true,
+            trackId: true,
+            status: true,
+            attempts: true,
+            lastError: true,
+            createdAt: true,
+            completedAt: true,
+            track: {
+              select: {
+                title: true,
+                recordingMbid: true,
+                artist: { select: { name: true } },
+              },
+            },
+          },
+        }),
+      ]);
+      return {
+        domain,
+        page,
+        pageSize,
+        total,
+        counts: { music: musicCounts, watch: watchCounts, game: gameCounts },
+        items: rows.map((j) => ({
+          id: j.id,
+          refId: j.trackId,
+          label: j.track.title,
+          detail: [
+            j.track.artist.name,
+            j.track.recordingMbid
+              ? `mbid ${j.track.recordingMbid.slice(0, 8)}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          status: j.status,
+          attempts: j.attempts,
+          error: j.lastError,
+          createdAt: j.createdAt.toISOString(),
+          completedAt: j.completedAt?.toISOString() ?? null,
+        })),
+      };
+    }
+
+    if (domain === "watch") {
+      const where = statusFilter ? { status: statusFilter } : {};
+      const [total, rows] = await Promise.all([
+        this.prisma.titleEnrichmentJob.count({ where }),
+        this.prisma.titleEnrichmentJob.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: pageSize,
+          select: {
+            id: true,
+            titleId: true,
+            status: true,
+            attempts: true,
+            lastError: true,
+            createdAt: true,
+            completedAt: true,
+            title: { select: { name: true, type: true, year: true } },
+          },
+        }),
+      ]);
+      return {
+        domain,
+        page,
+        pageSize,
+        total,
+        counts: { music: musicCounts, watch: watchCounts, game: gameCounts },
+        items: rows.map((j) => ({
+          id: j.id,
+          refId: j.titleId,
+          label: j.title.name,
+          detail: [j.title.type, j.title.year].filter(Boolean).join(" · ") || null,
+          status: j.status,
+          attempts: j.attempts,
+          error: j.lastError,
+          createdAt: j.createdAt.toISOString(),
+          completedAt: j.completedAt?.toISOString() ?? null,
+        })),
+      };
+    }
+
+    const where = {
+      type: "metadata-refresh",
+      ...(statusFilter ? { status: statusFilter } : {}),
+    };
+    const [total, rows] = await Promise.all([
+      this.prisma.syncJob.count({ where }),
+      this.prisma.syncJob.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          error: true,
+          createdAt: true,
+          startedAt: true,
+          finishedAt: true,
+          user: { select: { personaName: true, email: true } },
+        },
+      }),
+    ]);
     return {
-      music: musicJobs.map((j) => ({
-        ...j,
-        createdAt: j.createdAt.toISOString(),
-        completedAt: j.completedAt?.toISOString() ?? null,
-      })),
-      watch: titleJobs.map((j) => ({
-        ...j,
-        createdAt: j.createdAt.toISOString(),
-        completedAt: j.completedAt?.toISOString() ?? null,
-      })),
-      metadataRefresh: syncMeta.map((j) => ({
+      domain,
+      page,
+      pageSize,
+      total,
+      counts: { music: musicCounts, watch: watchCounts, game: gameCounts },
+      items: rows.map((j) => ({
         id: j.id,
-        userId: j.userId,
+        refId: j.userId,
+        label: j.user.personaName || j.user.email || j.userId.slice(0, 8),
+        detail: j.user.email,
         status: j.status,
+        attempts: null as number | null,
         error: j.error,
+        createdAt: j.createdAt.toISOString(),
+        completedAt: j.finishedAt?.toISOString() ?? null,
         startedAt: j.startedAt?.toISOString() ?? null,
-        finishedAt: j.finishedAt?.toISOString() ?? null,
       })),
     };
+  }
+
+  private async enrichmentStatusCounts(
+    domain: "music" | "watch" | "game",
+  ): Promise<StatusBucket> {
+    const statuses = ["pending", "running", "completed", "failed"] as const;
+    if (domain === "music") {
+      const counts = await Promise.all(
+        statuses.map((status) =>
+          this.prisma.enrichmentJob.count({ where: { status } }),
+        ),
+      );
+      return bucketFromCounts(counts);
+    }
+    if (domain === "watch") {
+      const counts = await Promise.all(
+        statuses.map((status) =>
+          this.prisma.titleEnrichmentJob.count({ where: { status } }),
+        ),
+      );
+      return bucketFromCounts(counts);
+    }
+    const counts = await Promise.all(
+      statuses.map((status) =>
+        this.prisma.syncJob.count({
+          where: { type: "metadata-refresh", status },
+        }),
+      ),
+    );
+    return bucketFromCounts(counts);
   }
 
   async triggerEnrichment(action: string, adminUserId: string) {
@@ -369,6 +606,44 @@ export class AdminService {
     return this.sync.enqueueAll(userId, steamId, { force: true });
   }
 
+}
+
+type StatusBucket = {
+  pending: number;
+  running: number;
+  completed: number;
+  failed: number;
+  total: number;
+};
+
+function bucketFromCounts([pending, running, completed, failed]: number[]) {
+  return {
+    pending,
+    running,
+    completed,
+    failed,
+    total: pending + running + completed + failed,
+  };
+}
+
+function isDevelopmentMode() {
+  return process.env.NODE_ENV === "development";
+}
+
+function cronJobNextDateIso(job: CronJob): string | null {
+  try {
+    const next = job.nextDate();
+    if (!next) return null;
+    if (typeof next.toJSDate === "function") {
+      return next.toJSDate().toISOString();
+    }
+    if (next instanceof Date) {
+      return next.toISOString();
+    }
+    return String(next);
+  } catch {
+    return null;
+  }
 }
 
 function serializeCronRun(run: {

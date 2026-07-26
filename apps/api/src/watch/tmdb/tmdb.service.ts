@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { resolveTmdbApiKey } from "../lib/runtime-config";
 
-type TmdbMovie = {
+export type TmdbMovie = {
   id: number;
   title?: string;
   name?: string;
@@ -14,6 +14,7 @@ type TmdbMovie = {
   original_language?: string;
   genres?: { id: number; name: string }[];
   imdb_id?: string;
+  episode_run_time?: number[];
 };
 
 @Injectable()
@@ -85,6 +86,32 @@ export class TmdbService {
       ...(year ? { first_air_date_year: String(year) } : {}),
     });
     return data?.results?.[0] ?? null;
+  }
+
+  /** Search hits omit runtime; resolve a full detail payload when needed. */
+  async resolveMovieDetail(hit: TmdbMovie | null) {
+    if (!hit?.id) return null;
+    if (hit.runtime != null && hit.runtime > 0) return hit;
+    return (await this.getMovie(hit.id)) ?? hit;
+  }
+
+  async resolveTvDetail(hit: TmdbMovie | null) {
+    if (!hit?.id) return null;
+    if (
+      (hit.runtime != null && hit.runtime > 0) ||
+      (hit.episode_run_time && hit.episode_run_time.length > 0)
+    ) {
+      return hit;
+    }
+    return (await this.getTv(hit.id)) ?? hit;
+  }
+
+  /** Movie `runtime`, or typical TV episode length from `episode_run_time`. */
+  runtimeMinutes(detail: TmdbMovie | null | undefined): number | null {
+    if (!detail) return null;
+    if (detail.runtime != null && detail.runtime > 0) return detail.runtime;
+    const episode = detail.episode_run_time?.find((n) => n != null && n > 0);
+    return episode ?? null;
   }
 
   posterUrl(path?: string | null) {

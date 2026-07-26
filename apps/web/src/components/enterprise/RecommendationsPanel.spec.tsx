@@ -11,7 +11,7 @@ import { RecommendationsPanel } from "./RecommendationsPanel";
 
 const heuristicResponse = {
   available: true,
-  engine: "questorylabs-enterprise/0.1.0",
+  engine: "qengine/0.1.0",
   userId: "u1",
   generatedAt: "2026-07-22T20:00:00Z",
   ml: { enabled: false, ready: false },
@@ -40,6 +40,9 @@ function installFetch() {
       const respond = (body: unknown) =>
         new Response(JSON.stringify(body), { status: 200 });
 
+      if (url.includes("/v1/recommendations/curate/cache")) {
+        return respond({ cached: false });
+      }
       if (url.includes("/v1/recommendations/curate/")) {
         return respond({
           jobId: "j1",
@@ -94,7 +97,7 @@ describe("RecommendationsPanel", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Mood" }), {
       target: { value: "something cozy" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Curate" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Curate" }));
 
     // The curate call carries the mood in context.
     await waitFor(() => {
@@ -104,9 +107,9 @@ describe("RecommendationsPanel", () => {
           c.init?.method === "POST",
       );
       expect(curate).toBeTruthy();
-      expect(
-        JSON.parse(curate?.init?.body as string).context.mood,
-      ).toBe("something cozy");
+      const body = JSON.parse(curate?.init?.body as string);
+      expect(body.context.mood).toBe("something cozy");
+      expect(body.force).toBe(false);
     });
 
     // The job poll renders the live progress view with activity events.

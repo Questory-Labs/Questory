@@ -8,6 +8,12 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
 import { UsersService } from "../users/users.service";
+import { ReadCatalogService } from "../../read/catalog/catalog.service";
+import {
+  mapAniListListStatus,
+  mapAniListMangaFormat,
+  mangaProgressPercent,
+} from "../../read/anilist/manga-map";
 import {
   resolveAniListClientId,
   resolveAniListClientSecret,
@@ -18,12 +24,15 @@ import {
 export class AnilistService {
   private readonly logger = new Logger(AnilistService.name);
   private readonly gql = "https://graphql.anilist.co";
+  /** In-flight syncList user ids (process-local; for UI status). */
+  private readonly syncingUsers = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
+    private readonly readCatalog: ReadCatalogService,
   ) {}
 
   configured() {
@@ -101,8 +110,13 @@ export class AnilistService {
     return {
       connected: Boolean(conn),
       userId: user.id,
+      syncing: Boolean(conn && this.syncingUsers.has(user.id)),
       lastSyncedAt: conn?.lastSyncedAt?.toISOString() ?? null,
     };
+  }
+
+  isSyncing(userId: string) {
+    return this.syncingUsers.has(userId);
   }
 
   async syncList(userId?: string) {
@@ -113,6 +127,18 @@ export class AnilistService {
     });
     if (!conn) throw new BadRequestException("AniList not connected");
 
+    this.syncingUsers.add(user.id);
+    try {
+      return await this.runSyncList(user.id, conn);
+    } finally {
+      this.syncingUsers.delete(user.id);
+    }
+  }
+
+  private async runSyncList(
+    userId: string,
+    conn: { id: string; accessToken: string },
+  ) {
     const query = `
       query {
         Viewer { id name }
@@ -230,7 +256,7 @@ export class AnilistService {
           entry.progress > 0
         ) {
           await this.catalog.recordWatch({
-            userId: user.id,
+            userId,
             titleId: title.id,
             watchedAt,
             source: "anilist",
@@ -254,7 +280,7 @@ export class AnilistService {
 
         if (entry.score) {
           await this.catalog.upsertListState({
-            userId: user.id,
+            userId,
             titleId: title.id,
             listType: "rating",
             source: "anilist",
@@ -267,6 +293,12 @@ export class AnilistService {
       }
     }
 
+    const mangaAccepted = await this.syncMangaList(
+      userId,
+      conn.accessToken,
+      viewerId,
+    );
+
     await this.prisma.sourceConnection.update({
       where: { id: conn.id },
       data: {
@@ -275,7 +307,169 @@ export class AnilistService {
       },
     });
 
-    return { ok: true, accepted, userId: user.id };
+    return { ok: true, accepted, mangaAccepted, userId };
+  }
+
+  private async syncMangaList(
+    userId: string,
+    accessToken: string,
+    viewerId: number,
+  ) {
+    const query = `
+      query {
+        MediaListCollection(type: MANGA, userId: ${viewerId}) {
+          lists {
+            entries {
+              id status score progress progressVolumes
+              updatedAt completedAt startedAt
+              media {
+                id idMal
+                title { romaji english native }
+                chapters volumes
+                genres
+                format
+                status
+                countryOfOrigin
+                startDate { year }
+                coverImage { large medium }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const listRes = await fetch(this.gql, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ query }),
+    });
+    const listJson = (await listRes.json()) as {
+      data?: {
+        MediaListCollection?: {
+          lists: {
+            entries: {
+              id: number;
+              status: string;
+              score: number;
+              progress: number;
+              progressVolumes?: number;
+              updatedAt?: number;
+              completedAt?: { year?: number; month?: number; day?: number };
+              media: {
+                id: number;
+                idMal?: number;
+                title: { romaji?: string; english?: string; native?: string };
+                chapters?: number;
+                volumes?: number;
+                genres?: string[];
+                format?: string;
+                status?: string;
+                countryOfOrigin?: string;
+                startDate?: { year?: number };
+                coverImage?: { large?: string; medium?: string };
+              };
+            }[];
+          }[];
+        };
+      };
+      errors?: unknown;
+    };
+
+    if (listJson.errors) {
+      this.logger.warn(
+        `AniList manga GraphQL error: ${JSON.stringify(listJson.errors).slice(0, 300)}`,
+      );
+      return 0;
+    }
+
+    let accepted = 0;
+    const lists = listJson.data?.MediaListCollection?.lists || [];
+    for (const list of lists) {
+      for (const entry of list.entries) {
+        const media = entry.media;
+        const name =
+          media.title.english ||
+          media.title.romaji ||
+          media.title.native ||
+          `AniList ${media.id}`;
+        const format = mapAniListMangaFormat(media.format);
+        const listStatus = mapAniListListStatus(entry.status);
+        const readAt = this.resolveDate(entry);
+        const precision = entry.completedAt?.year ? "day" : "unknown";
+        const progressVolumes = entry.progressVolumes ?? 0;
+
+        const title = await this.readCatalog.upsertTitle({
+          format,
+          name,
+          year: media.startDate?.year ?? null,
+          chapters: media.chapters ?? null,
+          volumes: media.volumes ?? null,
+          coverUrl: media.coverImage?.large || media.coverImage?.medium || null,
+          anilistId: media.id,
+          malId: media.idMal ?? null,
+          countryOfOrigin: media.countryOfOrigin ?? null,
+          publishingStatus: media.status ?? null,
+        });
+
+        if (media.genres?.length) {
+          await this.readCatalog.linkGenres(title.id, media.genres, "anilist");
+        }
+
+        await this.readCatalog.upsertListState({
+          userId,
+          readTitleId: title.id,
+          listStatus,
+          source: "anilist",
+          score: entry.score || null,
+          progressChapters: entry.progress ?? 0,
+          progressVolumes,
+          listedAt: readAt,
+        });
+
+        // PLANNING → list state only (no synthetic ReadEvent).
+        if (entry.status === "PLANNING") {
+          accepted += 1;
+          continue;
+        }
+
+        if (
+          entry.status === "COMPLETED" ||
+          entry.status === "CURRENT" ||
+          entry.status === "REPEATING" ||
+          entry.progress > 0 ||
+          progressVolumes > 0
+        ) {
+          const dedupeKey = `anilist:manga:${entry.id}:${entry.status}:${entry.progress}:${progressVolumes}`;
+          await this.readCatalog.recordProgress({
+            userId,
+            readTitleId: title.id,
+            readAt,
+            source: "anilist",
+            dedupeKey,
+            action: "import",
+            status: entry.status,
+            chaptersRead: entry.progress ?? null,
+            volumesRead: progressVolumes || null,
+            progress: mangaProgressPercent(
+              entry.progress,
+              media.chapters,
+              entry.status,
+            ),
+            rating: entry.score || null,
+            precision,
+            chaptersDelta: entry.progress ?? 0,
+          });
+          accepted += 1;
+        }
+      }
+    }
+
+    return accepted;
   }
 
   private resolveDate(entry: {

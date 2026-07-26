@@ -26,6 +26,7 @@ import { AccountsModule } from "./accounts/accounts.module";
 import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { MusicModule } from "./music/music.module";
 import { WatchModule } from "./watch/watch.module";
+import { ReadModule } from "./read/read.module";
 import { HealthController } from "./health.controller";
 
 
@@ -63,6 +64,7 @@ const localEnv = resolve(process.cwd(), ".env");
     TrendingModule,
     MusicModule,
     WatchModule,
+    ReadModule,
     CronModule,
     AdminModule,
   ],

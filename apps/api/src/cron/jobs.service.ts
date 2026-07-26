@@ -8,11 +8,12 @@ import {
 import { SchedulerRegistry } from "@nestjs/schedule";
 import { CronJob } from "cron";
 import { isCronEnabled } from "./cron-enabled";
+import { CronRunnerService } from "./cron-runner.service";
+import { getConfiguredSchedules } from "./cron-schedules";
 import { InternalCronService } from "./internal-cron.service";
 import { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
 
 export { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
-
 
 @Injectable()
 export class JobsService implements OnModuleInit {
@@ -20,6 +21,7 @@ export class JobsService implements OnModuleInit {
 
   constructor(
     private readonly internalCron: InternalCronService,
+    private readonly cronRunner: CronRunnerService,
     private readonly schedulerRegistry: SchedulerRegistry,
     @Optional()
     @Inject(WATCH_CRON_SYNC)
@@ -29,31 +31,32 @@ export class JobsService implements OnModuleInit {
   onModuleInit() {
     if (!isCronEnabled()) {
       this.logger.log(
-        "In-process cron disabled (set CRON_ENABLED=true|TRUE|1 to enable)",
+        "In-process cron disabled (CRON_ENABLED=false|FALSE|0)",
       );
       return;
     }
 
     const secret = (process.env.CRON_SECRET || "").trim();
     if (!secret) {
-      this.logger.error(
-        "CRON_ENABLED is set but CRON_SECRET is missing — scheduler not started",
+      this.logger.log(
+        "CRON_SECRET unset — in-process scheduler starting; HTTP /v1/internal/cron/* stays locked",
       );
-      return;
     }
 
-    const dailyExpr = process.env.CRON_DAILY_SCHEDULE || "0 3 * * *";
-    const recoveryExpr = process.env.CRON_RECOVERY_SCHEDULE || "*/15 * * * *";
-    const watchExpr = process.env.CRON_WATCH_SCHEDULE || "0 */6 * * *";
+    const schedules = getConfiguredSchedules();
 
-    this.addJob("daily-refresh", dailyExpr, () => this.runDailyRefresh());
-    this.addJob("recover-failed-sync", recoveryExpr, () =>
+    this.addJob("daily-refresh", schedules["daily-refresh"], () =>
+      this.runDailyRefresh(),
+    );
+    this.addJob("recover-failed-sync", schedules["recover-failed-sync"], () =>
       this.runRecoverFailedSync(),
     );
-    this.addJob("watch-sync", watchExpr, () => this.runWatchSync());
+    this.addJob("watch-sync", schedules["watch-sync"], () =>
+      this.runWatchSync(),
+    );
 
     this.logger.log(
-      `Scheduled daily-refresh (${dailyExpr}), recover-failed-sync (${recoveryExpr}), watch-sync (${watchExpr})`,
+      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]})`,
     );
   }
 
@@ -70,13 +73,21 @@ export class JobsService implements OnModuleInit {
 
   async runDailyRefresh() {
     this.logger.log("Starting daily-refresh");
-    const result = await this.internalCron.dailyRefresh();
+    const { result } = await this.cronRunner.run(
+      "daily-refresh",
+      "system",
+      () => this.internalCron.dailyRefresh(),
+    );
     this.logger.log(`daily-refresh done: ${JSON.stringify(result)}`);
   }
 
   async runRecoverFailedSync() {
     this.logger.log("Starting recover-failed-sync");
-    const result = await this.internalCron.recoverFailedSync();
+    const { result } = await this.cronRunner.run(
+      "recover-failed-sync",
+      "system",
+      () => this.internalCron.recoverFailedSync(),
+    );
     this.logger.log(`recover-failed-sync done: ${JSON.stringify(result)}`);
   }
 
@@ -87,7 +98,11 @@ export class JobsService implements OnModuleInit {
     }
     this.logger.log("Starting watch-sync (Trakt + AniList)");
     try {
-      const trakt = await this.watchCron.runTraktSync();
+      const { result: trakt } = await this.cronRunner.run(
+        "trakt-sync",
+        "system",
+        () => this.watchCron!.runTraktSync(),
+      );
       this.logger.log(`trakt-sync done: ${JSON.stringify(trakt)}`);
     } catch (err) {
       this.logger.warn(
@@ -95,7 +110,11 @@ export class JobsService implements OnModuleInit {
       );
     }
     try {
-      const ani = await this.watchCron.runAnilistSync();
+      const { result: ani } = await this.cronRunner.run(
+        "anilist-sync",
+        "system",
+        () => this.watchCron!.runAnilistSync(),
+      );
       this.logger.log(`anilist-sync done: ${JSON.stringify(ani)}`);
     } catch (err) {
       this.logger.warn(

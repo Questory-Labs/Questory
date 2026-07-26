@@ -325,7 +325,7 @@ export class EnrichmentService implements OnModuleInit {
   private userAgent() {
     return (
       process.env.MUSICBRAINZ_USER_AGENT ||
-      "QuestoryLabs-Music/0.1 (https://github.com/santoshpanna/Questory-Labs)"
+      "QuestoryLabs-Music/0.1 (https://github.com/Questory-Labs/Questory)"
     );
   }
 

@@ -1,12 +1,16 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { PageHeader, Panel } from "@/components/ui";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { FriendsListResponse } from "@questorylabs/shared";
 import Link from "next/link";
 
+const PAGE_SIZE = 48;
+
 export default function FriendsPage() {
+  const [page, setPage] = useState(1);
   const friends = useQuery({
     queryKey: ["friends"],
     queryFn: () => api<FriendsListResponse>("/friends"),
@@ -14,6 +18,11 @@ export default function FriendsPage() {
 
   const list = friends.data?.friends || [];
   const meta = friends.data?.meta;
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return list.slice(start, start + PAGE_SIZE);
+  }, [list, page]);
 
   return (
     <>
@@ -38,7 +47,7 @@ export default function FriendsPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {list.map((f) => (
+        {pageItems.map((f) => (
           <Panel
             key={f.steamId}
             className="cursor-pointer transition hover:border-[var(--accent)]"
@@ -72,6 +81,30 @@ export default function FriendsPage() {
           </p>
         )}
       </div>
+
+      {list.length > PAGE_SIZE && (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5"
+          >
+            Previous
+          </Button>
+          <span className="font-mono text-xs text-[var(--muted)]">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-3 py-1.5"
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </>
   );
 }

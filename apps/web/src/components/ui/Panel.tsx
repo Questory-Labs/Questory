@@ -6,6 +6,7 @@ export function Panel({
   className = "",
   faceClassName = "",
   wrapperClassName = "",
+  size = "md",
   children,
 }: {
   /** Face styles (padding, layout) on the opaque `.panel`. */
@@ -14,10 +15,12 @@ export function Panel({
   faceClassName?: string;
   /** Outer hatch wrapper only (margins, max-width, sticky). */
   wrapperClassName?: string;
+  size?: "sm" | "md" | "lg";
   children: ReactNode;
 }) {
   return (
     <HatchShadow
+      size={size}
       className={wrapperClassName}
       faceClassName={`panel ${className} ${faceClassName}`.trim()}
     >

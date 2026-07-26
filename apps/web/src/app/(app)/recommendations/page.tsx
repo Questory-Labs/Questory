@@ -4,8 +4,8 @@ import { RecommendationsPanel } from "@/components/enterprise/RecommendationsPan
 import { PageHeader } from "@/components/ui";
 
 /**
- * Recommendations UI ships with the community web app. Without the private
- * Rust enterprise service, EnterpriseGate redirects away.
+ * Recommendations UI ships with the community web app. Without QEngine,
+ * EnterpriseGate redirects away.
  */
 export default function RecommendationsPage() {
   return (

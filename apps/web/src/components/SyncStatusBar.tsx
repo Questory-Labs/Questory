@@ -1,0 +1,329 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useSyncJobs } from "@/hooks/useSyncJobs";
+import {
+  useMusicImportStatus,
+  type MusicImportJob,
+} from "@/hooks/useMusicImportStatus";
+import { useWatchSyncStatus } from "@/hooks/useWatchSyncStatus";
+import { useReadSyncStatus } from "@/hooks/useReadSyncStatus";
+
+type SourceRow = {
+  id: string;
+  label: string;
+  headline: string;
+  detail: string;
+  href: string;
+  active: boolean;
+  progress?: { done: number; total: number } | null;
+};
+
+function ProgressTrack({
+  done,
+  total,
+  active,
+  label,
+}: {
+  done: number;
+  total: number;
+  active: boolean;
+  label: string;
+}) {
+  const pct = total > 0 ? Math.round((Math.min(done, total) / total) * 100) : 0;
+  return (
+    <div
+      className="mt-2 h-1 overflow-hidden bg-[var(--bg-2)]"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={Math.max(1, total)}
+      aria-valuenow={Math.min(total, Math.floor(done))}
+      aria-label={label}
+    >
+      <div
+        className={`h-full transition-[width] duration-500 ease-out ${
+          active ? "bg-[var(--warm)]" : "bg-[var(--accent)]"
+        }`}
+        style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Shell banner for in-flight Steam / Music / Watch / Read sync & imports.
+ * Mirrors the Steam sync bar, with one row per active source.
+ */
+export function SyncStatusBar({
+  steamEnabled = false,
+  musicEnabled = false,
+  watchEnabled = false,
+  readEnabled = false,
+}: {
+  steamEnabled?: boolean;
+  musicEnabled?: boolean;
+  watchEnabled?: boolean;
+  readEnabled?: boolean;
+}) {
+  const steam = useSyncJobs({ enabled: steamEnabled });
+  const music = useMusicImportStatus({ enabled: musicEnabled });
+  const watch = useWatchSyncStatus({ enabled: watchEnabled });
+  const read = useReadSyncStatus({ enabled: readEnabled });
+
+  const [dismissed, setDismissed] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const sawActive = useRef({
+    steam: false,
+    music: false,
+    watch: false,
+    read: false,
+  });
+  const lastMusicJob = useRef<MusicImportJob | null>(null);
+  const lastWatchDetail = useRef<string>("");
+
+  const anyActive =
+    steam.active || music.active || watch.active || read.active;
+
+  useEffect(() => {
+    if (music.job) lastMusicJob.current = music.job;
+  }, [music.job]);
+
+  useEffect(() => {
+    if (steam.active) sawActive.current.steam = true;
+    if (music.active) sawActive.current.music = true;
+    if (watch.active) {
+      sawActive.current.watch = true;
+      const parts: string[] = [];
+      if (watch.letterboxd) {
+        const lb = watch.letterboxd;
+        parts.push(
+          lb.total > 0
+            ? `Letterboxd · ${lb.processed.toLocaleString()} / ${lb.total.toLocaleString()}`
+            : lb.processed > 0
+              ? `Letterboxd · ${lb.processed.toLocaleString()} rows`
+              : "Letterboxd · importing export…",
+        );
+      }
+      if (watch.traktSyncing) parts.push("Trakt sync");
+      if (watch.anilistSyncing) parts.push("AniList sync");
+      if (parts.length) lastWatchDetail.current = parts.join(" · ");
+    }
+    if (read.active) sawActive.current.read = true;
+  }, [
+    steam.active,
+    music.active,
+    watch.active,
+    watch.letterboxd,
+    watch.traktSyncing,
+    watch.anilistSyncing,
+    read.active,
+  ]);
+
+  useEffect(() => {
+    if (anyActive) {
+      setCelebrate(false);
+      setDismissed(false);
+      return;
+    }
+    const finished =
+      sawActive.current.steam ||
+      sawActive.current.music ||
+      sawActive.current.watch ||
+      sawActive.current.read;
+    if (!finished) return;
+    setCelebrate(true);
+    const t = window.setTimeout(() => {
+      setCelebrate(false);
+      setDismissed(true);
+      sawActive.current = {
+        steam: false,
+        music: false,
+        watch: false,
+        read: false,
+      };
+      lastMusicJob.current = null;
+      lastWatchDetail.current = "";
+    }, 8_000);
+    return () => window.clearTimeout(t);
+  }, [anyActive]);
+
+  const rows: SourceRow[] = [];
+
+  const showSteam =
+    steamEnabled &&
+    (steam.active || (celebrate && sawActive.current.steam));
+  if (showSteam) {
+    rows.push({
+      id: "steam",
+      label: "Steam",
+      headline: steam.active
+        ? "Syncing your Steam library"
+        : "Steam sync finished",
+      detail: steam.active
+        ? steam.current
+          ? `${steam.current.label} · ${steam.doneCount} of ${steam.total} complete`
+          : "Pulling library, wishlist, friends, and details…"
+        : "Library, wishlist, and friends are ready to browse.",
+      href: "/settings/connections",
+      active: steam.active,
+      progress:
+        steam.active || steam.hasJobs
+          ? {
+              done: steam.doneCount + (steam.active && steam.current ? 0.35 : 0),
+              total: steam.total,
+            }
+          : null,
+    });
+  }
+
+  const showMusic =
+    musicEnabled &&
+    (music.active || (celebrate && sawActive.current.music));
+  if (showMusic) {
+    const job = music.job ?? lastMusicJob.current;
+    const parsing = job?.phase === "parsing";
+    rows.push({
+      id: "music",
+      label: "Music",
+      headline: music.active
+        ? parsing
+          ? "Parsing music import"
+          : "Importing listening history"
+        : "Music import finished",
+      detail: music.active
+        ? parsing
+          ? job?.fileName || "Reading upload…"
+          : `${(job?.processed ?? 0).toLocaleString()} / ${(job?.total ?? 0).toLocaleString()} listens · ${job?.accepted ?? 0} accepted`
+        : `${(job?.accepted ?? 0).toLocaleString()} listens imported`,
+      href: "/music/settings",
+      active: music.active,
+      progress:
+        music.active && job && job.total > 0
+          ? { done: job.processed, total: job.total }
+          : null,
+    });
+  }
+
+  const showWatch =
+    watchEnabled &&
+    (watch.active || (celebrate && sawActive.current.watch));
+  if (showWatch) {
+    const parts: string[] = [];
+    if (watch.letterboxd) {
+      const lb = watch.letterboxd;
+      parts.push(
+        lb.total > 0
+          ? `Letterboxd · ${lb.processed.toLocaleString()} / ${lb.total.toLocaleString()}`
+          : lb.processed > 0
+            ? `Letterboxd · ${lb.processed.toLocaleString()} rows`
+            : "Letterboxd · importing export…",
+      );
+    }
+    if (watch.traktSyncing) parts.push("Trakt sync");
+    if (watch.anilistSyncing) parts.push("AniList sync");
+
+    rows.push({
+      id: "watch",
+      label: "Watch",
+      headline: watch.active
+        ? "Syncing your Watch library"
+        : "Watch sync finished",
+      detail: parts.length
+        ? parts.join(" · ")
+        : lastWatchDetail.current || "Movies and shows are up to date.",
+      href: "/watch/settings",
+      active: watch.active,
+      progress:
+        watch.letterboxd && watch.letterboxd.total > 0
+          ? {
+              done: watch.letterboxd.processed,
+              total: watch.letterboxd.total,
+            }
+          : null,
+    });
+  }
+
+  // Prefer Watch's AniList row when both flags are on (shared OAuth sync).
+  const showRead =
+    readEnabled &&
+    (read.active || (celebrate && sawActive.current.read)) &&
+    !(watchEnabled && watch.anilistSyncing);
+  if (showRead) {
+    rows.push({
+      id: "read",
+      label: "Read",
+      headline: read.active
+        ? "Syncing your Read library"
+        : "Read sync finished",
+      detail: read.active
+        ? "AniList manga sync"
+        : "Manga and print lists are up to date.",
+      href: "/read/settings",
+      active: read.active,
+      progress: null,
+    });
+  }
+
+  const visible = !dismissed && rows.length > 0 && (anyActive || celebrate);
+  if (!visible) return null;
+
+  return (
+    <div
+      className="border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-1)_92%,transparent)] px-4 py-2.5 sm:px-6"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="mx-auto flex max-w-6xl flex-col gap-3">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="flex flex-wrap items-center gap-x-4 gap-y-2"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {row.active ? (
+                  <span
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--warm)]"
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
+                  {row.label}
+                </span>
+                <span className="text-sm text-[var(--ink)]">{row.headline}</span>
+              </div>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">{row.detail}</p>
+              {row.progress ? (
+                <ProgressTrack
+                  done={row.progress.done}
+                  total={row.progress.total}
+                  active={row.active}
+                  label={`${row.label} sync progress`}
+                />
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {row.active ? (
+                <Link
+                  href={row.href}
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--accent)] hover:underline"
+                >
+                  Details
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)] hover:text-[var(--ink)]"
+                  onClick={() => setDismissed(true)}
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

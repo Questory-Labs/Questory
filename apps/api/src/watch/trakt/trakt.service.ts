@@ -53,6 +53,8 @@ type TraktHistoryItem = {
 @Injectable()
 export class TraktService {
   private readonly logger = new Logger(TraktService.name);
+  /** In-flight syncHistory user ids (process-local; for UI status). */
+  private readonly syncingUsers = new Set<string>();
   private readonly api = "https://api.trakt.tv";
 
   constructor(
@@ -146,13 +148,24 @@ export class TraktService {
     const conn = await this.prisma.sourceConnection.findUnique({
       where: { userId_provider: { userId: user.id, provider: "trakt" } },
     });
-    if (!conn) return { connected: false, userId: user.id };
+    if (!conn) {
+      return {
+        connected: false,
+        userId: user.id,
+        syncing: false,
+      };
+    }
     return {
       connected: true,
       userId: user.id,
+      syncing: this.syncingUsers.has(user.id),
       lastSyncedAt: conn.lastSyncedAt?.toISOString() ?? null,
       syncCursor: conn.syncCursor,
     };
+  }
+
+  isSyncing(userId: string) {
+    return this.syncingUsers.has(userId);
   }
 
   private async ensureAccessToken(userId: string): Promise<string> {
@@ -230,62 +243,67 @@ export class TraktService {
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
 
-    const accessToken = await this.ensureAccessToken(user.id);
-    const conn = await this.prisma.sourceConnection.findUnique({
-      where: { userId_provider: { userId: user.id, provider: "trakt" } },
-    });
+    this.syncingUsers.add(user.id);
+    try {
+      const accessToken = await this.ensureAccessToken(user.id);
+      const conn = await this.prisma.sourceConnection.findUnique({
+        where: { userId_provider: { userId: user.id, provider: "trakt" } },
+      });
 
-    let page = 1;
-    let pageCount = 1;
-    let accepted = 0;
-    const startAt = conn?.syncCursor || undefined;
+      let page = 1;
+      let pageCount = 1;
+      let accepted = 0;
+      const startAt = conn?.syncCursor || undefined;
 
-    while (page <= pageCount) {
-      const query: Record<string, string> = {
-        page: String(page),
-        limit: "100",
-        extended: "full",
-      };
-      if (startAt) query.start_at = startAt;
+      while (page <= pageCount) {
+        const query: Record<string, string> = {
+          page: String(page),
+          limit: "100",
+          extended: "full",
+        };
+        if (startAt) query.start_at = startAt;
 
-      const { data, pageCount: pc } = await this.traktGet<TraktHistoryItem[]>(
-        "/sync/history",
-        accessToken,
-        query,
-      );
-      pageCount = pc || 1;
+        const { data, pageCount: pc } = await this.traktGet<TraktHistoryItem[]>(
+          "/sync/history",
+          accessToken,
+          query,
+        );
+        pageCount = pc || 1;
 
-      for (const item of data) {
-        const ok = await this.ingestHistoryItem(user.id, item);
-        if (ok) accepted += 1;
+        for (const item of data) {
+          const ok = await this.ingestHistoryItem(user.id, item);
+          if (ok) accepted += 1;
+        }
+
+        page += 1;
+        await new Promise((r) => setTimeout(r, 200));
       }
 
-      page += 1;
-      await new Promise((r) => setTimeout(r, 200));
+      // Also pull ratings + watchlist for future recs (list state, not events)
+      await this.syncRatings(user.id, accessToken).catch((e) =>
+        this.logger.warn(`ratings sync: ${e instanceof Error ? e.message : e}`),
+      );
+      await this.syncWatchlist(user.id, accessToken).catch((e) =>
+        this.logger.warn(`watchlist sync: ${e instanceof Error ? e.message : e}`),
+      );
+
+      const newest = await this.prisma.watchEvent.findFirst({
+        where: { userId: user.id, source: "trakt" },
+        orderBy: { watchedAt: "desc" },
+      });
+
+      await this.prisma.sourceConnection.update({
+        where: { userId_provider: { userId: user.id, provider: "trakt" } },
+        data: {
+          lastSyncedAt: new Date(),
+          syncCursor: newest?.watchedAt.toISOString() ?? conn?.syncCursor,
+        },
+      });
+
+      return { ok: true, accepted, userId: user.id };
+    } finally {
+      this.syncingUsers.delete(user.id);
     }
-
-    // Also pull ratings + watchlist for future recs (list state, not events)
-    await this.syncRatings(user.id, accessToken).catch((e) =>
-      this.logger.warn(`ratings sync: ${e instanceof Error ? e.message : e}`),
-    );
-    await this.syncWatchlist(user.id, accessToken).catch((e) =>
-      this.logger.warn(`watchlist sync: ${e instanceof Error ? e.message : e}`),
-    );
-
-    const newest = await this.prisma.watchEvent.findFirst({
-      where: { userId: user.id, source: "trakt" },
-      orderBy: { watchedAt: "desc" },
-    });
-
-    await this.prisma.sourceConnection.update({
-      where: { userId_provider: { userId: user.id, provider: "trakt" } },
-      data: {
-        lastSyncedAt: new Date(),
-        syncCursor: newest?.watchedAt.toISOString() ?? conn?.syncCursor,
-      },
-    });
-
-    return { ok: true, accepted, userId: user.id };
   }
 
   private async ingestHistoryItem(userId: string, item: TraktHistoryItem) {

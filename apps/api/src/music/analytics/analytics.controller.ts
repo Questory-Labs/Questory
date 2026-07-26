@@ -6,6 +6,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { parsePageParam, parsePageSizeParam } from "@questorylabs/shared";
 import {
   AnalyticsService,
   RangeKey,
@@ -30,6 +31,25 @@ function parseLimit(raw: string | undefined, fallback: number, max = 100) {
     throw new BadRequestException("Invalid limit");
   }
   return n;
+}
+
+function parseTopsPaging(opts: {
+  page?: string;
+  pageSize?: string;
+  limit?: string;
+  defaultSize?: number;
+}) {
+  const page = parsePageParam(opts.page, 1);
+  // Prefer pageSize; keep `limit` as a synonym for callers that only want a top-N slice.
+  const sizeRaw =
+    opts.pageSize != null && opts.pageSize !== ""
+      ? opts.pageSize
+      : opts.limit;
+  const pageSize = parsePageSizeParam(sizeRaw, opts.defaultSize ?? 20, 100);
+  if (page == null || pageSize == null) {
+    throw new BadRequestException("Invalid page or pageSize");
+  }
+  return { page, pageSize };
 }
 
 function parseRange(raw: string | undefined, fallback: RangeKey): RangeKey {
@@ -86,16 +106,20 @@ export class AnalyticsController {
     @CurrentMusicUser() user: { userId: string },
     @Param("kind") kind: string,
     @Query("range") range?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
     @Query("limit") limit?: string,
   ) {
     if (!TOPS_KINDS.has(kind as TopsKind)) {
       throw new BadRequestException("Invalid tops kind");
     }
+    const paging = parseTopsPaging({ page, pageSize, limit, defaultSize: 20 });
     return this.analytics.tops(
       user.userId,
       kind as TopsKind,
       parseRange(range, "week"),
-      parseLimit(limit, 20),
+      paging.page,
+      paging.pageSize,
     );
   }
 
@@ -120,9 +144,17 @@ export class AnalyticsController {
   @Get("recent")
   recent(
     @CurrentMusicUser() user: { userId: string },
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
     @Query("limit") limit?: string,
   ) {
-    return this.analytics.recent(user.userId, parseLimit(limit, 40));
+    const paging = parseTopsPaging({
+      page,
+      pageSize,
+      limit,
+      defaultSize: 40,
+    });
+    return this.analytics.recent(user.userId, paging.page, paging.pageSize);
   }
 
   @Get("tracks/:id")

@@ -13,6 +13,7 @@ function prefixWatchPath(path: string): string {
     path.startsWith("/imports") ||
     path.startsWith("/trakt") ||
     path.startsWith("/anilist") ||
+    path.startsWith("/sync-status") ||
     path.startsWith("/watch/")
   ) {
     if (path.startsWith("/watch/")) return path;
@@ -47,6 +48,25 @@ export async function watchFetch<T>(
     throw new Error(text || `Watch request failed: ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+export function formatShare(count: number, total: number): string {
+  if (total <= 0) return "—";
+  const pct = Math.round((count / total) * 1000) / 10;
+  return `${pct}%`;
+}
+
+export function formatDeltaPct(delta: number | null | undefined): string {
+  if (delta == null) return "—";
+  if (delta > 0) return `+${delta}%`;
+  return `${delta}%`;
+}
+
+export function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 export async function fetchWatchHealth(): Promise<WatchHealth> {

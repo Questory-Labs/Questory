@@ -110,10 +110,27 @@ export class AnalyticsService {
     };
   }
 
-  async tops(userId: string, kind: TopsKind, range: RangeKey, limit = 20) {
+  async tops(
+    userId: string,
+    kind: TopsKind,
+    range: RangeKey,
+    page = 1,
+    pageSize = 20,
+  ) {
     const user = await this.resolveUser(userId);
     const listenWhere = this.listenWhere(user.id, range);
     const periodListens = await this.prisma.listen.count({ where: listenWhere });
+    const pageSafe = Math.max(1, page);
+    const sizeSafe = Math.min(100, Math.max(1, pageSize));
+    const start = (pageSafe - 1) * sizeSafe;
+
+    const pageResult = <T>(items: T[]) => ({
+      periodListens,
+      total: items.length,
+      page: pageSafe,
+      pageSize: sizeSafe,
+      items: items.slice(start, start + sizeSafe),
+    });
 
     if (kind === "artists") {
       const listens = await this.prisma.listen.findMany({
@@ -141,12 +158,9 @@ export class AnalyticsService {
         cur.count += 1;
         counts.set(a.id, cur);
       }
-      return {
-        periodListens,
-        items: [...counts.values()]
-          .sort((a, b) => b.count - a.count)
-          .slice(0, limit),
-      };
+      return pageResult(
+        [...counts.values()].sort((a, b) => b.count - a.count),
+      );
     }
 
     if (kind === "albums") {
@@ -184,12 +198,9 @@ export class AnalyticsService {
         cur.count += 1;
         counts.set(r.id, cur);
       }
-      return {
-        periodListens,
-        items: [...counts.values()]
-          .sort((a, b) => b.count - a.count)
-          .slice(0, limit),
-      };
+      return pageResult(
+        [...counts.values()].sort((a, b) => b.count - a.count),
+      );
     }
 
     if (kind === "tracks") {
@@ -230,12 +241,9 @@ export class AnalyticsService {
         cur.count += 1;
         counts.set(t.id, cur);
       }
-      return {
-        periodListens,
-        items: [...counts.values()]
-          .sort((a, b) => b.count - a.count)
-          .slice(0, limit),
-      };
+      return pageResult(
+        [...counts.values()].sort((a, b) => b.count - a.count),
+      );
     }
 
     // genres | moods
@@ -278,12 +286,9 @@ export class AnalyticsService {
         counts.set(g.id, cur);
       }
     }
-    return {
-      periodListens,
-      items: [...counts.values()]
-        .sort((a, b) => b.count - a.count)
-        .slice(0, limit),
-    };
+    return pageResult(
+      [...counts.values()].sort((a, b) => b.count - a.count),
+    );
   }
 
   async timeSeries(
@@ -360,40 +365,53 @@ export class AnalyticsService {
     }));
   }
 
-  async recent(userId: string, limit = 40) {
+  async recent(userId: string, page = 1, pageSize = 40) {
     const user = await this.resolveUser(userId);
-    const listens = await this.prisma.listen.findMany({
-      where: { userId: user.id },
-      orderBy: { listenedAt: "desc" },
-      take: Math.min(Math.max(limit, 1), 100),
-      include: {
-        track: {
-          include: {
-            artist: true,
-            release: true,
-            genres: { include: { genre: true }, take: 5 },
+    const where = { userId: user.id };
+    const take = Math.min(Math.max(pageSize, 1), 100);
+    const safePage = Math.max(page, 1);
+    const skip = (safePage - 1) * take;
+    const [total, listens] = await Promise.all([
+      this.prisma.listen.count({ where }),
+      this.prisma.listen.findMany({
+        where,
+        orderBy: { listenedAt: "desc" },
+        skip,
+        take,
+        include: {
+          track: {
+            include: {
+              artist: true,
+              release: true,
+              genres: { include: { genre: true }, take: 5 },
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
-    return listens.map((l) => ({
-      id: l.id,
-      listenedAt: l.listenedAt.toISOString(),
-      track: {
-        id: l.track.id,
-        title: l.track.title,
-        artistId: l.track.artist.id,
-        artistName: l.track.artist.name,
-        releaseId: l.track.release?.id ?? null,
-        releaseTitle: l.track.release?.title ?? null,
-        imageUrl: l.track.release?.imageUrl ?? null,
-        genres: l.track.genres.map((g) => g.genre.name),
-      },
-      mediaPlayer: l.mediaPlayer,
-      submissionClient: l.submissionClient,
-      musicService: l.musicService,
-    }));
+    return {
+      total,
+      page: safePage,
+      pageSize: take,
+      items: listens.map((l) => ({
+        id: l.id,
+        listenedAt: l.listenedAt.toISOString(),
+        track: {
+          id: l.track.id,
+          title: l.track.title,
+          artistId: l.track.artist.id,
+          artistName: l.track.artist.name,
+          releaseId: l.track.release?.id ?? null,
+          releaseTitle: l.track.release?.title ?? null,
+          imageUrl: l.track.release?.imageUrl ?? null,
+          genres: l.track.genres.map((g) => g.genre.name),
+        },
+        mediaPlayer: l.mediaPlayer,
+        submissionClient: l.submissionClient,
+        musicService: l.musicService,
+      })),
+    };
   }
 
   async insights(userId: string, range: RangeKey = "week") {

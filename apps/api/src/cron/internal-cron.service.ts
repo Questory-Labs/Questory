@@ -96,14 +96,44 @@ export class InternalCronService {
 
     await this.cache.del(CATALOG_LOCK_KEY);
 
+    // Music / Letterboxd ImportJob rows share this table; mark orphans failed
+    // so a crashed in-process import cannot block re-upload forever.
+    const stuckImportRunning = await this.prisma.importJob.updateMany({
+      where: {
+        status: "running",
+        createdAt: { lt: cutoff },
+      },
+      data: {
+        status: "failed",
+        completedAt: new Date(),
+        lastError: "Recovered: stuck running",
+      },
+    });
+
+    const stuckImportPending = await this.prisma.importJob.updateMany({
+      where: {
+        status: "pending",
+        createdAt: { lt: cutoff },
+      },
+      data: {
+        status: "failed",
+        completedAt: new Date(),
+        lastError: "Recovered: orphaned pending",
+      },
+    });
+
     const result = {
       stuckRunningJobs: stuckRunning.count,
       stuckPendingJobs: stuckPending.count,
+      stuckImportRunningJobs: stuckImportRunning.count,
+      stuckImportPendingJobs: stuckImportPending.count,
       catalogReset,
       catalogLockCleared: true,
     };
     this.logger.log(
-      `Sync recovery: running=${result.stuckRunningJobs} pending=${result.stuckPendingJobs} catalogReset=${catalogReset}`,
+      `Sync recovery: running=${result.stuckRunningJobs} pending=${result.stuckPendingJobs}` +
+        ` importsRunning=${result.stuckImportRunningJobs} importsPending=${result.stuckImportPendingJobs}` +
+        ` catalogReset=${catalogReset}`,
     );
     return result;
   }

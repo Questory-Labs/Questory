@@ -8,11 +8,13 @@ import { GameTile } from "@/components/GameTile";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
+import { useSyncJobs } from "@/hooks/useSyncJobs";
 import type { DashboardStats, PlayNextItem } from "@questorylabs/shared";
 
 type MeResponse = {
   user: {
     personaName: string;
+    steamId: string | null;
   } | null;
 };
 
@@ -21,15 +23,13 @@ export default function DashboardPage() {
     queryKey: ["me"],
     queryFn: () => api<MeResponse>("/auth/me"),
   });
+  const steamConnected = Boolean(me.data?.user?.steamId);
+  const sync = useSyncJobs({ enabled: steamConnected });
 
   const stats = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api<DashboardStats>("/dashboard/stats"),
-    refetchInterval: (q) =>
-      q.state.data?.syncStatus?.status === "running" ||
-      q.state.data?.syncStatus?.status === "pending"
-        ? 2500
-        : false,
+    refetchInterval: () => (sync.active ? 2500 : false),
   });
 
   const playNext = useQuery({
@@ -38,8 +38,7 @@ export default function DashboardPage() {
   });
 
   const d = stats.data;
-  const syncing =
-    d?.syncStatus?.status === "running" || d?.syncStatus?.status === "pending";
+  const syncing = sync.active;
   const name = me.data?.user?.personaName;
   const recent = d?.recentlyPlayed || [];
   const nextUp = playNext.data || [];
@@ -68,10 +67,16 @@ export default function DashboardPage() {
               )
             }
             description={
-              <>
-                Playtime, backlog, and wishlist signals in one place.
-                {syncing ? " Syncing Steam data…" : ""}
-              </>
+              syncing ? (
+                <>
+                  Syncing Steam data
+                  {sync.current ? ` · ${sync.current.label}` : ""}
+                  {` · ${sync.doneCount}/${sync.total}`}. Stats will fill in as
+                  jobs finish.
+                </>
+              ) : (
+                <>Playtime, backlog, and wishlist signals in one place.</>
+              )
             }
           />
         </motion.div>
@@ -80,11 +85,12 @@ export default function DashboardPage() {
       <section aria-label="Key stats">
         <div className="mb-3 flex items-end justify-between gap-4">
           <h2 className="font-display text-lg font-semibold">At a glance</h2>
-          {syncing && (
+          {syncing ? (
             <span className="font-mono text-[11px] text-[var(--warm)]">
-              sync in progress
+              {sync.doneCount}/{sync.total}
+              {sync.current ? ` · ${sync.current.label.toLowerCase()}` : " · syncing"}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -184,7 +190,25 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <EmptyState title="Sync your library to get weekly play-next picks." />
+          <EmptyState
+            title={
+              syncing
+                ? "Library sync is still running — play-next picks will show up shortly."
+                : steamConnected
+                  ? "Sync your library to get weekly play-next picks."
+                  : "Link Steam from Connections to sync your library."
+            }
+            description={
+              !steamConnected ? (
+                <Link
+                  href="/settings/connections"
+                  className="text-[var(--accent)] hover:underline"
+                >
+                  Open Connections
+                </Link>
+              ) : undefined
+            }
+          />
         )}
       </section>
 
@@ -230,13 +254,19 @@ export default function DashboardPage() {
           </div>
         ) : (
           <EmptyState
-            title="No recent play sessions yet. Link Steam from Connections to sync your library."
+            title={
+              syncing
+                ? "Still pulling recent play sessions from Steam…"
+                : steamConnected
+                  ? "No recent play sessions yet."
+                  : "Link Steam from Connections to sync your library."
+            }
             description={
               <Link
-                href="/library"
+                href={steamConnected ? "/library" : "/settings/connections"}
                 className="text-[var(--accent)] hover:underline"
               >
-                Open library
+                {steamConnected ? "Open library" : "Open Connections"}
               </Link>
             }
           />

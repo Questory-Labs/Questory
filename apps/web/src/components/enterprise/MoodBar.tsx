@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { peekCurateCache } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 
 const CHIPS = [
@@ -10,22 +11,52 @@ const CHIPS = [
   "Surprise me",
 ];
 
+export type CurateOptions = {
+  /** Clear cache and re-run the agentic pipeline. */
+  force: boolean;
+};
+
 /**
- * Free-text mood input + quick chips. Submitting kicks off an agentic
- * curation job with `context.mood`.
+ * Free-text mood input + quick chips. Submitting kicks off curation
+ * (cache hit loads instantly; otherwise starts the agentic job).
  */
 export function MoodBar({
   busy,
   onCurate,
+  onUseCached,
 }: {
   busy: boolean;
-  onCurate: (mood: string | undefined) => void;
+  onCurate: (mood: string | undefined, options: CurateOptions) => void;
+  onUseCached: (mood: string | undefined) => void;
 }) {
   const [text, setText] = useState("");
+  const [cacheAvailable, setCacheAvailable] = useState(false);
 
-  const submit = (mood: string) => {
-    const trimmed = mood.trim();
-    onCurate(trimmed.length > 0 ? trimmed : undefined);
+  useEffect(() => {
+    if (busy) return;
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      const trimmed = text.trim();
+      void peekCurateCache({
+        limit: 12,
+        mood: trimmed.length > 0 ? trimmed : undefined,
+      })
+        .then((view) => {
+          if (!cancelled) setCacheAvailable(view.cached);
+        })
+        .catch(() => {
+          if (!cancelled) setCacheAvailable(false);
+        });
+    }, 280);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [text, busy]);
+
+  const moodOf = (raw: string) => {
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   };
 
   return (
@@ -33,7 +64,11 @@ export function MoodBar({
       className={styles.moodBar}
       onSubmit={(e) => {
         e.preventDefault();
-        submit(text);
+        if (cacheAvailable) {
+          onUseCached(moodOf(text));
+        } else {
+          onCurate(moodOf(text), { force: false });
+        }
       }}
     >
       <div className={styles.moodRow}>
@@ -46,7 +81,12 @@ export function MoodBar({
           disabled={busy}
           aria-label="Mood"
         />
-        <button className={styles.moodSubmit} type="submit" disabled={busy}>
+        <button
+          className={styles.moodSubmit}
+          type="submit"
+          disabled={busy}
+          data-cache={cacheAvailable ? "true" : "false"}
+        >
           {busy ? "Curating…" : "Curate"}
         </button>
       </div>
@@ -57,10 +97,7 @@ export function MoodBar({
             type="button"
             className={styles.moodChip}
             disabled={busy}
-            onClick={() => {
-              setText(chip);
-              submit(chip);
-            }}
+            onClick={() => setText(chip)}
           >
             {chip}
           </button>

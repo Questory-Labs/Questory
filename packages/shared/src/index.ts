@@ -772,6 +772,9 @@ export type MusicTopItem = z.infer<typeof MusicTopItemSchema>;
 
 export const MusicTopsResponseSchema = z.object({
   periodListens: z.number(),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
   items: z.array(MusicTopItemSchema),
 });
 export type MusicTopsResponse = z.infer<typeof MusicTopsResponseSchema>;
@@ -801,6 +804,14 @@ export const MusicRecentListenSchema = z.object({
   musicService: z.string().nullable().optional(),
 });
 export type MusicRecentListen = z.infer<typeof MusicRecentListenSchema>;
+
+export const MusicRecentPageSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  items: z.array(MusicRecentListenSchema),
+});
+export type MusicRecentPage = z.infer<typeof MusicRecentPageSchema>;
 
 export const MusicInsightNamedCountSchema = z.object({
   id: z.string(),
@@ -955,6 +966,9 @@ export type WatchHealth = z.infer<typeof WatchHealthSchema>;
 export const WatchRangeSchema = z.enum(["day", "week", "month", "year", "all"]);
 export type WatchRange = z.infer<typeof WatchRangeSchema>;
 
+export const WatchMediaTypeSchema = z.enum(["movie", "show"]);
+export type WatchMediaType = z.infer<typeof WatchMediaTypeSchema>;
+
 export const WatchOverviewSchema = z.object({
   userId: z.string(),
   personaName: z.string(),
@@ -1005,6 +1019,225 @@ export const WatchRecentEventSchema = z.object({
     .nullable(),
 });
 export type WatchRecentEvent = z.infer<typeof WatchRecentEventSchema>;
+
+export const WatchRecentPageSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  items: z.array(WatchRecentEventSchema),
+});
+export type WatchRecentPage = z.infer<typeof WatchRecentPageSchema>;
+
+export const WatchInsightNamedCountSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  count: z.number(),
+});
+
+export const WatchInsightsSchema = z.object({
+  range: WatchRangeSchema,
+  type: z.enum(["all", "movie", "show"]),
+  periodWatches: z.number(),
+  peakHour: z
+    .object({ hour: z.number(), label: z.string(), count: z.number() })
+    .nullable(),
+  peakDow: z
+    .object({ day: z.number(), label: z.string(), count: z.number() })
+    .nullable(),
+  topGenre: WatchInsightNamedCountSchema.nullable(),
+  watchingMinutes: z.number(),
+  watchesWithRuntime: z.number(),
+  runtimeCoverage: z.number(),
+  newTitles: z.number(),
+  topTitleShare: z.number(),
+  uniqueTitles: z.number(),
+  movieWatches: z.number(),
+  showWatches: z.number(),
+  movieMinutes: z.number(),
+  showMinutes: z.number(),
+  uniqueMovies: z.number(),
+  uniqueShows: z.number(),
+  sourceBreakdown: z.array(
+    z.object({ name: z.string(), count: z.number() }),
+  ),
+  compare: z.object({
+    previousWatches: z.number().nullable(),
+    deltaPct: z.number().nullable(),
+  }),
+});
+export type WatchInsights = z.infer<typeof WatchInsightsSchema>;
+
+export const WatchBreakdownResponseSchema = z.object({
+  periodWatches: z.number(),
+  items: z.array(WatchTimeBucketSchema),
+});
+export type WatchBreakdownResponse = z.infer<
+  typeof WatchBreakdownResponseSchema
+>;
+
+/* ─── Read service DTOs (manga / print) ─── */
+
+export const ReadRangeSchema = z.enum(["day", "week", "month", "year", "all"]);
+export type ReadRange = z.infer<typeof ReadRangeSchema>;
+
+export const ReadFormatSchema = z.enum([
+  "manga",
+  "manhwa",
+  "manhua",
+  "novel",
+  "one_shot",
+  "other",
+]);
+export type ReadFormat = z.infer<typeof ReadFormatSchema>;
+
+export const ReadListStatusSchema = z.enum([
+  "reading",
+  "completed",
+  "planning",
+  "paused",
+  "dropped",
+  "repeating",
+]);
+export type ReadListStatus = z.infer<typeof ReadListStatusSchema>;
+
+export const ReadOverviewSchema = z.object({
+  userId: z.string(),
+  personaName: z.string(),
+  totalEvents: z.number(),
+  uniqueTitles: z.number(),
+  chaptersLogged: z.number(),
+  volumesLogged: z.number(),
+  completionRate: z.number(),
+  inProgress: z.number(),
+  latestReadAt: z.string().nullable(),
+  earliestReadAt: z.string().nullable(),
+  streakDays: z.number(),
+});
+export type ReadOverview = z.infer<typeof ReadOverviewSchema>;
+
+export const ReadTopItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  format: z.string().optional(),
+  coverUrl: z.string().nullable().optional(),
+  count: z.number(),
+});
+export type ReadTopItem = z.infer<typeof ReadTopItemSchema>;
+
+export const ReadTimeBucketSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  count: z.number(),
+});
+export type ReadTimeBucket = z.infer<typeof ReadTimeBucketSchema>;
+
+export const ReadRecentEventSchema = z.object({
+  id: z.string(),
+  readAt: z.string(),
+  source: z.string(),
+  status: z.string().nullable(),
+  chaptersRead: z.number().nullable(),
+  volumesRead: z.number().nullable(),
+  progress: z.number(),
+  precision: z.string(),
+  title: z.object({
+    id: z.string(),
+    name: z.string(),
+    format: z.string(),
+    coverUrl: z.string().nullable(),
+    genres: z.array(z.string()),
+  }),
+});
+export type ReadRecentEvent = z.infer<typeof ReadRecentEventSchema>;
+
+export const ReadRecentPageSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  items: z.array(ReadRecentEventSchema),
+});
+export type ReadRecentPage = z.infer<typeof ReadRecentPageSchema>;
+
+export const ReadInsightNamedCountSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  count: z.number(),
+});
+
+export const ReadInsightsSchema = z.object({
+  range: ReadRangeSchema,
+  format: z.enum([
+    "all",
+    "manga",
+    "manhwa",
+    "manhua",
+    "novel",
+    "one_shot",
+    "other",
+  ]),
+  periodEvents: z.number(),
+  peakHour: z
+    .object({ hour: z.number(), label: z.string(), count: z.number() })
+    .nullable(),
+  peakDow: z
+    .object({ day: z.number(), label: z.string(), count: z.number() })
+    .nullable(),
+  topGenre: ReadInsightNamedCountSchema.nullable(),
+  chaptersLogged: z.number(),
+  newTitles: z.number(),
+  topTitleShare: z.number(),
+  uniqueTitles: z.number(),
+  formatBreakdown: z.array(
+    z.object({ name: z.string(), count: z.number() }),
+  ),
+  statusBreakdown: z.array(
+    z.object({ name: z.string(), count: z.number() }),
+  ),
+  sourceBreakdown: z.array(
+    z.object({ name: z.string(), count: z.number() }),
+  ),
+  compare: z.object({
+    previousEvents: z.number().nullable(),
+    deltaPct: z.number().nullable(),
+  }),
+});
+export type ReadInsights = z.infer<typeof ReadInsightsSchema>;
+
+export const ReadBreakdownResponseSchema = z.object({
+  periodEvents: z.number(),
+  items: z.array(ReadTimeBucketSchema),
+});
+export type ReadBreakdownResponse = z.infer<
+  typeof ReadBreakdownResponseSchema
+>;
+
+export const ReadLibraryItemSchema = z.object({
+  id: z.string(),
+  listStatus: ReadListStatusSchema,
+  score: z.number().nullable(),
+  progressChapters: z.number(),
+  progressVolumes: z.number(),
+  listedAt: z.string().nullable(),
+  title: z.object({
+    id: z.string(),
+    name: z.string(),
+    format: z.string(),
+    coverUrl: z.string().nullable(),
+    chapters: z.number().nullable(),
+    volumes: z.number().nullable(),
+    year: z.number().nullable(),
+    genres: z.array(z.string()),
+  }),
+});
+export type ReadLibraryItem = z.infer<typeof ReadLibraryItemSchema>;
+
+export const ReadLibraryPageSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  items: z.array(ReadLibraryItemSchema),
+});
+export type ReadLibraryPage = z.infer<typeof ReadLibraryPageSchema>;
 
 export { sanitizeAppHref } from "./safe-href";
 

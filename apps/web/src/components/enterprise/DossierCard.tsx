@@ -38,6 +38,7 @@ export function DossierCard() {
                 ["Gaming", d.gaming],
                 ["Music", d.music],
                 ["Watching", d.watch],
+                ["Reading", d.read ?? ""],
                 ["Right now", d.currentVibe],
               ] as const
             )

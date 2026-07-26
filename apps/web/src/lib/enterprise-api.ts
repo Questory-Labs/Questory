@@ -1,4 +1,5 @@
 import type {
+  CurateCacheView,
   CurationJob,
   DossierView,
   FeedbackAction,
@@ -60,11 +61,29 @@ export async function fetchRecommendations(options: {
   });
 }
 
-/** Agentic path — starts (or joins) a curation job. */
+/** Peek curated cache for this mood/context (no job). */
+export async function peekCurateCache(options: {
+  limit?: number;
+  domains?: RecommendationDomain[];
+  mood?: string;
+}): Promise<CurateCacheView> {
+  return request<CurateCacheView>("/v1/recommendations/curate/cache", {
+    method: "POST",
+    body: JSON.stringify({
+      limit: options.limit,
+      domains: options.domains,
+      context: clientContext(options.mood),
+    }),
+  });
+}
+
+/** Agentic path — starts (or joins a running) curation job. */
 export async function startCurationJob(options: {
   limit?: number;
   domains?: RecommendationDomain[];
   mood?: string;
+  /** Clear curated cache and re-run the agentic pipeline. */
+  force?: boolean;
 }): Promise<CurationJob> {
   return request<CurationJob>("/v1/recommendations/curate", {
     method: "POST",
@@ -72,6 +91,7 @@ export async function startCurationJob(options: {
       limit: options.limit,
       domains: options.domains,
       context: clientContext(options.mood),
+      force: options.force === true,
     }),
   });
 }
@@ -119,8 +139,62 @@ export type OtelHealth = {
   error?: string;
 };
 
+export type OtelUsageBucket = {
+  t: string;
+  request_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cached_tokens?: number;
+  reasoning_tokens?: number;
+  cost_usd?: number;
+};
+
+export type OtelModelUsage = {
+  model: string;
+  request_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cached_tokens?: number;
+  reasoning_tokens?: number;
+  avg_duration_ns?: number;
+  cost_usd?: number;
+  priced?: boolean;
+};
+
 /** Loose usage payload — fields evolve; UI reads known keys. */
-export type OtelUsage = Record<string, unknown>;
+export type OtelUsage = {
+  request_count?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  cached_tokens?: number;
+  reasoning_tokens?: number;
+  cost_usd?: number;
+  avg_cost_per_request?: number;
+  cost_per_1m_tokens?: number;
+  pricing_configured?: boolean;
+  by_model?: OtelModelUsage[];
+  models?: OtelModelUsage[];
+  timeseries?: OtelUsageBucket[];
+  timeseries_granularity?: "hour" | "day" | string;
+  [key: string]: unknown;
+};
+
+export type OtelModelPricing = {
+  model: string;
+  input: number;
+  output: number;
+  cached: number;
+  reasoning: number;
+};
+
+export type OtelPricing = {
+  currency?: string;
+  unit?: string;
+  models: OtelModelPricing[];
+};
 
 export type OtelTraceSummary = {
   trace_id?: string;
@@ -128,6 +202,7 @@ export type OtelTraceSummary = {
   root_span?: string;
   rootSpan?: string;
   name?: string;
+  start_time_unix_nano?: number;
   duration_ns?: number;
   durationNs?: number;
   duration?: number;
@@ -137,12 +212,25 @@ export type OtelTraceSummary = {
   status?: string;
 };
 
+export type OtelTracesPage = {
+  traces: OtelTraceSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type OtelSpan = {
   name?: string;
   span_name?: string;
+  span_id?: string;
+  parent_span_id?: string | null;
   duration_ns?: number;
   durationNs?: number;
   duration?: number;
+  start_time_unix_nano?: number;
+  end_time_unix_nano?: number;
+  status?: string;
+  service_name?: string | null;
   attributes?: Record<string, unknown>;
   [key: string]: unknown;
 };
@@ -168,19 +256,71 @@ export async function fetchOtelUsage(since: string): Promise<OtelUsage> {
   return request<OtelUsage>(`/v1/enterprise/otel/usage?${qs}`);
 }
 
+export async function fetchOtelPricing(): Promise<OtelPricing> {
+  return request<OtelPricing>("/v1/enterprise/otel/pricing");
+}
+
+export async function saveOtelPricing(
+  models: OtelModelPricing[],
+): Promise<OtelPricing> {
+  return request<OtelPricing>("/v1/enterprise/otel/pricing", {
+    method: "PUT",
+    body: JSON.stringify({ models }),
+  });
+}
+
 export async function fetchOtelTraces(options: {
   since?: string;
   limit?: number;
-}): Promise<unknown> {
+  offset?: number;
+}): Promise<OtelTracesPage> {
   const qs = new URLSearchParams();
   if (options.since) qs.set("since", options.since);
   if (options.limit != null) qs.set("limit", String(options.limit));
+  if (options.offset != null) qs.set("offset", String(options.offset));
   const suffix = qs.toString() ? `?${qs}` : "";
-  return request<unknown>(`/v1/enterprise/otel/traces${suffix}`);
+  const data = await request<unknown>(`/v1/enterprise/otel/traces${suffix}`);
+  if (Array.isArray(data)) {
+    return {
+      traces: data as OtelTraceSummary[],
+      total: data.length,
+      limit: options.limit ?? data.length,
+      offset: options.offset ?? 0,
+    };
+  }
+  if (data && typeof data === "object") {
+    const obj = data as {
+      traces?: OtelTraceSummary[];
+      total?: number;
+      limit?: number;
+      offset?: number;
+    };
+    const traces = Array.isArray(obj.traces) ? obj.traces : [];
+    return {
+      traces,
+      total: typeof obj.total === "number" ? obj.total : traces.length,
+      limit:
+        typeof obj.limit === "number"
+          ? obj.limit
+          : (options.limit ?? traces.length),
+      offset:
+        typeof obj.offset === "number"
+          ? obj.offset
+          : (options.offset ?? 0),
+    };
+  }
+  return {
+    traces: [],
+    total: 0,
+    limit: options.limit ?? 20,
+    offset: options.offset ?? 0,
+  };
 }
 
-export async function fetchOtelTrace(traceId: string): Promise<unknown> {
-  return request<unknown>(
+export async function fetchOtelTrace(
+  traceId: string,
+): Promise<OtelTraceDetail> {
+  return request<OtelTraceDetail>(
     `/v1/enterprise/otel/traces/${encodeURIComponent(traceId)}`,
   );
 }

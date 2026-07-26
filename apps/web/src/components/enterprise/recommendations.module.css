@@ -45,13 +45,14 @@
   gap: 14px;
 }
 
+.cardWrap {
+  height: 100%;
+}
+
 .card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
-  overflow: hidden;
+  height: 100%;
 }
 
 .cardImageWrap {
@@ -305,11 +306,52 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.moodSubmit:disabled {
+.moodSubmitSecondary {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.moodSubmit:disabled,
+.moodSubmitSecondary:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.cacheHint {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cacheBadge {
+  display: inline-block;
+  margin-left: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
 .moodChips {
@@ -494,6 +536,31 @@
   color: var(--ink);
 }
 
+.planRecurate {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.planRecurate:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.planRecurate:disabled {
+  opacity: 0.6;
+  cursor: default;
+  text-decoration: none;
+}
+
 /* Taste dossier */
 
 .dossier {
@@ -611,7 +678,7 @@
   color: var(--bg-0);
 }
 
-.card[data-dismissed="true"] {
+.cardWrap[data-dismissed="true"] {
   opacity: 0;
   transform: scale(0.96);
   transition: opacity 300ms ease, transform 300ms ease;

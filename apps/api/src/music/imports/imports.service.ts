@@ -22,6 +22,16 @@ import { resolveRepoTempDir } from "./temp-dir";
 const PROGRESS_EVERY = 25;
 const YIELD_EVERY = 10;
 
+/** ImportJob.source values owned by music (not Letterboxd / watch). */
+const MUSIC_IMPORT_SOURCES: ImportSource[] = [
+  "koito_db",
+  "koito_json",
+  "spotify_json",
+  "maloja_json",
+  "lastfm_json",
+  "listenbrainz_zip",
+];
+
 function yieldEventLoop() {
   return new Promise<void>((resolve) => setImmediate(resolve));
 }
@@ -104,7 +114,11 @@ export class ImportsService implements OnModuleInit {
     if (!user) throw new BadRequestException("No user for import");
 
     const active = await this.prisma.importJob.findFirst({
-      where: { userId: user.id, status: "running" },
+      where: {
+        userId: user.id,
+        status: "running",
+        source: { in: [...MUSIC_IMPORT_SOURCES] },
+      },
       orderBy: { createdAt: "desc" },
     });
     if (active) {
@@ -183,7 +197,11 @@ export class ImportsService implements OnModuleInit {
 
   async getActiveJob(userId: string) {
     const job = await this.prisma.importJob.findFirst({
-      where: { userId, status: "running" },
+      where: {
+        userId,
+        status: "running",
+        source: { in: [...MUSIC_IMPORT_SOURCES] },
+      },
       orderBy: { createdAt: "desc" },
     });
     return job ? serializeJob(job) : null;

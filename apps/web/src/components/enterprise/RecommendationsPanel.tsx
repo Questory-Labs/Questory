@@ -6,6 +6,7 @@ import {
   fetchRecommendations,
   fetchSettings,
   getCurationJob,
+  peekCurateCache,
   sendFeedback,
   startCurationJob,
 } from "@/lib/enterprise-api";
@@ -16,10 +17,11 @@ import type {
   RecommendationItem,
   RecommendationResponse,
 } from "@/lib/enterprise-types";
+import { HatchShadow } from "@/components/HatchShadow";
 import { AgentProgress } from "./AgentProgress";
 import { DossierCard } from "./DossierCard";
 import { LocationSettings } from "./LocationSettings";
-import { MoodBar } from "./MoodBar";
+import { MoodBar, type CurateOptions } from "./MoodBar";
 import { PlanHero } from "./PlanHero";
 import styles from "./recommendations.module.css";
 
@@ -28,6 +30,7 @@ const TABS: { id: RecommendationDomain | "all"; label: string }[] = [
   { id: "games", label: "Games" },
   { id: "music", label: "Music" },
   { id: "watch", label: "Watch" },
+  { id: "read", label: "Read" },
 ];
 
 const KIND_LABELS: Record<RecommendationItem["kind"], string> = {
@@ -36,6 +39,7 @@ const KIND_LABELS: Record<RecommendationItem["kind"], string> = {
   track: "Track",
   movie: "Movie",
   show: "Show",
+  manga: "Manga",
 };
 
 function itemReactKey(item: RecommendationItem): string {
@@ -56,87 +60,90 @@ function RecommendationCard({
   dismissed: boolean;
   onFeedback: (item: RecommendationItem, action: FeedbackAction) => void;
 }) {
-  const portrait = item.kind === "movie" || item.kind === "show";
+  const portrait =
+    item.kind === "movie" || item.kind === "show" || item.kind === "manga";
   const canVote = Boolean(item.itemKey);
   return (
-    <article className={styles.card} data-dismissed={dismissed}>
-      <div className={styles.cardImageWrap} data-portrait={portrait}>
-        {item.imageUrl ? (
-          // Arbitrary external hosts (Steam CDN, TMDB, CAA) — plain img on purpose.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            className={styles.cardImage}
-            src={item.imageUrl}
-            alt=""
-            loading="lazy"
-          />
-        ) : (
-          <div className={styles.cardImageFallback} aria-hidden>
-            {item.name.slice(0, 1).toUpperCase()}
-          </div>
-        )}
-        <span className={styles.kindBadge}>{KIND_LABELS[item.kind]}</span>
-      </div>
-      <div className={styles.cardBody}>
-        <h3 className={styles.cardName}>{item.name}</h3>
-        <div className={styles.scoreRow}>
-          <div className={styles.scoreTrack}>
-            <div
-              className={styles.scoreFill}
-              style={{ width: `${Math.round(item.score * 100)}%` }}
+    <article className={styles.cardWrap} data-dismissed={dismissed}>
+      <HatchShadow size="sm" faceClassName={`panel ${styles.card}`}>
+        <div className={styles.cardImageWrap} data-portrait={portrait}>
+          {item.imageUrl ? (
+            // Arbitrary external hosts (Steam CDN, TMDB, CAA) — plain img on purpose.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className={styles.cardImage}
+              src={item.imageUrl}
+              alt=""
+              loading="lazy"
             />
-          </div>
-          <span className={styles.scoreValue}>
-            {Math.round(item.score * 100)}
-          </span>
+          ) : (
+            <div className={styles.cardImageFallback} aria-hidden>
+              {item.name.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <span className={styles.kindBadge}>{KIND_LABELS[item.kind]}</span>
         </div>
-        {item.blurb ? (
-          <p className={styles.blurb}>{item.blurb}</p>
-        ) : (
-          item.reasons.length > 0 && (
-            <ul className={styles.reasons}>
-              {item.reasons.map((reason) => (
-                <li key={reason} className={styles.reason}>
-                  {reason}
-                </li>
-              ))}
-            </ul>
-          )
-        )}
-        {canVote && (
-          <div className={styles.feedbackRow}>
-            <button
-              type="button"
-              className={styles.feedbackBtn}
-              data-active={vote === "like"}
-              aria-label={`Like ${item.name}`}
-              title="More like this"
-              onClick={() => onFeedback(item, "like")}
-            >
-              👍
-            </button>
-            <button
-              type="button"
-              className={styles.feedbackBtn}
-              data-active={vote === "dislike"}
-              aria-label={`Dislike ${item.name}`}
-              title="Less like this"
-              onClick={() => onFeedback(item, "dislike")}
-            >
-              👎
-            </button>
-            <button
-              type="button"
-              className={styles.feedbackBtn}
-              aria-label={`Dismiss ${item.name}`}
-              title="Not now"
-              onClick={() => onFeedback(item, "dismiss")}
-            >
-              ✕
-            </button>
+        <div className={styles.cardBody}>
+          <h3 className={styles.cardName}>{item.name}</h3>
+          <div className={styles.scoreRow}>
+            <div className={styles.scoreTrack}>
+              <div
+                className={styles.scoreFill}
+                style={{ width: `${Math.round(item.score * 100)}%` }}
+              />
+            </div>
+            <span className={styles.scoreValue}>
+              {Math.round(item.score * 100)}
+            </span>
           </div>
-        )}
-      </div>
+          {item.blurb ? (
+            <p className={styles.blurb}>{item.blurb}</p>
+          ) : (
+            item.reasons.length > 0 && (
+              <ul className={styles.reasons}>
+                {item.reasons.map((reason) => (
+                  <li key={reason} className={styles.reason}>
+                    {reason}
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+          {canVote && (
+            <div className={styles.feedbackRow}>
+              <button
+                type="button"
+                className={styles.feedbackBtn}
+                data-active={vote === "like"}
+                aria-label={`Like ${item.name}`}
+                title="More like this"
+                onClick={() => onFeedback(item, "like")}
+              >
+                👍
+              </button>
+              <button
+                type="button"
+                className={styles.feedbackBtn}
+                data-active={vote === "dislike"}
+                aria-label={`Dislike ${item.name}`}
+                title="Less like this"
+                onClick={() => onFeedback(item, "dislike")}
+              >
+                👎
+              </button>
+              <button
+                type="button"
+                className={styles.feedbackBtn}
+                aria-label={`Dismiss ${item.name}`}
+                title="Not now"
+                onClick={() => onFeedback(item, "dismiss")}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+      </HatchShadow>
     </article>
   );
 }
@@ -147,6 +154,8 @@ export function RecommendationsPanel() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [peekHeuristics, setPeekHeuristics] = useState(false);
   const [curated, setCurated] = useState<RecommendationResponse | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+  const [lastMood, setLastMood] = useState<string | undefined>();
   const [votes, setVotes] = useState<Record<string, FeedbackAction>>({});
   /** Fading: dismiss clicked, card animating out. Dismissed: removed. */
   const [fading, setFading] = useState<Set<string>>(new Set());
@@ -193,6 +202,7 @@ export function RecommendationsPanel() {
   // Latch the finished result so re-renders don't flicker back to heuristics.
   if (jobData?.status === "done" && jobData.result && curated !== jobData.result) {
     setCurated(jobData.result);
+    setFromCache(Boolean(jobData.fromCache));
     setJobId(null);
     setPeekHeuristics(false);
   }
@@ -200,16 +210,39 @@ export function RecommendationsPanel() {
     setJobId(null);
   }
 
-  const curate = useCallback(
-    (mood: string | undefined) => {
-      setCurated(null);
-      setPeekHeuristics(false);
-      startCurationJob({ limit: 12, mood })
-        .then((created) => setJobId(created.jobId))
-        .catch(() => setJobId(null));
-    },
-    [],
-  );
+  const curate = useCallback((mood: string | undefined, options: CurateOptions) => {
+    setLastMood(mood);
+    setCurated(null);
+    setFromCache(false);
+    setPeekHeuristics(false);
+    startCurationJob({ limit: 12, mood, force: options.force })
+      .then((created) => setJobId(created.jobId))
+      .catch(() => setJobId(null));
+  }, []);
+
+  const useCached = useCallback((mood: string | undefined) => {
+    setLastMood(mood);
+    setPeekHeuristics(false);
+    void peekCurateCache({ limit: 12, mood })
+      .then((view) => {
+        if (view.cached && view.result) {
+          setCurated(view.result);
+          setFromCache(true);
+          return;
+        }
+        // Cache evaporated — fall through to a normal job.
+        setCurated(null);
+        setFromCache(false);
+        return startCurationJob({ limit: 12, mood, force: false }).then(
+          (created) => setJobId(created.jobId),
+        );
+      })
+      .catch(() => setJobId(null));
+  }, []);
+
+  const recurate = useCallback(() => {
+    curate(lastMood, { force: true });
+  }, [curate, lastMood]);
 
   const onFeedback = useCallback(
     (item: RecommendationItem, action: FeedbackAction) => {
@@ -277,9 +310,16 @@ export function RecommendationsPanel() {
         onClose={() => setSettingsOpen(false)}
       />
 
-      <MoodBar busy={jobRunning} onCurate={curate} />
-      {curated?.moodSummary && !jobRunning && (
-        <p className={styles.moodSummary}>“{curated.moodSummary}”</p>
+      <MoodBar
+        busy={jobRunning}
+        onCurate={curate}
+        onUseCached={useCached}
+      />
+      {(curated?.moodSummary || (fromCache && curated)) && !jobRunning && (
+        <p className={styles.moodSummary}>
+          {curated?.moodSummary ? `“${curated.moodSummary}”` : null}
+          {fromCache ? <span className={styles.cacheBadge}>Cached</span> : null}
+        </p>
       )}
 
       <DossierCard />
@@ -319,26 +359,30 @@ export function RecommendationsPanel() {
           )}
           {recs.isError && !active && (
             <p className={styles.messageError}>
-              Could not load recommendations. Is the private API extension
-              running?
+              Could not load recommendations. Is QEngine running?
             </p>
           )}
           {active && !active.available && (
             <p className={styles.messageError}>
-              {active.message || "The enterprise service is not running."}
+              {active.message || "QEngine is not running."}
             </p>
           )}
           {active?.available && visibleItems.length === 0 && (
             <p className={styles.message}>
               Nothing to recommend yet — sync your Steam library, scrobble
-              some music, or connect a watch source first.
+              some music, connect a watch source, or sync AniList manga first.
             </p>
           )}
 
           {active?.available && visibleItems.length > 0 && (
             <>
               {showingCurated && active.plan && tab === "all" && (
-                <PlanHero plan={active.plan} items={active.items} />
+                <PlanHero
+                  plan={active.plan}
+                  items={active.items}
+                  onRecurate={recurate}
+                  busy={jobRunning}
+                />
               )}
               <div className={styles.grid}>
                 {visibleItems.map((item) => (
@@ -355,9 +399,9 @@ export function RecommendationsPanel() {
                 {active.engine}
                 {showingCurated && active.llm?.ready
                   ? ` · curated by ${active.llm.model}`
-                  : active.ml?.ready
-                    ? ` · ${active.ml.model}`
-                    : " · heuristics only"}
+                  : !active.ml?.ready
+                    ? " · heuristics only"
+                    : ""}
                 {active.llm?.pulling?.length
                   ? ` · pulling ${active.llm.pulling.join(", ")}`
                   : ""}

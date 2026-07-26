@@ -11,10 +11,12 @@ import type {
 } from "@questorylabs/shared";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
-import { PageHeader, Panel, StateMessage } from "@/components/ui";
+import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { formatShare, musicFetch } from "@/lib/music";
 
 type TopsKind = "artists" | "albums" | "tracks" | "genres" | "moods";
+
+const PAGE_SIZE = 25;
 
 const KINDS: { value: TopsKind; label: string }[] = [
   { value: "artists", label: "Artists" },
@@ -40,19 +42,26 @@ function MusicChartsInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [range, setRange] = useState<MusicRange>("week");
+  const [page, setPage] = useState(1);
   const kind = parseKind(searchParams.get("kind"));
 
   function setKind(next: TopsKind) {
+    setPage(1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("kind", next);
     router.replace(`/music/charts?${params.toString()}`, { scroll: false });
   }
 
+  function onRangeChange(next: MusicRange) {
+    setPage(1);
+    setRange(next);
+  }
+
   const tops = useQuery({
-    queryKey: ["music-tops", kind, range],
+    queryKey: ["music-tops", kind, range, page],
     queryFn: () =>
       musicFetch<MusicTopsResponse>(
-        `/analytics/tops/${kind}?range=${range}&limit=25`,
+        `/analytics/tops/${kind}?range=${range}&page=${page}&pageSize=${PAGE_SIZE}`,
       ),
   });
 
@@ -74,6 +83,10 @@ function MusicChartsInner() {
 
   const periodListens = tops.data?.periodListens ?? 0;
   const items = tops.data?.items ?? [];
+  const total = tops.data?.total ?? 0;
+  const pageSize = tops.data?.pageSize ?? PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rankOffset = (page - 1) * pageSize;
 
   const rangeLabel = useMemo(() => {
     const map: Record<MusicRange, string> = {
@@ -90,8 +103,12 @@ function MusicChartsInner() {
     <>
       <PageHeader
         title="Top charts"
-        description={rangeLabel}
-        actions={<MusicRangePicker value={range} onChange={setRange} />}
+        description={
+          total > 0
+            ? `${rangeLabel} · ${total} ${kind}`
+            : rangeLabel
+        }
+        actions={<MusicRangePicker value={range} onChange={onRangeChange} />}
       />
 
       <div
@@ -138,7 +155,7 @@ function MusicChartsInner() {
           const row = (
             <>
               <span className="w-6 shrink-0 font-mono text-[var(--faint)]">
-                {i + 1}.
+                {rankOffset + i + 1}.
               </span>
               {(kind === "artists" ||
                 kind === "albums" ||
@@ -180,6 +197,30 @@ function MusicChartsInner() {
           );
         })}
       </ol>
+
+      {total > pageSize && (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={page <= 1 || tops.isFetching}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5"
+          >
+            Previous
+          </Button>
+          <span className="font-mono text-xs text-[var(--muted)]">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={page >= totalPages || tops.isFetching}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-3 py-1.5"
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       <div className="mt-12 grid gap-6 lg:grid-cols-2">
         <Panel className="p-4">

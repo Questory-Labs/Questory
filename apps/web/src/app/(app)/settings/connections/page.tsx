@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StoreBadge } from "@/components/StoreBadge";
+import { SteamSyncStatus } from "@/components/SteamSyncStatus";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { steamLinkUrl } from "@/lib/auth-api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useSyncJobs } from "@/hooks/useSyncJobs";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { useReadEnabled } from "@/hooks/useReadEnabled";
 import type { StoreAccountStatus } from "@questorylabs/shared";
 
 type MeResponse = {
@@ -27,6 +30,8 @@ function ConnectionsContent() {
   const error = params.get("error");
   const music = useMusicEnabled();
   const watch = useWatchEnabled();
+  const read = useReadEnabled();
+  const qc = useQueryClient();
 
   const me = useQuery({
     queryKey: ["me"],
@@ -39,6 +44,16 @@ function ConnectionsContent() {
 
   const steamConnected = Boolean(me.data?.user?.steamId);
   const steamStatus = stores.data?.find((s) => s.store === "steam");
+  const justLinked = linked === "steam";
+  const sync = useSyncJobs({ enabled: steamConnected });
+
+  const refresh = useMutation({
+    mutationFn: () =>
+      api<{ ok: true }>("/sync/refresh", { method: "POST" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+    },
+  });
 
   return (
     <>
@@ -47,13 +62,23 @@ function ConnectionsContent() {
         description="Link Steam and other services to your account. Sign-in stays email and password only."
       />
 
-      {linked === "steam" ? (
-        <p className="mb-4 text-sm text-[var(--accent)]">Steam linked successfully.</p>
+      {justLinked ? (
+        <p className="mb-4 text-sm text-[var(--accent)]">
+          Steam linked — syncing your library in the background.
+        </p>
       ) : null}
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert">
           Could not link: {error}
         </p>
+      ) : null}
+
+      {steamConnected ? (
+        <SteamSyncStatus
+          variant="panel"
+          forceVisible={justLinked}
+          enabled={steamConnected}
+        />
       ) : null}
 
       <section className="space-y-4">
@@ -81,11 +106,25 @@ function ConnectionsContent() {
             </div>
             <StoreBadge store="steam" />
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             {steamConnected ? (
-              <span className="border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--muted)]">
-                Connected
-              </span>
+              <>
+                <span className="border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--muted)]">
+                  {sync.active ? "Connected · syncing" : "Connected"}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={refresh.isPending || sync.active}
+                  onClick={() => refresh.mutate()}
+                >
+                  {refresh.isPending
+                    ? "Queuing…"
+                    : sync.active
+                      ? "Sync running"
+                      : "Sync now"}
+                </Button>
+              </>
             ) : (
               <a href={steamLinkUrl()} className="inline-block">
                 <Button type="button">Link Steam</Button>
@@ -122,7 +161,7 @@ function ConnectionsContent() {
               Trakt, AniList, Letterboxd
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Connect OAuth sources and import Letterboxd exports from Watch
+              Connect live sources and enrich with Letterboxd history from Watch
               settings.
             </p>
             <Link
@@ -143,14 +182,36 @@ function ConnectionsContent() {
               ListenBrainz &amp; imports
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Ingest tokens and Spotify / Last.fm / Koito imports live under Music
-              sources. Spotify OAuth linking is not available yet.
+              Set up live multi-scrobbler ingest and enrich with Spotify / Last.fm
+              / Koito history under Music sources. Spotify OAuth linking is not
+              available yet.
             </p>
             <Link
               href="/music/settings"
               className="mt-3 inline-block text-sm text-[var(--accent)] hover:underline"
             >
               Open Music sources
+            </Link>
+          </Panel>
+        ) : null}
+
+        {read.showReadNav ? (
+          <Panel className="p-5">
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
+              Read
+            </div>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-tight">
+              AniList manga
+            </h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              Sync manga, manhwa, and novels from AniList into Read analytics.
+              Shares the same AniList connection as Watch anime.
+            </p>
+            <Link
+              href="/read/settings"
+              className="mt-3 inline-block text-sm text-[var(--accent)] hover:underline"
+            >
+              Open Read sources
             </Link>
           </Panel>
         ) : null}

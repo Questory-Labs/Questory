@@ -12,14 +12,14 @@ export default function AdminTelemetryPage() {
 
   if (isLoading) {
     return (
-      <p className="text-sm text-[var(--muted)]">Checking enterprise…</p>
+      <p className="text-sm text-[var(--muted)]">Checking QEngine…</p>
     );
   }
 
   if (!enabled) {
     return (
       <p className="text-sm text-[var(--muted)]">
-        Enterprise telemetry is not available on this instance.
+        QEngine telemetry is not available on this instance.
       </p>
     );
   }

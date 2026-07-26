@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GameTile } from "@/components/GameTile";
 import { StoreBadgeRow } from "@/components/StoreBadge";
-import { PageHeader, StateMessage } from "@/components/ui";
+import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useSyncJobs } from "@/hooks/useSyncJobs";
 import { useMemo, useState, Suspense } from "react";
 import type { Store } from "@questorylabs/shared";
 
 type LibraryResponse = {
   total: number;
+  page: number;
+  pageSize: number;
   items: {
     playtimeForever: number;
     stores?: Store[];
@@ -47,8 +50,10 @@ function LibraryContent() {
   const [unplayed, setUnplayed] = useState(false);
   const [multiplayer, setMultiplayer] = useState(false);
   const [deck, setDeck] = useState(false);
+  const [page, setPage] = useState(1);
 
   const setStore = (store: Store | "all") => {
+    setPage(1);
     const p = new URLSearchParams(searchParams.toString());
     if (store === "all") p.delete("store");
     else p.set("store", store);
@@ -64,24 +69,40 @@ function LibraryContent() {
     if (multiplayer) p.set("multiplayer", "true");
     if (deck) p.set("deck", "true");
     if (activeStore !== "all") p.set("store", activeStore);
+    p.set("page", String(page));
     p.set("pageSize", "48");
     return p.toString();
-  }, [q, genre, unplayed, multiplayer, deck, activeStore]);
+  }, [q, genre, unplayed, multiplayer, deck, activeStore, page]);
 
+  const sync = useSyncJobs();
   const library = useQuery({
     queryKey: ["library", params],
     queryFn: () => api<LibraryResponse>(`/library?${params}`),
+    refetchInterval: () => (sync.active ? 3_000 : false),
   });
+
+  const totalPages = library.data
+    ? Math.max(1, Math.ceil(library.data.total / library.data.pageSize))
+    : 1;
 
   return (
     <>
       <PageHeader
         title="Library"
-        description={`${library.data?.total ?? 0} games`}
+        description={
+          sync.active
+            ? `Syncing · ${sync.doneCount}/${sync.total}${
+                sync.current ? ` · ${sync.current.label}` : ""
+              }`
+            : `${library.data?.total ?? 0} games`
+        }
         actions={
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setPage(1);
+              setQ(e.target.value);
+            }}
             placeholder="Search games"
             className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none"
           />
@@ -111,7 +132,10 @@ function LibraryContent() {
       <div className="mb-6 flex flex-wrap gap-3 text-sm">
         <input
           value={genre}
-          onChange={(e) => setGenre(e.target.value)}
+          onChange={(e) => {
+            setPage(1);
+            setGenre(e.target.value);
+          }}
           placeholder="Genre"
           className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-1.5"
         />
@@ -119,7 +143,10 @@ function LibraryContent() {
           <input
             type="checkbox"
             checked={unplayed}
-            onChange={(e) => setUnplayed(e.target.checked)}
+            onChange={(e) => {
+              setPage(1);
+              setUnplayed(e.target.checked);
+            }}
           />
           Unplayed
         </label>
@@ -127,7 +154,10 @@ function LibraryContent() {
           <input
             type="checkbox"
             checked={multiplayer}
-            onChange={(e) => setMultiplayer(e.target.checked)}
+            onChange={(e) => {
+              setPage(1);
+              setMultiplayer(e.target.checked);
+            }}
           />
           Multiplayer
         </label>
@@ -135,30 +165,85 @@ function LibraryContent() {
           <input
             type="checkbox"
             checked={deck}
-            onChange={(e) => setDeck(e.target.checked)}
+            onChange={(e) => {
+              setPage(1);
+              setDeck(e.target.checked);
+            }}
           />
           Deck ready
         </label>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {(library.data?.items || []).map((item, i) => {
-          const stores = item.stores || item.game.stores || [];
-          return (
-            <Link key={item.game.id} href={`/library/${item.game.id}`}>
-              <GameTile
-                name={item.game.name}
-                headerImage={item.game.headerImage}
-                meta={`${Math.round(item.playtimeForever / 60)}h · ${item.game.genres.slice(0, 2).join(", ") || "—"}`}
-                index={i}
-                corner={
-                  stores.length ? <StoreBadgeRow stores={stores} /> : undefined
-                }
-              />
-            </Link>
-          );
-        })}
-      </div>
+      {(library.data?.items || []).length === 0 && !library.isLoading ? (
+        <EmptyState
+          title={
+            sync.active
+              ? "Steam library sync is still running…"
+              : "No games match these filters."
+          }
+          description={
+            sync.active ? (
+              <span className="text-[var(--muted)]">
+                {sync.current
+                  ? `${sync.current.label} in progress`
+                  : "Games will appear here as the sync finishes."}
+              </span>
+            ) : (
+              <Link
+                href="/settings/connections"
+                className="text-[var(--accent)] hover:underline"
+              >
+                Check Connections
+              </Link>
+            )
+          }
+        />
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {(library.data?.items || []).map((item, i) => {
+              const stores = item.stores || item.game.stores || [];
+              return (
+                <Link key={item.game.id} href={`/library/${item.game.id}`}>
+                  <GameTile
+                    name={item.game.name}
+                    headerImage={item.game.headerImage}
+                    meta={`${Math.round(item.playtimeForever / 60)}h · ${item.game.genres.slice(0, 2).join(", ") || "—"}`}
+                    index={i}
+                    corner={
+                      stores.length ? <StoreBadgeRow stores={stores} /> : undefined
+                    }
+                  />
+                </Link>
+              );
+            })}
+          </div>
+
+          {library.data && library.data.total > library.data.pageSize && (
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Button
+                variant="secondary"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5"
+              >
+                Previous
+              </Button>
+              <span className="font-mono text-xs text-[var(--muted)]">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }

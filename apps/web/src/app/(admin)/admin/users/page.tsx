@@ -24,8 +24,10 @@ export default function AdminUsersPage() {
 
   const users = useQuery({
     queryKey: ["admin-users"],
-    queryFn: () => api<{ users: AdminUser[] }>("/admin/users"),
+    queryFn: () =>
+      api<{ users: AdminUser[]; startFreshEnabled?: boolean }>("/admin/users"),
   });
+  const startFreshEnabled = users.data?.startFreshEnabled === true;
 
   const patch = useMutation({
     mutationFn: (body: {
@@ -60,6 +62,16 @@ export default function AdminUsersPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const resetData = useMutation({
+    mutationFn: (id: string) =>
+      api(`/admin/users/${id}/reset-data`, { method: "POST" }),
+    onSuccess: () => {
+      setMsg("Started fresh — user kept, all other data wiped");
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const sync = useMutation({
     mutationFn: (userId: string) =>
       api("/admin/ops/user-sync", {
@@ -84,7 +96,11 @@ export default function AdminUsersPage() {
     <>
       <PageHeader
         title="Users"
-        description="List accounts, reset passwords, promote admins, trigger sync."
+        description={
+          startFreshEnabled
+            ? "List accounts, reset passwords, start fresh, promote admins, trigger sync."
+            : "List accounts, reset passwords, promote admins, trigger sync."
+        }
       />
       {msg ? <p className="mb-4 text-sm text-[var(--accent)]">{msg}</p> : null}
 
@@ -135,6 +151,23 @@ export default function AdminUsersPage() {
                 >
                   Prices
                 </Button>
+                {startFreshEnabled ? (
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-1 text-xs text-[var(--warm)]"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Start fresh for ${u.email || u.personaName}?\n\nKeeps the user and Steam link. Wipes library, wishlist, friends, family, collections, music, watch, API keys, and sync history.`,
+                        )
+                      ) {
+                        resetData.mutate(u.id);
+                      }
+                    }}
+                  >
+                    Start fresh
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   className="px-2 py-1 text-xs text-[var(--warm)]"

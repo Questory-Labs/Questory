@@ -1,7 +1,7 @@
-# Private enterprise service
+# QEngine
 
 Maintainer-only mount point for a nested private git repository: a single Rust
-Axum service (`questorylabs-enterprise`) with recommendations, dossier/settings,
+Axum service (`qengine`) with recommendations, dossier/settings,
 soft-gate status, and an in-process OTLP collector.
 
 Recommendations / Telemetry **UI** ships in the community web app
@@ -9,12 +9,6 @@ Recommendations / Telemetry **UI** ships in the community web app
 
 The parent repo tracks **only this file**. Everything else under this directory
 is gitignored and must not be published with the community tree.
-
-```bash
-cd enterprise
-git init
-git remote add origin <private-remote-url>
-```
 
 ## Run
 

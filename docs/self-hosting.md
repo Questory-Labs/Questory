@@ -1,4 +1,4 @@
-# Self-hosting Questory Labs
+# Self-hosting Questory
 
 ## License limits
 
@@ -52,9 +52,9 @@ pnpm docker:prod -- --build
 Web: `http://localhost:3000` (or your `WEB_ORIGIN`)  
 API: `http://localhost:4000` (or your public API URL) — Steam, music, watch, and optional in-process cron
 
-`GET /health` on the API reports `mode`, database provider, Redis/sync mode, whether the Steam allowlist is enabled (not the IDs), and `music.enabled` / `watch.enabled` for the web soft-gates.
+`GET /health` on the API reports `mode`, database provider, Redis/sync mode, whether the Steam allowlist is enabled (not the IDs), and `music.enabled` / `watch.enabled` / `read.enabled` for the web soft-gates.
 
-**One database:** Steam, music, and watch all use the same `DATABASE_URL` (SQLite file volume or Postgres `questorylabs`). Schema lives in `packages/db`. Identity is a shared `User` row (Steam OpenID, music ingest token, Trakt/AniList connections).
+**One database:** Steam, music, watch, and read all use the same `DATABASE_URL` (SQLite file volume or Postgres `questorylabs`). Schema lives in `packages/db`. Identity is a shared `User` row (Steam OpenID, music ingest token, Trakt/AniList connections).
 
 `NEXT_PUBLIC_API_URL` is baked into the **web** image at build time (default `http://localhost:4000`). For a custom public API URL, rebuild web:
 
@@ -157,15 +157,27 @@ Locally: `pnpm setup` then `pnpm dev` (watch modules load with the API).
 |--------|-----|
 | **Trakt** | OAuth at `/v1/watch/trakt/authorize` → history + ratings + watchlist sync |
 | **TMDB** | Metadata enrichment (genres, posters, runtime). Attribution required in UI. |
-| **Letterboxd** | Official diary CSV upload only (`POST /v1/watch/imports/letterboxd`) — no scraping |
+| **Letterboxd** | Official export zip or CSV (`POST /v1/watch/imports/letterboxd`, optional `include=diary,ratings,watched,watchlist`) — no scraping |
 | **AniList** | OAuth + list sync (day/unknown precision) |
 | **Plex / Jellyfin** | `POST /webhooks/plex` and `POST /webhooks/jellyfin` on the API (unversioned) |
 
-When in-process cron is enabled, the API schedules Trakt/AniList sync every 6 hours (`CRON_WATCH_SCHEDULE`).
+By default the API schedules Trakt/AniList sync every 6 hours (`CRON_WATCH_SCHEDULE`; disable with `CRON_ENABLED=false`).
 
 ### Frontend menus
 
 Watch nav appears when `NEXT_PUBLIC_ENABLE_WATCH=true` **and** API `GET /health` reports `ok: true` with `watch.enabled` not `false`.
+
+### Optional: Read (manga / print)
+
+Questory Read is an **API module** under `/v1/read/*`. It syncs AniList manga/manhwa/novels into dedicated Read tables (not Watch `Title` / `WatchEvent`).
+
+```env
+NEXT_PUBLIC_ENABLE_READ=true
+# Same AniList OAuth as Watch — anime lists → Watch, manga lists → Read
+# ANILIST_CLIENT_ID / SECRET / REDIRECT_URI (see Watch section)
+```
+
+Read nav appears when `NEXT_PUBLIC_ENABLE_READ=true` **and** API `GET /health` reports `ok: true` with `read.enabled` not `false`. Connect AniList under **Read → Sources** (or Watch → Sources — shared connection), then sync. Cron AniList sync also refreshes manga.
 
 ## Steam OpenID URLs
 
@@ -240,26 +252,27 @@ Browser path `/api/v1/library` becomes Nest `/v1/library` after `strip_prefix /a
 
 ## Daily sync cron
 
-Cron runs **in-process** inside the API. When enabled it schedules:
+Cron runs **in-process** inside the API by default (opt out with `CRON_ENABLED=false`). It schedules the same work as the internal cron HTTP routes:
 
-- `POST /v1/internal/cron/daily-refresh` — enqueue `library-sync` + `metadata-refresh` for every logged-in user
-- `POST /v1/internal/cron/recover-failed-sync` — clear stuck `SyncJob` rows and catalog lock/failed state
+- Daily refresh — enqueue `library-sync` + `metadata-refresh` for every logged-in user
+- Recover failed sync — clear stuck `SyncJob` rows and catalog lock/failed state
 - Watch Trakt/AniList sync on `CRON_WATCH_SCHEDULE` (when watch is in use)
 
-Enable it in `.env` on the API:
+Scheduled ticks and admin/HTTP triggers write `CronRun` rows (`triggeredBy`: `system` | `admin` | `cron`) visible under `/admin/cron`.
 
 ```env
-CRON_ENABLED=true
+# Default: on. Disable in-process scheduling (e.g. external-only HTTP cron):
+# CRON_ENABLED=false
 CRON_SECRET=a-long-random-shared-secret
 ```
 
-When `CRON_ENABLED` is not `true`/`TRUE`/`1`, the in-process scheduler stays off. `CRON_SECRET` is still required for `/v1/internal/cron/*` Bearer / `x-cron-secret` auth (and for admin-triggered cron hooks).
+`CRON_SECRET` is required only for `POST /v1/internal/cron/*` (Bearer / `x-cron-secret`). Admin triggers use the admin session; in-process ticks do not need the secret.
 
 ## Secrets checklist
 
 - `SESSION_SECRET` — long random string (API rejects weak placeholders in non-local modes)
 - `STEAM_API_KEY` — [Steam Web API key](https://steamcommunity.com/dev/apikey)
-- `CRON_SECRET` — required when using in-process cron (`CRON_ENABLED=true`) or calling `/v1/internal/cron/*`
+- `CRON_SECRET` — required for `/v1/internal/cron/*` HTTP callers (optional if you only use in-process cron)
 - Music ingest / watch webhook tokens — mint per-user ApiKeys in Settings (not env vars)
 - `TRAKT_CLIENT_ID` / `TRAKT_CLIENT_SECRET` — required for Trakt OAuth (watch module)
 - `TMDB_API_KEY` — required for watch metadata enrichment (keep TMDB attribution in the UI)

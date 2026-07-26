@@ -1,13 +1,14 @@
-/** Mirrors questorylabs-enterprise JSON contracts (Rust Axum service). */
+/** Mirrors QEngine JSON contracts (Rust Axum service). */
 
-export type RecommendationDomain = "games" | "music" | "watch";
+export type RecommendationDomain = "games" | "music" | "watch" | "read";
 
 export type RecommendationItemKind =
   | "game"
   | "artist"
   | "track"
   | "movie"
-  | "show";
+  | "show"
+  | "manga";
 
 export type RecommendationItem = {
   kind: RecommendationItemKind;
@@ -23,7 +24,7 @@ export type RecommendationItem = {
   reasons: string[];
   /** One-line editorial blurb from the Composer (LLM mode only). */
   blurb?: string;
-  /** Stable feedback key ("game:<id>" / "artist:<id>" / "title:<id>"). */
+  /** Stable feedback key ("game:<id>" / "artist:<id>" / "title:<id>" / "read:<id>"). */
   itemKey?: string;
 };
 
@@ -90,6 +91,13 @@ export type CurationJob = {
   events: JobEvent[];
   result?: RecommendationResponse;
   error?: string;
+  /** True when the finished result was served from the curated cache. */
+  fromCache?: boolean;
+};
+
+export type CurateCacheView = {
+  cached: boolean;
+  result?: RecommendationResponse;
 };
 
 /* ── feedback ── */
@@ -103,6 +111,7 @@ export type Dossier = {
   gaming: string;
   music: string;
   watch: string;
+  read?: string;
   currentVibe: string;
   keywords: string[];
 };

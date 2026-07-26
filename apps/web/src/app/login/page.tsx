@@ -15,6 +15,7 @@ import {
   parseApiError,
   type AuthChallenge,
 } from "@/lib/auth-api";
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { LandingBackground } from "@/components/LandingBackground";
 
@@ -89,13 +90,7 @@ export default function LoginPage() {
     <div className="relative min-h-screen overflow-hidden">
       <LandingBackground />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-        <Link
-          href="/"
-          className="font-display text-3xl tracking-tight"
-          style={{ fontWeight: 800 }}
-        >
-          Questory <span className="text-[var(--accent)]">Labs</span>
-        </Link>
+        <BrandMark href="/" size="md" wordmarkClassName="text-3xl" />
         <h1 className="mt-8 text-xl font-semibold text-[var(--ink)]">Sign in</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Use your email and password. Steam and other services link from

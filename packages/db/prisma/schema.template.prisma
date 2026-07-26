@@ -30,24 +30,28 @@ model User {
 
   accounts           Account[]
   apiKeys            ApiKey[]
-  libraryEntries     LibraryEntry[]
-  wishlistItems      WishlistItem[]
-  purchases          Purchase[]
-  friendships        Friendship[]
-  familyOwned        FamilyGroup[]      @relation("FamilyOwner")
-  familyMembers      FamilyMember[]
-  collections        Collection[]
-  syncJobs           SyncJob[]
-  notifications      Notification[]
-  storeAccounts      StoreAccount[]
-  listens            Listen[]
-  listenHourBuckets  ListenHourBucket[]
-  playingNow         PlayingNow?
-  sourceConnections  SourceConnection[]
-  watchEvents        WatchEvent[]
-  watchHourBuckets   WatchHourBucket[]
-  importJobs         ImportJob[]
-  titleListStates    TitleListState[]
+  libraryEntries         LibraryEntry[]
+  wishlistItems          WishlistItem[]
+  purchases              Purchase[]
+  friendships            Friendship[]
+  familyOwned            FamilyGroup[]      @relation("FamilyOwner")
+  familyMembers          FamilyMember[]
+  collections            Collection[]
+  syncJobs               SyncJob[]
+  notifications          Notification[]
+  storeAccounts          StoreAccount[]
+  listens                Listen[]
+  listenHourBuckets      ListenHourBucket[]
+  playingNow             PlayingNow?
+  sourceConnections      SourceConnection[]
+  watchEvents            WatchEvent[]
+  watchHourBuckets       WatchHourBucket[]
+  importJobs             ImportJob[]
+  titleListStates        TitleListState[]
+  playActivitySnapshots  PlayActivitySnapshot[]
+  readEvents             ReadEvent[]
+  readHourBuckets        ReadHourBucket[]
+  readListStates         ReadListState[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -160,10 +164,11 @@ model Game {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  libraryEntries  LibraryEntry[]
-  collectionItems CollectionItem[]
-  storeListings   GameStoreListing[]
-  wishlistItems   WishlistItem[]
+  libraryEntries         LibraryEntry[]
+  collectionItems        CollectionItem[]
+  storeListings          GameStoreListing[]
+  wishlistItems          WishlistItem[]
+  playActivitySnapshots  PlayActivitySnapshot[]
 
   @@index([appId])
   @@index([name])
@@ -352,6 +357,51 @@ model FriendLibraryCache {
   @@index([ownerSteamId])
 }
 
+/**
+ * Point-in-time playtime observation for a user's game.
+ * Steam does not expose session start/end; timeranges are inferred from
+ * ΔplaytimeForever between consecutive snapshots for the same game.
+ */
+model PlayActivitySnapshot {
+  id              String    @id @default(cuid())
+  userId          String
+  gameId          String
+  appId           Int?
+  /** Hour-bucketed observation time (UTC truncated). */
+  observedAt      DateTime
+  playtimeForever Int       @default(0)
+  playtime2Weeks  Int?
+  lastPlayedAt    DateTime?
+  /** owned_sync | recent_sync */
+  source          String    @default("recent_sync")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId, observedAt])
+  @@index([userId, observedAt])
+  @@index([gameId])
+}
+
+/**
+ * Friends' GetRecentlyPlayedGames cache for recommendation fallback when
+ * the user has no recent activity of their own. Never treated as the user's play.
+ */
+model FriendRecentPlayCache {
+  id              String   @id @default(cuid())
+  ownerSteamId    String
+  gameAppId       Int
+  gameName        String?
+  headerImage     String?
+  playtime2Weeks  Int      @default(0)
+  playtimeForever Int      @default(0)
+  syncedAt        DateTime @default(now())
+
+  @@unique([ownerSteamId, gameAppId])
+  @@index([ownerSteamId])
+  @@index([syncedAt])
+}
+
 model FamilyGroup {
   id        String   @id @default(cuid())
   ownerId   String
@@ -524,9 +574,10 @@ model Genre {
   kind      String   @default("genre")
   createdAt DateTime @default(now())
 
-  tracks    TrackGenre[]
-  artists   ArtistGenre[]
-  titles    TitleGenre[]
+  tracks     TrackGenre[]
+  artists    ArtistGenre[]
+  titles     TitleGenre[]
+  readTitles ReadTitleGenre[]
 }
 
 model TrackGenre {
@@ -833,4 +884,114 @@ model TitleListState {
 
   @@unique([userId, titleId, listType, source])
   @@index([userId, listType])
+}
+
+/* ─── Read / manga & print (shared DB) ─── */
+
+model ReadTitle {
+  id                 String    @id @default(cuid())
+  /** manga | manhwa | manhua | novel | one_shot | other */
+  format             String
+  name               String
+  nameNormalized     String
+  overview           String?
+  year               Int?
+  chapters           Int?
+  volumes            Int?
+  coverUrl           String?
+  anilistId          Int?      @unique
+  malId              Int?
+  countryOfOrigin    String?
+  /** RELEASING | FINISHED | … (AniList media status) */
+  publishingStatus   String?
+  metadataSyncedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  genres             ReadTitleGenre[]
+  readEvents         ReadEvent[]
+  listStates         ReadListState[]
+
+  @@index([nameNormalized])
+  @@index([format])
+  @@index([malId])
+}
+
+model ReadTitleGenre {
+  readTitleId String
+  genreId     String
+  source      String @default("anilist")
+  weight      Float  @default(1)
+
+  readTitle ReadTitle @relation(fields: [readTitleId], references: [id], onDelete: Cascade)
+  genre     Genre     @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([readTitleId, genreId, source])
+  @@index([genreId])
+}
+
+model ReadEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  readTitleId    String
+  readAt         DateTime
+  /** import | progress */
+  action         String   @default("import")
+  /** anilist | … */
+  source         String
+  dedupeKey      String
+  /** AniList list status snapshot */
+  status         String?
+  chaptersRead   Int?
+  volumesRead    Int?
+  /** 0–100 */
+  progress       Int      @default(0)
+  rating         Float?
+  /** day | unknown */
+  precision      String   @default("day")
+  rawPayload     String?
+  createdAt      DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readTitle ReadTitle @relation(fields: [readTitleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+  @@index([readTitleId])
+  @@index([source])
+}
+
+model ReadHourBucket {
+  id            String   @id @default(cuid())
+  userId        String
+  hourStart     DateTime
+  eventCount    Int      @default(0)
+  chaptersDelta Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hourStart])
+  @@index([userId, hourStart])
+}
+
+/** Current manga list row (reading / planning / completed / …). */
+model ReadListState {
+  id               String   @id @default(cuid())
+  userId           String
+  readTitleId      String
+  /** reading | completed | planning | paused | dropped | repeating */
+  listStatus       String
+  source           String
+  score            Float?
+  progressChapters Int      @default(0)
+  progressVolumes  Int      @default(0)
+  listedAt         DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readTitle ReadTitle @relation(fields: [readTitleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, readTitleId, source])
+  @@index([userId, listStatus])
 }

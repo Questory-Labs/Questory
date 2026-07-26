@@ -31,6 +31,7 @@ export class HealthController {
       },
       music: { enabled: true },
       watch: { enabled: true },
+      read: { enabled: true },
     };
   }
 }

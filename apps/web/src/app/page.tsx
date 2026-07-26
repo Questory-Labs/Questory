@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { fetchSignupStatus } from "@/lib/auth-api";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { BrandMark } from "@/components/BrandMark";
 import { HatchShadow } from "@/components/HatchShadow";
 import { LandingBackground } from "@/components/LandingBackground";
 
@@ -36,16 +37,18 @@ export default function LandingPage() {
     <div className="relative min-h-screen overflow-hidden">
       <LandingBackground />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
-        <motion.p
+        <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: enterEase }}
-          className="font-display text-6xl leading-none tracking-tight md:text-8xl"
-          style={{ fontWeight: 800 }}
         >
-          Questory{" "}
-          <span className="text-[var(--accent)]">Labs</span>
-        </motion.p>
+          <BrandMark
+            href={null}
+            size="lg"
+            wordmarkClassName="text-6xl md:text-8xl"
+            className="gap-4 md:gap-5"
+          />
+        </motion.div>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

@@ -4,9 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sanitizeAppHref } from "@questorylabs/shared";
+import { BrandMark } from "@/components/BrandMark";
+import { SyncStatusBar } from "@/components/SyncStatusBar";
 import { api } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -67,7 +70,19 @@ const WATCH_NAV_GROUP = {
   items: [
     { href: "/watch", label: "Watch home" },
     { href: "/watch/history", label: "History" },
+    { href: "/watch/insights", label: "Insights" },
     { href: "/watch/settings", label: "Sources" },
+  ],
+};
+
+const READ_NAV_GROUP = {
+  label: "Read",
+  items: [
+    { href: "/read", label: "Read home" },
+    { href: "/read/library", label: "Library" },
+    { href: "/read/history", label: "History" },
+    { href: "/read/insights", label: "Insights" },
+    { href: "/read/settings", label: "Sources" },
   ],
 };
 
@@ -320,6 +335,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
+  const { showReadNav } = useReadEnabled();
   const { enabled: showEnterpriseNav } = useEnterpriseEnabled();
 
   const navGroups = useMemo(() => {
@@ -327,8 +343,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (showEnterpriseNav) groups.splice(1, 0, ENTERPRISE_NAV_GROUP);
     if (showMusicNav) groups.push(MUSIC_NAV_GROUP);
     if (showWatchNav) groups.push(WATCH_NAV_GROUP);
+    if (showReadNav) groups.push(READ_NAV_GROUP);
     return groups;
-  }, [showEnterpriseNav, showMusicNav, showWatchNav]);
+  }, [showEnterpriseNav, showMusicNav, showWatchNav, showReadNav]);
 
   const me = useQuery({
     queryKey: ["me"],
@@ -422,14 +439,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-0)_92%,transparent)] backdrop-blur-xl lg:flex">
         <div className="flex h-14 shrink-0 items-center px-4 shadow-[inset_0_-1px_0_0_var(--line)]">
-          <Link
+          <BrandMark
             href="/dashboard"
-            className="font-display text-[1.35rem] leading-none tracking-tight text-[var(--ink)] transition hover:text-[var(--accent)]"
-            style={{ fontWeight: 700 }}
-          >
-            Questory{" "}
-            <span className="text-[var(--accent)]">Labs</span>
-          </Link>
+            size="sm"
+            wordmarkClassName="text-[1.35rem]"
+          />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Primary">
@@ -469,14 +483,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
 
-            <Link
+            <BrandMark
               href="/dashboard"
-              className="font-display shrink-0 text-lg tracking-tight lg:hidden"
-              style={{ fontWeight: 700 }}
-            >
-              Questory{" "}
-              <span className="text-[var(--accent)]">Labs</span>
-            </Link>
+              size="sm"
+              className="shrink-0 lg:hidden"
+              wordmarkClassName="text-lg"
+            />
 
             <form className="ml-auto min-w-0 max-w-xl flex-1 sm:ml-0" onSubmit={submitSearch}>
               <label className="sr-only" htmlFor="shell-search">
@@ -601,10 +613,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="absolute left-0 top-0 flex h-full w-[min(18rem,86vw)] flex-col border-r border-[var(--line)] bg-[var(--bg-1)]"
             >
               <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
-                <span className="font-display text-lg" style={{ fontWeight: 700 }}>
-                  Questory{" "}
-                  <span className="text-[var(--accent)]">Labs</span>
-                </span>
+                <BrandMark
+                  href={null}
+                  size="sm"
+                  wordmarkClassName="text-lg"
+                />
                 <button
                   type="button"
                   className="inline-flex h-9 w-9 items-center justify-center border border-[var(--line)]"
@@ -634,6 +647,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         )}
+
+        {!pathname.startsWith("/settings/connections") ? (
+          <SyncStatusBar
+            steamEnabled={Boolean(user.steamId)}
+            musicEnabled={showMusicNav}
+            watchEnabled={showWatchNav}
+            readEnabled={showReadNav}
+          />
+        ) : null}
 
         <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
       </div>

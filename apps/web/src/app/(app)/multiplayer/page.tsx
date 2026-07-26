@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { GameTile } from "@/components/GameTile";
-import { PageHeader, Panel } from "@/components/ui";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import {
   formatPlayerMaxLabel,
@@ -11,7 +11,9 @@ import {
   type MultiplayerPlanResponse,
   type MultiplayerPlanSort,
 } from "@questorylabs/shared";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const PAGE_SIZE = 48;
 
 const GENRES = [
   "Action",
@@ -60,6 +62,7 @@ export default function MultiplayerPage() {
   const [suggested, setSuggested] = useState(false);
   const [strictLibraryMatching, setStrictLibraryMatching] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   const filteredFriends = useMemo(() => {
     const q = friendFilter.trim().toLowerCase();
@@ -118,6 +121,10 @@ export default function MultiplayerPage() {
       }),
   });
 
+  useEffect(() => {
+    setPage(1);
+  }, [body]);
+
   function toggle(id: string) {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -125,6 +132,11 @@ export default function MultiplayerPage() {
   }
 
   const games = plan.data?.games || [];
+  const totalPages = Math.max(1, Math.ceil(games.length / PAGE_SIZE));
+  const pageGames = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return games.slice(start, start + PAGE_SIZE);
+  }, [games, page]);
 
   return (
     <>
@@ -294,7 +306,7 @@ export default function MultiplayerPage() {
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {games.map((g, index) => (
+            {pageGames.map((g, index) => (
               <GameTile
                 key={`${g.isSuggested ? "s" : "o"}-${g.appId}`}
                 name={g.name}
@@ -351,6 +363,29 @@ export default function MultiplayerPage() {
               No multiplayer titles found for this group. Try fewer friends, turn
               off strict matching, widen filters, or enable Suggested.
             </p>
+          )}
+          {games.length > PAGE_SIZE && (
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Button
+                variant="secondary"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5"
+              >
+                Previous
+              </Button>
+              <span className="font-mono text-xs text-[var(--muted)]">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3 py-1.5"
+              >
+                Next
+              </Button>
+            </div>
           )}
         </div>
       </div>

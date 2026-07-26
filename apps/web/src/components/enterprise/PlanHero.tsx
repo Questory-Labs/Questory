@@ -7,9 +7,14 @@ import styles from "./recommendations.module.css";
 export function PlanHero({
   plan,
   items,
+  onRecurate,
+  busy,
 }: {
   plan: Plan;
   items: RecommendationItem[];
+  /** Force a fresh curation for the same mood. */
+  onRecurate?: () => void;
+  busy?: boolean;
 }) {
   if (plan.steps.length === 0) return null;
   return (
@@ -29,6 +34,19 @@ export function PlanHero({
             </li>
           );
         })}
+        {onRecurate && (
+          <li className={styles.planStep}>
+            <span className={styles.planIndex}>{plan.steps.length + 1}</span>
+            <button
+              type="button"
+              className={styles.planRecurate}
+              onClick={onRecurate}
+              disabled={busy}
+            >
+              {busy ? "Re-curating…" : "Not vibing? Re-curate for a fresh plan"}
+            </button>
+          </li>
+        )}
       </ol>
     </section>
   );

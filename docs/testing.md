@@ -1,6 +1,6 @@
 # Testing
 
-Questory Labs uses Vitest for unit/integration tests and Playwright for web e2e.
+Questory uses Vitest for unit/integration tests and Playwright for web e2e.
 
 ## Commands
 

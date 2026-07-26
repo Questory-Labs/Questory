@@ -39,6 +39,15 @@ const TriggerEnrichmentSchema = z.object({
   action: z.enum(["catalog-sync", "recover-failed-sync"]),
 });
 
+const EnrichmentQuerySchema = z.object({
+  domain: z.enum(["music", "watch", "game"]).default("music"),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  status: z
+    .enum(["all", "pending", "running", "completed", "failed"])
+    .default("all"),
+});
+
 const OpsUserSchema = z.object({
   userId: z.string().min(1),
 });
@@ -86,9 +95,19 @@ export class AdminController {
     return this.admin.deleteUser(id);
   }
 
+  @Post("users/:id/reset-data")
+  resetUserData(@Param("id") id: string) {
+    return this.admin.resetUserData(id);
+  }
+
   @Get("cron/runs")
   cronRuns(@Query("take") take?: string) {
     return this.admin.listCronRuns(take ? Number(take) : 50);
+  }
+
+  @Get("cron/status")
+  cronStatus() {
+    return this.admin.cronStatus();
   }
 
   @Post("cron/trigger")
@@ -104,8 +123,22 @@ export class AdminController {
   }
 
   @Get("enrichment")
-  enrichment() {
-    return this.admin.enrichmentOverview();
+  enrichment(
+    @Query("domain") domain?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("status") status?: string,
+  ) {
+    const parsed = EnrichmentQuerySchema.safeParse({
+      domain,
+      page,
+      pageSize,
+      status,
+    });
+    if (!parsed.success) {
+      return { error: "Invalid query" };
+    }
+    return this.admin.enrichmentOverview(parsed.data);
   }
 
   @Post("enrichment/trigger")

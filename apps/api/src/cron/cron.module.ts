@@ -4,6 +4,7 @@ import { SyncModule } from "../sync/sync.module";
 import { SteamModule } from "../steam/steam.module";
 import { WatchModule } from "../watch/watch.module";
 import { CronSecretGuard } from "./cron-secret.guard";
+import { CronRunnerService } from "./cron-runner.service";
 import { InternalCronController } from "./internal-cron.controller";
 import { InternalCronService } from "./internal-cron.service";
 import { JobsService } from "./jobs.service";
@@ -16,7 +17,12 @@ import { JobsService } from "./jobs.service";
     forwardRef(() => WatchModule),
   ],
   controllers: [InternalCronController],
-  providers: [InternalCronService, CronSecretGuard, JobsService],
-  exports: [InternalCronService],
+  providers: [
+    InternalCronService,
+    CronRunnerService,
+    CronSecretGuard,
+    JobsService,
+  ],
+  exports: [InternalCronService, CronRunnerService],
 })
 export class CronModule {}

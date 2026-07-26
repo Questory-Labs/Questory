@@ -1,23 +1,18 @@
-# Questory Labs
+# Questory
 
-Analytics and library intelligence for Steam — dashboard, wishlist intel, cost analytics, friend comparison, multiplayer planning, family insights, and smart collections.
+Steam-first library and media intelligence — games dashboard, wishlist and cost analytics, friends and multiplayer planning, plus optional music, movies/TV, and manga/reading.
 
-## License
-
-Questory Labs community code is **source-available** under the [PolyForm Noncommercial License 1.0.0](LICENSE) (SPDX: `PolyForm-Noncommercial-1.0.0`). It is **not** OSI-approved open source.
-
-- Personal / noncommercial self-hosting is allowed.
-- Commercial use (selling, monetizing, or other commercial advantage) is not granted by this license — contact the copyright holder for a separate commercial license.
-- Keep the license terms and the `Required Notice` when you redistribute.
 ## Stack
 
-- **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion — [UI style guide](docs/style-guide.md)
+- **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion
 - **API**: NestJS, Prisma, BullMQ (when Redis is configured); optional Music + Watch modules and in-process cron
-- **Music** (optional): ListenBrainz ingest + analytics inside the API (`/v1/music/*`, `/1/*`); **shared DB**; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
-- **Watch** (optional): movie/TV ingest + analytics inside the API (`/v1/watch/*`, `/webhooks/*`); **shared DB**
+- **Music** (optional): ListenBrainz ingest + analytics inside the API (`/v1/music/`*, `/1/`*); **shared DB**; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
+- **Watch** (optional): movie/TV ingest + analytics inside the API (`/v1/watch/`*, `/webhooks/`*); **shared DB**
 - **Data**: SQLite **or** PostgreSQL (env-selected)
 - **Cache / queues**: in-memory **or** Redis (env-selected)
 - **Deploy**: Docker Compose profiles (lite / full / production)
+
+
 
 ## Prerequisites
 
@@ -26,14 +21,18 @@ Questory Labs community code is **source-available** under the [PolyForm Noncomm
 - [Steam Web API key](https://steamcommunity.com/dev/apikey)
 - Docker (for self-hosted / production stacks)
 
+
+
 ## Choose your setup
 
-| Mode | Command | Database | Redis | Typical use |
-|------|---------|----------|-------|-------------|
-| **Local** | `pnpm setup` → `pnpm dev` | SQLite | Off | Development |
-| **Self-hosted (lite)** | `pnpm docker:selfhosted` | SQLite volume | Off | Minimal home server |
-| **Self-hosted (full)** | `pnpm docker:selfhosted-full` | Postgres | On | Durable self-host |
-| **Production** | `pnpm docker:prod` | Postgres | On | Public HTTPS / multi-user instance |
+
+| Mode                   | Command                       | Database      | Redis | Typical use                        |
+| ---------------------- | ----------------------------- | ------------- | ----- | ---------------------------------- |
+| **Local**              | `pnpm setup` → `pnpm dev`     | SQLite        | Off   | Development                        |
+| **Self-hosted (lite)** | `pnpm docker:selfhosted`      | SQLite volume | Off   | Minimal home server                |
+| **Self-hosted (full)** | `pnpm docker:selfhosted-full` | Postgres      | On    | Durable self-host                  |
+| **Production**         | `pnpm docker:prod`            | Postgres      | On    | Public HTTPS / multi-user instance |
+
 
 Copy an env template, then edit secrets:
 
@@ -56,8 +55,8 @@ pnpm setup
 pnpm dev
 ```
 
-- Web: http://localhost:3000  
-- API: http://localhost:4000 — Steam, optional Music/Watch modules, optional in-process cron  
+- Web: [http://localhost:3000](http://localhost:3000)  
+- API: [http://localhost:4000](http://localhost:4000) — Steam, optional Music/Watch modules, optional in-process cron  
 - Music menus: set `NEXT_PUBLIC_ENABLE_MUSIC=true` (nav when API `/health` reports `music.enabled`)  
 - Watch menus: set `NEXT_PUBLIC_ENABLE_WATCH=true` (nav when API `/health` reports `watch.enabled`)
 
@@ -68,6 +67,8 @@ pnpm docker:infra
 # then point DATABASE_URL / REDIS_URL in .env at localhost
 ```
 
+
+
 ### 2. Self-hosted lite (SQLite)
 
 ```bash
@@ -77,6 +78,8 @@ cp .env.selfhosted.example .env
 
 pnpm docker:selfhosted
 ```
+
+
 
 ### 3. Self-hosted full (Postgres + Redis)
 
@@ -108,28 +111,31 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 
 ## Environment overview
 
-| Variable | Purpose |
-|----------|---------|
-| `APP_MODE` | `local` \| `selfhosted` \| `selfhosted-full` \| `production` |
-| `DATABASE_PROVIDER` | `sqlite` or `postgresql` (optional if `DATABASE_URL` is clear) |
-| `DATABASE_URL` | `file:…` or `postgresql://…` |
-| `REDIS_URL` | Set for Redis cache + BullMQ; empty = in-memory + inline sync |
-| `USE_INLINE_SYNC` | `true` forces inline sync even when Redis is set |
-| `SESSION_SECRET` | Cookie signing secret |
-| `ADMIN_EMAILS` | Emails granted admin on signup/login |
-| `TRUST_PROXY` | Trust `X-Forwarded-For` for auth rate limits |
-| `STEAM_API_KEY` | Steam Web API |
-| `STEAM_REALM` / `STEAM_RETURN_URL` | OpenID on the **API** origin (link-only) |
-| `WEB_ORIGIN` | Browser app origin (CORS + redirect) |
-| `NEXT_PUBLIC_API_URL` | API URL baked into the web client |
-| `NEXT_PUBLIC_ENABLE_MUSIC` | Show Music UI when API `/health` reports music enabled |
-| `NEXT_PUBLIC_ENABLE_WATCH` | Show Watch UI when API `/health` reports watch enabled |
-| `COOKIE_DOMAIN` | Optional shared cookie domain (prod split hosts) |
-| `ALLOWED_STEAM_IDS` | Optional SteamIDs allowed to **link**; empty = any |
-| `CRON_ENABLED` | `true` / `TRUE` / `1` to run in-process cron inside the API; otherwise off |
-| `CRON_SECRET` | Shared secret for `/v1/internal/cron/*` |
-| `CRON_DAILY_SCHEDULE` | Cron expr for daily price/stats refresh (default `0 3 * * *`) |
-| `CRON_RECOVERY_SCHEDULE` | Cron expr for stuck-sync recovery (default `*/15 * * * *`) |
+
+| Variable                           | Purpose                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `APP_MODE`                         | `local`                                                                                |
+| `DATABASE_PROVIDER`                | `sqlite` or `postgresql` (optional if `DATABASE_URL` is clear)                         |
+| `DATABASE_URL`                     | `file:…` or `postgresql://…`                                                           |
+| `REDIS_URL`                        | Set for Redis cache + BullMQ; empty = in-memory + inline sync                          |
+| `USE_INLINE_SYNC`                  | `true` forces inline sync even when Redis is set                                       |
+| `SESSION_SECRET`                   | Cookie signing secret                                                                  |
+| `ADMIN_EMAILS`                     | Emails granted admin on signup/login                                                   |
+| `TRUST_PROXY`                      | Trust `X-Forwarded-For` for auth rate limits                                           |
+| `STEAM_API_KEY`                    | Steam Web API                                                                          |
+| `STEAM_REALM` / `STEAM_RETURN_URL` | OpenID on the **API** origin (link-only)                                               |
+| `WEB_ORIGIN`                       | Browser app origin (CORS + redirect)                                                   |
+| `NEXT_PUBLIC_API_URL`              | API URL baked into the web client                                                      |
+| `NEXT_PUBLIC_ENABLE_MUSIC`         | Show Music UI when API `/health` reports music enabled                                 |
+| `NEXT_PUBLIC_ENABLE_WATCH`         | Show Watch UI when API `/health` reports watch enabled                                 |
+| `COOKIE_DOMAIN`                    | Optional shared cookie domain (prod split hosts)                                       |
+| `ALLOWED_STEAM_IDS`                | Optional SteamIDs allowed to **link**; empty = any                                     |
+| `CRON_ENABLED`                     | In-process cron inside the API (default on); set `false` / `FALSE` / `0` to disable    |
+| `CRON_SECRET`                      | Shared secret for `/v1/internal/cron/*` (HTTP only; not required for in-process ticks) |
+| `CRON_DAILY_SCHEDULE`              | Cron expr for daily price/stats refresh (default `0 3 * * *`)                          |
+| `CRON_RECOVERY_SCHEDULE`           | Cron expr for stuck-sync recovery (default `*/15 * * * *`)                             |
+| `CRON_WATCH_SCHEDULE`              | Cron expr for watch Trakt/AniList sync (default `0 */6 * * *`)                         |
+
 
 Prisma cannot take `provider` from env at runtime, so `pnpm db:schema` (and pre-dev/pre-build hooks) generate `schema.prisma` from `schema.template.prisma`.
 
@@ -151,19 +157,21 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm setup` | Install, build shared, sync Prisma provider, push schema |
-| `pnpm dev` | Run API + web |
-| `pnpm db:schema` | Generate `schema.prisma` for the active provider |
-| `pnpm db:push` | Apply schema to the configured database |
-| `pnpm docker:infra` | Start Postgres + Redis only |
-| `pnpm docker:selfhosted` | Lite stack (SQLite) |
-| `pnpm docker:selfhosted-full` | Full stack (Postgres + Redis) |
-| `pnpm docker:prod` | Production profile stack |
-| `pnpm docker:up` | Alias for `docker:selfhosted-full` |
-| `pnpm docker:down` | Stop Compose services |
-| `pnpm docker:build` | Build API/web images locally |
+
+| Command                       | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| `pnpm setup`                  | Install, build shared, sync Prisma provider, push schema |
+| `pnpm dev`                    | Run API + web                                            |
+| `pnpm db:schema`              | Generate `schema.prisma` for the active provider         |
+| `pnpm db:push`                | Apply schema to the configured database                  |
+| `pnpm docker:infra`           | Start Postgres + Redis only                              |
+| `pnpm docker:selfhosted`      | Lite stack (SQLite)                                      |
+| `pnpm docker:selfhosted-full` | Full stack (Postgres + Redis)                            |
+| `pnpm docker:prod`            | Production profile stack                                 |
+| `pnpm docker:up`              | Alias for `docker:selfhosted-full`                       |
+| `pnpm docker:down`            | Stop Compose services                                    |
+| `pnpm docker:build`           | Build API/web images locally                             |
+
 
 CI on `main` runs Vitest (and Playwright for web) across packages with a `test` script. See [docs/testing.md](docs/testing.md).
 
@@ -177,6 +185,8 @@ packages/shared          Shared Zod types
 docker-compose.yml       Compose profiles for deploy
 docs/self-hosting.md     Self-host / reverse proxy / backups
 ```
+
+
 
 ## Privacy notes
 

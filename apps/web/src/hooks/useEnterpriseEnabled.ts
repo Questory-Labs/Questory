@@ -5,7 +5,7 @@ import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
 import { ENTERPRISE_FLAG_ENABLED } from "@/lib/enterprise";
 
 /**
- * Enterprise gate: requires ENTERPRISE=true, then GET
+ * QEngine gate: requires ENTERPRISE=true, then GET
  * `{NEXT_PUBLIC_ENTERPRISE_URL}/v1/enterprise/status`.
  */
 export function useEnterpriseEnabled() {
@@ -24,7 +24,7 @@ export function useEnterpriseEnabled() {
     !status.isError;
 
   return {
-    /** Flag on and enterprise service answered available. */
+    /** Flag on and QEngine answered available. */
     enabled: available,
     /** Service healthy behind the status payload. */
     serviceOk: available && status.data?.service?.ok === true,
