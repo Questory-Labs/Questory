@@ -27,12 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup
+        uses: ./.github/actions/setup
+
       - name: Parse tag
         id: meta
         run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
-
-      - name: Setup
-        uses: ./.github/actions/setup
 
       - name: Build shared
         run: pnpm --filter @questorylabs/shared build
