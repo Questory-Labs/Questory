@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalyticsService } from "../../src/watch/analytics/analytics.service";
 import type { PrismaService } from "../../src/prisma/prisma.service";
 import type { UsersService } from "../../src/watch/users/users.service";
@@ -11,6 +11,9 @@ describe("AnalyticsService.insights", () => {
   let service: AnalyticsService;
 
   beforeEach(() => {
+    // Freeze "now" so rolling week bounds stay aligned with fixture dates.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-27T12:00:00.000Z"));
     findMany.mockReset();
     groupBy.mockReset();
     count.mockReset();
@@ -20,6 +23,10 @@ describe("AnalyticsService.insights", () => {
     } as unknown as PrismaService;
     const users = { resolveUser } as unknown as UsersService;
     service = new AnalyticsService(prisma, users);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns period stats, peaks, genre, and prior-period compare", async () => {
