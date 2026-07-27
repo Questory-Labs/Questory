@@ -2,13 +2,13 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Exit 0 if the package has a test script (and optionally test files).
- * Usage: node scripts/ci-has-tests.mjs <api|web|cron|shared>
+ * Exit 0 if the package has a test script.
+ * Usage: node scripts/ci-has-tests.mjs <api|web|shared>
  */
 
 const service = process.argv[2];
 if (!service) {
-  console.error("Usage: node scripts/ci-has-tests.mjs <api|web|cron|shared>");
+  console.error("Usage: node scripts/ci-has-tests.mjs <api|web|shared>");
   process.exit(2);
 }
 

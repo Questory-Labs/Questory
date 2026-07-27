@@ -1,49 +1,52 @@
 import Link from "next/link";
-import { HatchShadow } from "@/components/HatchShadow";
+import { Panel } from "@/components/ui/Panel";
 
+/** Compact metric tile — hatch-elevated Panel shared across Steam, Music, and Watch. */
 export function StatCard({
   label,
   value,
   hint,
   href,
+  className = "",
 }: {
   label: string;
   value: string | number;
   hint?: string;
   href?: string;
+  /** @deprecated No-op; kept for call-site compatibility. */
   delay?: number;
+  className?: string;
 }) {
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
           {label}
         </div>
-        {href && (
+        {href ? (
           <span
             className="mt-0.5 text-[var(--faint)] group-hover:text-[var(--accent)]"
             aria-hidden
           >
             →
           </span>
-        )}
+        ) : null}
       </div>
-      <div
-        className="font-mono mt-3 text-3xl tracking-tight text-[var(--ink)] tabular-nums"
-        style={{ fontWeight: 500 }}
-      >
+      <div className="mt-1 truncate text-xl tabular-nums text-[var(--ink)]">
         {value}
       </div>
-      {hint && (
-        <div className="mt-2 text-xs leading-snug text-[var(--faint)]">{hint}</div>
-      )}
+      {hint ? (
+        <div className="mt-1 text-[11px] leading-snug text-[var(--muted)]">
+          {hint}
+        </div>
+      ) : null}
     </>
   );
 
   return (
-    <HatchShadow
-      className="h-full"
-      faceClassName={`panel group h-full p-4 hover:border-[var(--line-strong)] ${
+    <Panel
+      wrapperClassName={`h-full ${className}`.trim()}
+      className={`group h-full p-3 hover:border-[var(--line-strong)] ${
         href ? "cursor-pointer" : ""
       }`}
     >
@@ -54,6 +57,6 @@ export function StatCard({
       ) : (
         body
       )}
-    </HatchShadow>
+    </Panel>
   );
 }

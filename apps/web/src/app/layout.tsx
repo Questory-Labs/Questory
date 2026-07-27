@@ -4,19 +4,36 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://questorylabs.com"),
-  title: "Questory Labs",
-  description: "Analytics and library intelligence for your Steam account",
+  title: "Questory",
+  description:
+    "Steam-first library and media intelligence — games, music, movies/TV, and reading",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/site.webmanifest",
+  appleWebApp: {
+    title: "Questory",
+  },
   openGraph: {
-    title: "Questory Labs",
-    description: "Analytics and library intelligence for your Steam account",
+    title: "Questory",
+    description:
+      "Steam-first library and media intelligence — games, music, movies/TV, and reading",
     url: "https://questorylabs.com",
-    siteName: "Questory Labs",
+    siteName: "Questory",
     type: "website",
+    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Questory Labs",
-    description: "Analytics and library intelligence for your Steam account",
+    title: "Questory",
+    description:
+      "Steam-first library and media intelligence — games, music, movies/TV, and reading",
+    images: ["/web-app-manifest-512x512.png"],
   },
 };
 

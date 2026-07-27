@@ -4,7 +4,15 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
+import { timingSafeEqual } from "node:crypto";
 import { Request } from "express";
+
+function safeStringEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
 
 @Injectable()
 export class CronSecretGuard implements CanActivate {
@@ -20,7 +28,7 @@ export class CronSecretGuard implements CanActivate {
     const headerSecret = String(req.headers["x-cron-secret"] || "").trim();
     const provided = bearer || headerSecret;
 
-    if (!provided || provided !== secret) {
+    if (!provided || !safeStringEqual(provided, secret)) {
       throw new UnauthorizedException("Invalid cron secret");
     }
     return true;

@@ -1,11 +1,10 @@
 import { createParamDecorator, ExecutionContext } from "@nestjs/common";
-import { Request } from "express";
+import type { Request } from "express";
+import type { SessionUser } from "./auth.guard";
 
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext) => {
-    const req = ctx.switchToHttp().getRequest<
-      Request & { userId: string; steamId: string }
-    >();
-    return { userId: req.userId, steamId: req.steamId };
+  (_data: unknown, ctx: ExecutionContext): SessionUser => {
+    const req = ctx.switchToHttp().getRequest<Request & SessionUser>();
+    return { userId: req.userId, steamId: req.steamId ?? null };
   },
 );

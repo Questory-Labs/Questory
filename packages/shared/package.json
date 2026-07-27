@@ -2,22 +2,40 @@
   "name": "@questorylabs/shared",
   "version": "0.0.1",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./session": {
+      "types": "./dist/session.d.ts",
+      "default": "./dist/session.js"
+    },
+    "./oauth-state": {
+      "types": "./dist/oauth-state.d.ts",
+      "default": "./dist/oauth-state.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "session": ["./dist/session.d.ts"],
+      "oauth-state": ["./dist/oauth-state.d.ts"]
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch"
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "typescript": "^5.8.2"
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^3.2.4"
   }
 }

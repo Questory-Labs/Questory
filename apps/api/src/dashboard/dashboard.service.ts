@@ -39,9 +39,20 @@ export class DashboardService {
         take: 8,
         include: { game: true },
       }),
+      // Prefer an in-flight job so dashboard "syncing" isn't stuck on a finished
+      // newer row (e.g. metadata-refresh completing while library still runs).
       this.prisma.syncJob.findFirst({
-        where: { userId },
+        where: {
+          userId,
+          status: { in: ["pending", "running"] },
+        },
         orderBy: { createdAt: "desc" },
+      }).then(async (active) => {
+        if (active) return active;
+        return this.prisma.syncJob.findFirst({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+        });
       }),
       this.prisma.libraryEntry.findMany({
         where: { userId, hidden: false },

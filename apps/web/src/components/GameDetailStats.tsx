@@ -74,9 +74,7 @@ export function Sparkline({
   return (
     <div
       className={
-        large
-          ? "rounded-lg border border-[var(--line)] bg-[var(--bg-0)] px-3 py-3"
-          : undefined
+        large ? "panel-outline bg-[var(--bg-0)] px-3 py-3" : undefined
       }
     >
       <svg
@@ -173,12 +171,7 @@ export function OwnerRow({
 
 export function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h3
-      className="mb-2 text-sm"
-      style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-    >
-      {children}
-    </h3>
+    <h3 className="mb-2 font-display text-sm font-bold">{children}</h3>
   );
 }
 
@@ -223,7 +216,7 @@ export function GameDetailStats({
         <div className="flex flex-wrap gap-2">
           <a
             href={`steam://run/${d.appId}`}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--accent)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--bg-0)] hover:opacity-90"
+            className="btn btn-primary flex-1"
           >
             Play
           </a>
@@ -231,7 +224,7 @@ export function GameDetailStats({
             href={`https://store.steampowered.com/app/${d.appId}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] hover:border-[var(--accent)]"
+            className="btn btn-secondary flex-1"
           >
             Open on Steam →
           </a>
@@ -254,7 +247,7 @@ export function GameDetailStats({
           online.history.length > 0) ? (
           <>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+              <div className="panel-outline px-2 py-3">
                 <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                   Now
                 </div>
@@ -262,7 +255,7 @@ export function GameDetailStats({
                   {formatPlayers(online.current)}
                 </div>
               </div>
-              <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+              <div className="panel-outline px-2 py-3">
                 <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                   24h peak
                 </div>
@@ -270,7 +263,7 @@ export function GameDetailStats({
                   {formatPlayers(online.peak24h)}
                 </div>
               </div>
-              <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+              <div className="panel-outline px-2 py-3">
                 <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                   All-time
                 </div>
@@ -380,7 +373,7 @@ export function GameDetailStats({
       <section>
         <SectionTitle>Price</SectionTitle>
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+          <div className="panel-outline px-2 py-3">
             <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
               Current
             </div>
@@ -388,7 +381,7 @@ export function GameDetailStats({
               {formatMoney(d.price.current, d.price.currency)}
             </div>
           </div>
-          <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+          <div className="panel-outline px-2 py-3">
             <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
               Hist. low
             </div>
@@ -396,7 +389,7 @@ export function GameDetailStats({
               {formatMoney(d.price.historicalLow, d.price.currency)}
             </div>
           </div>
-          <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+          <div className="panel-outline px-2 py-3">
             <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
               Hist. high
             </div>
@@ -419,7 +412,7 @@ export function GameDetailStats({
         <SectionTitle>HowLongToBeat</SectionTitle>
         {d.hltb ? (
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+            <div className="panel-outline px-2 py-3">
               <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                 Main
               </div>
@@ -427,7 +420,7 @@ export function GameDetailStats({
                 {d.hltb.mainHours != null ? `${d.hltb.mainHours}h` : "—"}
               </div>
             </div>
-            <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+            <div className="panel-outline px-2 py-3">
               <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                 Extra
               </div>
@@ -435,7 +428,7 @@ export function GameDetailStats({
                 {d.hltb.extraHours != null ? `${d.hltb.extraHours}h` : "—"}
               </div>
             </div>
-            <div className="rounded-lg border border-[var(--line)] px-2 py-3">
+            <div className="panel-outline px-2 py-3">
               <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
                 100%
               </div>

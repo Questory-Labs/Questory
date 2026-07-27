@@ -4,13 +4,11 @@ name: Service Release
 # Tag examples (version should match a prior docker-* release):
 #   service-api-1.0.0
 #   service-web-1.2.3
-#   service-cron-0.1.0
 on:
   push:
     tags:
       - "service-api-*"
       - "service-web-*"
-      - "service-cron-*"
 
 permissions:
   contents: write

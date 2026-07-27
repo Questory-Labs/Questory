@@ -3,6 +3,9 @@ import { CacheService } from "../cache/cache.service";
 import { ITAD_SHOP_IDS, StoreId } from "../stores/store.constants";
 
 const CHUNK = 150;
+const MAX_429_RETRIES = 3;
+const DEFAULT_RETRY_AFTER_MS = 5_000;
+const MAX_RETRY_AFTER_MS = 300_000;
 
 export type ItadPriceHistoryPoint = {
   date: string;
@@ -15,6 +18,8 @@ export type ItadPrice = { current: number | null; lowest: number | null };
 export class ItadService {
   private readonly logger = new Logger(ItadService.name);
   private readonly apiKey = process.env.ITAD_API_KEY || "";
+  /** Shared cooldown so concurrent callers honor the same 429 window. */
+  private rateLimitedUntil = 0;
 
   constructor(private readonly cache: CacheService) {}
 
@@ -80,10 +85,12 @@ export class ItadService {
     try {
       if (store === "steam" && /^\d+$/.test(externalId)) {
         const url = `https://api.isthereanydeal.com/games/lookup/v1?key=${this.apiKey}&appid=${externalId}`;
-        const res = await fetch(url);
+        const res = await this.fetchItad(url);
         if (!res.ok) {
-          this.logger.warn(`ITAD lookup failed for steam/${externalId}: ${res.status}`);
-          await this.cache.setJson(cacheKey, { id: null }, 3600);
+          this.logger.warn(
+            `ITAD lookup failed for steam/${externalId}: ${res.status}`,
+          );
+          // Do not cache transient failures (429/5xx) as "not found".
           return null;
         }
         const data = (await res.json()) as {
@@ -99,7 +106,7 @@ export class ItadService {
 
       const shopId = ITAD_SHOP_IDS[store];
       const url = `https://api.isthereanydeal.com/lookup/id/shop/${shopId}/v1?key=${this.apiKey}`;
-      const res = await fetch(url, {
+      const res = await this.fetchItad(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([externalId]),
@@ -108,7 +115,6 @@ export class ItadService {
         this.logger.warn(
           `ITAD shop lookup failed for ${store}/${externalId}: ${res.status}`,
         );
-        await this.cache.setJson(cacheKey, { id: null }, 3600);
         return null;
       }
       const data = (await res.json()) as Record<string, string | null> | Array<{
@@ -155,7 +161,7 @@ export class ItadService {
 
     try {
       const url = `https://api.isthereanydeal.com/games/history/v2?key=${this.apiKey}&id=${encodeURIComponent(itadId)}&country=${encodeURIComponent(country)}`;
-      const res = await fetch(url);
+      const res = await this.fetchItad(url);
       if (!res.ok) {
         this.logger.warn(
           `ITAD history failed for ${store}/${externalId}: ${res.status}`,
@@ -244,7 +250,7 @@ export class ItadService {
       if (cached) return cached;
 
       const url = `https://api.isthereanydeal.com/games/overview/v2?key=${this.apiKey}&country=${encodeURIComponent(country)}&shops=${shopId}`;
-      const res = await fetch(url, {
+      const res = await this.fetchItad(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -276,6 +282,62 @@ export class ItadService {
       this.logger.warn(`ITAD error (${store}): ${err}`);
       return result;
     }
+  }
+
+  /**
+   * Fetch with shared 429 cooldown + Retry-After retries.
+   * ITAD docs: 429 includes Retry-After; hammering extends the window.
+   */
+  private async fetchItad(
+    url: string,
+    init?: RequestInit,
+  ): Promise<Response> {
+    for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
+      await this.waitForRateLimit();
+      const res = await fetch(url, init);
+      if (res.status !== 429) return res;
+
+      const delayMs = this.parseRetryAfterMs(res);
+      this.rateLimitedUntil = Math.max(
+        this.rateLimitedUntil,
+        Date.now() + delayMs,
+      );
+      this.logger.warn(
+        `ITAD 429; backing off ${Math.ceil(delayMs / 1000)}s` +
+          (attempt < MAX_429_RETRIES
+            ? ` (retry ${attempt + 1}/${MAX_429_RETRIES})`
+            : " (giving up)"),
+      );
+      if (attempt >= MAX_429_RETRIES) return res;
+      // Next loop iteration blocks in waitForRateLimit until cooldown ends.
+    }
+    return new Response(null, { status: 429 });
+  }
+
+  private async waitForRateLimit() {
+    const wait = this.rateLimitedUntil - Date.now();
+    if (wait > 0) await this.sleep(wait);
+  }
+
+  private parseRetryAfterMs(res: Response): number {
+    const header = res.headers.get("retry-after");
+    if (!header) return DEFAULT_RETRY_AFTER_MS;
+
+    const asSeconds = Number(header);
+    if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+      return Math.min(asSeconds * 1000, MAX_RETRY_AFTER_MS);
+    }
+
+    const asDate = Date.parse(header);
+    if (Number.isFinite(asDate)) {
+      return Math.min(Math.max(0, asDate - Date.now()), MAX_RETRY_AFTER_MS);
+    }
+
+    return DEFAULT_RETRY_AFTER_MS;
+  }
+
+  private sleep(ms: number) {
+    return new Promise<void>((resolve) => setTimeout(resolve, ms));
   }
 
   private downsampleHistory(

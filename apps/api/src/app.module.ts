@@ -21,7 +21,14 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { StoresModule } from "./stores/stores.module";
 import { TrendingModule } from "./trending/trending.module";
 import { CronModule } from "./cron/cron.module";
+import { AdminModule } from "./admin/admin.module";
+import { AccountsModule } from "./accounts/accounts.module";
+import { ApiKeysModule } from "./api-keys/api-keys.module";
+import { MusicModule } from "./music/music.module";
+import { WatchModule } from "./watch/watch.module";
+import { ReadModule } from "./read/read.module";
 import { HealthController } from "./health.controller";
+
 
 const rootEnv = resolve(process.cwd(), "../../.env");
 const localEnv = resolve(process.cwd(), ".env");
@@ -37,6 +44,8 @@ const localEnv = resolve(process.cwd(), ".env");
     PrismaModule,
     CacheModule,
     SteamModule,
+    AccountsModule,
+    ApiKeysModule,
     AuthModule,
     SyncModule,
     UsersModule,
@@ -53,7 +62,11 @@ const localEnv = resolve(process.cwd(), ".env");
     NotificationsModule,
     StoresModule,
     TrendingModule,
+    MusicModule,
+    WatchModule,
+    ReadModule,
     CronModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })

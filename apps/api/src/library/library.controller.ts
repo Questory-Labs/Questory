@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -76,7 +77,10 @@ export class LibraryController {
   }
 
   @Post("sync")
-  syncLibrary(@CurrentUser() user: { userId: string; steamId: string }) {
+  syncLibrary(@CurrentUser() user: { userId: string; steamId: string | null }) {
+    if (!user.steamId) {
+      throw new BadRequestException("Link a Steam account first");
+    }
     return this.sync.enqueueAll(user.userId, user.steamId);
   }
 

@@ -139,4 +139,77 @@ export class CacheService implements OnModuleDestroy {
   async releaseLock(key: string): Promise<void> {
     await this.del(key);
   }
+
+  /** Atomic-ish increment with TTL on first create. Used for auth rate limits. */
+  async incr(key: string, ttlSeconds: number): Promise<number> {
+    const ttl = Math.max(1, Math.floor(ttlSeconds));
+    if (this.client) {
+      try {
+        if (this.client.status !== "ready") {
+          await this.client.connect();
+        }
+        const count = await this.client.incr(key);
+        if (count === 1) {
+          await this.client.expire(key, ttl);
+        }
+        return count;
+      } catch {
+        // fall through to memory
+      }
+    }
+    const existing = this.memory.get(key);
+    let count = 1;
+    if (existing && (!existing.expiresAt || existing.expiresAt >= Date.now())) {
+      count = Number(existing.value || "0") + 1;
+      this.memory.set(key, {
+        value: String(count),
+        expiresAt: existing.expiresAt,
+      });
+    } else {
+      this.memory.set(key, {
+        value: "1",
+        expiresAt: Date.now() + ttl * 1000,
+      });
+    }
+    return count;
+  }
+
+  async getString(key: string): Promise<string | null> {
+    if (this.client) {
+      try {
+        if (this.client.status !== "ready") {
+          await this.client.connect();
+        }
+        return await this.client.get(key);
+      } catch {
+        // fall through
+      }
+    }
+    const entry = this.memory.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt && entry.expiresAt < Date.now()) {
+      this.memory.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  async setString(key: string, value: string, ttlSeconds: number): Promise<void> {
+    const ttl = Math.max(1, Math.floor(ttlSeconds));
+    if (this.client) {
+      try {
+        if (this.client.status !== "ready") {
+          await this.client.connect();
+        }
+        await this.client.set(key, value, "EX", ttl);
+        return;
+      } catch {
+        // fall through
+      }
+    }
+    this.memory.set(key, {
+      value,
+      expiresAt: Date.now() + ttl * 1000,
+    });
+  }
 }

@@ -1,0 +1,997 @@
+/** Clients generated into each Nest app; schema owned by packages/db. */
+generator client {
+  provider     = "prisma-client"
+  output       = "../../../apps/api/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "__PRISMA_PROVIDER__"
+}
+
+/** Shared identity across Steam, music, and watch. */
+model User {
+  id           String    @id @default(cuid())
+  /** Primary login identity (email+password). Normalized lowercase. */
+  email        String?   @unique
+  passwordHash String?
+  /** App admin; also granted when email ∈ ADMIN_EMAILS. */
+  isAdmin      Boolean   @default(false)
+  personaName  String
+  avatarUrl    String?
+  profileUrl   String?
+  /** Steam store / ITAD price region (ISO country). */
+  countryCode  String?
+  /** When true, Steam login will not overwrite countryCode. */
+  priceRegionLocked Boolean @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSyncedAt DateTime?
+
+  accounts           Account[]
+  apiKeys            ApiKey[]
+  libraryEntries         LibraryEntry[]
+  wishlistItems          WishlistItem[]
+  purchases              Purchase[]
+  friendships            Friendship[]
+  familyOwned            FamilyGroup[]      @relation("FamilyOwner")
+  familyMembers          FamilyMember[]
+  collections            Collection[]
+  syncJobs               SyncJob[]
+  notifications          Notification[]
+  storeAccounts          StoreAccount[]
+  listens                Listen[]
+  listenHourBuckets      ListenHourBucket[]
+  playingNow             PlayingNow?
+  sourceConnections      SourceConnection[]
+  watchEvents            WatchEvent[]
+  watchHourBuckets       WatchHourBucket[]
+  importJobs             ImportJob[]
+  titleListStates        TitleListState[]
+  playActivitySnapshots  PlayActivitySnapshot[]
+  readEvents             ReadEvent[]
+  readHourBuckets        ReadHourBucket[]
+  readListStates         ReadListState[]
+}
+
+/** Instance-level key/value config (e.g. signupEnabled). */
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/** Cron / admin-triggered job run history. */
+model CronRun {
+  id                 String    @id @default(cuid())
+  jobName            String
+  status             String    @default("running")
+  /** cron | admin | system */
+  triggeredBy        String    @default("cron")
+  triggeredByUserId  String?
+  startedAt          DateTime  @default(now())
+  finishedAt         DateTime?
+  error              String?
+  meta               String    @default("{}")
+
+  @@index([jobName, startedAt])
+  @@index([status, startedAt])
+  @@index([startedAt])
+}
+
+/**
+ * Linked third-party identity (Steam, ListenBrainz username, future Google, …).
+ * OAuth sync credentials stay on StoreAccount / SourceConnection.
+ */
+model Account {
+  id                 String   @id @default(cuid())
+  userId             String
+  /** steam | listenbrainz | google | … */
+  provider           String
+  /** Stable external id (SteamID64, LB username slug, …). */
+  providerAccountId  String
+  displayName        String?
+  metadata           String   @default("{}")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+}
+
+/**
+ * Machine tokens minted in Settings (ListenBrainz ingest, watch webhooks, …).
+ * Plaintext is shown once at create time; only the SHA-256 hash is stored.
+ */
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  /** music_ingest | watch_webhook */
+  type        String
+  tokenHash   String    @unique
+  /** First characters for UI identification (never enough to auth). */
+  tokenPrefix String
+  label       String?
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([type, tokenHash])
+}
+
+/** Canonical title — may be owned on multiple stores. */
+model Game {
+  id               String    @id @default(cuid())
+  /** Steam app id convenience when a Steam listing exists. */
+  appId            Int?
+  name             String
+  headerImage      String?
+  releaseDate      DateTime?
+  genres           String    @default("[]")
+  categories       String    @default("[]")
+  tags             String    @default("[]")
+  developers       String    @default("[]")
+  publishers       String    @default("[]")
+  reviewScore      Int?
+  isFree           Boolean   @default(false)
+  /** Best current among known listings (cache for list views). */
+  currentPrice     Float?
+  lowestPrice      Float?
+  priceCurrency    String?
+  priceSyncedAt    DateTime?
+  deckStatus       String?
+  controllers      String    @default("[]")
+  multiplayerCaps  String    @default("[]")
+  minPlayers           Int?
+  maxPlayers           Int?
+  /** JSON number[] of distinct mode maxes for MAX:3/5/8 chips */
+  playerMaxes          String    @default("[]")
+  playerCountSource    String?
+  playerCountSyncedAt  DateTime?
+  /** All-time concurrent players peak (SteamCharts / observed) */
+  playersOnlinePeak    Int?
+  playersOnlinePeakAt  DateTime?
+  /** IsThereAnyDeal game UUID — primary cross-store merge key. */
+  itadId               String?   @unique
+  igdbId               Int?
+  metadataSyncedAt     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  libraryEntries         LibraryEntry[]
+  collectionItems        CollectionItem[]
+  storeListings          GameStoreListing[]
+  wishlistItems          WishlistItem[]
+  playActivitySnapshots  PlayActivitySnapshot[]
+
+  @@index([appId])
+  @@index([name])
+}
+
+/** Per-storefront release of a canonical game. */
+model GameStoreListing {
+  id            String    @id @default(cuid())
+  gameId        String
+  store         String
+  externalId    String
+  headerImage   String?
+  storeUrl      String?
+  isFree        Boolean   @default(false)
+  currentPrice  Float?
+  lowestPrice   Float?
+  priceCurrency String?
+  priceSyncedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  game        Game               @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  ownerships  LibraryOwnership[]
+
+  @@unique([store, externalId])
+  @@index([gameId])
+  @@index([store])
+}
+
+model StoreAccount {
+  id             String    @id @default(cuid())
+  userId         String
+  store          String
+  externalUserId String?
+  displayName    String?
+  accessToken    String
+  refreshToken   String?
+  expiresAt      DateTime?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, store])
+  @@index([userId])
+}
+
+model LibraryEntry {
+  id              String    @id @default(cuid())
+  userId          String
+  gameId          String
+  playtimeForever Int       @default(0)
+  playtime2Weeks  Int?
+  lastPlayedAt    DateTime?
+  pricePaid       Float?
+  purchasedAt     DateTime?
+  isFamilyShared         Boolean   @default(false)
+  hidden                 Boolean   @default(false)
+  achievementUnlocked    Int?
+  achievementTotal       Int?
+  achievementPct         Float?
+  achievementSyncedAt    DateTime?
+  syncedAt               DateTime  @default(now())
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game        Game               @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  ownerships  LibraryOwnership[]
+
+  @@unique([userId, gameId])
+  @@index([userId])
+  @@index([playtimeForever])
+  @@index([lastPlayedAt])
+}
+
+/** Per-store ownership under a merged library entry. */
+model LibraryOwnership {
+  id              String    @id @default(cuid())
+  libraryEntryId  String
+  store           String
+  listingId       String?
+  playtimeForever Int       @default(0)
+  lastPlayedAt    DateTime?
+  pricePaid       Float?
+  isFamilyShared  Boolean   @default(false)
+  syncedAt        DateTime  @default(now())
+
+  libraryEntry LibraryEntry      @relation(fields: [libraryEntryId], references: [id], onDelete: Cascade)
+  listing      GameStoreListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@unique([libraryEntryId, store])
+  @@index([libraryEntryId])
+  @@index([store])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  href      String?
+  meta      String    @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+model WishlistItem {
+  id             String    @id @default(cuid())
+  userId         String
+  store          String
+  externalId     String
+  /** Steam app id convenience (nullable for non-Steam). */
+  appId          Int?
+  gameId         String?
+  name           String?
+  headerImage    String?
+  priority       Int       @default(0)
+  dateAdded      DateTime?
+  targetPrice    Float?
+  currentPrice   Float?
+  lowestPrice    Float?
+  shouldBuyScore Float?
+  genres         String    @default("[]")
+  syncedAt       DateTime  @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, store, externalId])
+  @@index([userId])
+  @@index([store])
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  store       String   @default("steam")
+  externalId  String?
+  appId       Int?
+  gameId      String?
+  amount      Float
+  currency    String   @default("USD")
+  purchasedAt DateTime
+  source      String
+  discountPct Float?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([purchasedAt])
+  @@index([appId])
+  @@index([gameId])
+}
+
+model Friendship {
+  id            String  @id @default(cuid())
+  userId        String
+  friendSteamId String
+  friendUserId  String?
+  personaName   String
+  avatarUrl     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendSteamId])
+  @@index([userId])
+}
+
+model FriendLibraryCache {
+  id              String   @id @default(cuid())
+  ownerSteamId    String
+  gameAppId       Int
+  gameName        String?
+  headerImage     String?
+  playtimeForever Int      @default(0)
+  syncedAt        DateTime @default(now())
+
+  @@unique([ownerSteamId, gameAppId])
+  @@index([ownerSteamId])
+}
+
+/**
+ * Point-in-time playtime observation for a user's game.
+ * Steam does not expose session start/end; timeranges are inferred from
+ * ΔplaytimeForever between consecutive snapshots for the same game.
+ */
+model PlayActivitySnapshot {
+  id              String    @id @default(cuid())
+  userId          String
+  gameId          String
+  appId           Int?
+  /** Hour-bucketed observation time (UTC truncated). */
+  observedAt      DateTime
+  playtimeForever Int       @default(0)
+  playtime2Weeks  Int?
+  lastPlayedAt    DateTime?
+  /** owned_sync | recent_sync */
+  source          String    @default("recent_sync")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId, observedAt])
+  @@index([userId, observedAt])
+  @@index([gameId])
+}
+
+/**
+ * Friends' GetRecentlyPlayedGames cache for recommendation fallback when
+ * the user has no recent activity of their own. Never treated as the user's play.
+ */
+model FriendRecentPlayCache {
+  id              String   @id @default(cuid())
+  ownerSteamId    String
+  gameAppId       Int
+  gameName        String?
+  headerImage     String?
+  playtime2Weeks  Int      @default(0)
+  playtimeForever Int      @default(0)
+  syncedAt        DateTime @default(now())
+
+  @@unique([ownerSteamId, gameAppId])
+  @@index([ownerSteamId])
+  @@index([syncedAt])
+}
+
+model FamilyGroup {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String   @default("My Family")
+  createdAt DateTime @default(now())
+
+  owner   User           @relation("FamilyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members FamilyMember[]
+
+  @@index([ownerId])
+}
+
+model FamilyMember {
+  id          String  @id @default(cuid())
+  groupId     String
+  userId      String?
+  steamId     String
+  personaName String
+  avatarUrl   String?
+  role        String  @default("member")
+
+  group FamilyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([groupId, steamId])
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  type        String
+  ruleKey     String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CollectionItem[]
+
+  @@index([userId])
+  @@unique([userId, name])
+}
+
+model CollectionItem {
+  id           String @id @default(cuid())
+  collectionId String
+  gameId       String
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  game       Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, gameId])
+}
+
+model SyncJob {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  status     String    @default("pending")
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([status])
+}
+
+/** Incremental Steam store catalog from IStoreService/GetAppList. */
+model SteamCatalogApp {
+  appId             Int      @id
+  name              String
+  lastModified      Int?
+  priceChangeNumber Int?
+  updatedAt         DateTime @updatedAt
+
+  @@index([name])
+  @@index([lastModified])
+}
+
+model SteamCatalogSyncState {
+  id                String    @id @default("default")
+  lastAppId         Int       @default(0)
+  ifModifiedSince   Int?
+  lastSyncedAt      DateTime?
+  lastPageCount     Int       @default(0)
+  totalApps         Int       @default(0)
+  status            String    @default("idle")
+  error             String?
+}
+
+/* ─── Music (shared DB) ─── */
+
+model Artist {
+  id                 String    @id @default(cuid())
+  name               String
+  nameNormalized     String
+  mbid               String?
+  imageUrl           String?
+  metadataSyncedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tracks             Track[]
+  releases           Release[]
+  genres             ArtistGenre[]
+
+  @@index([nameNormalized])
+  @@index([mbid])
+}
+
+model Release {
+  id                 String    @id @default(cuid())
+  title              String
+  titleNormalized    String
+  artistId           String?
+  mbid               String?
+  releaseMbid        String?
+  year               Int?
+  imageUrl           String?
+  metadataSyncedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  artist             Artist?   @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  tracks             Track[]
+
+  @@index([titleNormalized])
+  @@index([mbid])
+  @@index([artistId])
+}
+
+model Track {
+  id                 String    @id @default(cuid())
+  title              String
+  titleNormalized    String
+  artistId           String
+  releaseId          String?
+  recordingMbid      String?
+  trackMbid          String?
+  isrc               String?
+  spotifyId          String?
+  durationMs         Int?
+  metadataSyncedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  artist             Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  release            Release?  @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  genres             TrackGenre[]
+  listens            Listen[]
+  playingNow         PlayingNow[]
+  enrichmentJobs     EnrichmentJob[]
+
+  @@index([titleNormalized])
+  @@index([artistId])
+  @@index([releaseId])
+  @@index([recordingMbid])
+  @@index([spotifyId])
+}
+
+model Genre {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  /** genre | mood | tag */
+  kind      String   @default("genre")
+  createdAt DateTime @default(now())
+
+  tracks     TrackGenre[]
+  artists    ArtistGenre[]
+  titles     TitleGenre[]
+  readTitles ReadTitleGenre[]
+}
+
+model TrackGenre {
+  trackId String
+  genreId String
+  source  String   @default("payload_tag")
+  weight  Float    @default(1)
+
+  track   Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  genre   Genre    @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([trackId, genreId, source])
+  @@index([genreId])
+}
+
+model ArtistGenre {
+  artistId String
+  genreId  String
+  source   String  @default("musicbrainz")
+  weight   Float   @default(1)
+
+  artist   Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  genre    Genre   @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([artistId, genreId, source])
+  @@index([genreId])
+}
+
+model Listen {
+  id               String   @id @default(cuid())
+  userId           String
+  trackId          String
+  listenedAt       DateTime
+  listenType       String   @default("single")
+  mediaPlayer      String?
+  submissionClient String?
+  musicService     String?
+  rawPayload       String?
+  createdAt        DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trackId, listenedAt])
+  @@index([userId, listenedAt])
+  @@index([trackId])
+}
+
+model ListenHourBucket {
+  id          String   @id @default(cuid())
+  userId      String
+  hourStart   DateTime
+  listenCount Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hourStart])
+  @@index([userId, hourStart])
+}
+
+model PlayingNow {
+  userId    String   @id
+  trackId   String
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+}
+
+model EnrichmentJob {
+  id          String    @id @default(cuid())
+  trackId     String
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([trackId])
+}
+
+/* ─── Watch / movies & TV (shared DB) ─── */
+
+model Title {
+  id               String    @id @default(cuid())
+  /** movie | show */
+  type             String
+  name             String
+  nameNormalized   String
+  overview         String?
+  year             Int?
+  runtimeMinutes   Int?
+  posterUrl        String?
+  backdropUrl      String?
+  originalLanguage String?
+  traktId          Int?
+  tmdbId           Int?
+  imdbId           String?
+  anilistId        Int?
+  malId            Int?
+  metadataSyncedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  seasons          Season[]
+  episodes         Episode[]
+  genres           TitleGenre[]
+  watchEvents      WatchEvent[]
+  enrichmentJobs   TitleEnrichmentJob[]
+  listStates       TitleListState[]
+
+  @@index([nameNormalized])
+  @@index([type])
+  @@index([traktId])
+  @@index([tmdbId])
+  @@index([anilistId])
+  @@index([malId])
+  @@unique([type, tmdbId])
+}
+
+model Season {
+  id             String   @id @default(cuid())
+  titleId        String
+  seasonNumber   Int
+  name           String?
+  episodeCount   Int?
+  posterUrl      String?
+  traktId        Int?
+  tmdbId         Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  title          Title    @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  episodes       Episode[]
+
+  @@unique([titleId, seasonNumber])
+  @@index([titleId])
+}
+
+model Episode {
+  id               String    @id @default(cuid())
+  titleId          String
+  seasonId         String?
+  seasonNumber     Int
+  episodeNumber    Int
+  name             String?
+  overview         String?
+  runtimeMinutes   Int?
+  airDate          DateTime?
+  stillUrl         String?
+  traktId          Int?
+  tmdbId           Int?
+  metadataSyncedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  title            Title     @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  season           Season?   @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  watchEvents      WatchEvent[]
+
+  @@unique([titleId, seasonNumber, episodeNumber])
+  @@index([titleId])
+  @@index([traktId])
+  @@index([tmdbId])
+}
+
+model TitleGenre {
+  titleId String
+  genreId String
+  source  String @default("tmdb")
+  weight  Float  @default(1)
+
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([titleId, genreId, source])
+  @@index([genreId])
+}
+
+model WatchEvent {
+  id               String   @id @default(cuid())
+  userId           String
+  titleId          String
+  episodeId        String?
+  watchedAt        DateTime
+  /** watch | scrobble | import */
+  action           String   @default("watch")
+  /** trakt | letterboxd_csv | anilist | plex | jellyfin | ... */
+  source           String
+  /** Idempotency key: source-specific event id or computed fingerprint */
+  dedupeKey        String
+  progress         Int      @default(100)
+  rating           Float?
+  runtimeMinutes   Int?
+  /** second | day | unknown */
+  precision        String   @default("second")
+  rawPayload       String?
+  createdAt        DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title   Title    @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  episode Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, watchedAt])
+  @@index([titleId])
+  @@index([episodeId])
+  @@index([source])
+}
+
+model WatchHourBucket {
+  id             String   @id @default(cuid())
+  userId         String
+  hourStart      DateTime
+  watchCount     Int      @default(0)
+  minutesWatched Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hourStart])
+  @@index([userId, hourStart])
+}
+
+model SourceConnection {
+  id             String    @id @default(cuid())
+  userId         String
+  /** trakt | anilist | mal */
+  provider       String
+  externalUserId String?
+  accessToken    String
+  refreshToken   String?
+  expiresAt      DateTime?
+  scope          String?
+  /** Opaque sync cursor / last watched_at ISO */
+  syncCursor     String?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider])
+}
+
+model ImportJob {
+  id          String    @id @default(cuid())
+  userId      String
+  /** letterboxd_csv | koito_db | koito_json | spotify_json | maloja_json | lastfm_json | listenbrainz_zip | ... */
+  source      String
+  status      String    @default("pending")
+  fileName    String?
+  /** Known listen count after parse; 0 while still parsing. */
+  total       Int       @default(0)
+  accepted    Int       @default(0)
+  skipped     Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([status])
+}
+
+model TitleEnrichmentJob {
+  id          String    @id @default(cuid())
+  titleId     String
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([titleId])
+}
+
+/** Watchlist / collection / favorites state (not timed events). */
+model TitleListState {
+  id        String   @id @default(cuid())
+  userId    String
+  titleId   String
+  /** watchlist | collection | favorite | rating */
+  listType  String
+  source    String
+  rating    Float?
+  listedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, titleId, listType, source])
+  @@index([userId, listType])
+}
+
+/* ─── Read / manga & print (shared DB) ─── */
+
+model ReadTitle {
+  id                 String    @id @default(cuid())
+  /** manga | manhwa | manhua | novel | one_shot | other */
+  format             String
+  name               String
+  nameNormalized     String
+  overview           String?
+  year               Int?
+  chapters           Int?
+  volumes            Int?
+  coverUrl           String?
+  anilistId          Int?      @unique
+  malId              Int?
+  countryOfOrigin    String?
+  /** RELEASING | FINISHED | … (AniList media status) */
+  publishingStatus   String?
+  metadataSyncedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  genres             ReadTitleGenre[]
+  readEvents         ReadEvent[]
+  listStates         ReadListState[]
+
+  @@index([nameNormalized])
+  @@index([format])
+  @@index([malId])
+}
+
+model ReadTitleGenre {
+  readTitleId String
+  genreId     String
+  source      String @default("anilist")
+  weight      Float  @default(1)
+
+  readTitle ReadTitle @relation(fields: [readTitleId], references: [id], onDelete: Cascade)
+  genre     Genre     @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([readTitleId, genreId, source])
+  @@index([genreId])
+}
+
+model ReadEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  readTitleId    String
+  readAt         DateTime
+  /** import | progress */
+  action         String   @default("import")
+  /** anilist | … */
+  source         String
+  dedupeKey      String
+  /** AniList list status snapshot */
+  status         String?
+  chaptersRead   Int?
+  volumesRead    Int?
+  /** 0–100 */
+  progress       Int      @default(0)
+  rating         Float?
+  /** day | unknown */
+  precision      String   @default("day")
+  rawPayload     String?
+  createdAt      DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readTitle ReadTitle @relation(fields: [readTitleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+  @@index([readTitleId])
+  @@index([source])
+}
+
+model ReadHourBucket {
+  id            String   @id @default(cuid())
+  userId        String
+  hourStart     DateTime
+  eventCount    Int      @default(0)
+  chaptersDelta Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hourStart])
+  @@index([userId, hourStart])
+}
+
+/** Current manga list row (reading / planning / completed / …). */
+model ReadListState {
+  id               String   @id @default(cuid())
+  userId           String
+  readTitleId      String
+  /** reading | completed | planning | paused | dropped | repeating */
+  listStatus       String
+  source           String
+  score            Float?
+  progressChapters Int      @default(0)
+  progressVolumes  Int      @default(0)
+  listedAt         DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readTitle ReadTitle @relation(fields: [readTitleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, readTitleId, source])
+  @@index([userId, listStatus])
+}

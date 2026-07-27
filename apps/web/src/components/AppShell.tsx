@@ -3,15 +3,26 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { sanitizeAppHref } from "@questorylabs/shared";
+import { BrandMark } from "@/components/BrandMark";
+import { SyncStatusBar } from "@/components/SyncStatusBar";
 import { api } from "@/lib/api";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
+import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useReadEnabled } from "@/hooks/useReadEnabled";
+import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 const ACCOUNT_LINKS = [
-  { href: "/settings/profile", label: "Profile", hint: "Price region & account" },
-  { href: "/settings/stores", label: "Stores", hint: "Steam, Epic, GOG" },
+  { href: "/settings/profile", label: "Profile", hint: "Account & price region" },
+  {
+    href: "/settings/connections",
+    label: "Connections",
+    hint: "Steam, stores, music, watch",
+  },
 ] as const;
 
-const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
+const BASE_NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
   {
     label: "Overview",
     items: [
@@ -38,10 +49,49 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] 
   },
 ];
 
+const ENTERPRISE_NAV_GROUP = {
+  label: "For you",
+  items: [{ href: "/recommendations", label: "Recommendations" }],
+};
+
+const MUSIC_NAV_GROUP = {
+  label: "Music",
+  items: [
+    { href: "/music", label: "Music home" },
+    { href: "/music/listening", label: "Listening" },
+    { href: "/music/charts", label: "Top charts" },
+    { href: "/music/insights", label: "Insights" },
+    { href: "/music/settings", label: "Sources" },
+  ],
+};
+
+const WATCH_NAV_GROUP = {
+  label: "Watch",
+  items: [
+    { href: "/watch", label: "Watch home" },
+    { href: "/watch/history", label: "History" },
+    { href: "/watch/insights", label: "Insights" },
+    { href: "/watch/settings", label: "Sources" },
+  ],
+};
+
+const READ_NAV_GROUP = {
+  label: "Read",
+  items: [
+    { href: "/read", label: "Read home" },
+    { href: "/read/library", label: "Library" },
+    { href: "/read/history", label: "History" },
+    { href: "/read/insights", label: "Insights" },
+    { href: "/read/settings", label: "Sources" },
+  ],
+};
+
 type MeResponse = {
   user: {
     id: string;
-    steamId: string;
+    steamId: string | null;
+    email?: string | null;
+    isAdmin?: boolean;
     personaName: string;
     avatarUrl: string | null;
     countryCode?: string | null;
@@ -142,7 +192,11 @@ function AccountMenu({
           </div>
           <ul className="py-1">
             {ACCOUNT_LINKS.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isActive(
+                pathname,
+                item.href,
+                ACCOUNT_LINKS.map((l) => l.href),
+              );
               return (
                 <li key={item.href}>
                   <Link
@@ -163,6 +217,21 @@ function AccountMenu({
                 </li>
               );
             })}
+            {user.isAdmin ? (
+              <li>
+                <Link
+                  href="/admin"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2.5 text-[var(--ink)] transition hover:bg-[var(--bg-2)]"
+                >
+                  <div className="text-sm font-medium">Admin</div>
+                  <div className="mt-0.5 text-[11px] text-[var(--muted)]">
+                    Instance overview & ops
+                  </div>
+                </Link>
+              </li>
+            ) : null}
           </ul>
           <div className="border-t border-[var(--line)] p-1">
             <button
@@ -184,31 +253,52 @@ function AccountMenu({
   );
 }
 
-function isActive(pathname: string, href: string) {
+function pathMatches(pathname: string, href: string) {
   const pathOnly = href.split("?")[0];
   return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+}
+
+/** Prefer the longest matching nav href so /music doesn't stay active on /music/listening. */
+function isActive(pathname: string, href: string, candidates: string[]) {
+  const pathOnly = href.split("?")[0];
+  if (!pathMatches(pathname, pathOnly)) return false;
+  const best = candidates
+    .map((h) => h.split("?")[0])
+    .filter((h) => pathMatches(pathname, h))
+    .reduce((a, b) => (b.length > a.length ? b : a));
+  return best === pathOnly;
 }
 
 function NavLinks({
   pathname,
   onNavigate,
+  groups,
 }: {
   pathname: string;
   onNavigate?: () => void;
+  groups: { label: string; items: { href: string; label: string }[] }[];
 }) {
+  const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [pathname, groups]);
+
   return (
     <div className="space-y-5">
-      {NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.label}>
           <div className="font-mono mb-1.5 px-2.5 text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
             {group.label}
           </div>
           <ul className="space-y-0.5">
             {group.items.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isActive(pathname, item.href, allHrefs);
               return (
                 <li key={item.href}>
                   <Link
+                    ref={active ? activeRef : undefined}
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
@@ -243,6 +333,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const menuId = useId();
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const { showMusicNav } = useMusicEnabled();
+  const { enabled: showWatchNav } = useWatchEnabled();
+  const { showReadNav } = useReadEnabled();
+  const { enabled: showEnterpriseNav } = useEnterpriseEnabled();
+
+  const navGroups = useMemo(() => {
+    const groups = [...BASE_NAV_GROUPS];
+    if (showEnterpriseNav) groups.splice(1, 0, ENTERPRISE_NAV_GROUP);
+    if (showMusicNav) groups.push(MUSIC_NAV_GROUP);
+    if (showWatchNav) groups.push(WATCH_NAV_GROUP);
+    if (showReadNav) groups.push(READ_NAV_GROUP);
+    return groups;
+  }, [showEnterpriseNav, showMusicNav, showWatchNav, showReadNav]);
 
   const me = useQuery({
     queryKey: ["me"],
@@ -253,19 +356,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const user = me.data?.user ?? null;
   const authReady = me.isSuccess || me.isError;
   const isAuthed = Boolean(user);
-
-  const jobs = useQuery({
-    queryKey: ["sync-jobs"],
-    queryFn: () =>
-      api<{ jobs: { status: string; type: string }[] }>("/sync/jobs"),
-    enabled: isAuthed,
-    refetchInterval: (q) => {
-      const list = q.state.data?.jobs || [];
-      return list.some((j) => j.status === "pending" || j.status === "running")
-        ? 2000
-        : false;
-    },
-  });
 
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = useQuery({
@@ -297,16 +387,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   });
 
-  const refresh = useMutation({
-    mutationFn: () => api("/sync/refresh", { method: "POST" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["library"] });
-      qc.invalidateQueries({ queryKey: ["notifications-unread"] });
-    },
-  });
-
   const logout = useMutation({
     mutationFn: () => api("/auth/logout", { method: "POST" }),
     onSuccess: () => {
@@ -317,7 +397,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authReady) return;
-    if (!isAuthed) router.replace("/");
+    if (!isAuthed) router.replace("/login");
   }, [authReady, isAuthed, router]);
 
   useEffect(() => {
@@ -336,10 +416,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       document.body.style.overflow = "";
     };
   }, [menuOpen]);
-
-  const syncing = (jobs.data?.jobs || []).some(
-    (j) => j.status === "pending" || j.status === "running",
-  );
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -361,20 +437,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_1fr]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[rgba(16,16,18,0.92)] backdrop-blur-xl lg:flex">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-0)_92%,transparent)] backdrop-blur-xl lg:flex">
         <div className="flex h-14 shrink-0 items-center px-4 shadow-[inset_0_-1px_0_0_var(--line)]">
-          <Link
+          <BrandMark
             href="/dashboard"
-            className="font-display text-[1.35rem] leading-none tracking-tight text-[var(--ink)] transition hover:text-[var(--accent)]"
-            style={{ fontWeight: 700 }}
-          >
-            Questory{" "}
-            <span className="text-[var(--accent)]">Labs</span>
-          </Link>
+            size="sm"
+            wordmarkClassName="text-[1.35rem]"
+          />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Primary">
-          <NavLinks pathname={pathname} />
+          <NavLinks pathname={pathname} groups={navGroups} />
         </nav>
 
         <div
@@ -397,7 +470,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-40 bg-[rgba(16,16,18,0.88)] backdrop-blur-xl">
+        <header className="sticky top-0 z-40 bg-[color-mix(in_srgb,var(--bg-0)_88%,transparent)] backdrop-blur-xl">
           <div className="flex h-14 shrink-0 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--line)] sm:px-6">
             <button
               type="button"
@@ -410,14 +483,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
 
-            <Link
+            <BrandMark
               href="/dashboard"
-              className="font-display shrink-0 text-lg tracking-tight lg:hidden"
-              style={{ fontWeight: 700 }}
-            >
-              Questory{" "}
-              <span className="text-[var(--accent)]">Labs</span>
-            </Link>
+              size="sm"
+              className="shrink-0 lg:hidden"
+              wordmarkClassName="text-lg"
+            />
 
             <form className="ml-auto min-w-0 max-w-xl flex-1 sm:ml-0" onSubmit={submitSearch}>
               <label className="sr-only" htmlFor="shell-search">
@@ -471,7 +542,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <ul className="max-h-72 overflow-y-auto">
                     {(notifications.data || []).length === 0 && (
                       <li className="px-3 py-4 text-sm text-[var(--muted)]">
-                        No deal alerts yet. Set wishlist targets and refresh.
+                        No deal alerts yet. Set wishlist targets to get notified.
                       </li>
                     )}
                     {(notifications.data || []).map((n) => (
@@ -481,9 +552,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           n.readAt ? "opacity-60" : ""
                         }`}
                       >
-                        {n.href ? (
+                        {sanitizeAppHref(n.href) ? (
                           <Link
-                            href={n.href}
+                            href={sanitizeAppHref(n.href)!}
                             onClick={() => setNotifOpen(false)}
                             className="block hover:text-[var(--accent)]"
                           >
@@ -506,20 +577,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => refresh.mutate()}
-              disabled={refresh.isPending || syncing}
-              className="inline-flex shrink-0 items-center gap-2 border border-[var(--line)] px-2.5 py-2 text-xs text-[var(--muted)] transition hover:border-[var(--line-strong)] hover:text-[var(--ink)] disabled:opacity-60"
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-sm ${
-                  syncing ? "animate-pulse bg-[var(--warm)]" : "bg-[var(--accent)]"
-                }`}
-              />
-              <span className="hidden sm:inline">{syncing ? "Syncing…" : "Refresh"}</span>
-            </button>
 
             {user.avatarUrl ? (
               <div className="hidden items-center gap-2 border-l border-[var(--line)] pl-3 lg:hidden">
@@ -556,10 +613,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="absolute left-0 top-0 flex h-full w-[min(18rem,86vw)] flex-col border-r border-[var(--line)] bg-[var(--bg-1)]"
             >
               <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
-                <span className="font-display text-lg" style={{ fontWeight: 700 }}>
-                  Questory{" "}
-                  <span className="text-[var(--accent)]">Labs</span>
-                </span>
+                <BrandMark
+                  href={null}
+                  size="sm"
+                  wordmarkClassName="text-lg"
+                />
                 <button
                   type="button"
                   className="inline-flex h-9 w-9 items-center justify-center border border-[var(--line)]"
@@ -571,7 +629,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
 
               <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Mobile">
-                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+                <NavLinks
+                  pathname={pathname}
+                  groups={navGroups}
+                  onNavigate={() => setMenuOpen(false)}
+                />
               </nav>
 
               <div className="border-t border-[var(--line)] p-3">
@@ -585,6 +647,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         )}
+
+        {!pathname.startsWith("/settings/connections") ? (
+          <SyncStatusBar
+            steamEnabled={Boolean(user.steamId)}
+            musicEnabled={showMusicNav}
+            watchEnabled={showWatchNav}
+            readEnabled={showReadNav}
+          />
+        ) : null}
 
         <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
       </div>

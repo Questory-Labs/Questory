@@ -16,6 +16,7 @@ import { PlayerCountService } from "../steam/player-count.service";
 import { CollectionsService } from "../collections/collections.service";
 import { GameMergeService } from "../stores/game-merge.service";
 import { StoresService } from "../stores/stores.service";
+import { AccountsService } from "../accounts/accounts.service";
 import {
   parseStringArray,
   stringifyStringArray,
@@ -23,6 +24,7 @@ import {
 import { currencyFromCountry, normalizePriceCountry } from "../lib/currency";
 import { resolveSyncMode } from "../lib/runtime-config";
 import { parseSteamReleaseDate } from "../lib/steam-dates";
+import { truncateToUtcHour } from "./play-activity";
 
 type SyncJobType =
   | "library-sync"
@@ -70,6 +72,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     private readonly catalog: CatalogService,
     private readonly itad: ItadService,
     private readonly playerCounts: PlayerCountService,
+    private readonly accounts: AccountsService,
     @Inject(forwardRef(() => CollectionsService))
     private readonly collections: CollectionsService,
     @Inject(forwardRef(() => GameMergeService))
@@ -225,8 +228,68 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     steamId: string,
     opts?: SyncEnqueueOpts,
   ) {
-    const games = await this.steam.getOwnedGames(steamId);
+    const [games, recentlyPlayed] = await Promise.all([
+      this.steam.getOwnedGames(steamId),
+      this.steam.getRecentlyPlayedGames(steamId, 12),
+    ]);
+
+    /** Prefer fresher 2-week / last-played from GetRecentlyPlayedGames. */
+    const recentByApp = new Map(recentlyPlayed.map((g) => [g.appid, g]));
+
     for (const g of games) {
+      const recent = recentByApp.get(g.appid);
+      const playtime2Weeks =
+        recent?.playtime_2weeks ?? g.playtime_2weeks ?? null;
+      const lastPlayedUnix =
+        recent?.rtime_last_played ?? g.rtime_last_played;
+      const headerImage = this.steam.headerImageFromAppId(g.appid);
+      const { game, listing } = await this.merge.upsertListing({
+        store: "steam",
+        externalId: String(g.appid),
+        steamAppId: g.appid,
+        name: g.name || `App ${g.appid}`,
+        headerImage,
+        userId,
+      });
+      await this.merge.upsertOwnership({
+        userId,
+        gameId: game.id,
+        listingId: listing.id,
+        store: "steam",
+        playtimeForever: g.playtime_forever || 0,
+        lastPlayedAt: lastPlayedUnix
+          ? new Date(lastPlayedUnix * 1000)
+          : null,
+      });
+      await this.prisma.libraryEntry.updateMany({
+        where: { userId, gameId: game.id },
+        data: {
+          playtime2Weeks,
+        },
+      });
+
+      const hasRecentSignal =
+        (playtime2Weeks != null && playtime2Weeks > 0) ||
+        recentByApp.has(g.appid);
+      if (hasRecentSignal) {
+        await this.upsertPlayActivitySnapshot({
+          userId,
+          gameId: game.id,
+          appId: g.appid,
+          playtimeForever: g.playtime_forever || 0,
+          playtime2Weeks,
+          lastPlayedAt: lastPlayedUnix
+            ? new Date(lastPlayedUnix * 1000)
+            : null,
+          source: recentByApp.has(g.appid) ? "recent_sync" : "owned_sync",
+        });
+      }
+    }
+
+    // Recently played free/unowned edge cases: ensure listing + snapshot even
+    // if missing from the owned list response.
+    for (const g of recentlyPlayed) {
+      if (games.some((o) => o.appid === g.appid)) continue;
       const headerImage = this.steam.headerImageFromAppId(g.appid);
       const { game, listing } = await this.merge.upsertListing({
         store: "steam",
@@ -248,9 +311,18 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       });
       await this.prisma.libraryEntry.updateMany({
         where: { userId, gameId: game.id },
-        data: {
-          playtime2Weeks: g.playtime_2weeks ?? null,
-        },
+        data: { playtime2Weeks: g.playtime_2weeks ?? null },
+      });
+      await this.upsertPlayActivitySnapshot({
+        userId,
+        gameId: game.id,
+        appId: g.appid,
+        playtimeForever: g.playtime_forever || 0,
+        playtime2Weeks: g.playtime_2weeks ?? null,
+        lastPlayedAt: g.rtime_last_played
+          ? new Date(g.rtime_last_played * 1000)
+          : null,
+        source: "recent_sync",
       });
     }
 
@@ -829,9 +901,9 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
 
     for (const friend of friends) {
       const summary = summaryMap.get(friend.steamid);
-      const existingUser = await this.prisma.user.findUnique({
-        where: { steamId: friend.steamid },
-      });
+      const existingUser = await this.accounts.findUserBySteamId(
+        friend.steamid,
+      );
       await this.prisma.friendship.upsert({
         where: {
           userId_friendSteamId: { userId, friendSteamId: friend.steamid },
@@ -851,7 +923,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    // Cache libraries for a limited set of friends
+    // Cache libraries + recent plays for a limited set of friends
     for (const friend of friends.slice(0, 15)) {
       try {
         const owned = await this.steam.getOwnedGames(friend.steamid);
@@ -877,11 +949,100 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
             },
           });
         }
+
+        const recent = await this.steam.getRecentlyPlayedGames(
+          friend.steamid,
+          12,
+        );
+        for (const g of recent) {
+          await this.prisma.friendRecentPlayCache.upsert({
+            where: {
+              ownerSteamId_gameAppId: {
+                ownerSteamId: friend.steamid,
+                gameAppId: g.appid,
+              },
+            },
+            create: {
+              ownerSteamId: friend.steamid,
+              gameAppId: g.appid,
+              gameName: g.name || `App ${g.appid}`,
+              headerImage: this.steam.headerImageFromAppId(g.appid),
+              playtime2Weeks: g.playtime_2weeks ?? 0,
+              playtimeForever: g.playtime_forever || 0,
+            },
+            update: {
+              gameName: g.name || `App ${g.appid}`,
+              headerImage: this.steam.headerImageFromAppId(g.appid),
+              playtime2Weeks: g.playtime_2weeks ?? 0,
+              playtimeForever: g.playtime_forever || 0,
+              syncedAt: new Date(),
+            },
+          });
+        }
       } catch (err) {
         this.logger.warn(`Friend library skip ${friend.steamid}: ${err}`);
       }
       await new Promise((r) => setTimeout(r, 300));
     }
+  }
+
+  /**
+   * Persist a hour-bucketed playtime observation. Skips when an identical
+   * snapshot already exists for this hour (dedupe across frequent syncs).
+   * Timeranges between sessions are inferred from ΔplaytimeForever later.
+   */
+  private async upsertPlayActivitySnapshot(opts: {
+    userId: string;
+    gameId: string;
+    appId: number;
+    playtimeForever: number;
+    playtime2Weeks: number | null;
+    lastPlayedAt: Date | null;
+    source: "owned_sync" | "recent_sync";
+  }) {
+    const observedAt = truncateToUtcHour(new Date());
+    const existing = await this.prisma.playActivitySnapshot.findUnique({
+      where: {
+        userId_gameId_observedAt: {
+          userId: opts.userId,
+          gameId: opts.gameId,
+          observedAt,
+        },
+      },
+    });
+    if (
+      existing &&
+      existing.playtimeForever === opts.playtimeForever &&
+      existing.playtime2Weeks === opts.playtime2Weeks
+    ) {
+      return;
+    }
+    await this.prisma.playActivitySnapshot.upsert({
+      where: {
+        userId_gameId_observedAt: {
+          userId: opts.userId,
+          gameId: opts.gameId,
+          observedAt,
+        },
+      },
+      create: {
+        userId: opts.userId,
+        gameId: opts.gameId,
+        appId: opts.appId,
+        observedAt,
+        playtimeForever: opts.playtimeForever,
+        playtime2Weeks: opts.playtime2Weeks,
+        lastPlayedAt: opts.lastPlayedAt,
+        source: opts.source,
+      },
+      update: {
+        appId: opts.appId,
+        playtimeForever: opts.playtimeForever,
+        playtime2Weeks: opts.playtime2Weeks,
+        lastPlayedAt: opts.lastPlayedAt,
+        source: opts.source,
+      },
+    });
   }
 
   private async refreshMetadata(userId: string, opts?: SyncEnqueueOpts) {

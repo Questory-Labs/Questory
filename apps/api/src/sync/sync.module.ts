@@ -4,10 +4,12 @@ import { SyncController } from "./sync.controller";
 import { SteamModule } from "../steam/steam.module";
 import { CollectionsModule } from "../collections/collections.module";
 import { StoresModule } from "../stores/stores.module";
+import { AccountsModule } from "../accounts/accounts.module";
 
 @Module({
   imports: [
     SteamModule,
+    AccountsModule,
     forwardRef(() => CollectionsModule),
     forwardRef(() => StoresModule),
   ],

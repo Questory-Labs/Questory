@@ -8,6 +8,7 @@ import { SteamApiService } from "../steam/steam-api.service";
 import { ItadService } from "../steam/itad.service";
 import { HltbService } from "../steam/hltb.service";
 import { ConcurrentPlayersService } from "../steam/concurrent-players.service";
+import { AccountsService } from "../accounts/accounts.service";
 import { parseStringArray } from "../lib/json-arrays";
 import { parsePlayerMaxes } from "../lib/player-counts";
 import {
@@ -43,7 +44,19 @@ export class FamilyService {
     private readonly itad: ItadService,
     private readonly hltb: HltbService,
     private readonly concurrentPlayers: ConcurrentPlayersService,
+    private readonly accounts: AccountsService,
   ) {}
+
+  private async requireViewer(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const steamId = await this.accounts.getSteamId(userId);
+    if (!steamId) {
+      throw new Error("Family groups require a Steam-linked user");
+    }
+    return { ...user, steamId };
+  }
 
   async getOrCreate(userId: string) {
     let group = await this.prisma.familyGroup.findFirst({
@@ -51,9 +64,7 @@ export class FamilyService {
       include: { members: true },
     });
     if (!group) {
-      const user = await this.prisma.user.findUniqueOrThrow({
-        where: { id: userId },
-      });
+      const user = await this.requireViewer(userId);
       group = await this.prisma.familyGroup.create({
         data: {
           ownerId: userId,
@@ -72,10 +83,13 @@ export class FamilyService {
       });
     } else {
       await this.refreshMemberProfiles(group.id, group.members);
-      group = await this.prisma.familyGroup.findFirstOrThrow({
+      group = await this.prisma.familyGroup.findFirst({
         where: { id: group.id },
         include: { members: true },
       });
+    }
+    if (!group) {
+      throw new Error("Family group not found");
     }
     return group;
   }
@@ -163,7 +177,7 @@ export class FamilyService {
     const existingUser =
       profile.userId != null
         ? { id: profile.userId }
-        : await this.prisma.user.findUnique({ where: { steamId } });
+        : await this.accounts.findUserBySteamId(steamId);
 
     const member = await this.prisma.familyMember.upsert({
       where: { groupId_steamId: { groupId, steamId } },
@@ -218,9 +232,7 @@ export class FamilyService {
       const summary = summaryMap.get(member.steamId);
       const linkedUser = member.userId
         ? await this.prisma.user.findUnique({ where: { id: member.userId } })
-        : await this.prisma.user.findUnique({
-            where: { steamId: member.steamId },
-          });
+        : await this.accounts.findUserBySteamId(member.steamId);
 
       const nextName =
         summary?.personaname ||
@@ -423,9 +435,7 @@ export class FamilyService {
 
   async insights(userId: string) {
     const group = await this.getOrCreate(userId);
-    const viewer = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-    });
+    const viewer = await this.requireViewer(userId);
     const memberLibraries = await this.loadMemberLibraries(group);
 
     const ownership = new Map<number, string[]>();
@@ -582,9 +592,7 @@ export class FamilyService {
     },
   ) {
     const group = await this.getOrCreate(userId);
-    const viewer = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-    });
+    const viewer = await this.requireViewer(userId);
     const memberLibraries = await this.loadMemberLibraries(group);
     const page = Math.max(1, opts.page || 1);
     const pageSize = Math.min(96, Math.max(12, opts.pageSize || 48));
@@ -740,9 +748,7 @@ export class FamilyService {
     }
 
     const group = await this.getOrCreate(userId);
-    const viewer = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-    });
+    const viewer = await this.requireViewer(userId);
     const memberLibraries = await this.loadMemberLibraries(group);
 
     const familyOwners: {
