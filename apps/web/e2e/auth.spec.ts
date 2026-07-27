@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-const API = "**/localhost:4000/**";
+/** Match both localhost and 127.0.0.1 (CI sets NEXT_PUBLIC_API_URL to the latter). */
+const API = /https?:\/\/(?:localhost|127\.0\.0\.1):4000\//;
 
 async function mockUnauthed(page: import("@playwright/test").Page) {
   await page.route(API, async (route) => {

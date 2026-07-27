@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-const API = "**/localhost:4000/**";
+/** Match both localhost and 127.0.0.1 (CI sets NEXT_PUBLIC_API_URL to the latter). */
+const API = /https?:\/\/(?:localhost|127\.0\.0\.1):4000\//;
 
 test("httpOnly session cookie is not readable from JS", async ({ page }) => {
   await page.context().addCookies([
