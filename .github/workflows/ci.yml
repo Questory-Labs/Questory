@@ -29,6 +29,13 @@ jobs:
       - name: Build shared
         run: pnpm --filter @questorylabs/shared build
 
+      - name: Generate Prisma client
+        if: matrix.service == 'api'
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: file:./test.db
+          DATABASE_PROVIDER: sqlite
+
       - name: Detect tests
         id: detect
         run: |

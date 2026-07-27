@@ -1,5 +1,5 @@
 name: Setup Node + pnpm
-description: Checkout-ready Node 22 and pnpm with cached install
+description: Checkout-ready Node 22 and pnpm install
 inputs:
   install:
     description: Run pnpm install
@@ -11,11 +11,12 @@ runs:
     - name: Install pnpm
       uses: pnpm/action-setup@v4
 
+    # No actions/cache / setup-node cache: self-hosted runners keep a local
+    # pnpm store on disk; restoring GitHub's ~200MB+ cache often times out.
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: 22
-        cache: pnpm
 
     - name: Install dependencies
       if: inputs.install == 'true'
