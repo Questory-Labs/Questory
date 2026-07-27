@@ -95,20 +95,39 @@ jobs:
           REPO: ${{ env.DOCKER_IMAGE_PREFIX }}-${{ steps.meta.outputs.service }}
         run: |
           set -euo pipefail
+          # Current Hub API: exchange username+PAT for a Bearer JWT, then PATCH.
+          # Legacy "Authorization: JWT" + /users/login often returns 403 for PATs.
           login="$(curl -fsS -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"username\":\"${DOCKERHUB_USERNAME}\",\"password\":\"${DOCKERHUB_TOKEN}\"}" \
-            https://hub.docker.com/v2/users/login/)"
-          jwt="$(printf '%s' "$login" | jq -r .token)"
-          if [ -z "$jwt" ] || [ "$jwt" = "null" ]; then
-            echo "Failed to obtain Docker Hub JWT"
+            -d "{\"identifier\":\"${DOCKERHUB_USERNAME}\",\"secret\":\"${DOCKERHUB_TOKEN}\"}" \
+            https://hub.docker.com/v2/auth/token)"
+          token="$(printf '%s' "$login" | jq -r '.access_token // .token // empty')"
+          if [ -z "$token" ]; then
+            echo "Failed to obtain Docker Hub access token"
+            printf '%s\n' "$login" | jq -c '{error,detail,message}' 2>/dev/null || printf '%s\n' "$login"
             exit 1
           fi
-          curl -fsS -X PATCH \
-            -H "Authorization: JWT ${jwt}" \
+          url="https://hub.docker.com/v2/namespaces/${DOCKERHUB_NAMESPACE}/repositories/${REPO}/"
+          # Fallback to legacy path if namespaces route is missing for this account.
+          code="$(curl -sS -o /tmp/dh-public.json -w '%{http_code}' -X PATCH \
+            -H "Authorization: Bearer ${token}" \
             -H "Content-Type: application/json" \
             -d '{"is_private":false}' \
-            "https://hub.docker.com/v2/repositories/${DOCKERHUB_NAMESPACE}/${REPO}/"
+            "$url")"
+          if [ "$code" = "404" ]; then
+            url="https://hub.docker.com/v2/repositories/${DOCKERHUB_NAMESPACE}/${REPO}/"
+            code="$(curl -sS -o /tmp/dh-public.json -w '%{http_code}' -X PATCH \
+              -H "Authorization: Bearer ${token}" \
+              -H "Content-Type: application/json" \
+              -d '{"is_private":false}' \
+              "$url")"
+          fi
+          if [ "$code" != "200" ] && [ "$code" != "202" ]; then
+            echo "Docker Hub visibility PATCH failed (HTTP ${code}) for ${DOCKERHUB_NAMESPACE}/${REPO}"
+            echo "Ensure DOCKERHUB_USERNAME owns that namespace and the PAT has Read, Write, Delete."
+            cat /tmp/dh-public.json || true
+            exit 1
+          fi
           echo "Docker Hub ${DOCKERHUB_NAMESPACE}/${REPO} set to public"
 
       - name: Make GHCR package public
