@@ -10,17 +10,35 @@ import {
 
 export type { SessionPayload };
 
-export function setSession(res: Response, payload: Omit<SessionPayload, "exp">) {
+function cookieHintsFromRequest(req?: Request) {
+  const origin =
+    (req?.headers?.origin as string | undefined) ||
+    (req?.headers?.referer as string | undefined) ||
+    process.env.WEB_ORIGIN;
+  return {
+    publicOrigin: origin,
+    requestSecure: req?.secure,
+  };
+}
+
+export function setSession(
+  res: Response,
+  payload: Omit<SessionPayload, "exp">,
+  req?: Request,
+) {
   const value = encodeSessionCookie(payload);
-  const opts = sessionCookieOptions() as CookieOptions;
+  const opts = sessionCookieOptions(cookieHintsFromRequest(req)) as CookieOptions;
   res.cookie(SESSION_COOKIE_NAME, value, {
     ...opts,
     maxAge: SESSION_MAX_AGE_MS,
   });
 }
 
-export function clearSession(res: Response) {
-  res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions() as CookieOptions);
+export function clearSession(res: Response, req?: Request) {
+  res.clearCookie(
+    SESSION_COOKIE_NAME,
+    sessionCookieOptions(cookieHintsFromRequest(req)) as CookieOptions,
+  );
 }
 
 export function readSession(req: Request): SessionPayload | null {

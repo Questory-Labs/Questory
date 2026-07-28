@@ -82,10 +82,14 @@ export class AuthController {
     await this.abuse.assertRegisterLimits(ip, email);
 
     const user = await this.auth.register(email, data.password);
-    setSession(res, {
-      userId: user.id,
-      steamId: user.steamId,
-    });
+    setSession(
+      res,
+      {
+        userId: user.id,
+        steamId: user.steamId,
+      },
+      req,
+    );
     const pub = this.auth.toPublicUser(user);
     return {
       ok: true,
@@ -133,10 +137,14 @@ export class AuthController {
     try {
       const user = await this.auth.login(email, data.password);
       await this.abuse.clearLoginFailures(email);
-      setSession(res, {
-        userId: user.id,
-        steamId: user.steamId,
-      });
+      setSession(
+        res,
+        {
+          userId: user.id,
+          steamId: user.steamId,
+        },
+        req,
+      );
       const pub = this.auth.toPublicUser(user);
       return {
         ok: true,
@@ -177,10 +185,14 @@ export class AuthController {
         );
       }
       const user = await this.auth.linkSteamToUser(session.userId, steamId);
-      setSession(res, {
-        userId: user.id,
-        steamId: user.steamId,
-      });
+      setSession(
+        res,
+        {
+          userId: user.id,
+          steamId: user.steamId,
+        },
+        req,
+      );
       return res.redirect(`${webOrigin}/settings/connections?linked=steam`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "auth_failed";
@@ -207,8 +219,8 @@ export class AuthController {
 
   @Post("logout")
   @UseGuards(SteamAuthGuard)
-  logout(@Res({ passthrough: true }) res: Response) {
-    clearSession(res);
+  logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    clearSession(res, req);
     return { ok: true };
   }
 

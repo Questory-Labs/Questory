@@ -88,13 +88,64 @@ export type SessionCookieOptions = {
   domain?: string;
 };
 
+export type CookieSecureHints = {
+  /** Explicit COOKIE_SECURE override ("true"/"false"/"1"/"0"/…). */
+  cookieSecureEnv?: string | undefined;
+  /** Browser-facing URL (Origin, Referer, or WEB_ORIGIN). */
+  publicOrigin?: string | undefined;
+  /** Express `req.secure` / trusted `X-Forwarded-Proto`. */
+  requestSecure?: boolean | undefined;
+  nodeEnv?: string | undefined;
+};
+
+/** True when URL scheme is https; false for http; null if unknown. */
+export function schemeIsHttps(urlOrOrigin: string | undefined): boolean | null {
+  const raw = (urlOrOrigin || "").trim();
+  if (!raw) return null;
+  try {
+    const protocol = new URL(raw).protocol;
+    if (protocol === "https:") return true;
+    if (protocol === "http:") return false;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/**
+ * Decide the Secure cookie flag.
+ * Order: COOKIE_SECURE override → public origin scheme → request TLS → NODE_ENV.
+ */
+export function resolveCookieSecure(hints: CookieSecureHints = {}): boolean {
+  const raw = (
+    hints.cookieSecureEnv ??
+    process.env.COOKIE_SECURE ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  if (raw === "1" || raw === "true" || raw === "yes") return true;
+  if (raw === "0" || raw === "false" || raw === "no") return false;
+
+  const fromOrigin = schemeIsHttps(hints.publicOrigin);
+  if (fromOrigin !== null) return fromOrigin;
+
+  if (typeof hints.requestSecure === "boolean") return hints.requestSecure;
+
+  const nodeEnv = hints.nodeEnv ?? process.env.NODE_ENV;
+  return nodeEnv === "production";
+}
+
 export function sessionCookieOptions(
-  nodeEnv = process.env.NODE_ENV,
+  hints: CookieSecureHints | string = {},
 ): SessionCookieOptions {
+  // Back-compat: sessionCookieOptions("production") / ("development")
+  const normalized: CookieSecureHints =
+    typeof hints === "string" ? { nodeEnv: hints } : hints;
   return {
     httpOnly: true,
     sameSite: "lax",
-    secure: nodeEnv === "production",
+    secure: resolveCookieSecure(normalized),
     path: "/",
     domain: cookieDomainFromEnv(),
   };

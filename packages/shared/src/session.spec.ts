@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   encodeSessionCookie,
   parseSessionCookie,
+  resolveCookieSecure,
   sessionCookieOptions,
   signSessionBody,
 } from "./session";
@@ -82,5 +83,37 @@ describe("session cookies", () => {
     expect(opts.httpOnly).toBe(true);
     expect(opts.sameSite).toBe("lax");
     expect(opts.secure).toBe(false);
+  });
+
+  it("resolves Secure from public origin over NODE_ENV", () => {
+    expect(
+      resolveCookieSecure({
+        nodeEnv: "production",
+        publicOrigin: "http://192.168.1.111:3010",
+      }),
+    ).toBe(false);
+    expect(
+      resolveCookieSecure({
+        nodeEnv: "development",
+        publicOrigin: "https://app.example.com",
+      }),
+    ).toBe(true);
+  });
+
+  it("honors COOKIE_SECURE override", () => {
+    expect(
+      resolveCookieSecure({
+        cookieSecureEnv: "false",
+        nodeEnv: "production",
+        publicOrigin: "https://app.example.com",
+      }),
+    ).toBe(false);
+    expect(
+      resolveCookieSecure({
+        cookieSecureEnv: "true",
+        nodeEnv: "development",
+        publicOrigin: "http://localhost:3000",
+      }),
+    ).toBe(true);
   });
 });
