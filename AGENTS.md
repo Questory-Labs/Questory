@@ -53,7 +53,7 @@ Use `pnpm --filter @questorylabs/<pkg> …` for package-scoped work.
 
 Music/Watch/Read UI: `NEXT_PUBLIC_ENABLE_MUSIC` / `NEXT_PUBLIC_ENABLE_WATCH` / `NEXT_PUBLIC_ENABLE_READ` plus API `/health` reporting `music`/`watch`/`read` enabled.
 
-QEngine: opt-in via `ENTERPRISE=true` (web exposes the flag through `next.config` and soft-gates on `GET /v1/enterprise/status` at `NEXT_PUBLIC_ENTERPRISE_URL`). Private mount is Rust-only (`cargo run` under `enterprise/`). Without the flag or a reachable service, Recommendations/Telemetry stay hidden.
+QEngine: opt-in via `ENTERPRISE=true` (web exposes the flag through `next.config` and soft-gates on `GET /v1/enterprise/status` at `NEXT_PUBLIC_ENTERPRISE_URL`). Private mount is Rust-only (`cargo run` under `enterprise/`). Without the flag or a reachable service, Recommendations/Telemetry stay hidden. Docker releases ship from the private repo only: binary-only images, personal/noncommercial license — never publish `enterprise/` sources via community workflows.
 
 ## Code conventions
 
