@@ -110,6 +110,11 @@ export class ListenBrainzService {
       accepted += 1;
     }
 
+    // Scrobble received — drop now-playing so the UI does not stick on the track.
+    if (listenType === "single" && accepted > 0) {
+      await this.playingNow.clear(userId);
+    }
+
     return { status: "ok", accepted };
   }
 
@@ -121,25 +126,29 @@ export class ListenBrainzService {
     if (!user) return null;
 
     const count = Math.min(Math.max(opts.count ?? 25, 1), 1000);
-    const where: {
-      userId: string;
-      listenedAt?: { lt?: Date; gt?: Date };
-    } = { userId: user.id };
+    const minTs =
+      opts.minTs != null && Number.isFinite(opts.minTs) ? opts.minTs : undefined;
+    const maxTs =
+      opts.maxTs != null && Number.isFinite(opts.maxTs) ? opts.maxTs : undefined;
 
-    if (opts.maxTs != null && opts.minTs != null) {
+    // ListenBrainz allows both; only reject inverted ranges.
+    // https://github.com/metabrainz/listenbrainz-server — max_ts must be > min_ts
+    if (minTs != null && maxTs != null && maxTs <= minTs) {
       throw new BadRequestException({
         code: 400,
-        error: "Specify max_ts or min_ts, not both",
+        error: "max_ts should be greater than min_ts",
       });
     }
-    if (opts.maxTs != null) {
-      where.listenedAt = { lt: new Date(opts.maxTs * 1000) };
-    } else if (opts.minTs != null) {
-      where.listenedAt = { gt: new Date(opts.minTs * 1000) };
-    }
+
+    const listenedAt: { lt?: Date; gt?: Date } = {};
+    if (maxTs != null) listenedAt.lt = new Date(maxTs * 1000);
+    if (minTs != null) listenedAt.gt = new Date(minTs * 1000);
 
     const listens = await this.prisma.listen.findMany({
-      where,
+      where: {
+        userId: user.id,
+        ...(Object.keys(listenedAt).length ? { listenedAt } : {}),
+      },
       orderBy: { listenedAt: "desc" },
       take: count,
       include: {

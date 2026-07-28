@@ -43,12 +43,17 @@ export class ListenBrainzController {
     @Param("user") user: string,
     @Query("max_ts") maxTs?: string,
     @Query("min_ts") minTs?: string,
+    /** Multi-scrobbler range aliases (mapped to min_ts / max_ts). */
+    @Query("from") from?: string,
+    @Query("to") to?: string,
     @Query("count") count?: string,
   ) {
+    const min = minTs ?? from;
+    const max = maxTs ?? to;
     const result = await this.lb.getListens(user, {
-      maxTs: maxTs != null ? Number(maxTs) : undefined,
-      minTs: minTs != null ? Number(minTs) : undefined,
-      count: count != null ? Number(count) : undefined,
+      maxTs: max != null && max !== "" ? Number(max) : undefined,
+      minTs: min != null && min !== "" ? Number(min) : undefined,
+      count: count != null && count !== "" ? Number(count) : undefined,
     });
     if (!result) throw new NotFoundException({ error: "User not found" });
     return result;

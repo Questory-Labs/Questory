@@ -3,8 +3,9 @@ import type { MusicPlayingNow } from "@questorylabs/shared";
 /** Cached analytics DTO for now-playing (non-null shape). */
 export type PlayingNowSnapshot = NonNullable<MusicPlayingNow>;
 
-export const PLAYING_NOW_CACHE_TTL_SECONDS = 180;
-export const PLAYING_NOW_STALE_MS = 15 * 60 * 1000;
+export const PLAYING_NOW_CACHE_TTL_SECONDS = 90;
+/** Must match cache TTL — Prisma must not outlive Redis as a zombie now-playing. */
+export const PLAYING_NOW_STALE_MS = PLAYING_NOW_CACHE_TTL_SECONDS * 1000;
 
 export function playingNowCacheKey(userId: string) {
   return `music:playing-now:${userId}`;

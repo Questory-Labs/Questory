@@ -1,12 +1,5 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from "@nestjs/common";
-import { Queue, Worker } from "bullmq";
+import { Injectable, Logger } from "@nestjs/common";
 import { CacheService } from "../../cache/cache.service";
-import { resolveSyncMode } from "../../lib/runtime-config";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   CatalogService,
@@ -21,92 +14,29 @@ import {
   type PlayingNowSnapshot,
 } from "./playing-now.types";
 
-type PlayingNowJobData = {
-  userId: string;
-  meta: IncomingListenMeta;
-};
-
 /**
- * Keeps PlayingNow fresh via Redis BullMQ (same mode as steam-sync) with
- * write-through cache. Falls back to inline processing when Redis is off.
+ * Live now-playing via Redis write-through cache.
+ * Applied inline (not BullMQ) so track changes stay ordered; Redis TTL is the
+ * live window — once multi-scrobbler stops pinging, now-playing clears quickly.
  */
 @Injectable()
-export class PlayingNowService implements OnModuleInit, OnModuleDestroy {
+export class PlayingNowService {
   private readonly logger = new Logger(PlayingNowService.name);
-  private queue!: Queue<PlayingNowJobData>;
-  private worker!: Worker<PlayingNowJobData>;
-  private inlineMode = true;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
-  ) {}
-
-  async onModuleInit() {
-    const mode = resolveSyncMode();
-    if (mode === "inline") {
-      this.inlineMode = true;
-      this.logger.log(
-        "PlayingNow: inline (REDIS_URL unset or USE_INLINE_SYNC=true)",
-      );
-      return;
-    }
-
-    const redisUrl = process.env.REDIS_URL!.trim();
-    try {
-      const connection = { url: redisUrl };
-      this.queue = new Queue<PlayingNowJobData>("music-playing-now", {
-        connection,
-      });
-      this.worker = new Worker<PlayingNowJobData>(
-        "music-playing-now",
-        async (job) => this.apply(job.data.userId, job.data.meta),
-        { connection, concurrency: 4 },
-      );
-      this.worker.on("failed", (job, err) => {
-        this.logger.error(
-          `PlayingNow job ${job?.id} failed: ${err.message}`,
-        );
-      });
-      await this.queue.waitUntilReady();
-      this.inlineMode = false;
-      this.logger.log("PlayingNow: BullMQ via Redis");
-    } catch (err) {
-      this.logger.warn(`PlayingNow BullMQ unavailable, inline: ${err}`);
-      this.inlineMode = true;
-    }
-  }
-
-  async onModuleDestroy() {
-    await this.worker?.close();
-    await this.queue?.close();
-  }
-
-  /** Accept a playing_now submit — queue when Redis MQ is up, else inline. */
-  async submit(userId: string, meta: IncomingListenMeta): Promise<void> {
-    if (this.inlineMode) {
-      await this.apply(userId, meta);
-      return;
-    }
-    await this.queue.add(
-      "set",
-      {
-        userId,
-        meta: {
-          ...meta,
-          listenedAt:
-            meta.listenedAt instanceof Date
-              ? meta.listenedAt.toISOString()
-              : meta.listenedAt,
-        } as unknown as IncomingListenMeta,
-      },
-      {
-        removeOnComplete: 100,
-        removeOnFail: 50,
-      },
+  ) {
+    this.logger.log(
+      `PlayingNow: Redis cache TTL ${PLAYING_NOW_CACHE_TTL_SECONDS}s (inline apply)`,
     );
+  }
+
+  /** Accept a playing_now submit — sync apply + Redis refresh. */
+  async submit(userId: string, meta: IncomingListenMeta): Promise<void> {
+    await this.apply(userId, meta);
   }
 
   async apply(userId: string, meta: IncomingListenMeta): Promise<void> {
@@ -144,7 +74,10 @@ export class PlayingNowService implements OnModuleInit, OnModuleDestroy {
     await this.cache.del(playingNowCacheKey(userId));
   }
 
-  /** Prefer Redis snapshot; fall back to Prisma with stale window. */
+  /**
+   * Prefer Redis. Prisma only within the same short live window — do not
+   * resurrect a track for 15 minutes after playback stopped.
+   */
   async getSnapshot(userId: string): Promise<PlayingNowSnapshot | null> {
     const cached = await this.cache.getJson<PlayingNowSnapshot>(
       playingNowCacheKey(userId),
@@ -167,7 +100,11 @@ export class PlayingNowService implements OnModuleInit, OnModuleDestroy {
     if (!row) return null;
 
     const ageMs = Date.now() - row.updatedAt.getTime();
-    if (ageMs > PLAYING_NOW_STALE_MS) return null;
+    if (ageMs > PLAYING_NOW_STALE_MS) {
+      // Expired live window — drop durable row so it cannot linger.
+      await this.clear(userId);
+      return null;
+    }
 
     const snapshot = toPlayingNowSnapshot({
       updatedAt: row.updatedAt,
@@ -182,13 +119,9 @@ export class PlayingNowService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    // Warm cache for subsequent polls (remaining freshness ≈ stale window).
     const ttlSec = Math.max(
-      30,
-      Math.min(
-        PLAYING_NOW_CACHE_TTL_SECONDS,
-        Math.floor((PLAYING_NOW_STALE_MS - ageMs) / 1000),
-      ),
+      15,
+      Math.floor((PLAYING_NOW_STALE_MS - ageMs) / 1000),
     );
     await this.cache.setJson(playingNowCacheKey(userId), snapshot, ttlSec);
     return snapshot;

@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   PLAYING_NOW_CACHE_TTL_SECONDS,
+  PLAYING_NOW_STALE_MS,
   playingNowCacheKey,
   toPlayingNowSnapshot,
 } from "./playing-now.types";
 
 describe("playing-now types", () => {
-  it("builds cache key and snapshot", () => {
+  it("builds cache key and keeps stale window equal to TTL", () => {
     expect(playingNowCacheKey("u1")).toBe("music:playing-now:u1");
-    expect(PLAYING_NOW_CACHE_TTL_SECONDS).toBe(180);
+    expect(PLAYING_NOW_CACHE_TTL_SECONDS).toBe(90);
+    expect(PLAYING_NOW_STALE_MS).toBe(90_000);
 
     const snap = toPlayingNowSnapshot({
       updatedAt: new Date("2026-07-29T00:00:00.000Z"),

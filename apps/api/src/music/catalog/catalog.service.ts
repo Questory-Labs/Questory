@@ -168,7 +168,7 @@ export class CatalogService {
     await this.prisma.playingNow.upsert({
       where: { userId },
       create: { userId, trackId: track.id },
-      update: { trackId: track.id },
+      update: { trackId: track.id, updatedAt: new Date() },
     });
 
     return { track, artist, release };
