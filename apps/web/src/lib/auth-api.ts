@@ -67,21 +67,83 @@ export function steamLinkUrl() {
 }
 
 export function parseApiError(err: unknown): { message: string; status?: number } {
-  if (!(err instanceof Error)) return { message: "Something went wrong" };
+  const statusFromErr =
+    err instanceof Error && typeof (err as Error & { status?: number }).status === "number"
+      ? (err as Error & { status: number }).status
+      : undefined;
+  if (!(err instanceof Error)) return { message: "Something went wrong", status: statusFromErr };
   const text = err.message;
   try {
     const json = JSON.parse(text) as {
       message?: string | string[];
       statusCode?: number;
+      error?: string;
     };
     const msg = Array.isArray(json.message)
       ? json.message.join(", ")
-      : json.message || text;
-    return { message: msg, status: json.statusCode };
+      : json.message || json.error || text;
+    return { message: msg, status: json.statusCode ?? statusFromErr };
   } catch {
     if (text.includes("429") || text.toLowerCase().includes("too many")) {
       return { message: "Too many attempts, try again later", status: 429 };
     }
-    return { message: text };
+    return { message: text, status: statusFromErr };
   }
+}
+
+/** Anti-abuse challenge failures (not credentials). */
+export function isChallengeError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("challenge") ||
+    m.includes("please try again") ||
+    m.includes("could not start")
+  );
+}
+
+/**
+ * Min-fill delay: challenge is still valid — do not replace it.
+ * ("Please try again" from AuthAbuseService before single-use delete.)
+ */
+export function isChallengeKeepAliveError(message: string): boolean {
+  return message.toLowerCase().includes("please try again");
+}
+
+/** True when a fresh challenge + one automatic resubmit may help. */
+export function shouldAutoRetryChallenge(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("challenge") || m.includes("expired");
+}
+
+export function formatAuthError(
+  err: unknown,
+  kind: "login" | "register",
+): string {
+  const parsed = parseApiError(err);
+  if (parsed.status === 429) {
+    return "Too many attempts, try again later";
+  }
+  if (isChallengeError(parsed.message)) {
+    if (parsed.message.toLowerCase().includes("please try again")) {
+      return "Please wait a moment and try again.";
+    }
+    return kind === "login"
+      ? "Sign-in session expired. Try again."
+      : "Registration session expired. Try again.";
+  }
+  if (kind === "login") {
+    if (
+      parsed.status === 401 ||
+      parsed.message.toLowerCase().includes("invalid email")
+    ) {
+      return "Invalid email or password";
+    }
+  }
+  if (kind === "register") {
+    // API intentionally avoids email enumeration for most failures.
+    if (parsed.message.toLowerCase().includes("unable to create")) {
+      return "Unable to create account";
+    }
+  }
+  return parsed.message || "Something went wrong";
 }

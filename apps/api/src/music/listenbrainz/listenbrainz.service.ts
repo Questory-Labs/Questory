@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
+import { PlayingNowService } from "../playing-now/playing-now.service";
 import { UsersService } from "../users/users.service";
 import { hashToken } from "../lib/tokens";
 
@@ -44,6 +45,7 @@ export class ListenBrainzService {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
+    private readonly playingNow: PlayingNowService,
     private readonly users: UsersService,
   ) {}
 
@@ -88,8 +90,7 @@ export class ListenBrainzService {
           error: "Invalid playing_now payload",
         });
       }
-      const result = await this.catalog.setPlayingNow(userId, meta);
-      void this.enrichment.enqueueTrack(result.track.id);
+      await this.playingNow.submit(userId, meta);
       return { status: "ok" };
     }
 
@@ -187,18 +188,14 @@ export class ListenBrainzService {
     const user = await this.users.findByUsername(username);
     if (!user) return null;
 
-    const row = await this.prisma.playingNow.findUnique({
-      where: { userId: user.id },
-      include: { track: { include: { artist: true, release: true } } },
-    });
-
-    const listens = row
+    const snapshot = await this.playingNow.getSnapshot(user.id);
+    const listens = snapshot
       ? [
           {
             track_metadata: {
-              artist_name: row.track.artist.name,
-              track_name: row.track.title,
-              release_name: row.track.release?.title,
+              artist_name: snapshot.track.artistName,
+              track_name: snapshot.track.title,
+              release_name: snapshot.track.releaseTitle ?? undefined,
             },
           },
         ]

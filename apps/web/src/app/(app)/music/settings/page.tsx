@@ -199,11 +199,25 @@ function isMusicImportFile(file: File) {
 }
 
 function MultiScrobblerCard({ active }: { active: boolean }) {
+  const baseUrl = getMusicUrl();
+  const [showDetails, setShowDetails] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function copyBaseUrl() {
+    try {
+      await navigator.clipboard.writeText(baseUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2_000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <SourceCard
       label="Live ingest"
       title="Multi-scrobbler"
-      blurb="Submit new listens via the ListenBrainz-compatible API. Generate a music ingest key and set the base URL in multi-scrobbler."
+      blurb="Submit new listens via the ListenBrainz-compatible API. Generate a music ingest key and set LZ_URL to the base URL below."
       status={
         active ? (
           <StatusPill tone="ok">Active</StatusPill>
@@ -212,16 +226,42 @@ function MultiScrobblerCard({ active }: { active: boolean }) {
         )
       }
     >
-      <ul className="mb-4 space-y-1.5 rounded border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2.5 font-mono text-[11px] text-[var(--muted)]">
-        <li className="break-all">
-          <span className="text-[var(--faint)]">POST</span> {getMusicUrl()}
-          /1/submit-listens
-        </li>
-        <li className="break-all">
-          <span className="text-[var(--faint)]">GET</span> {getMusicUrl()}
-          /1/validate-token
-        </li>
-      </ul>
+      <div className="mb-4 rounded border border-[var(--accent)]/35 bg-[var(--bg-2)] px-3 py-2.5">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--accent)]">
+          LZ_URL / base URL
+        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <code className="min-w-0 flex-1 break-all font-mono text-sm text-[var(--ink)]">
+            {baseUrl}
+          </code>
+          <button
+            type="button"
+            onClick={() => void copyBaseUrl()}
+            className="shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)] hover:text-[var(--accent)]"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)] hover:text-[var(--muted)]"
+        >
+          {showDetails ? "Hide endpoints" : "Show endpoints"}
+        </button>
+        {showDetails ? (
+          <ul className="mt-2 space-y-1.5 border-t border-[var(--line)] pt-2 font-mono text-[11px] text-[var(--muted)]">
+            <li className="break-all">
+              <span className="text-[var(--faint)]">POST</span> {baseUrl}
+              /1/submit-listens
+            </li>
+            <li className="break-all">
+              <span className="text-[var(--faint)]">GET</span> {baseUrl}
+              /1/validate-token
+            </li>
+          </ul>
+        ) : null}
+      </div>
       <ApiKeyPanel
         embedded
         type="music_ingest"

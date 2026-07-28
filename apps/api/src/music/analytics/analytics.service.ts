@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PlayingNowService } from "../playing-now/playing-now.service";
 import { UsersService } from "../users/users.service";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
@@ -50,6 +51,7 @@ export class AnalyticsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
+    private readonly playingNowStore: PlayingNowService,
   ) {}
 
   private async resolveUser(userId: string) {
@@ -656,33 +658,7 @@ export class AnalyticsService {
 
   async playingNow(userId: string) {
     const user = await this.resolveUser(userId);
-    const row = await this.prisma.playingNow.findUnique({
-      where: { userId: user.id },
-      include: {
-        track: {
-          include: {
-            artist: true,
-            release: true,
-          },
-        },
-      },
-    });
-    if (!row) return null;
-    // Stale if older than 15 minutes
-    const ageMs = Date.now() - row.updatedAt.getTime();
-    if (ageMs > 15 * 60 * 1000) return null;
-    return {
-      updatedAt: row.updatedAt.toISOString(),
-      track: {
-        id: row.track.id,
-        title: row.track.title,
-        artistId: row.track.artist.id,
-        artistName: row.track.artist.name,
-        releaseId: row.track.release?.id ?? null,
-        releaseTitle: row.track.release?.title ?? null,
-        imageUrl: row.track.release?.imageUrl ?? null,
-      },
-    };
+    return this.playingNowStore.getSnapshot(user.id);
   }
 
   async trackDetail(userId: string, trackId: string) {

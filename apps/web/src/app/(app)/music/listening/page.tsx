@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { MusicRecentPage } from "@questorylabs/shared";
+import type { MusicPlayingNow, MusicRecentPage } from "@questorylabs/shared";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCover } from "@/components/music/MusicCover";
-import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
+import {
+  Button,
+  EmptyState,
+  PageHeader,
+  Panel,
+  StateMessage,
+} from "@/components/ui";
 import { formatListenDateTime, musicFetch } from "@/lib/music";
 
 const PAGE_SIZE = 50;
@@ -20,11 +26,17 @@ export default function MusicListeningPage() {
         `/analytics/recent?page=${page}&pageSize=${PAGE_SIZE}`,
       ),
   });
+  const playing = useQuery({
+    queryKey: ["music-playing-now"],
+    queryFn: () => musicFetch<MusicPlayingNow>("/analytics/playing-now"),
+    refetchInterval: 10_000,
+  });
 
   const total = recent.data?.total ?? 0;
   const pageSize = recent.data?.pageSize ?? PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const items = recent.data?.items ?? [];
+  const nowPlaying = playing.data?.track ?? null;
 
   return (
     <>
@@ -35,13 +47,40 @@ export default function MusicListeningPage() {
         }
       />
 
+      {nowPlaying ? (
+        <Panel wrapperClassName="mb-6" className="flex items-center gap-4 p-4">
+          <MusicCover src={nowPlaying.imageUrl} alt="" size="md" />
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+              Now playing
+            </p>
+            <Link
+              href={`/music/tracks/${nowPlaying.id}`}
+              className="mt-1 block truncate text-[var(--ink)] hover:text-[var(--accent)]"
+            >
+              {nowPlaying.title}
+            </Link>
+            <Link
+              href={`/music/artists/${nowPlaying.artistId}`}
+              className="text-sm text-[var(--muted)] hover:text-[var(--accent)]"
+            >
+              {nowPlaying.artistName}
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
+
       {recent.isLoading && (
         <StateMessage variant="loading">Loading…</StateMessage>
       )}
       {!recent.isLoading && items.length === 0 && (
         <EmptyState
-          title="No listens yet"
-          description="Configure multi-scrobbler or import history under Sources."
+          title={nowPlaying ? "Waiting for first scrobble" : "No listens yet"}
+          description={
+            nowPlaying
+              ? "Now playing is live. Completed listens appear here once multi-scrobbler submits them (usually when the track ends)."
+              : "Configure multi-scrobbler or import history under Sources."
+          }
         />
       )}
       {items.length > 0 && (

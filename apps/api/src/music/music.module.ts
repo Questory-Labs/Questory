@@ -5,12 +5,14 @@ import { EnrichmentModule } from "./enrichment/enrichment.module";
 import { ListenBrainzModule } from "./listenbrainz/listenbrainz.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ImportsModule } from "./imports/imports.module";
+import { PlayingNowModule } from "./playing-now/playing-now.module";
 
 @Module({
   imports: [
     UsersModule,
     CatalogModule,
     EnrichmentModule,
+    PlayingNowModule,
     ListenBrainzModule,
     AnalyticsModule,
     ImportsModule,

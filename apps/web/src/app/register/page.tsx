@@ -2,18 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
 } from "@/components/auth/AuthFormAbuseFields";
+import { AuthErrorToast } from "@/components/auth/AuthErrorToast";
 import {
   fetchRegisterChallenge,
   fetchSignupStatus,
+  formatAuthError,
+  isChallengeKeepAliveError,
   parseApiError,
   registerAccount,
+  shouldAutoRetryChallenge,
   type AuthChallenge,
 } from "@/lib/auth-api";
 import { BrandMark } from "@/components/BrandMark";
@@ -24,6 +28,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
+  const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -40,20 +45,29 @@ export default function RegisterPage() {
     if (me.data?.user) router.replace("/dashboard");
   }, [me.data, router]);
 
+  const refreshChallenge = useCallback(async () => {
+    setChallengeLoading(true);
+    try {
+      const c = await fetchRegisterChallenge();
+      setChallenge(c);
+      return c;
+    } catch {
+      setChallenge(null);
+      setError("Could not start registration. Try again.");
+      return null;
+    } finally {
+      setChallengeLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (signup.data && !signup.data.open) return;
-    let cancelled = false;
-    fetchRegisterChallenge()
-      .then((c) => {
-        if (!cancelled) setChallenge(c);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Could not start registration. Try again.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [signup.data]);
+    if (signup.data && !signup.data.open) {
+      setChallengeLoading(false);
+      return;
+    }
+    if (!signup.data) return;
+    void refreshChallenge();
+  }, [signup.data, refreshChallenge]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -70,14 +84,18 @@ export default function RegisterPage() {
       return;
     }
     const abuse = readAbuseFields(form);
-    try {
+    const credentials = {
+      email: String(fd.get("email") || ""),
+      password,
+      confirmPassword,
+      ...abuse,
+    };
+
+    async function attempt(ch: AuthChallenge) {
       const res = await registerAccount({
-        email: String(fd.get("email") || ""),
-        password,
-        confirmPassword,
-        challengeId: challenge.challengeId,
-        challengeToken: challenge.token,
-        ...abuse,
+        ...credentials,
+        challengeId: ch.challengeId,
+        challengeToken: ch.token,
       });
       if (res.ok && res.user) {
         await qc.invalidateQueries({ queryKey: ["me"] });
@@ -90,18 +108,35 @@ export default function RegisterPage() {
         return;
       }
       setError("Unable to create account");
+      await refreshChallenge();
+    }
+
+    try {
+      await attempt(challenge);
     } catch (err) {
       const parsed = parseApiError(err);
-      setError(
-        parsed.status === 429
-          ? "Too many attempts, try again later"
-          : "Unable to create account",
-      );
-      try {
-        setChallenge(await fetchRegisterChallenge());
-      } catch {
-        // keep
+      if (isChallengeKeepAliveError(parsed.message)) {
+        setError(formatAuthError(err, "register"));
+        return;
       }
+      if (shouldAutoRetryChallenge(parsed.message)) {
+        const fresh = await refreshChallenge();
+        if (fresh) {
+          try {
+            await attempt(fresh);
+            return;
+          } catch (retryErr) {
+            const retryParsed = parseApiError(retryErr);
+            setError(formatAuthError(retryErr, "register"));
+            if (!isChallengeKeepAliveError(retryParsed.message)) {
+              await refreshChallenge();
+            }
+            return;
+          }
+        }
+      }
+      setError(formatAuthError(err, "register"));
+      await refreshChallenge();
     } finally {
       setPending(false);
     }
@@ -112,6 +147,7 @@ export default function RegisterPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <LandingBackground />
+      <AuthErrorToast message={error} onDismiss={() => setError(null)} />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
         <BrandMark href="/" size="md" wordmarkClassName="text-3xl" />
         <h1 className="mt-8 text-xl font-semibold text-[var(--ink)]">
@@ -167,17 +203,34 @@ export default function RegisterPage() {
               />
             </label>
             {error ? (
-              <p className="text-sm text-[var(--warm)]" role="alert">
+              <p
+                className="border border-[var(--warm)]/40 bg-[var(--warm)]/10 px-3 py-2 text-sm text-[var(--warm)]"
+                role="alert"
+              >
                 {error}
               </p>
             ) : null}
-            <Button
-              type="submit"
-              disabled={!challenge || pending}
-              className="w-full"
-            >
-              {pending ? "Creating…" : "Create account"}
-            </Button>
+            {!challenge && !challengeLoading ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  setError(null);
+                  void refreshChallenge();
+                }}
+              >
+                Retry
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={!challenge || pending}
+                className="w-full"
+              >
+                {pending ? "Creating…" : "Create account"}
+              </Button>
+            )}
           </form>
         )}
 

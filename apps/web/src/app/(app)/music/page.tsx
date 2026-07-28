@@ -109,7 +109,7 @@ export default function MusicHomePage() {
   const playing = useQuery({
     queryKey: ["music-playing-now"],
     queryFn: () => musicFetch<MusicPlayingNow>("/analytics/playing-now"),
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
 
   const weekListens = insights.data?.periodListens;

@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
 } from "@/components/auth/AuthFormAbuseFields";
+import { AuthErrorToast } from "@/components/auth/AuthErrorToast";
 import {
   fetchLoginChallenge,
+  formatAuthError,
+  isChallengeKeepAliveError,
   loginAccount,
   parseApiError,
+  shouldAutoRetryChallenge,
   type AuthChallenge,
 } from "@/lib/auth-api";
 import { BrandMark } from "@/components/BrandMark";
@@ -23,6 +27,7 @@ export default function LoginPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
+  const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -35,19 +40,24 @@ export default function LoginPage() {
     if (me.data?.user) router.replace("/dashboard");
   }, [me.data, router]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchLoginChallenge()
-      .then((c) => {
-        if (!cancelled) setChallenge(c);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Could not start sign-in. Try again.");
-      });
-    return () => {
-      cancelled = true;
-    };
+  const refreshChallenge = useCallback(async () => {
+    setChallengeLoading(true);
+    try {
+      const c = await fetchLoginChallenge();
+      setChallenge(c);
+      return c;
+    } catch {
+      setChallenge(null);
+      setError("Could not start sign-in. Try again.");
+      return null;
+    } finally {
+      setChallengeLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshChallenge();
+  }, [refreshChallenge]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,30 +67,48 @@ export default function LoginPage() {
     const form = e.currentTarget;
     const fd = new FormData(form);
     const abuse = readAbuseFields(form);
-    try {
+    const credentials = {
+      email: String(fd.get("email") || ""),
+      password: String(fd.get("password") || ""),
+      ...abuse,
+    };
+
+    async function attempt(ch: AuthChallenge) {
       await loginAccount({
-        email: String(fd.get("email") || ""),
-        password: String(fd.get("password") || ""),
-        challengeId: challenge.challengeId,
-        challengeToken: challenge.token,
-        ...abuse,
+        ...credentials,
+        challengeId: ch.challengeId,
+        challengeToken: ch.token,
       });
       await qc.invalidateQueries({ queryKey: ["me"] });
       router.replace("/dashboard");
+    }
+
+    try {
+      await attempt(challenge);
     } catch (err) {
       const parsed = parseApiError(err);
-      setError(
-        parsed.status === 429
-          ? "Too many attempts, try again later"
-          : parsed.message.includes("Invalid")
-            ? "Invalid email or password"
-            : parsed.message,
-      );
-      try {
-        setChallenge(await fetchLoginChallenge());
-      } catch {
-        // keep old challenge
+      if (isChallengeKeepAliveError(parsed.message)) {
+        setError(formatAuthError(err, "login"));
+        return;
       }
+      if (shouldAutoRetryChallenge(parsed.message)) {
+        const fresh = await refreshChallenge();
+        if (fresh) {
+          try {
+            await attempt(fresh);
+            return;
+          } catch (retryErr) {
+            const retryParsed = parseApiError(retryErr);
+            setError(formatAuthError(retryErr, "login"));
+            if (!isChallengeKeepAliveError(retryParsed.message)) {
+              await refreshChallenge();
+            }
+            return;
+          }
+        }
+      }
+      setError(formatAuthError(err, "login"));
+      await refreshChallenge();
     } finally {
       setPending(false);
     }
@@ -89,6 +117,7 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <LandingBackground />
+      <AuthErrorToast message={error} onDismiss={() => setError(null)} />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
         <BrandMark href="/" size="md" wordmarkClassName="text-3xl" />
         <h1 className="mt-8 text-xl font-semibold text-[var(--ink)]">Sign in</h1>
@@ -122,17 +151,31 @@ export default function LoginPage() {
             />
           </label>
           {error ? (
-            <p className="text-sm text-[var(--warm)]" role="alert">
+            <p className="border border-[var(--warm)]/40 bg-[var(--warm)]/10 px-3 py-2 text-sm text-[var(--warm)]" role="alert">
               {error}
             </p>
           ) : null}
-          <Button
-            type="submit"
-            disabled={!challenge || pending}
-            className="w-full"
-          >
-            {pending ? "Signing in…" : "Sign in"}
-          </Button>
+          {!challenge && !challengeLoading ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={() => {
+                setError(null);
+                void refreshChallenge();
+              }}
+            >
+              Retry
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={!challenge || pending}
+              className="w-full"
+            >
+              {pending ? "Signing in…" : "Sign in"}
+            </Button>
+          )}
         </form>
 
         <p className="mt-6 text-sm text-[var(--muted)]">
