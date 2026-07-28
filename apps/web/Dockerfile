@@ -12,9 +12,15 @@ RUN corepack enable
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
 ARG NEXT_PUBLIC_ENABLE_MUSIC=false
 ARG NEXT_PUBLIC_ENABLE_WATCH=false
+ARG NEXT_PUBLIC_ENABLE_READ=false
+ARG ENTERPRISE=false
+ARG NEXT_PUBLIC_ENTERPRISE_URL=http://localhost:4030
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_ENABLE_MUSIC=$NEXT_PUBLIC_ENABLE_MUSIC
 ENV NEXT_PUBLIC_ENABLE_WATCH=$NEXT_PUBLIC_ENABLE_WATCH
+ENV NEXT_PUBLIC_ENABLE_READ=$NEXT_PUBLIC_ENABLE_READ
+ENV ENTERPRISE=$ENTERPRISE
+ENV NEXT_PUBLIC_ENTERPRISE_URL=$NEXT_PUBLIC_ENTERPRISE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
@@ -32,4 +38,6 @@ COPY --from=build /app/apps/web ./apps/web
 COPY --from=build /app/packages/shared ./packages/shared
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["pnpm", "exec", "next", "start", "-p", "3000"]
+# Rewrite public/runtime-env.js from container env so pullable Hub images
+# pick up NEXT_PUBLIC_* / ENTERPRISE without a rebuild.
+CMD ["sh", "-c", "node ./scripts/write-runtime-env.mjs && pnpm exec next start -p 3000"]

@@ -7,8 +7,8 @@ import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
-import { MUSIC_URL } from "@/lib/music";
-import { WATCH_URL } from "@/lib/watch";
+import { getMusicUrl } from "@/lib/music";
+import { getWatchUrl } from "@/lib/watch";
 
 type PriceRegion = {
   countryCode: string;
@@ -156,7 +156,7 @@ export default function ProfileSettingsPage() {
           type="music_ingest"
           title="Music ingest (ListenBrainz)"
           description="Generate a personal token for multi-scrobbler / ListenBrainz clients."
-          endpointHint={`Endpoint: ${MUSIC_URL}/1/`}
+          endpointHint={`Endpoint: ${getMusicUrl()}/1/`}
         />
       )}
 
@@ -165,7 +165,7 @@ export default function ProfileSettingsPage() {
           type="watch_webhook"
           title="Watch webhook key"
           description="Personal secret for Plex/Jellyfin webhooks."
-          endpointHint={`POST ${WATCH_URL}/webhooks/plex · ${WATCH_URL}/webhooks/jellyfin`}
+          endpointHint={`POST ${getWatchUrl()}/webhooks/plex · ${getWatchUrl()}/webhooks/jellyfin`}
         />
       )}
     </>

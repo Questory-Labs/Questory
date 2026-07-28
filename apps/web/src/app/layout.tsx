@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
@@ -45,6 +46,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Written at container start so Hub images honor compose environment. */}
+        <Script src="/runtime-env.js" strategy="beforeInteractive" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

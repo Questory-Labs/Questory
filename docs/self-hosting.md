@@ -56,10 +56,11 @@ API: `http://localhost:4000` (or your public API URL) — Steam, music, watch, a
 
 **One database:** Steam, music, watch, and read all use the same `DATABASE_URL` (SQLite file volume or Postgres `questorylabs`). Schema lives in `packages/db`. Identity is a shared `User` row (Steam OpenID, music ingest token, Trakt/AniList connections).
 
-`NEXT_PUBLIC_API_URL` is baked into the **web** image at build time (default `http://localhost:4000`). For a custom public API URL, rebuild web:
+`NEXT_PUBLIC_API_URL` is read at **container start** from the web service environment (written into `/runtime-env.js`). Hub-pulled images honor compose `environment` without a rebuild. Build-args remain defaults only.
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.example.com pnpm docker:selfhosted-full -- --build
+# example: LAN / reverse-proxy URL
+NEXT_PUBLIC_API_URL=http://192.168.1.111:4000 docker compose -f docker-compose.enterprise.yml up -d
 ```
 
 Pushes/PRs to `main` run CI tests per package when a `test` script exists; otherwise that package is skipped.
@@ -72,7 +73,7 @@ Questory Music runs **inside the Steam API** (`apps/api`). It does not collect p
 
 Music **shares the same database** as Steam (same `DATABASE_URL`). Schema is owned by `packages/db`.
 
-1. Turn on the web flag (rebuild web after changing `NEXT_PUBLIC_*`). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars):
+1. Turn on the web flag (`NEXT_PUBLIC_ENABLE_MUSIC=true` on the web service). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars):
 
 ```env
 NEXT_PUBLIC_ENABLE_MUSIC=true
@@ -185,7 +186,7 @@ Read nav appears when `NEXT_PUBLIC_ENABLE_READ=true` **and** API `GET /health` r
 - `STEAM_REALM` must be a prefix of `STEAM_RETURN_URL`.
 - Example: realm `https://api.example.com`, return `https://api.example.com/auth/steam/callback`.
 - `WEB_ORIGIN` is the browser app origin (CORS + post-login redirect).
-- `NEXT_PUBLIC_API_URL` is baked into the web image at **build** time — rebuild web after changing it.
+- `NEXT_PUBLIC_API_URL` (and related `NEXT_PUBLIC_*` / `ENTERPRISE`) are applied at **web container start** via `/runtime-env.js` — set them in compose `environment` (no rebuild required for Hub images).
 
 ## Auth (email + password)
 

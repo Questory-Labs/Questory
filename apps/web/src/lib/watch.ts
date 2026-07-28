@@ -1,11 +1,17 @@
 import { withApiVersion, type WatchHealth } from "@questorylabs/shared";
+import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
 
 /** Watch APIs live on the Steam API origin under `/v1/watch/*` (webhooks stay `/webhooks/*`). */
-export const WATCH_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+export function getWatchUrl(): string {
+  return getApiUrl();
+}
 
-export const WATCH_FLAG_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_WATCH === "true";
+export function isWatchFlagEnabled(): boolean {
+  const v =
+    runtimeEnv("NEXT_PUBLIC_ENABLE_WATCH") ||
+    process.env.NEXT_PUBLIC_ENABLE_WATCH;
+  return (v || "").trim().toLowerCase() === "true";
+}
 
 function prefixWatchPath(path: string): string {
   if (
@@ -28,7 +34,7 @@ function watchPath(path: string) {
 
 /** Absolute URL on the API origin, with `/v1` / watch prefix applied when needed. */
 export function watchUrl(path: string) {
-  return `${WATCH_URL}${watchPath(path)}`;
+  return `${getWatchUrl()}${watchPath(path)}`;
 }
 
 export async function watchFetch<T>(
@@ -73,7 +79,7 @@ export async function fetchWatchHealth(): Promise<WatchHealth> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const res = await fetch(`${WATCH_URL}/health`, {
+    const res = await fetch(`${getWatchUrl()}/health`, {
       signal: controller.signal,
       cache: "no-store",
     });

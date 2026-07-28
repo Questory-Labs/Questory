@@ -7,17 +7,14 @@ import type {
   RecommendationResponse,
   UserSettings,
 } from "@/lib/enterprise-types";
-
-const ENTERPRISE_URL = (
-  process.env.NEXT_PUBLIC_ENTERPRISE_URL || "http://localhost:4030"
-).replace(/\/+$/, "");
+import { getEnterpriseUrl } from "@/lib/runtime-env";
 
 export function enterpriseBaseUrl(): string {
-  return ENTERPRISE_URL;
+  return getEnterpriseUrl();
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${ENTERPRISE_URL}${path}`, {
+  const res = await fetch(`${getEnterpriseUrl()}${path}`, {
     credentials: "include",
     cache: "no-store",
     ...init,

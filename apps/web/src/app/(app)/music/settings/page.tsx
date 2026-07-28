@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
-import { MUSIC_URL, musicUrl } from "@/lib/music";
+import { getMusicUrl, musicUrl } from "@/lib/music";
 import {
   useEffect,
   useRef,
@@ -214,11 +214,11 @@ function MultiScrobblerCard({ active }: { active: boolean }) {
     >
       <ul className="mb-4 space-y-1.5 rounded border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2.5 font-mono text-[11px] text-[var(--muted)]">
         <li className="break-all">
-          <span className="text-[var(--faint)]">POST</span> {MUSIC_URL}
+          <span className="text-[var(--faint)]">POST</span> {getMusicUrl()}
           /1/submit-listens
         </li>
         <li className="break-all">
-          <span className="text-[var(--faint)]">GET</span> {MUSIC_URL}
+          <span className="text-[var(--faint)]">GET</span> {getMusicUrl()}
           /1/validate-token
         </li>
       </ul>

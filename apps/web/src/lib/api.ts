@@ -1,6 +1,5 @@
 import { withApiVersion } from "@questorylabs/shared";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { getApiUrl } from "@/lib/runtime-env";
 
 function apiPath(path: string) {
   return withApiVersion(path, ["/auth", "/health"]);
@@ -10,7 +9,7 @@ export async function api<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${apiPath(path)}`, {
+  const res = await fetch(`${getApiUrl()}${apiPath(path)}`, {
     ...init,
     credentials: "include",
     headers: {
@@ -32,9 +31,9 @@ export async function api<T>(
 
 /** @deprecated Steam is link-only via Connections; use steamLinkUrl from auth-api. */
 export function steamLoginUrl() {
-  return `${API_URL}/auth/steam`;
+  return `${getApiUrl()}/auth/steam`;
 }
 
 export function apiOrigin() {
-  return API_URL;
+  return getApiUrl();
 }

@@ -125,7 +125,7 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 | `STEAM_API_KEY`                    | Steam Web API                                                                          |
 | `STEAM_REALM` / `STEAM_RETURN_URL` | OpenID on the **API** origin (link-only)                                               |
 | `WEB_ORIGIN`                       | Browser app origin (CORS + redirect)                                                   |
-| `NEXT_PUBLIC_API_URL`              | API URL baked into the web client                                                      |
+| `NEXT_PUBLIC_API_URL`              | API URL for the web client (applied at web container start)                             |
 | `NEXT_PUBLIC_ENABLE_MUSIC`         | Show Music UI when API `/health` reports music enabled                                 |
 | `NEXT_PUBLIC_ENABLE_WATCH`         | Show Watch UI when API `/health` reports watch enabled                                 |
 | `COOKIE_DOMAIN`                    | Optional shared cookie domain (prod split hosts)                                       |

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
-import { WATCH_URL, watchFetch, watchUrl } from "@/lib/watch";
+import { getWatchUrl, watchFetch, watchUrl } from "@/lib/watch";
 import {
   useEffect,
   useRef,
@@ -595,11 +595,11 @@ export default function WatchSettingsPage() {
               >
                 <ul className="mb-4 space-y-1.5 rounded border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2.5 font-mono text-[11px] text-[var(--muted)]">
                   <li className="break-all">
-                    <span className="text-[var(--faint)]">POST</span> {WATCH_URL}
+                    <span className="text-[var(--faint)]">POST</span> {getWatchUrl()}
                     /webhooks/plex
                   </li>
                   <li className="break-all">
-                    <span className="text-[var(--faint)]">POST</span> {WATCH_URL}
+                    <span className="text-[var(--faint)]">POST</span> {getWatchUrl()}
                     /webhooks/jellyfin
                   </li>
                 </ul>

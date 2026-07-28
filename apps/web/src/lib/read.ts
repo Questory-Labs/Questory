@@ -1,11 +1,17 @@
 import { withApiVersion } from "@questorylabs/shared";
+import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
 
 /** Read APIs live on the Steam API origin under `/v1/read/*`. */
-export const READ_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+export function getReadUrl(): string {
+  return getApiUrl();
+}
 
-export const READ_FLAG_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_READ === "true";
+export function isReadFlagEnabled(): boolean {
+  const v =
+    runtimeEnv("NEXT_PUBLIC_ENABLE_READ") ||
+    process.env.NEXT_PUBLIC_ENABLE_READ;
+  return (v || "").trim().toLowerCase() === "true";
+}
 
 function prefixReadPath(path: string): string {
   if (
@@ -26,7 +32,7 @@ function readPath(path: string) {
 }
 
 export function readUrl(path: string) {
-  return `${READ_URL}${readPath(path)}`;
+  return `${getReadUrl()}${readPath(path)}`;
 }
 
 export async function readFetch<T>(
@@ -64,7 +70,7 @@ export async function fetchReadHealth(): Promise<{ ok: boolean }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const res = await fetch(`${READ_URL}/health`, {
+    const res = await fetch(`${getReadUrl()}/health`, {
       signal: controller.signal,
       cache: "no-store",
     });

@@ -1,11 +1,17 @@
 import { withApiVersion, type MusicHealth } from "@questorylabs/shared";
+import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
 
 /** Music APIs live on the Steam API origin under `/v1/music/*` (ListenBrainz stays `/1/*`). */
-export const MUSIC_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+export function getMusicUrl(): string {
+  return getApiUrl();
+}
 
-export const MUSIC_FLAG_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_MUSIC === "true";
+export function isMusicFlagEnabled(): boolean {
+  const v =
+    runtimeEnv("NEXT_PUBLIC_ENABLE_MUSIC") ||
+    process.env.NEXT_PUBLIC_ENABLE_MUSIC;
+  return (v || "").trim().toLowerCase() === "true";
+}
 
 function prefixMusicPath(path: string): string {
   if (
@@ -25,7 +31,7 @@ function musicPath(path: string) {
 
 /** Absolute URL on the API origin, with `/v1` / music prefix applied when needed. */
 export function musicUrl(path: string) {
-  return `${MUSIC_URL}${musicPath(path)}`;
+  return `${getMusicUrl()}${musicPath(path)}`;
 }
 
 export async function musicFetch<T>(
@@ -54,7 +60,7 @@ export async function fetchMusicHealth(): Promise<MusicHealth> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const res = await fetch(`${MUSIC_URL}/health`, {
+    const res = await fetch(`${getMusicUrl()}/health`, {
       signal: controller.signal,
       cache: "no-store",
     });

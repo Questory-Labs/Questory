@@ -2,26 +2,25 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
-import { ENTERPRISE_FLAG_ENABLED } from "@/lib/enterprise";
+import { isEnterpriseFlagEnabled } from "@/lib/enterprise";
 
 /**
  * QEngine gate: requires ENTERPRISE=true, then GET
  * `{NEXT_PUBLIC_ENTERPRISE_URL}/v1/enterprise/status`.
  */
 export function useEnterpriseEnabled() {
+  const flagOn = isEnterpriseFlagEnabled();
   const status = useQuery({
     queryKey: ["enterprise-status"],
     queryFn: fetchEnterpriseStatus,
-    enabled: ENTERPRISE_FLAG_ENABLED,
+    enabled: flagOn,
     staleTime: 30_000,
     retry: false,
     refetchOnWindowFocus: true,
   });
 
   const available =
-    ENTERPRISE_FLAG_ENABLED &&
-    status.data?.available === true &&
-    !status.isError;
+    flagOn && status.data?.available === true && !status.isError;
 
   return {
     /** Flag on and QEngine answered available. */
@@ -30,8 +29,8 @@ export function useEnterpriseEnabled() {
     serviceOk: available && status.data?.service?.ok === true,
     /** @deprecated use serviceOk */
     engineOk: available && status.data?.service?.ok === true,
-    flagOn: ENTERPRISE_FLAG_ENABLED,
-    isLoading: ENTERPRISE_FLAG_ENABLED && status.isLoading,
+    flagOn,
+    isLoading: flagOn && status.isLoading,
     status,
   };
 }
