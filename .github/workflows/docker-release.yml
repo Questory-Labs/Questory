@@ -133,40 +133,6 @@ jobs:
           fi
           echo "Docker Hub ${DOCKERHUB_NAMESPACE}/${REPO} set to public"
 
-      - name: Ensure GitHub CLI
-        run: |
-          set -euo pipefail
-          if command -v gh >/dev/null 2>&1; then
-            gh --version | head -1
-            exit 0
-          fi
-          # GitHub-hosted images ship gh; self-hosted runners usually do not.
-          ver="$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest | jq -r .tag_name | sed 's/^v//')"
-          arch="$(uname -m)"
-          case "$arch" in
-            x86_64) arch=amd64 ;;
-            aarch64|arm64) arch=arm64 ;;
-            *) echo "Unsupported arch: $arch"; exit 1 ;;
-          esac
-          curl -fsSL "https://github.com/cli/cli/releases/download/v${ver}/gh_${ver}_linux_${arch}.tar.gz" \
-            | tar -xz -C /tmp
-          mkdir -p "$HOME/.local/bin"
-          install -m 0755 "/tmp/gh_${ver}_linux_${arch}/bin/gh" "$HOME/.local/bin/gh"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          export PATH="$HOME/.local/bin:$PATH"
-          gh --version | head -1
-
-      - name: Make GHCR package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG: ${{ env.DOCKER_IMAGE_PREFIX }}-${{ steps.meta.outputs.service }}
-        run: |
-          set -euo pipefail
-          gh api --method PUT \
-            "orgs/${GHCR_NAMESPACE}/packages/container/${PKG}/visibility" \
-            -f visibility=public
-          echo "GHCR package ghcr.io/${GHCR_NAMESPACE}/${PKG} set to public"
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
