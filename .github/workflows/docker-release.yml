@@ -37,6 +37,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: ./.github/actions/setup
+        with:
+          install: "false"
+
       - name: Parse tag
         id: meta
         run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
