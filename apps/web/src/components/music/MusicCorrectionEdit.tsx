@@ -11,26 +11,24 @@ type MusicCorrectionEditProps = {
   kind: "track" | "album" | "artist";
   entityId: string;
   saving?: boolean;
+  merging?: boolean;
   onSave: (values: {
     trackTitle?: string;
     albumTitle?: string | null;
     artists?: MusicEntityRef[];
     displayName?: string | null;
   }) => Promise<{ trackId?: string } | void>;
+  onMerge?: (targetTrackId: string) => Promise<{ trackId?: string } | void>;
   onSaved?: (result?: { trackId?: string }) => void;
 };
-
-function toTags(
-  artists?: Array<{ id: string; name: string }>,
-): EntityTag[] {
-  return (artists ?? []).map((a) => ({ id: a.id, name: a.name }));
-}
 
 export function MusicCorrectionEdit({
   kind,
   entityId,
   saving = false,
+  merging = false,
   onSave,
+  onMerge,
   onSaved,
 }: MusicCorrectionEditProps) {
   const [open, setOpen] = useState(false);
@@ -38,6 +36,7 @@ export function MusicCorrectionEdit({
   const [albumTitle, setAlbumTitle] = useState("");
   const [artists, setArtists] = useState<EntityTag[]>([]);
   const [displayName, setDisplayName] = useState("");
+  const [mergeTarget, setMergeTarget] = useState<EntityTag[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const form = useQuery({
@@ -49,16 +48,16 @@ export function MusicCorrectionEdit({
 
   useEffect(() => {
     if (!open || !form.data) return;
-    const c = form.data.current;
-    setTrackTitle(c.title ?? "");
-    setAlbumTitle(c.albumTitle ?? "");
-    setArtists(toTags(c.artists));
-    setDisplayName(c.displayName ?? "");
+    setTrackTitle("");
+    setAlbumTitle("");
+    setArtists([]);
+    setDisplayName("");
+    setMergeTarget([]);
     setError(null);
   }, [open, form.data]);
 
   function handleClose() {
-    if (saving) return;
+    if (saving || merging) return;
     setOpen(false);
     setError(null);
   }
@@ -71,48 +70,43 @@ export function MusicCorrectionEdit({
         albumTitle?: string | null;
         artists?: MusicEntityRef[];
         displayName?: string | null;
-      } = {
-        displayName: displayName.trim() || null,
-      };
+      } = {};
+
+      const trimmedDisplayName = displayName.trim();
+      if (trimmedDisplayName) {
+        payload.displayName = trimmedDisplayName;
+      }
 
       if (kind === "track") {
-        payload.trackTitle = trackTitle.trim();
-        payload.albumTitle = albumTitle.trim() || null;
-        payload.artists = artists.map((a) => ({
-          id: a.id,
-          name: a.name,
-        }));
-        if (!payload.trackTitle) {
-          setError("Track title is required");
-          return;
-        }
-        if (!payload.artists?.length) {
-          setError("At least one artist is required");
-          return;
+        const trimmedTrackTitle = trackTitle.trim();
+        const trimmedAlbumTitle = albumTitle.trim();
+        if (trimmedTrackTitle) payload.trackTitle = trimmedTrackTitle;
+        if (trimmedAlbumTitle) payload.albumTitle = trimmedAlbumTitle;
+        if (artists.length) {
+          payload.artists = artists.map((a) => ({
+            id: a.id,
+            name: a.name,
+          }));
         }
       } else if (kind === "album") {
-        payload.albumTitle = albumTitle.trim() || trackTitle.trim();
+        const trimmedAlbumTitle = (albumTitle || trackTitle).trim();
+        if (trimmedAlbumTitle) payload.albumTitle = trimmedAlbumTitle;
+        if (artists.length) {
+          payload.artists = artists.map((a) => ({
+            id: a.id,
+            name: a.name,
+          }));
+        }
+      } else if (artists.length) {
         payload.artists = artists.map((a) => ({
           id: a.id,
           name: a.name,
         }));
-        if (!payload.albumTitle) {
-          setError("Album title is required");
-          return;
-        }
-        if (!payload.artists?.length) {
-          setError("At least one artist is required");
-          return;
-        }
-      } else {
-        payload.artists = artists.map((a) => ({
-          id: a.id,
-          name: a.name,
-        }));
-        if (!payload.artists?.length) {
-          setError("Artist is required");
-          return;
-        }
+      }
+
+      if (Object.keys(payload).length === 0) {
+        setError("Change at least one field to save");
+        return;
       }
 
       const result = await onSave(payload);
@@ -123,7 +117,39 @@ export function MusicCorrectionEdit({
     }
   }
 
+  async function handleMerge() {
+    if (!onMerge) return;
+    const target = mergeTarget[0];
+    if (!target?.id) {
+      setError("Choose an existing track to merge into");
+      return;
+    }
+    if (target.id === entityId) {
+      setError("Cannot merge a track into itself");
+      return;
+    }
+
+    const listenCount = form.data?.sourceListenCount ?? 0;
+    const targetName = target.name;
+    const confirmed = window.confirm(
+      listenCount > 0
+        ? `Move your ${listenCount.toLocaleString()} listen${listenCount === 1 ? "" : "s"} from this track into “${targetName}”? Future scrobbles with the same original metadata will also count toward that track.`
+        : `Route future scrobbles with this track’s original metadata into “${targetName}”?`,
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      const result = await onMerge(target.id);
+      setOpen(false);
+      onSaved?.(result ?? undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Merge failed");
+    }
+  }
+
   const original = form.data?.original;
+  const current = form.data?.current;
 
   return (
     <>
@@ -174,6 +200,7 @@ export function MusicCorrectionEdit({
                     type="text"
                     value={trackTitle}
                     onChange={(e) => setTrackTitle(e.target.value)}
+                    placeholder={current?.title ?? "Leave empty to keep current"}
                     className="mt-1.5 w-full rounded border border-[var(--line)] bg-[var(--bg-0)] px-3 py-2 text-sm text-[var(--ink)]"
                   />
                 </label>
@@ -188,6 +215,7 @@ export function MusicCorrectionEdit({
                     type="text"
                     value={albumTitle || trackTitle}
                     onChange={(e) => setAlbumTitle(e.target.value)}
+                    placeholder={current?.albumTitle ?? current?.title ?? "Leave empty to keep current"}
                     className="mt-1.5 w-full rounded border border-[var(--line)] bg-[var(--bg-0)] px-3 py-2 text-sm text-[var(--ink)]"
                   />
                 </label>
@@ -199,6 +227,11 @@ export function MusicCorrectionEdit({
                 value={artists}
                 onChange={setArtists}
                 multiple={kind !== "artist"}
+                placeholder={
+                  current?.artists?.length
+                    ? `Current: ${current.artists.map((a) => a.name).join(", ")}`
+                    : "Type to search…"
+                }
                 disabled={saving}
               />
 
@@ -213,7 +246,11 @@ export function MusicCorrectionEdit({
                   }
                   onChange={(tags) => setAlbumTitle(tags[0]?.name ?? "")}
                   multiple={false}
-                  placeholder="Leave empty if unknown"
+                  placeholder={
+                    current?.albumTitle
+                      ? `Current: ${current.albumTitle}`
+                      : "Leave empty to keep current"
+                  }
                   disabled={saving}
                 />
               ) : null}
@@ -226,10 +263,46 @@ export function MusicCorrectionEdit({
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Rename without reassigning"
+                  placeholder={
+                    current?.displayName
+                      ? `Current: ${current.displayName}`
+                      : "Rename without reassigning"
+                  }
                   className="mt-1.5 w-full rounded border border-[var(--line)] bg-[var(--bg-0)] px-3 py-2 text-sm text-[var(--ink)]"
                 />
               </label>
+
+              {kind === "track" && onMerge ? (
+                <div className="border-t border-[var(--line)] pt-4">
+                  <p className="text-sm text-[var(--muted)]">
+                    Merge this historical track into another one in your library.
+                    {form.data?.sourceListenCount
+                      ? ` You have ${form.data.sourceListenCount.toLocaleString()} listen${form.data.sourceListenCount === 1 ? "" : "s"} here.`
+                      : null}
+                  </p>
+                  <div className="mt-3">
+                    <EntityTagInput
+                      kind="track"
+                      label="Merge into track"
+                      value={mergeTarget}
+                      onChange={setMergeTarget}
+                      multiple={false}
+                      placeholder="Search your tracks…"
+                      disabled={saving || merging}
+                    />
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleMerge}
+                      disabled={saving || merging || mergeTarget.length === 0}
+                    >
+                      {merging ? "Merging…" : "Merge"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
 
               {error ? (
                 <p className="text-sm text-[var(--danger)]">{error}</p>
@@ -240,11 +313,11 @@ export function MusicCorrectionEdit({
                   type="button"
                   variant="ghost"
                   onClick={handleClose}
-                  disabled={saving}
+                  disabled={saving || merging}
                 >
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleSave} disabled={saving}>
+                <Button type="button" onClick={handleSave} disabled={saving || merging}>
                   {saving ? "Saving…" : "Save"}
                 </Button>
               </div>

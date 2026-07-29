@@ -1110,6 +1110,18 @@ export const MusicCorrectionSaveSchema = z.object({
 });
 export type MusicCorrectionSave = z.infer<typeof MusicCorrectionSaveSchema>;
 
+export const MusicTrackMergeSchema = z.object({
+  targetTrackId: z.string().min(1),
+});
+export type MusicTrackMerge = z.infer<typeof MusicTrackMergeSchema>;
+
+export const MusicTrackMergeResultSchema = z.object({
+  ok: z.literal(true),
+  trackId: z.string(),
+  mergedListenCount: z.number(),
+});
+export type MusicTrackMergeResult = z.infer<typeof MusicTrackMergeResultSchema>;
+
 export const MusicCorrectionFormSchema = z.object({
   kind: z.enum(["track", "album", "artist"]),
   original: z.object({
@@ -1125,6 +1137,7 @@ export const MusicCorrectionFormSchema = z.object({
     albumId: z.string().nullable().optional(),
   }),
   hasRule: z.boolean(),
+  sourceListenCount: z.number().optional(),
 });
 export type MusicCorrectionForm = z.infer<typeof MusicCorrectionFormSchema>;
 

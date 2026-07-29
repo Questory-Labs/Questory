@@ -193,6 +193,25 @@ export default function MusicTrackPage() {
     },
   });
 
+  const merge = useMutation({
+    mutationFn: (targetTrackId: string) =>
+      musicFetch<{ ok: boolean; trackId: string; mergedListenCount: number }>(
+        `/corrections/tracks/${id}/merge`,
+        {
+          method: "POST",
+          body: JSON.stringify({ targetTrackId }),
+        },
+      ),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["music-track"] });
+      qc.invalidateQueries({ queryKey: ["music-track-listens"] });
+      qc.invalidateQueries({ queryKey: ["music-recent"] });
+      if (result.trackId) {
+        window.location.href = `/music/tracks/${result.trackId}`;
+      }
+    },
+  });
+
   const t = detail.data?.track;
   const title = t ? displayLabel(t.userDisplayName, t.title) : "Track";
 
@@ -262,7 +281,9 @@ export default function MusicTrackPage() {
                 kind="track"
                 entityId={id}
                 saving={save.isPending}
+                merging={merge.isPending}
                 onSave={async (values) => save.mutateAsync(values)}
+                onMerge={async (targetTrackId) => merge.mutateAsync(targetTrackId)}
                 onSaved={() => {
                   qc.invalidateQueries({ queryKey: ["music-track", id] });
                 }}

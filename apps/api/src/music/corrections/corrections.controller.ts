@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -12,6 +13,7 @@ import {
 import {
   MusicCatalogSuggestKindSchema,
   MusicCorrectionSaveSchema,
+  MusicTrackMergeSchema,
 } from "@questorylabs/shared";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentMusicUser } from "../auth/current-music-user.decorator";
@@ -61,6 +63,23 @@ export class CorrectionsController {
       throw new BadRequestException(parsed.error.flatten());
     }
     return this.corrections.saveTrackCorrection(user.userId, id, parsed.data);
+  }
+
+  @Post("corrections/tracks/:id/merge")
+  mergeTrack(
+    @CurrentMusicUser() user: { userId: string },
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    const parsed = MusicTrackMergeSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.corrections.mergeTrackInto(
+      user.userId,
+      id,
+      parsed.data.targetTrackId,
+    );
   }
 
   @Get("corrections/albums/:id")

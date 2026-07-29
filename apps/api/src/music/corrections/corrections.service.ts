@@ -267,6 +267,10 @@ export class CorrectionsService {
           })),
         ];
 
+    const sourceListenCount = await this.prisma.listen.count({
+      where: { userId, trackId },
+    });
+
     return {
       kind: "track" as const,
       original: {
@@ -283,6 +287,7 @@ export class CorrectionsService {
         albumId: rule?.targetAlbumId ?? track.releaseId,
       },
       hasRule: Boolean(rule),
+      sourceListenCount,
     };
   }
 
@@ -383,6 +388,72 @@ export class CorrectionsService {
     };
   }
 
+  async mergeTrackInto(
+    userId: string,
+    sourceTrackId: string,
+    targetTrackId: string,
+  ) {
+    if (sourceTrackId === targetTrackId) {
+      throw new BadRequestException("Cannot merge a track into itself");
+    }
+
+    const source = await this.prisma.track.findUnique({
+      where: { id: sourceTrackId },
+      include: {
+        artist: true,
+        release: true,
+        featuredArtists: {
+          include: { artist: true },
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+    if (!source) throw new NotFoundException("Track not found");
+
+    const target = await this.prisma.track.findUnique({
+      where: { id: targetTrackId },
+      include: {
+        artist: true,
+        release: true,
+        featuredArtists: {
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+    if (!target) throw new NotFoundException("Target track not found");
+
+    const targetArtistIds = [
+      target.artistId,
+      ...target.featuredArtists.map((fa) => fa.artistId),
+    ];
+
+    await this.prisma.userMusicLabel.deleteMany({
+      where: {
+        userId,
+        entityKind: "track",
+        entityId: sourceTrackId,
+      },
+    });
+
+    await this.upsertTrackRule(userId, sourceTrackId, {
+      matchArtistNorm: source.artist.nameNormalized,
+      matchAlbumNorm: source.release?.titleNormalized ?? null,
+      matchTrackNorm: source.titleNormalized,
+      targetTrackTitle: target.title,
+      targetAlbumTitle: target.release?.title ?? null,
+      artistIds: targetArtistIds,
+    });
+
+    const mergedListenCount = await this.moveUserListensBetweenTracks(
+      userId,
+      sourceTrackId,
+      targetTrackId,
+    );
+    this.invalidateRulesCache(userId);
+
+    return { ok: true as const, trackId: targetTrackId, mergedListenCount };
+  }
+
   async saveTrackCorrection(
     userId: string,
     trackId: string,
@@ -403,13 +474,46 @@ export class CorrectionsService {
     });
     if (!track) throw new NotFoundException("Track not found");
 
-    const artists = input.artists;
-    if (!artists?.length) {
-      throw new BadRequestException("At least one artist is required");
+    const existingRule = await this.prisma.userMusicRule.findFirst({
+      where: { userId, sourceTrackId: trackId, kind: "track" },
+      include: {
+        targetArtists: {
+          include: { artist: true },
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+
+    const currentArtists = existingRule?.targetArtists.length
+      ? existingRule.targetArtists.map((ta) => ({
+          id: ta.artist.id,
+          name: ta.artist.name,
+        }))
+      : [
+          { id: track.artist.id, name: track.artist.name },
+          ...track.featuredArtists.map((fa) => ({
+            id: fa.artist.id,
+            name: fa.artist.name,
+          })),
+        ];
+    const currentTrackTitle = existingRule?.targetTrackTitle ?? track.title;
+    const currentAlbumTitle =
+      existingRule?.targetAlbumTitle ?? track.release?.title ?? null;
+
+    const hasChanges =
+      Boolean(input.trackTitle?.trim()) ||
+      Boolean(input.artists?.length) ||
+      Boolean(input.albumTitle?.trim()) ||
+      input.displayName !== undefined;
+    if (!hasChanges) {
+      return { ok: true, reassigned: false };
     }
 
-    const trackTitle = (input.trackTitle ?? track.title).trim();
-    const albumTitle = input.albumTitle?.trim() || null;
+    const artists = input.artists?.length ? input.artists : currentArtists;
+    const trackTitle = input.trackTitle?.trim() || currentTrackTitle;
+    const albumTitle = input.albumTitle?.trim()
+      ? input.albumTitle.trim()
+      : currentAlbumTitle;
 
     const resolvedArtists = await this.resolveArtistRefs(artists);
     const primaryId = resolvedArtists[0].id;
@@ -433,12 +537,14 @@ export class CorrectionsService {
       !samePrimary || !sameFeatured || !sameAlbum || !sameTitle;
 
     if (!reassignmentNeeded) {
-      await this.upsertLabel(
-        userId,
-        "track",
-        trackId,
-        input.displayName ?? null,
-      );
+      if (input.displayName !== undefined) {
+        await this.upsertLabel(
+          userId,
+          "track",
+          trackId,
+          input.displayName ?? null,
+        );
+      }
       await this.prisma.userMusicRule.deleteMany({
         where: { userId, sourceTrackId: trackId, kind: "track" },
       });
@@ -497,12 +603,40 @@ export class CorrectionsService {
     });
     if (!release) throw new NotFoundException("Album not found");
 
-    const artists = input.artists;
-    if (!artists?.length) {
+    const existingRule = await this.prisma.userMusicRule.findFirst({
+      where: { userId, sourceReleaseId: releaseId, kind: "album" },
+      include: {
+        targetArtists: {
+          include: { artist: true },
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+
+    const currentArtists = existingRule?.targetArtists.length
+      ? existingRule.targetArtists.map((ta) => ({
+          id: ta.artist.id,
+          name: ta.artist.name,
+        }))
+      : release.artist
+        ? [{ id: release.artist.id, name: release.artist.name }]
+        : [];
+    const currentAlbumTitle = existingRule?.targetAlbumTitle ?? release.title;
+
+    const hasChanges =
+      Boolean(input.albumTitle?.trim()) ||
+      Boolean(input.artists?.length) ||
+      input.displayName !== undefined;
+    if (!hasChanges) {
+      return { ok: true, reassigned: false };
+    }
+
+    const artists = input.artists?.length ? input.artists : currentArtists;
+    if (!artists.length) {
       throw new BadRequestException("At least one artist is required");
     }
 
-    const albumTitle = (input.albumTitle ?? release.title).trim();
+    const albumTitle = input.albumTitle?.trim() || currentAlbumTitle;
     const resolvedArtists = await this.resolveArtistRefs(artists);
     const primaryId = resolvedArtists[0].id;
 
@@ -511,12 +645,14 @@ export class CorrectionsService {
       normalizeName(albumTitle) === release.titleNormalized;
 
     if (samePrimary && sameTitle) {
-      await this.upsertLabel(
-        userId,
-        "release",
-        releaseId,
-        input.displayName ?? null,
-      );
+      if (input.displayName !== undefined) {
+        await this.upsertLabel(
+          userId,
+          "release",
+          releaseId,
+          input.displayName ?? null,
+        );
+      }
       await this.prisma.userMusicRule.deleteMany({
         where: { userId, sourceReleaseId: releaseId, kind: "album" },
       });
@@ -558,21 +694,40 @@ export class CorrectionsService {
     });
     if (!artist) throw new NotFoundException("Artist not found");
 
-    const targetRef = input.artists?.[0];
-    if (!targetRef) {
-      throw new BadRequestException("Target artist is required");
+    const existingRule = await this.prisma.userMusicRule.findFirst({
+      where: { userId, sourceArtistId: artistId, kind: "artist" },
+      include: {
+        targetArtists: {
+          include: { artist: true },
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+
+    const currentTarget = existingRule?.targetArtists[0]?.artist ?? artist;
+    const hasChanges =
+      Boolean(input.artists?.length) || input.displayName !== undefined;
+    if (!hasChanges) {
+      return { ok: true, reassigned: false };
     }
+
+    const targetRef = input.artists?.[0] ?? {
+      id: currentTarget.id,
+      name: currentTarget.name,
+    };
 
     const resolved = await this.resolveArtistRefs([targetRef]);
     const targetId = resolved[0].id;
 
     if (targetId === artistId) {
-      await this.upsertLabel(
-        userId,
-        "artist",
-        artistId,
-        input.displayName ?? null,
-      );
+      if (input.displayName !== undefined) {
+        await this.upsertLabel(
+          userId,
+          "artist",
+          artistId,
+          input.displayName ?? null,
+        );
+      }
       await this.prisma.userMusicRule.deleteMany({
         where: { userId, sourceArtistId: artistId, kind: "artist" },
       });
@@ -800,6 +955,42 @@ export class CorrectionsService {
       create: { userId, entityKind, entityId, displayName: trimmed },
       update: { displayName: trimmed },
     });
+  }
+
+  private async moveUserListensBetweenTracks(
+    userId: string,
+    sourceTrackId: string,
+    targetTrackId: string,
+  ) {
+    const listens = await this.prisma.listen.findMany({
+      where: { userId, trackId: sourceTrackId },
+      select: { id: true, listenedAt: true },
+    });
+
+    let moved = 0;
+    for (const listen of listens) {
+      const conflict = await this.prisma.listen.findUnique({
+        where: {
+          userId_trackId_listenedAt: {
+            userId,
+            trackId: targetTrackId,
+            listenedAt: listen.listenedAt,
+          },
+        },
+      });
+
+      if (conflict) {
+        await this.prisma.listen.delete({ where: { id: listen.id } });
+      } else {
+        await this.prisma.listen.update({
+          where: { id: listen.id },
+          data: { trackId: targetTrackId },
+        });
+        moved += 1;
+      }
+    }
+
+    return moved;
   }
 
   async backfillForRule(

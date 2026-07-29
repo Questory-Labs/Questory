@@ -27,6 +27,7 @@ function prefixMusicPath(path: string): string {
   if (
     path.startsWith("/analytics") ||
     path.startsWith("/catalog") ||
+    path.startsWith("/corrections") ||
     path.startsWith("/imports") ||
     path.startsWith("/music/")
   ) {

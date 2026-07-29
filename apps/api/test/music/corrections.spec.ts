@@ -19,6 +19,7 @@ describe("CorrectionsService", () => {
   const listenFindUnique = vi.fn();
   const listenUpdate = vi.fn();
   const listenDelete = vi.fn();
+  const listenCount = vi.fn();
   const trackFindUnique = vi.fn();
   const artistFindUnique = vi.fn();
 
@@ -55,6 +56,7 @@ describe("CorrectionsService", () => {
         findUnique: listenFindUnique,
         update: listenUpdate,
         delete: listenDelete,
+        count: listenCount,
       },
       track: {
         findUnique: trackFindUnique,
@@ -116,6 +118,7 @@ describe("CorrectionsService", () => {
       release: null,
       featuredArtists: [],
     });
+    userMusicRuleFindFirst.mockResolvedValue(null);
     artistFindUnique.mockResolvedValue({ id: "a1", name: "Artist A" });
 
     await service.saveTrackCorrection("user1", "t1", {
@@ -129,6 +132,51 @@ describe("CorrectionsService", () => {
     expect(userMusicRuleDeleteMany).toHaveBeenCalled();
   });
 
+  it("updates only track title when other fields are omitted", async () => {
+    trackFindUnique.mockResolvedValue({
+      id: "t1",
+      title: "Old Song",
+      titleNormalized: "old song",
+      artistId: "a1",
+      releaseId: "r1",
+      artist: { id: "a1", name: "Artist A", nameNormalized: "artist a" },
+      release: { id: "r1", title: "Album A", titleNormalized: "album a" },
+      featuredArtists: [],
+    });
+    userMusicRuleFindFirst.mockResolvedValue(null);
+    artistFindUnique.mockResolvedValue({ id: "a1", name: "Artist A" });
+    userMusicRuleCreate.mockResolvedValue({
+      id: "rule1",
+      kind: "track",
+      matchArtistNorm: "artist a",
+      matchAlbumNorm: "album a",
+      matchTrackNorm: "old song",
+    });
+    resolveCorrectedTrack.mockResolvedValue({ id: "t2", releaseId: "r1" });
+    userMusicRuleFindUnique.mockResolvedValue({
+      id: "rule1",
+      kind: "track",
+      matchArtistNorm: "artist a",
+      matchAlbumNorm: "album a",
+      matchTrackNorm: "old song",
+    });
+    listenFindMany.mockResolvedValue([]);
+
+    const result = await service.saveTrackCorrection("user1", "t1", {
+      trackTitle: "New Song",
+    });
+
+    expect(result.reassigned).toBe(true);
+    expect(resolveCorrectedTrack).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artistIds: ["a1"],
+        trackTitle: "New Song",
+        albumTitle: "Album A",
+      }),
+    );
+    expect(userMusicLabelUpsert).not.toHaveBeenCalled();
+  });
+
   it("creates rule and backfills when artist changes", async () => {
     trackFindUnique.mockResolvedValue({
       id: "t1",
@@ -140,6 +188,7 @@ describe("CorrectionsService", () => {
       release: null,
       featuredArtists: [],
     });
+    userMusicRuleFindFirst.mockResolvedValue(null);
     artistFindUnique.mockResolvedValue({ id: "a1", name: "Artist A" });
     userMusicRuleFindFirst.mockResolvedValue(null);
     userMusicRuleCreate.mockResolvedValue({
@@ -209,6 +258,66 @@ describe("CorrectionsService", () => {
     );
 
     expect(name).toBe("ABCD");
+  });
+
+  it("merges user listens from source track into target track", async () => {
+    trackFindUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+      if (where.id === "t1") {
+        return Promise.resolve({
+          id: "t1",
+          title: "Old Song",
+          titleNormalized: "old song",
+          artistId: "b1",
+          releaseId: "r-old",
+          artist: { id: "b1", name: "Artist B", nameNormalized: "artist b" },
+          release: { id: "r-old", title: "Old Album", titleNormalized: "old album" },
+          featuredArtists: [],
+        });
+      }
+      return Promise.resolve({
+        id: "t2",
+        title: "Song",
+        titleNormalized: "song",
+        artistId: "a1",
+        releaseId: "r1",
+        artist: { id: "a1", name: "Artist A", nameNormalized: "artist a" },
+        release: { id: "r1", title: "Album A", titleNormalized: "album a" },
+        featuredArtists: [],
+      });
+    });
+    userMusicRuleFindFirst.mockResolvedValue(null);
+    userMusicRuleCreate.mockResolvedValue({ id: "rule1" });
+    userMusicRuleArtistDeleteMany.mockResolvedValue(undefined);
+    userMusicRuleArtistCreate.mockResolvedValue(undefined);
+    listenFindMany.mockResolvedValue([
+      { id: "l1", listenedAt: new Date("2024-01-01") },
+      { id: "l2", listenedAt: new Date("2024-01-02") },
+    ]);
+    listenFindUnique.mockResolvedValue(null);
+
+    const result = await service.mergeTrackInto("user1", "t1", "t2");
+
+    expect(result).toEqual({ ok: true, trackId: "t2", mergedListenCount: 2 });
+    expect(userMusicRuleCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "track",
+          sourceTrackId: "t1",
+          matchTrackNorm: "old song",
+          targetTrackTitle: "Song",
+        }),
+      }),
+    );
+    expect(listenUpdate).toHaveBeenCalledTimes(2);
+    expect(userMusicLabelDeleteMany).toHaveBeenCalledWith({
+      where: { userId: "user1", entityKind: "track", entityId: "t1" },
+    });
+  });
+
+  it("rejects merging a track into itself", async () => {
+    await expect(service.mergeTrackInto("user1", "t1", "t1")).rejects.toThrow(
+      "Cannot merge a track into itself",
+    );
   });
 });
 
