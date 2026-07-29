@@ -9,7 +9,7 @@ import {
   CatalogService,
   type IncomingListenMeta,
 } from "../catalog/catalog.service";
-import { normalizeName } from "../lib/tokens";
+import { normalizeName, primaryArtistNorm } from "../lib/tokens";
 
 type RuleKind = "track" | "album" | "artist";
 
@@ -19,7 +19,11 @@ type LoadedRule = {
   matchArtistNorm: string;
   matchAlbumNorm: string | null;
   matchTrackNorm: string | null;
+  sourceTrackId: string | null;
+  sourceReleaseId: string | null;
+  sourceArtistId: string | null;
   targetTrackTitle: string | null;
+  targetTrackId: string | null;
   targetAlbumTitle: string | null;
   targetAlbumId: string | null;
   artists: Array<{ id: string; name: string; position: number }>;
@@ -45,13 +49,16 @@ export class CorrectionsService {
     const rules = await this.loadUserRules(userId);
     if (rules.length === 0) return meta;
 
-    const artistNorm = normalizeName(meta.artistName);
+    const artistNorm = primaryArtistNorm(meta.artistName);
     const albumNorm = meta.releaseName
       ? normalizeName(meta.releaseName)
       : null;
     const trackNorm = normalizeName(meta.trackName);
 
-    const rule = this.findBestRule(rules, artistNorm, albumNorm, trackNorm);
+    let rule =
+      this.findBestRule(rules, artistNorm, albumNorm, trackNorm) ??
+      (await this.findRuleBySourceEntities(rules, meta));
+
     if (!rule || rule.artists.length === 0) return meta;
 
     const primary = rule.artists[0];
@@ -66,6 +73,8 @@ export class CorrectionsService {
       artistName,
       artistMbids: [],
       correctionArtistIds: rule.artists.map((a) => a.id),
+      correctionTargetTrackId: rule.targetTrackId ?? undefined,
+      correctionTargetAlbumId: rule.targetAlbumId ?? undefined,
       recordingMbid: null,
       trackMbid: null,
       releaseMbid: null,
@@ -440,7 +449,9 @@ export class CorrectionsService {
       matchAlbumNorm: source.release?.titleNormalized ?? null,
       matchTrackNorm: source.titleNormalized,
       targetTrackTitle: target.title,
+      targetTrackId: targetTrackId,
       targetAlbumTitle: target.release?.title ?? null,
+      targetAlbumId: target.releaseId,
       artistIds: targetArtistIds,
     });
 
@@ -582,6 +593,14 @@ export class CorrectionsService {
       albumId: null,
     });
 
+    await this.prisma.userMusicRule.update({
+      where: { id: rule.id },
+      data: {
+        targetTrackId: targetTrack.id,
+        targetAlbumId: targetTrack.releaseId,
+      },
+    });
+
     await this.backfillForRule(userId, rule, targetTrack.id);
     this.invalidateRulesCache(userId);
 
@@ -673,6 +692,15 @@ export class CorrectionsService {
       matchAlbumNorm: release.titleNormalized,
       targetAlbumTitle: albumTitle,
       artistIds: resolvedArtists.map((a) => a.id),
+    });
+
+    const targetRelease = await this.catalog.resolveCorrectedRelease({
+      artistId: primaryId,
+      albumTitle,
+    });
+    await this.prisma.userMusicRule.update({
+      where: { id: rule.id },
+      data: { targetAlbumId: targetRelease.id },
     });
 
     await this.backfillAlbumForRule(userId, rule, releaseId);
@@ -820,7 +848,9 @@ export class CorrectionsService {
       matchAlbumNorm: string | null;
       matchTrackNorm: string;
       targetTrackTitle: string;
+      targetTrackId?: string | null;
       targetAlbumTitle: string | null;
+      targetAlbumId?: string | null;
       artistIds: string[];
     },
   ) {
@@ -836,8 +866,9 @@ export class CorrectionsService {
             matchAlbumNorm: data.matchAlbumNorm,
             matchTrackNorm: data.matchTrackNorm,
             targetTrackTitle: data.targetTrackTitle,
+            targetTrackId: data.targetTrackId ?? null,
             targetAlbumTitle: data.targetAlbumTitle,
-            targetAlbumId: null,
+            targetAlbumId: data.targetAlbumId ?? null,
           },
         })
       : await this.prisma.userMusicRule.create({
@@ -849,7 +880,9 @@ export class CorrectionsService {
             matchAlbumNorm: data.matchAlbumNorm,
             matchTrackNorm: data.matchTrackNorm,
             targetTrackTitle: data.targetTrackTitle,
+            targetTrackId: data.targetTrackId ?? null,
             targetAlbumTitle: data.targetAlbumTitle,
+            targetAlbumId: data.targetAlbumId ?? null,
           },
         });
 
@@ -1176,6 +1209,44 @@ export class CorrectionsService {
     }
   }
 
+  private async findRuleBySourceEntities(
+    rules: LoadedRule[],
+    meta: IncomingListenMeta,
+  ): Promise<LoadedRule | null> {
+    const trackRules = rules.filter((r) => r.kind === "track" && r.sourceTrackId);
+    if (trackRules.length > 0) {
+      const trackId = await this.catalog.peekIncomingTrackId(meta);
+      if (trackId) {
+        const match = trackRules.find((r) => r.sourceTrackId === trackId);
+        if (match) return match;
+      }
+    }
+
+    const albumRules = rules.filter(
+      (r) => r.kind === "album" && r.sourceReleaseId,
+    );
+    if (albumRules.length > 0) {
+      const releaseId = await this.catalog.peekIncomingReleaseId(meta);
+      if (releaseId) {
+        const match = albumRules.find((r) => r.sourceReleaseId === releaseId);
+        if (match) return match;
+      }
+    }
+
+    const artistRules = rules.filter(
+      (r) => r.kind === "artist" && r.sourceArtistId,
+    );
+    if (artistRules.length > 0) {
+      const artistId = await this.catalog.peekIncomingArtistId(meta);
+      if (artistId) {
+        const match = artistRules.find((r) => r.sourceArtistId === artistId);
+        if (match) return match;
+      }
+    }
+
+    return null;
+  }
+
   private findBestRule(
     rules: LoadedRule[],
     artistNorm: string,
@@ -1186,15 +1257,19 @@ export class CorrectionsService {
     for (const r of trackRules) {
       if (r.matchArtistNorm !== artistNorm) continue;
       if (r.matchTrackNorm && r.matchTrackNorm !== trackNorm) continue;
-      if (r.matchAlbumNorm && r.matchAlbumNorm !== (albumNorm ?? "")) continue;
-      if (!r.matchAlbumNorm && albumNorm) continue;
+      // Album refines the match only when both sides specify one.
+      if (r.matchAlbumNorm && albumNorm && r.matchAlbumNorm !== albumNorm) {
+        continue;
+      }
       return r;
     }
 
     const albumRules = rules.filter((r) => r.kind === "album");
     for (const r of albumRules) {
       if (r.matchArtistNorm !== artistNorm) continue;
-      if (!r.matchAlbumNorm || r.matchAlbumNorm !== (albumNorm ?? "")) continue;
+      if (r.matchAlbumNorm && albumNorm && r.matchAlbumNorm !== albumNorm) {
+        continue;
+      }
       return r;
     }
 
@@ -1231,7 +1306,11 @@ export class CorrectionsService {
       matchArtistNorm: r.matchArtistNorm,
       matchAlbumNorm: r.matchAlbumNorm,
       matchTrackNorm: r.matchTrackNorm,
+      sourceTrackId: r.sourceTrackId,
+      sourceReleaseId: r.sourceReleaseId,
+      sourceArtistId: r.sourceArtistId,
       targetTrackTitle: r.targetTrackTitle,
+      targetTrackId: r.targetTrackId,
       targetAlbumTitle: r.targetAlbumTitle,
       targetAlbumId: r.targetAlbumId,
       artists: r.targetArtists.map((ta) => ({
@@ -1241,8 +1320,47 @@ export class CorrectionsService {
       })),
     }));
 
+    await this.hydrateMissingTrackTargets(userId, rules);
+
     this.rulesCache.set(userId, { loadedAt: Date.now(), rules });
     return rules;
+  }
+
+  private async hydrateMissingTrackTargets(
+    userId: string,
+    rules: LoadedRule[],
+  ) {
+    for (const rule of rules) {
+      if (
+        rule.kind !== "track" ||
+        rule.targetTrackId ||
+        !rule.targetTrackTitle ||
+        rule.artists.length === 0
+      ) {
+        continue;
+      }
+
+      const resolved = await this.catalog.resolveCorrectedTrack({
+        artistIds: rule.artists.map((a) => a.id),
+        trackTitle: rule.targetTrackTitle,
+        albumTitle: rule.targetAlbumTitle,
+        albumId: rule.targetAlbumId,
+      });
+      rule.targetTrackId = resolved.id;
+      if (!rule.targetAlbumId) {
+        rule.targetAlbumId = resolved.releaseId;
+      }
+
+      void this.prisma.userMusicRule
+        .update({
+          where: { id: rule.id },
+          data: {
+            targetTrackId: resolved.id,
+            targetAlbumId: rule.targetAlbumId,
+          },
+        })
+        .catch(() => undefined);
+    }
   }
 
   private invalidateRulesCache(userId: string) {

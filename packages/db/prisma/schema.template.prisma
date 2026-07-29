@@ -570,6 +570,7 @@ model Track {
   enrichmentJobs     EnrichmentJob[]
   featuredArtists    TrackArtist[]
   sourceRules        UserMusicRule[] @relation("RuleSourceTrack")
+  targetRules        UserMusicRule[] @relation("RuleTargetTrack")
 
   @@index([titleNormalized])
   @@index([artistId])
@@ -700,6 +701,7 @@ model UserMusicRule {
   sourceReleaseId   String?
   sourceArtistId    String?
   targetTrackTitle  String?
+  targetTrackId     String?
   targetAlbumTitle  String?
   targetAlbumId     String?
   createdAt         DateTime @default(now())
@@ -707,12 +709,14 @@ model UserMusicRule {
 
   user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   sourceTrack   Track?                @relation("RuleSourceTrack", fields: [sourceTrackId], references: [id], onDelete: SetNull)
+  targetTrack   Track?                @relation("RuleTargetTrack", fields: [targetTrackId], references: [id], onDelete: SetNull)
   targetAlbum   Release?              @relation("RuleTargetAlbum", fields: [targetAlbumId], references: [id], onDelete: SetNull)
   targetArtists UserMusicRuleArtist[]
 
   @@index([userId, kind])
   @@index([userId, matchArtistNorm, matchTrackNorm])
   @@index([userId, sourceTrackId])
+  @@index([userId, targetTrackId])
   @@index([userId, sourceReleaseId])
   @@index([userId, sourceArtistId])
 }

@@ -27,6 +27,8 @@ export type IncomingListenMeta = {
   musicService?: string | null;
   rawPayload?: string | null;
   correctionArtistIds?: string[];
+  correctionTargetTrackId?: string;
+  correctionTargetAlbumId?: string;
 };
 
 /** Per-import lookup cache to avoid repeat artist/release/track round-trips. */
@@ -118,15 +120,9 @@ export class CatalogService implements OnModuleInit {
     );
 
     if (meta.correctionArtistIds?.length) {
-      const resolved = await this.resolveCorrectedTrack({
-        artistIds: meta.correctionArtistIds,
-        trackTitle: meta.trackName,
-        albumTitle: meta.releaseName ?? null,
-        albumId: null,
-      });
-      const track = { id: resolved.id };
-      const artist = { id: meta.correctionArtistIds[0] };
-      const release = resolved.releaseId ? { id: resolved.releaseId } : null;
+      const track = await this.resolveCorrectedTrackForMeta(meta);
+      const artist = track.artist;
+      const release = track.release;
 
       if (meta.tags?.length) {
         await this.linkTags(track.id, meta.tags, "payload_tag");
@@ -152,7 +148,13 @@ export class CatalogService implements OnModuleInit {
             musicService: meta.musicService ?? null,
           },
         });
-        return { listen, track, artist, release, created: false as const };
+        return {
+          listen,
+          track: { id: track.id },
+          artist: { id: artist.id },
+          release: release ? { id: release.id } : null,
+          created: false as const,
+        };
       }
 
       const listen = await this.prisma.listen.create({
@@ -169,52 +171,19 @@ export class CatalogService implements OnModuleInit {
       });
 
       await this.bumpHourBucket(userId, meta.listenedAt);
-      return { listen, track, artist, release, created: true as const };
+      return {
+        listen,
+        track: { id: track.id },
+        artist: { id: artist.id },
+        release: release ? { id: release.id } : null,
+        created: true as const,
+      };
     }
 
-    const artistMbid = meta.artistMbids?.[0] ?? null;
-    const artistKey = `${normalizeName(meta.artistName)}|${artistMbid ?? ""}`;
-    let artist = cache?.artists.get(artistKey);
-    if (!artist) {
-      artist = await this.upsertArtist(meta.artistName, artistMbid);
-      cache?.artists.set(artistKey, { id: artist.id });
-    }
-
-    let release: { id: string } | null = null;
-    if (meta.releaseName) {
-      const releaseKey = `${normalizeName(meta.releaseName)}|${artist.id}|${meta.releaseMbid ?? ""}`;
-      release = cache?.releases.get(releaseKey) ?? null;
-      if (!release) {
-        release = await this.upsertRelease(
-          meta.releaseName,
-          artist.id,
-          meta.releaseMbid ?? null,
-        );
-        cache?.releases.set(releaseKey, { id: release.id });
-      }
-    }
-
-    const trackKey = [
-      normalizeName(meta.trackName),
-      artist.id,
-      release?.id ?? "",
-      meta.recordingMbid ?? "",
-      meta.spotifyId ?? "",
-    ].join("|");
-    let track = cache?.tracks.get(trackKey);
-    if (!track) {
-      track = await this.upsertTrack({
-        title: meta.trackName,
-        artistId: artist.id,
-        releaseId: release?.id ?? null,
-        recordingMbid: meta.recordingMbid ?? null,
-        trackMbid: meta.trackMbid ?? null,
-        isrc: meta.isrc ?? null,
-        spotifyId: meta.spotifyId ?? null,
-        durationMs: meta.durationMs ?? null,
-      });
-      cache?.tracks.set(trackKey, { id: track.id });
-    }
+    const { artist, release, track } = await this.resolveIncomingEntities(
+      meta,
+      cache,
+    );
 
     if (meta.tags?.length) {
       await this.linkTags(track.id, meta.tags, "payload_tag");
@@ -260,21 +229,99 @@ export class CatalogService implements OnModuleInit {
     return { listen, track, artist, release, created: true as const };
   }
 
+  async peekIncomingTrackId(
+    meta: IncomingListenMeta,
+    cache?: ImportEntityCache,
+  ): Promise<string | null> {
+    const { track } = await this.resolveIncomingEntities(meta, cache);
+    return track.id;
+  }
+
+  async peekIncomingReleaseId(
+    meta: IncomingListenMeta,
+    cache?: ImportEntityCache,
+  ): Promise<string | null> {
+    const { release } = await this.resolveIncomingEntities(meta, cache);
+    return release?.id ?? null;
+  }
+
+  async peekIncomingArtistId(
+    meta: IncomingListenMeta,
+    cache?: ImportEntityCache,
+  ): Promise<string | null> {
+    const { artist } = await this.resolveIncomingEntities(meta, cache);
+    return artist.id;
+  }
+
+  private async resolveIncomingEntities(
+    meta: IncomingListenMeta,
+    cache?: ImportEntityCache,
+  ) {
+    const artistMbid = meta.artistMbids?.[0] ?? null;
+    const artistKey = `${normalizeName(meta.artistName)}|${artistMbid ?? ""}`;
+    let artist = cache?.artists.get(artistKey);
+    if (!artist) {
+      artist = await this.upsertArtist(meta.artistName, artistMbid);
+      cache?.artists.set(artistKey, { id: artist.id });
+    }
+
+    let release: { id: string } | null = null;
+    if (meta.releaseName) {
+      const releaseKey = `${normalizeName(meta.releaseName)}|${artist.id}|${meta.releaseMbid ?? ""}`;
+      release = cache?.releases.get(releaseKey) ?? null;
+      if (!release) {
+        release = await this.upsertRelease(
+          meta.releaseName,
+          artist.id,
+          meta.releaseMbid ?? null,
+        );
+        cache?.releases.set(releaseKey, { id: release.id });
+      }
+    }
+
+    const trackKey = [
+      normalizeName(meta.trackName),
+      artist.id,
+      release?.id ?? "",
+      meta.recordingMbid ?? "",
+      meta.spotifyId ?? "",
+    ].join("|");
+    let track = cache?.tracks.get(trackKey);
+    if (!track) {
+      track = await this.upsertTrack({
+        title: meta.trackName,
+        artistId: artist.id,
+        releaseId: release?.id ?? null,
+        recordingMbid: meta.recordingMbid ?? null,
+        trackMbid: meta.trackMbid ?? null,
+        isrc: meta.isrc ?? null,
+        spotifyId: meta.spotifyId ?? null,
+        durationMs: meta.durationMs ?? null,
+      });
+      cache?.tracks.set(trackKey, { id: track.id });
+    }
+
+    return { artist, release, track };
+  }
+
+  private async resolveCorrectedTrackForMeta(meta: IncomingListenMeta) {
+    if (meta.correctionTargetTrackId) {
+      return this.loadTrackWithRelations(meta.correctionTargetTrackId);
+    }
+    const resolved = await this.resolveCorrectedTrack({
+      artistIds: meta.correctionArtistIds!,
+      trackTitle: meta.trackName,
+      albumTitle: meta.releaseName ?? null,
+      albumId: meta.correctionTargetAlbumId ?? null,
+    });
+    return this.loadTrackWithRelations(resolved.id);
+  }
+
   async setPlayingNow(userId: string, meta: IncomingListenMeta) {
     meta = await this.corrections.applyRulesToMeta(userId, meta);
 
     if (meta.correctionArtistIds?.length) {
-      const resolved = await this.resolveCorrectedTrack({
-        artistIds: meta.correctionArtistIds,
-        trackTitle: meta.trackName,
-        albumTitle: meta.releaseName ?? null,
-        albumId: null,
-      });
-      const full = await this.prisma.track.findUnique({
-        where: { id: resolved.id },
-        include: { artist: true, release: true },
-      });
-      if (!full) throw new NotFoundException("Track not found");
+      const full = await this.resolveCorrectedTrackForMeta(meta);
       if (meta.tags?.length) {
         await this.linkTags(full.id, meta.tags, "payload_tag");
       }
@@ -381,6 +428,29 @@ export class CatalogService implements OnModuleInit {
 
   async upsertArtistPublic(name: string, mbid: string | null = null) {
     return this.upsertArtist(name, mbid);
+  }
+
+  async resolveCorrectedRelease(input: {
+    artistId: string;
+    albumTitle: string;
+    albumId?: string | null;
+  }) {
+    if (input.albumId) {
+      const existing = await this.prisma.release.findUnique({
+        where: { id: input.albumId },
+      });
+      if (existing) return existing;
+    }
+    return this.upsertRelease(input.albumTitle.trim(), input.artistId, null);
+  }
+
+  private async loadTrackWithRelations(trackId: string) {
+    const track = await this.prisma.track.findUnique({
+      where: { id: trackId },
+      include: { artist: true, release: true },
+    });
+    if (!track) throw new NotFoundException("Track not found");
+    return track;
   }
 
   async resolveCorrectedTrack(input: {

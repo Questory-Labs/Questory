@@ -15,6 +15,15 @@ export function normalizeName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/** Primary credited artist for rule matching (strips feat./featuring/&, etc.). */
+export function primaryArtistNorm(value: string): string {
+  const trimmed = value.trim();
+  const split = trimmed.split(
+    /\s+(?:feat\.?|featuring|ft\.?|with|vs\.?|x)\s+/i,
+  )[0];
+  return normalizeName(split ?? trimmed);
+}
+
 export function slugifyGenre(name: string): string {
   return name
     .trim()

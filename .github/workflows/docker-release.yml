@@ -22,10 +22,28 @@ env:
   GHCR_NAMESPACE: questory-labs
 
 jobs:
-  release:
-    name: Build & push Docker image
+  meta:
+    name: Parse tag
     runs-on: self-hosted
+    outputs:
+      service: ${{ steps.meta.outputs.service }}
+      version: ${{ steps.meta.outputs.version }}
+      package: ${{ steps.meta.outputs.package }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_latest: ${{ steps.meta.outputs.image_latest }}
+      ghcr_image_tag: ${{ steps.meta.outputs.ghcr_image_tag }}
+      ghcr_image_latest: ${{ steps.meta.outputs.ghcr_image_latest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Parse tag
+        id: meta
+        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+
+  test-shared:
+    name: Test shared
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,15 +51,39 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Parse tag
-        id: meta
-        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+      - name: Build shared
+        run: pnpm --filter @questorylabs/shared build
+
+      - name: Detect tests
+        id: detect
+        run: |
+          if node scripts/ci-has-tests.mjs shared; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+            echo "No test script for shared — skipping."
+          fi
+
+      - name: Run shared tests
+        if: steps.detect.outputs.has_tests == 'true'
+        run: pnpm --filter @questorylabs/shared test
+
+  test-service:
+    name: Test ${{ needs.meta.outputs.service }}
+    needs: [meta, test-shared]
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Build shared
         run: pnpm --filter @questorylabs/shared build
 
       - name: Generate Prisma client
-        if: steps.meta.outputs.service == 'api'
+        if: needs.meta.outputs.service == 'api'
         run: pnpm db:generate
         env:
           DATABASE_URL: file:./test.db
@@ -50,21 +92,47 @@ jobs:
       - name: Detect tests
         id: detect
         run: |
-          if node scripts/ci-has-tests.mjs "${{ steps.meta.outputs.service }}"; then
+          if node scripts/ci-has-tests.mjs "${{ needs.meta.outputs.service }}"; then
             echo "has_tests=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_tests=false" >> "$GITHUB_OUTPUT"
-            echo "No test script for ${{ steps.meta.outputs.service }} — skipping tests."
+            echo "No test script for ${{ needs.meta.outputs.service }} — skipping."
           fi
 
-      - name: Run tests
+      - name: Install Playwright browsers
+        if: needs.meta.outputs.service == 'web' && steps.detect.outputs.has_tests == 'true'
+        run: pnpm --filter @questorylabs/web exec playwright install --with-deps chromium
+
+      - name: Run unit tests
         if: steps.detect.outputs.has_tests == 'true'
-        run: pnpm --filter "${{ steps.meta.outputs.package }}" test
+        run: pnpm --filter "${{ needs.meta.outputs.package }}" test
         env:
           APP_MODE: local
           SESSION_SECRET: test-session-secret-32chars!!
           DATABASE_URL: file:./test.db
           DATABASE_PROVIDER: sqlite
+
+      - name: Run Playwright e2e
+        if: needs.meta.outputs.service == 'web' && steps.detect.outputs.has_tests == 'true'
+        run: pnpm --filter @questorylabs/web test:e2e
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:4000
+          NEXT_PUBLIC_ENABLE_MUSIC: "false"
+          NEXT_PUBLIC_ENABLE_WATCH: "false"
+
+  release:
+    name: Build & push Docker image
+    needs: [meta, test-service]
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: ./.github/actions/setup
+        with:
+          install: "false"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -84,18 +152,18 @@ jobs:
 
       - name: Build and push
         env:
-          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+          IMAGE_TAG: ${{ needs.meta.outputs.version }}
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
           DOCKER_IMAGE_SOURCE: https://github.com/${{ github.repository }}
         run: |
           export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:4000}"
-          node scripts/docker-publish.mjs "${{ steps.meta.outputs.service }}"
+          node scripts/docker-publish.mjs "${{ needs.meta.outputs.service }}"
 
       - name: Make Docker Hub image public
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          REPO: ${{ env.DOCKER_IMAGE_PREFIX }}-${{ steps.meta.outputs.service }}
+          REPO: ${{ env.DOCKER_IMAGE_PREFIX }}-${{ needs.meta.outputs.service }}
         run: |
           set -euo pipefail
           # Current Hub API: exchange username+PAT for a Bearer JWT, then PATCH.
@@ -107,7 +175,7 @@ jobs:
           token="$(printf '%s' "$login" | jq -r '.access_token // .token // empty')"
           if [ -z "$token" ]; then
             echo "Failed to obtain Docker Hub access token"
-            printf '%s\n' "$login" | jq -c '{error,detail,message}' 2>/dev/null || printf '%s\n' "$login"
+            printf '%s' "$login" | jq -c '{error,detail,message}' 2>/dev/null || printf '%s\n' "$login"
             exit 1
           fi
           url="https://hub.docker.com/v2/namespaces/${DOCKERHUB_NAMESPACE}/repositories/${REPO}/"
@@ -137,32 +205,32 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Docker ${{ steps.meta.outputs.service }} ${{ steps.meta.outputs.version }}
+          name: Docker ${{ needs.meta.outputs.service }} ${{ needs.meta.outputs.version }}
           generate_release_notes: true
           body: |
             ## Docker image
 
             | | |
             |---|---|
-            | Service | `${{ steps.meta.outputs.service }}` |
-            | Version | `${{ steps.meta.outputs.version }}` |
-            | Docker Hub | `${{ steps.meta.outputs.image_tag }}` |
-            | Docker Hub (latest) | `${{ steps.meta.outputs.image_latest }}` |
-            | GHCR | `${{ steps.meta.outputs.ghcr_image_tag }}` |
-            | GHCR (latest) | `${{ steps.meta.outputs.ghcr_image_latest }}` |
+            | Service | `${{ needs.meta.outputs.service }}` |
+            | Version | `${{ needs.meta.outputs.version }}` |
+            | Docker Hub | `${{ needs.meta.outputs.image_tag }}` |
+            | Docker Hub (latest) | `${{ needs.meta.outputs.image_latest }}` |
+            | GHCR | `${{ needs.meta.outputs.ghcr_image_tag }}` |
+            | GHCR (latest) | `${{ needs.meta.outputs.ghcr_image_latest }}` |
 
             Pull (Docker Hub):
             ```bash
-            docker pull ${{ steps.meta.outputs.image_tag }}
+            docker pull ${{ needs.meta.outputs.image_tag }}
             ```
 
             Pull (GHCR):
             ```bash
-            docker pull ${{ steps.meta.outputs.ghcr_image_tag }}
+            docker pull ${{ needs.meta.outputs.ghcr_image_tag }}
             ```
 
             Deploy this version with a service tag:
             ```bash
-            git tag service-${{ steps.meta.outputs.service }}-${{ steps.meta.outputs.version }}
-            git push origin service-${{ steps.meta.outputs.service }}-${{ steps.meta.outputs.version }}
+            git tag service-${{ needs.meta.outputs.service }}-${{ needs.meta.outputs.version }}
+            git push origin service-${{ needs.meta.outputs.service }}-${{ needs.meta.outputs.version }}
             ```

@@ -173,7 +173,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 | `pnpm docker:build`           | Build API/web images locally                             |
 
 
-CI on `main` runs Vitest (and Playwright for web) across packages with a `test` script. See [docs/testing.md](docs/testing.md).
+CI runs on pull requests to `main` (Vitest and Playwright for web). Docker release tags (`docker-api-*`, `docker-web-*`) run shared + service tests before building images. See [docs/testing.md](docs/testing.md).
 
 ## Monorepo
 

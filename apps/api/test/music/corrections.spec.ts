@@ -25,6 +25,10 @@ describe("CorrectionsService", () => {
 
   const resolveCorrectedTrack = vi.fn();
   const upsertArtistPublic = vi.fn();
+  const peekIncomingTrackId = vi.fn();
+  const peekIncomingReleaseId = vi.fn();
+  const peekIncomingArtistId = vi.fn();
+  const resolveCorrectedRelease = vi.fn();
 
   let service: CorrectionsService;
 
@@ -69,6 +73,10 @@ describe("CorrectionsService", () => {
     const catalog = {
       resolveCorrectedTrack,
       upsertArtistPublic,
+      peekIncomingTrackId,
+      peekIncomingReleaseId,
+      peekIncomingArtistId,
+      resolveCorrectedRelease,
     } as unknown as CatalogService;
 
     service = new CorrectionsService(prisma, catalog);
@@ -82,7 +90,11 @@ describe("CorrectionsService", () => {
         matchArtistNorm: "artist b",
         matchAlbumNorm: null,
         matchTrackNorm: "wrong song",
+        sourceTrackId: null,
+        sourceReleaseId: null,
+        sourceArtistId: null,
         targetTrackTitle: "ABCD",
+        targetTrackId: "t-target",
         targetAlbumTitle: "Album A",
         targetAlbumId: null,
         targetArtists: [
@@ -97,7 +109,7 @@ describe("CorrectionsService", () => {
     const result = await service.applyRulesToMeta("user1", {
       artistName: "Artist B",
       trackName: "wrong song",
-      releaseName: null,
+      releaseName: "Some Other Album",
       listenedAt: new Date(),
       listenType: "single",
     });
@@ -105,6 +117,158 @@ describe("CorrectionsService", () => {
     expect(result.trackName).toBe("ABCD");
     expect(result.releaseName).toBe("Album A");
     expect(result.correctionArtistIds).toEqual(["a1"]);
+    expect(result.correctionTargetTrackId).toBe("t-target");
+  });
+
+  it("applies album rule when scrobble omits album name", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-album",
+        kind: "album",
+        matchArtistNorm: "artist b",
+        matchAlbumNorm: "old album",
+        matchTrackNorm: null,
+        sourceTrackId: null,
+        sourceReleaseId: "r-old",
+        sourceArtistId: null,
+        targetTrackTitle: null,
+        targetTrackId: null,
+        targetAlbumTitle: "Album A",
+        targetAlbumId: "r-target",
+        targetArtists: [
+          {
+            position: 0,
+            artist: { id: "a1", name: "Artist A" },
+          },
+        ],
+      },
+    ]);
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "Artist B",
+      trackName: "Song",
+      releaseName: null,
+      listenedAt: new Date(),
+      listenType: "single",
+    });
+
+    expect(result.releaseName).toBe("Album A");
+    expect(result.correctionArtistIds).toEqual(["a1"]);
+    expect(result.correctionTargetAlbumId).toBe("r-target");
+    expect(result.trackName).toBe("Song");
+  });
+
+  it("falls back to source release id for album rules", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-album",
+        kind: "album",
+        matchArtistNorm: "artist b",
+        matchAlbumNorm: "old album",
+        matchTrackNorm: null,
+        sourceTrackId: null,
+        sourceReleaseId: "r-old",
+        sourceArtistId: null,
+        targetTrackTitle: null,
+        targetTrackId: null,
+        targetAlbumTitle: "Album A",
+        targetAlbumId: "r-target",
+        targetArtists: [
+          {
+            position: 0,
+            artist: { id: "a1", name: "Artist A" },
+          },
+        ],
+      },
+    ]);
+    peekIncomingReleaseId.mockResolvedValue("r-old");
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "Artist B",
+      trackName: "Song",
+      releaseName: "Different Album Label",
+      listenedAt: new Date(),
+      listenType: "single",
+    });
+
+    expect(result.releaseName).toBe("Album A");
+    expect(peekIncomingReleaseId).toHaveBeenCalled();
+  });
+
+  it("applies artist rule using primary artist from feat. string", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-artist",
+        kind: "artist",
+        matchArtistNorm: "artist b",
+        matchAlbumNorm: null,
+        matchTrackNorm: null,
+        sourceTrackId: null,
+        sourceReleaseId: null,
+        sourceArtistId: "b1",
+        targetTrackTitle: null,
+        targetTrackId: null,
+        targetAlbumTitle: null,
+        targetAlbumId: null,
+        targetArtists: [
+          {
+            position: 0,
+            artist: { id: "a1", name: "Artist A" },
+          },
+        ],
+      },
+    ]);
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "Artist B feat. Guest",
+      trackName: "Song",
+      releaseName: "Album",
+      listenedAt: new Date(),
+      listenType: "single",
+    });
+
+    expect(result.artistName).toBe("Artist A");
+    expect(result.trackName).toBe("Song");
+    expect(result.releaseName).toBe("Album");
+    expect(result.correctionArtistIds).toEqual(["a1"]);
+  });
+
+  it("falls back to source track id when metadata matching fails", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-merge",
+        kind: "track",
+        matchArtistNorm: "artist b",
+        matchAlbumNorm: "old album",
+        matchTrackNorm: "old song",
+        sourceTrackId: "t-source",
+        sourceReleaseId: null,
+        sourceArtistId: null,
+        targetTrackTitle: "Song",
+        targetTrackId: "t-target",
+        targetAlbumTitle: "Album A",
+        targetAlbumId: "r1",
+        targetArtists: [
+          {
+            position: 0,
+            artist: { id: "a1", name: "Artist A" },
+          },
+        ],
+      },
+    ]);
+    peekIncomingTrackId.mockResolvedValue("t-source");
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "Artist B",
+      trackName: "Totally Different Title",
+      releaseName: "Old Album",
+      listenedAt: new Date(),
+      listenType: "single",
+    });
+
+    expect(result.correctionTargetTrackId).toBe("t-target");
+    expect(result.trackName).toBe("Song");
+    expect(peekIncomingTrackId).toHaveBeenCalled();
   });
 
   it("saves label-only correction when assignment unchanged", async () => {
@@ -305,6 +469,7 @@ describe("CorrectionsService", () => {
           sourceTrackId: "t1",
           matchTrackNorm: "old song",
           targetTrackTitle: "Song",
+          targetTrackId: "t2",
         }),
       }),
     );
