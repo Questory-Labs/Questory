@@ -8,20 +8,19 @@ inputs:
 runs:
   using: composite
   steps:
-    # No actions/cache / setup-node cache: self-hosted runners keep a local
-    # pnpm store on disk; restoring GitHub's ~200MB+ cache often times out.
     - name: Setup Node
       uses: actions/setup-node@v7
       with:
         node-version: 22
         package-manager-cache: false
 
-    # standalone: true avoids the runner's bundled Node 24 npm, which is often
-    # broken on self-hosted runners after a runner self-update (MODULE_NOT_FOUND).
-    - name: Install pnpm
-      uses: pnpm/action-setup@v6
-      with:
-        standalone: true
+    - name: Enable pnpm
+      shell: bash
+      run: |
+        corepack enable pnpm
+        corepack prepare --activate
+      env:
+        COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
 
     - name: Install dependencies
       if: inputs.install == 'true'
