@@ -120,7 +120,8 @@ export class CatalogService implements OnModuleInit {
     );
 
     if (meta.correctionArtistIds?.length) {
-      const track = await this.resolveCorrectedTrackForMeta(meta);
+      let track = await this.resolveCorrectedTrackForMeta(meta);
+      track = await this.finalizePlaybackTrack(userId, track.id);
       const artist = track.artist;
       const release = track.release;
 
@@ -317,11 +318,23 @@ export class CatalogService implements OnModuleInit {
     return this.loadTrackWithRelations(resolved.id);
   }
 
+  private async finalizePlaybackTrack(userId: string, trackId: string) {
+    const resolvedId = await this.corrections.resolvePlaybackTrackId(
+      userId,
+      trackId,
+    );
+    if (resolvedId === trackId) {
+      return this.loadTrackWithRelations(trackId);
+    }
+    return this.loadTrackWithRelations(resolvedId);
+  }
+
   async setPlayingNow(userId: string, meta: IncomingListenMeta) {
     meta = await this.corrections.applyRulesToMeta(userId, meta);
 
     if (meta.correctionArtistIds?.length) {
-      const full = await this.resolveCorrectedTrackForMeta(meta);
+      let full = await this.resolveCorrectedTrackForMeta(meta);
+      full = await this.finalizePlaybackTrack(userId, full.id);
       if (meta.tags?.length) {
         await this.linkTags(full.id, meta.tags, "payload_tag");
       }
@@ -355,17 +368,19 @@ export class CatalogService implements OnModuleInit {
       durationMs: meta.durationMs ?? null,
     });
 
+    const full = await this.finalizePlaybackTrack(userId, track.id);
+
     if (meta.tags?.length) {
-      await this.linkTags(track.id, meta.tags, "payload_tag");
+      await this.linkTags(full.id, meta.tags, "payload_tag");
     }
 
     await this.prisma.playingNow.upsert({
       where: { userId },
-      create: { userId, trackId: track.id },
-      update: { trackId: track.id, updatedAt: new Date() },
+      create: { userId, trackId: full.id },
+      update: { trackId: full.id, updatedAt: new Date() },
     });
 
-    return { track, artist, release };
+    return { track: full, artist: full.artist, release: full.release };
   }
 
   async clearPlayingNow(userId: string) {

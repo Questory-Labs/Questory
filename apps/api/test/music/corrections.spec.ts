@@ -22,6 +22,7 @@ describe("CorrectionsService", () => {
   const listenCount = vi.fn();
   const trackFindUnique = vi.fn();
   const artistFindUnique = vi.fn();
+  const playingNowUpdateMany = vi.fn();
 
   const resolveCorrectedTrack = vi.fn();
   const upsertArtistPublic = vi.fn();
@@ -67,6 +68,9 @@ describe("CorrectionsService", () => {
       },
       artist: {
         findUnique: artistFindUnique,
+      },
+      playingNow: {
+        updateMany: playingNowUpdateMany,
       },
     } as unknown as PrismaService;
 
@@ -271,6 +275,75 @@ describe("CorrectionsService", () => {
     expect(peekIncomingTrackId).toHaveBeenCalled();
   });
 
+  it("prioritizes source track id before metadata matching", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-merge",
+        kind: "track",
+        matchArtistNorm: "artist b",
+        matchAlbumNorm: "old album",
+        matchTrackNorm: "old song",
+        sourceTrackId: "t-source",
+        sourceReleaseId: null,
+        sourceArtistId: null,
+        targetTrackTitle: "Song",
+        targetTrackId: "t-target",
+        targetAlbumTitle: "Album A",
+        targetAlbumId: "r1",
+        targetArtists: [
+          {
+            position: 0,
+            artist: { id: "a1", name: "Artist A" },
+          },
+        ],
+      },
+    ]);
+    peekIncomingTrackId.mockResolvedValue("t-source");
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "Artist B",
+      trackName: "Old Song",
+      releaseName: "Old Album",
+      listenedAt: new Date(),
+      listenType: "playing_now",
+    });
+
+    expect(result.correctionTargetTrackId).toBe("t-target");
+    expect(peekIncomingTrackId).toHaveBeenCalled();
+  });
+
+  it("resolves playback target from merge rule without stored targetTrackId", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-merge",
+        kind: "track",
+        matchArtistNorm: "artist b",
+        matchAlbumNorm: null,
+        matchTrackNorm: "old song",
+        sourceTrackId: "t-source",
+        sourceReleaseId: null,
+        sourceArtistId: null,
+        targetTrackTitle: "Song",
+        targetTrackId: null,
+        targetAlbumTitle: null,
+        targetAlbumId: null,
+        targetArtists: [
+          {
+            position: 0,
+            artist: { id: "a1", name: "Artist A" },
+          },
+        ],
+      },
+    ]);
+    resolveCorrectedTrack.mockResolvedValue({ id: "t-target", releaseId: null });
+    userMusicRuleUpdate.mockResolvedValue({});
+
+    const targetId = await service.resolvePlaybackTrackId("user1", "t-source");
+
+    expect(targetId).toBe("t-target");
+    expect(resolveCorrectedTrack).toHaveBeenCalled();
+  });
+
   it("saves label-only correction when assignment unchanged", async () => {
     trackFindUnique.mockResolvedValue({
       id: "t1",
@@ -462,6 +535,10 @@ describe("CorrectionsService", () => {
     const result = await service.mergeTrackInto("user1", "t1", "t2");
 
     expect(result).toEqual({ ok: true, trackId: "t2", mergedListenCount: 2 });
+    expect(playingNowUpdateMany).toHaveBeenCalledWith({
+      where: { userId: "user1", trackId: "t1" },
+      data: { trackId: "t2", updatedAt: expect.any(Date) },
+    });
     expect(userMusicRuleCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

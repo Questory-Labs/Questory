@@ -5,6 +5,7 @@ import type { PrismaService } from "../../src/prisma/prisma.service";
 
 describe("CatalogService scrobble corrections", () => {
   const applyRulesToMeta = vi.fn();
+  const resolvePlaybackTrackId = vi.fn();
   const listenFindUnique = vi.fn();
   const listenCreate = vi.fn();
   const listenUpdate = vi.fn();
@@ -17,6 +18,9 @@ describe("CatalogService scrobble corrections", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     applyRulesToMeta.mockImplementation(async (_userId, meta) => meta);
+    resolvePlaybackTrackId.mockImplementation(
+      async (_userId, trackId) => trackId,
+    );
 
     const prisma = {
       listen: {
@@ -47,6 +51,7 @@ describe("CatalogService scrobble corrections", () => {
 
     const corrections = {
       applyRulesToMeta,
+      resolvePlaybackTrackId,
     } as unknown as CorrectionsService;
 
     service = new CatalogService(prisma, corrections);

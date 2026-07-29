@@ -1,4 +1,4 @@
-import { Injectable, Logger, MessageEvent } from "@nestjs/common";
+import { Inject, Injectable, Logger, MessageEvent, forwardRef } from "@nestjs/common";
 import {
   defer,
   distinctUntilChanged,
@@ -17,6 +17,7 @@ import {
   type IncomingListenMeta,
 } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
+import { CorrectionsService } from "../corrections/corrections.service";
 import {
   PLAYING_NOW_CACHE_TTL_SECONDS,
   PLAYING_NOW_STALE_MS,
@@ -39,6 +40,8 @@ export class PlayingNowService {
     private readonly cache: CacheService,
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
+    @Inject(forwardRef(() => CorrectionsService))
+    private readonly corrections: CorrectionsService,
   ) {
     this.logger.log(
       `PlayingNow: Redis cache TTL ${PLAYING_NOW_CACHE_TTL_SECONDS}s (inline apply)`,
@@ -94,7 +97,7 @@ export class PlayingNowService {
       playingNowCacheKey(userId),
     );
     if (cached?.track?.id) {
-      return cached;
+      return this.remapSnapshotTrack(userId, cached);
     }
 
     const row = await this.prisma.playingNow.findUnique({
@@ -130,12 +133,61 @@ export class PlayingNowService {
       },
     });
 
+    const remapped = await this.remapSnapshotTrack(userId, snapshot);
+
     const ttlSec = Math.max(
       15,
       Math.floor((PLAYING_NOW_STALE_MS - ageMs) / 1000),
     );
-    await this.cache.setJson(playingNowCacheKey(userId), snapshot, ttlSec);
-    return snapshot;
+    await this.cache.setJson(playingNowCacheKey(userId), remapped, ttlSec);
+    return remapped;
+  }
+
+  private async remapSnapshotTrack(
+    userId: string,
+    snapshot: PlayingNowSnapshot,
+  ): Promise<PlayingNowSnapshot> {
+    const targetId = await this.corrections.resolvePlaybackTrackId(
+      userId,
+      snapshot.track.id,
+    );
+    if (targetId === snapshot.track.id) {
+      return snapshot;
+    }
+
+    const row = await this.prisma.track.findUnique({
+      where: { id: targetId },
+      include: { artist: true, release: true },
+    });
+    if (!row) return snapshot;
+
+    const remapped = toPlayingNowSnapshot({
+      updatedAt: snapshot.updatedAt,
+      track: {
+        id: row.id,
+        title: row.title,
+        artistId: row.artist.id,
+        artistName: row.artist.name,
+        releaseId: row.release?.id ?? null,
+        releaseTitle: row.release?.title ?? null,
+        imageUrl: row.release?.imageUrl ?? null,
+      },
+    });
+
+    await this.cache.setJson(
+      playingNowCacheKey(userId),
+      remapped,
+      PLAYING_NOW_CACHE_TTL_SECONDS,
+    );
+
+    if (targetId !== snapshot.track.id) {
+      await this.prisma.playingNow.updateMany({
+        where: { userId, trackId: snapshot.track.id },
+        data: { trackId: targetId, updatedAt: new Date() },
+      });
+    }
+
+    return remapped;
   }
 
   fingerprint(snapshot: PlayingNowSnapshot | null): string {

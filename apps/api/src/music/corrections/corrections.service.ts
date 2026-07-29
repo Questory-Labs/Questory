@@ -56,8 +56,9 @@ export class CorrectionsService {
     const trackNorm = normalizeName(meta.trackName);
 
     let rule =
+      (await this.findRuleByIncomingSourceTrack(rules, meta)) ??
       this.findBestRule(rules, artistNorm, albumNorm, trackNorm) ??
-      (await this.findRuleBySourceEntities(rules, meta));
+      (await this.findRuleBySourceReleaseAndArtist(rules, meta));
 
     if (!rule || rule.artists.length === 0) return meta;
 
@@ -101,6 +102,45 @@ export class CorrectionsService {
 
   getCorrectionArtistIds(meta: IncomingListenMeta): string[] | undefined {
     return meta.correctionArtistIds;
+  }
+
+  /** If a merge/correction rule routes this catalog track elsewhere, return the target id. */
+  async resolvePlaybackTrackId(
+    userId: string,
+    trackId: string,
+  ): Promise<string> {
+    const rules = await this.loadUserRules(userId);
+    for (const rule of rules) {
+      if (rule.kind !== "track" || rule.sourceTrackId !== trackId) continue;
+      if (rule.targetTrackId) return rule.targetTrackId;
+
+      if (!rule.targetTrackTitle || rule.artists.length === 0) continue;
+
+      const resolved = await this.catalog.resolveCorrectedTrack({
+        artistIds: rule.artists.map((a) => a.id),
+        trackTitle: rule.targetTrackTitle,
+        albumTitle: rule.targetAlbumTitle,
+        albumId: rule.targetAlbumId,
+      });
+      if (resolved.id === trackId) continue;
+
+      rule.targetTrackId = resolved.id;
+      if (!rule.targetAlbumId) {
+        rule.targetAlbumId = resolved.releaseId;
+      }
+      void this.prisma.userMusicRule
+        .update({
+          where: { id: rule.id },
+          data: {
+            targetTrackId: resolved.id,
+            targetAlbumId: rule.targetAlbumId,
+          },
+        })
+        .catch(() => undefined);
+
+      return resolved.id;
+    }
+    return trackId;
   }
 
   async suggest(
@@ -460,6 +500,12 @@ export class CorrectionsService {
       sourceTrackId,
       targetTrackId,
     );
+
+    await this.prisma.playingNow.updateMany({
+      where: { userId, trackId: sourceTrackId },
+      data: { trackId: targetTrackId, updatedAt: new Date() },
+    });
+
     this.invalidateRulesCache(userId);
 
     return { ok: true as const, trackId: targetTrackId, mergedListenCount };
@@ -1209,19 +1255,23 @@ export class CorrectionsService {
     }
   }
 
-  private async findRuleBySourceEntities(
+  private async findRuleByIncomingSourceTrack(
     rules: LoadedRule[],
     meta: IncomingListenMeta,
   ): Promise<LoadedRule | null> {
     const trackRules = rules.filter((r) => r.kind === "track" && r.sourceTrackId);
-    if (trackRules.length > 0) {
-      const trackId = await this.catalog.peekIncomingTrackId(meta);
-      if (trackId) {
-        const match = trackRules.find((r) => r.sourceTrackId === trackId);
-        if (match) return match;
-      }
-    }
+    if (trackRules.length === 0) return null;
 
+    const trackId = await this.catalog.peekIncomingTrackId(meta);
+    if (!trackId) return null;
+
+    return trackRules.find((r) => r.sourceTrackId === trackId) ?? null;
+  }
+
+  private async findRuleBySourceReleaseAndArtist(
+    rules: LoadedRule[],
+    meta: IncomingListenMeta,
+  ): Promise<LoadedRule | null> {
     const albumRules = rules.filter(
       (r) => r.kind === "album" && r.sourceReleaseId,
     );
