@@ -12,6 +12,7 @@ import {
   RangeKey,
   ReadAnalyticsService,
 } from "./analytics.service";
+import { parseTimeZone } from "../../lib/timezone";
 import { ReadSessionUserGuard } from "../auth/session-user.guard";
 import { CurrentReadUserId } from "../auth/current-read-user.decorator";
 
@@ -56,8 +57,11 @@ export class ReadAnalyticsController {
   constructor(private readonly analytics: ReadAnalyticsService) {}
 
   @Get("overview")
-  overview(@CurrentReadUserId() userId: string) {
-    return this.analytics.overview(userId);
+  overview(
+    @CurrentReadUserId() userId: string,
+    @Query("tz") tz?: string,
+  ) {
+    return this.analytics.overview(userId, parseTimeZone(tz));
   }
 
   @Get("insights")
@@ -65,11 +69,13 @@ export class ReadAnalyticsController {
     @CurrentReadUserId() userId: string,
     @Query("range") range?: string,
     @Query("format") format?: string,
+    @Query("tz") tz?: string,
   ) {
     return this.analytics.insights(
       userId,
       parseRange(range, "week"),
       parseFormat(format),
+      parseTimeZone(tz),
     );
   }
 
@@ -122,6 +128,7 @@ export class ReadAnalyticsController {
     granularity: "hourOfDay" | "dayOfWeek" | "day" | "week" = "day",
     @Query("range") range: string | undefined,
     @Query("format") format: string | undefined,
+    @Query("tz") tz: string | undefined,
     @CurrentReadUserId() userId: string,
   ) {
     const allowed = new Set(["hourOfDay", "dayOfWeek", "day", "week"]);
@@ -133,6 +140,7 @@ export class ReadAnalyticsController {
       parseRange(range, "month"),
       userId,
       parseFormat(format),
+      parseTimeZone(tz),
     );
   }
 
@@ -149,5 +157,14 @@ export class ReadAnalyticsController {
       throw new BadRequestException("Invalid page or pageSize");
     }
     return this.analytics.recent(userId, page, pageSize);
+  }
+
+  @Get("titles/:id")
+  titleDetail(
+    @CurrentReadUserId() userId: string,
+    @Param("id") id: string,
+    @Query("range") range?: string,
+  ) {
+    return this.analytics.titleDetail(userId, id, parseRange(range, "all"));
   }
 }

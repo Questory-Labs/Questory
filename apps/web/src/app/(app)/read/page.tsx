@@ -1,15 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import type { ReadOverview, ReadTopItem } from "@questorylabs/shared";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, StateMessage } from "@/components/ui";
 import { readFetch } from "@/lib/read";
+import { withTz } from "@/lib/dates";
 
 export default function ReadHomePage() {
   const overview = useQuery({
     queryKey: ["read-overview"],
-    queryFn: () => readFetch<ReadOverview>("/analytics/overview"),
+    queryFn: () => readFetch<ReadOverview>(withTz("/analytics/overview")),
   });
   const tops = useQuery({
     queryKey: ["read-tops-week"],
@@ -55,7 +57,10 @@ export default function ReadHomePage() {
                 key={t.id}
                 className="flex items-baseline justify-between border-b border-[var(--line)] py-2 text-sm"
               >
-                <span className="text-[var(--ink)]">
+                <Link
+                  href={`/read/titles/${t.id}`}
+                  className="text-[var(--ink)] hover:text-[var(--accent)]"
+                >
                   <span className="mr-3 font-mono text-[var(--faint)]">
                     {i + 1}.
                   </span>
@@ -65,7 +70,7 @@ export default function ReadHomePage() {
                       {t.format}
                     </span>
                   ) : null}
-                </span>
+                </Link>
                 <span className="font-mono text-[var(--muted)]">{t.count}</span>
               </li>
             ))}

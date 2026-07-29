@@ -5,6 +5,7 @@ import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { getWatchUrl, watchFetch, watchUrl } from "@/lib/watch";
+import { formatDateTime } from "@/lib/dates";
 import {
   useEffect,
   useRef,
@@ -94,7 +95,7 @@ function SourceCard({
   children?: ReactNode;
 }) {
   return (
-    <Panel className="flex h-full flex-col p-5">
+    <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
       <div className="flex items-start justify-between gap-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
           {label}
@@ -197,7 +198,7 @@ function LetterboxdProgress({ job }: { job: LetterboxdJob }) {
 function formatLastSync(value?: string | null) {
   if (!value) return "never";
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? value : formatDateTime(value);
 }
 
 export default function WatchSettingsPage() {
@@ -329,6 +330,7 @@ export default function WatchSettingsPage() {
     setImportMsg("Importing…");
     startProgressPoll();
     void qc.invalidateQueries({ queryKey: ["watch-sync-status"] });
+    void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
 
     const body = new FormData();
     body.append("file", file);
@@ -386,6 +388,7 @@ export default function WatchSettingsPage() {
       void qc.invalidateQueries({ queryKey: ["watch-overview"] });
       void qc.invalidateQueries({ queryKey: ["watch-recent"] });
       void qc.invalidateQueries({ queryKey: ["watch-sync-status"] });
+    void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
     } catch (err) {
       setImportMsg(err instanceof Error ? err.message : "Import failed");
       setProgress(null);

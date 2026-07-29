@@ -1,4 +1,15 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, MessageEvent } from "@nestjs/common";
+import {
+  defer,
+  distinctUntilChanged,
+  expand,
+  interval,
+  map,
+  merge,
+  Observable,
+  switchMap,
+  timer,
+} from "rxjs";
 import { CacheService } from "../../cache/cache.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
@@ -125,5 +136,36 @@ export class PlayingNowService {
     );
     await this.cache.setJson(playingNowCacheKey(userId), snapshot, ttlSec);
     return snapshot;
+  }
+
+  fingerprint(snapshot: PlayingNowSnapshot | null): string {
+    if (!snapshot) return "null";
+    return `${snapshot.track.id}:${snapshot.updatedAt}`;
+  }
+
+  pollIntervalMs(snapshot: PlayingNowSnapshot | null): number {
+    return snapshot ? 5_000 : 30_000;
+  }
+
+  streamStatus(userId: string): Observable<MessageEvent> {
+    const data$ = defer(() => this.getSnapshot(userId)).pipe(
+      expand((snapshot) =>
+        timer(this.pollIntervalMs(snapshot)).pipe(
+          switchMap(() => this.getSnapshot(userId)),
+        ),
+      ),
+      distinctUntilChanged(
+        (a, b) => this.fingerprint(a) === this.fingerprint(b),
+      ),
+      map((snapshot) => ({
+        data: JSON.stringify(snapshot),
+      })),
+    );
+
+    const keepalive$ = interval(25_000).pipe(
+      map(() => ({ data: "ping", type: "ping" } satisfies MessageEvent)),
+    );
+
+    return merge(data$, keepalive$);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { hourStartUtc, normalizeName, slugify } from "../lib/normalize";
 
@@ -45,6 +45,45 @@ export type RecordWatchInput = {
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private posterForUpdate(
+    existing: { posterUrl: string | null; imageManual: boolean },
+    incoming?: string | null,
+  ) {
+    if (existing.imageManual) return existing.posterUrl;
+    return incoming ?? existing.posterUrl;
+  }
+
+  private normalizeOptionalText(value: string | null | undefined) {
+    if (value == null) return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  async updateTitle(
+    id: string,
+    input: { displayName?: string | null; posterUrl?: string | null },
+  ) {
+    const title = await this.prisma.title.findUnique({ where: { id } });
+    if (!title) throw new NotFoundException("Title not found");
+
+    const data: {
+      displayName?: string | null;
+      posterUrl?: string | null;
+      imageManual?: boolean;
+    } = {};
+
+    if (input.displayName !== undefined) {
+      data.displayName = this.normalizeOptionalText(input.displayName);
+    }
+    if (input.posterUrl !== undefined) {
+      const url = this.normalizeOptionalText(input.posterUrl);
+      data.posterUrl = url;
+      data.imageManual = url != null;
+    }
+
+    return this.prisma.title.update({ where: { id }, data });
+  }
+
   async upsertTitle(input: UpsertTitleInput) {
     const nameNormalized = normalizeName(input.name);
 
@@ -61,7 +100,7 @@ export class CatalogService {
             year: input.year ?? byTmdb.year,
             overview: input.overview ?? byTmdb.overview,
             runtimeMinutes: input.runtimeMinutes ?? byTmdb.runtimeMinutes,
-            posterUrl: input.posterUrl ?? byTmdb.posterUrl,
+            posterUrl: this.posterForUpdate(byTmdb, input.posterUrl),
             traktId: input.traktId ?? byTmdb.traktId,
             imdbId: input.imdbId ?? byTmdb.imdbId,
             anilistId: input.anilistId ?? byTmdb.anilistId,
@@ -86,7 +125,7 @@ export class CatalogService {
             imdbId: input.imdbId ?? byTrakt.imdbId,
             overview: input.overview ?? byTrakt.overview,
             runtimeMinutes: input.runtimeMinutes ?? byTrakt.runtimeMinutes,
-            posterUrl: input.posterUrl ?? byTrakt.posterUrl,
+            posterUrl: this.posterForUpdate(byTrakt, input.posterUrl),
           },
         });
       }
@@ -128,7 +167,7 @@ export class CatalogService {
           malId: input.malId ?? existing.malId,
           overview: input.overview ?? existing.overview,
           runtimeMinutes: input.runtimeMinutes ?? existing.runtimeMinutes,
-          posterUrl: input.posterUrl ?? existing.posterUrl,
+          posterUrl: this.posterForUpdate(existing, input.posterUrl),
         },
       });
     }

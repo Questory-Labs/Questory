@@ -12,9 +12,11 @@ export function MusicCover({
   if (!src) {
     return (
       <div
-        className={`${dim} shrink-0 bg-[var(--bg-1)] ring-1 ring-[var(--line)]`}
+        className={`${dim} flex shrink-0 items-center justify-center bg-[var(--bg-2)] ring-1 ring-[var(--line)]`}
         aria-hidden
-      />
+      >
+        <span className="font-mono text-[11px] text-[var(--faint)]">♪</span>
+      </div>
     );
   }
   return (

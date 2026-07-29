@@ -25,6 +25,7 @@ import {
   formatShare,
   musicFetch,
 } from "@/lib/music";
+import { withTz } from "@/lib/dates";
 
 const TOOLTIP_INK = "#f2efe8";
 
@@ -89,20 +90,26 @@ export default function MusicInsightsPage() {
   const insights = useQuery({
     queryKey: ["music-insights", range],
     queryFn: () =>
-      musicFetch<MusicInsights>(`/analytics/insights?range=${range}`),
+      musicFetch<MusicInsights>(
+        withTz(`/analytics/insights?range=${range}`),
+      ),
   });
   const hour = useQuery({
     queryKey: ["music-ts-hour", range],
     queryFn: () =>
       musicFetch<MusicTimeBucket[]>(
-        `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
+        withTz(
+          `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
+        ),
       ),
   });
   const dow = useQuery({
     queryKey: ["music-ts-dow", range],
     queryFn: () =>
       musicFetch<MusicTimeBucket[]>(
-        `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
+        withTz(
+          `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
+        ),
       ),
   });
   const years = useQuery({
@@ -213,7 +220,7 @@ export default function MusicInsightsPage() {
             {[
               d.peakHour
                 ? {
-                    label: "Peak hour (UTC)",
+                    label: "Peak hour",
                     value: d.peakHour.label,
                     hint: `${d.peakHour.count} listens`,
                   }
@@ -254,7 +261,7 @@ export default function MusicInsightsPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <MiniBar title="Hour of day (UTC)" data={hourData} />
+        <MiniBar title="Hour of day" data={hourData} />
         <MiniBar title="Day of week" data={dowData} />
         <MiniBar title="Release years" data={yearData} />
         <Panel className="p-4">

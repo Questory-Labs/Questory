@@ -9,5 +9,6 @@ import { ImportsService } from "./imports.service";
   imports: [CatalogModule, EnrichmentModule, AuthModule],
   controllers: [ImportsController],
   providers: [ImportsService],
+  exports: [ImportsService],
 })
 export class ImportsModule {}

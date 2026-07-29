@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { WatchRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
+import { formatDateTime } from "@/lib/dates";
 import { watchFetch } from "@/lib/watch";
 
 const PAGE_SIZE = 40;
@@ -47,18 +49,21 @@ export default function WatchHistoryPage() {
                 className="border-b border-[var(--line)] pb-3 text-sm"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-[var(--ink)]">
+                  <Link
+                    href={`/watch/titles/${e.title.id}`}
+                    className="text-[var(--ink)] hover:text-[var(--accent)]"
+                  >
                     {e.title.name}
                     {e.episode
                       ? ` · S${e.episode.seasonNumber}E${e.episode.episodeNumber}`
                       : ""}
-                  </span>
+                  </Link>
                   <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
                     {e.source} · {e.precision}
                   </span>
                 </div>
                 <p className="mt-1 font-mono text-xs text-[var(--muted)]">
-                  {new Date(e.watchedAt).toLocaleString()}
+                  {formatDateTime(e.watchedAt)}
                 </p>
               </li>
             ))}

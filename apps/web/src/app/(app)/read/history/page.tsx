@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ReadRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
+import { formatDateTime } from "@/lib/dates";
 import { readFetch } from "@/lib/read";
 
 const PAGE_SIZE = 40;
@@ -47,19 +49,22 @@ export default function ReadHistoryPage() {
                 className="border-b border-[var(--line)] pb-3 text-sm"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-[var(--ink)]">
+                  <Link
+                    href={`/read/titles/${e.title.id}`}
+                    className="text-[var(--ink)] hover:text-[var(--accent)]"
+                  >
                     {e.title.name}
                     {e.chaptersRead != null
                       ? ` · Ch. ${e.chaptersRead}`
                       : ""}
-                  </span>
+                  </Link>
                   <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
                     {e.source} · {e.title.format}
                     {e.status ? ` · ${e.status}` : ""}
                   </span>
                 </div>
                 <p className="mt-1 font-mono text-xs text-[var(--muted)]">
-                  {new Date(e.readAt).toLocaleString()}
+                  {formatDateTime(e.readAt)}
                   {e.progress > 0 ? ` · ${e.progress}%` : ""}
                 </p>
               </li>

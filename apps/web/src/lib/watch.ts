@@ -1,5 +1,6 @@
 import { withApiVersion, type WatchHealth } from "@questorylabs/shared";
 import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
+import { jsonRequestHeaders } from "@/lib/json-fetch";
 
 /** Watch APIs live on the Steam API origin under `/v1/watch/*` (webhooks stay `/webhooks/*`). */
 export function getWatchUrl(): string {
@@ -16,6 +17,7 @@ export function isWatchFlagEnabled(): boolean {
 function prefixWatchPath(path: string): string {
   if (
     path.startsWith("/analytics") ||
+    path.startsWith("/catalog") ||
     path.startsWith("/imports") ||
     path.startsWith("/trakt") ||
     path.startsWith("/anilist") ||
@@ -44,9 +46,7 @@ export async function watchFetch<T>(
   const res = await fetch(watchUrl(path), {
     ...init,
     credentials: "include",
-    headers: {
-      ...(init.headers || {}),
-    },
+    headers: jsonRequestHeaders(init),
     cache: "no-store",
   });
   if (!res.ok) {

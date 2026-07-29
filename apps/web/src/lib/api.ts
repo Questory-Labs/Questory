@@ -1,5 +1,6 @@
 import { withApiVersion } from "@questorylabs/shared";
 import { getApiUrl } from "@/lib/runtime-env";
+import { jsonRequestHeaders } from "@/lib/json-fetch";
 
 function apiPath(path: string) {
   return withApiVersion(path, ["/auth", "/health"]);
@@ -12,10 +13,7 @@ export async function api<T>(
   const res = await fetch(`${getApiUrl()}${apiPath(path)}`, {
     ...init,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
+    headers: jsonRequestHeaders(init),
     cache: "no-store",
   });
   if (!res.ok) {

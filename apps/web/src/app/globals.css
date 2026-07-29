@@ -150,7 +150,6 @@ a {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
   box-sizing: border-box;
   padding-right: var(--_shadow-offset);
   padding-bottom: var(--_shadow-offset);
@@ -190,7 +189,6 @@ a {
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
-  min-height: 100%;
   border-radius: var(--radius);
   overflow: hidden;
 }
@@ -523,4 +521,44 @@ a {
   border: 2px solid var(--bg-0);
   background: var(--accent);
   cursor: pointer;
+}
+
+.overflow-marquee {
+  position: relative;
+  overflow: hidden;
+}
+
+.overflow-marquee--active {
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+}
+
+.overflow-marquee__track {
+  display: flex;
+  width: max-content;
+  animation: overflow-marquee-scroll linear infinite;
+}
+
+.overflow-marquee--active:hover .overflow-marquee__track {
+  animation-play-state: paused;
+}
+
+.overflow-marquee__segment {
+  flex-shrink: 0;
+  padding-right: 2.5rem;
+  white-space: nowrap;
+}
+
+@keyframes overflow-marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }

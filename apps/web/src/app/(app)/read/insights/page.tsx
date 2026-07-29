@@ -20,6 +20,7 @@ import { ReadRangePicker } from "@/components/read/ReadRangePicker";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel, StateMessage } from "@/components/ui";
 import { formatDeltaPct, formatShare, readFetch } from "@/lib/read";
+import { withTz } from "@/lib/dates";
 
 const TOOLTIP_INK = "#f2efe8";
 
@@ -84,20 +85,26 @@ export default function ReadInsightsPage() {
   const insights = useQuery({
     queryKey: ["read-insights", range],
     queryFn: () =>
-      readFetch<ReadInsights>(`/analytics/insights?range=${range}`),
+      readFetch<ReadInsights>(
+        withTz(`/analytics/insights?range=${range}`),
+      ),
   });
   const hour = useQuery({
     queryKey: ["read-ts-hour", range],
     queryFn: () =>
       readFetch<ReadTimeBucket[]>(
-        `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
+        withTz(
+          `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
+        ),
       ),
   });
   const dow = useQuery({
     queryKey: ["read-ts-dow", range],
     queryFn: () =>
       readFetch<ReadTimeBucket[]>(
-        `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
+        withTz(
+          `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
+        ),
       ),
   });
   const formats = useQuery({
@@ -179,7 +186,7 @@ export default function ReadInsightsPage() {
             {[
               d.peakHour
                 ? {
-                    label: "Peak hour (UTC)",
+                    label: "Peak hour",
                     value: d.peakHour.label,
                     hint: `${d.peakHour.count} events`,
                   }
@@ -213,7 +220,7 @@ export default function ReadInsightsPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <MiniBar title="Hour of day (UTC)" data={hourData} />
+        <MiniBar title="Hour of day" data={hourData} />
         <MiniBar title="Day of week" data={dowData} />
         <MiniBar title="Formats" data={formatData} />
         <Panel className="p-4">

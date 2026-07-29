@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ReadLibraryPage, ReadListStatus } from "@questorylabs/shared";
@@ -136,7 +137,12 @@ export default function ReadLibraryPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="text-[var(--ink)]">{item.title.name}</span>
+                    <Link
+                      href={`/read/titles/${item.title.id}`}
+                      className="text-[var(--ink)] hover:text-[var(--accent)]"
+                    >
+                      {item.title.name}
+                    </Link>
                     <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
                       {item.listStatus} · {item.title.format}
                     </span>

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, PageHeader, Panel } from "@/components/ui";
+import { formatDateTime } from "@/lib/dates";
 import { readFetch, readUrl } from "@/lib/read";
 import type { ReactNode } from "react";
 
@@ -49,6 +50,7 @@ export default function ReadSettingsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["read-anilist-status"] });
       void qc.invalidateQueries({ queryKey: ["read-sync-status"] });
+      void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
       void qc.invalidateQueries({ queryKey: ["read-overview"] });
       void qc.invalidateQueries({ queryKey: ["read-library"] });
     },
@@ -65,7 +67,7 @@ export default function ReadSettingsPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Panel className="flex h-full flex-col p-5">
+        <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
           <div className="flex items-start justify-between gap-3">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
               Live
@@ -88,8 +90,7 @@ export default function ReadSettingsPage() {
           </p>
           {anilist.data?.lastSyncedAt ? (
             <p className="mt-2 font-mono text-[10px] text-[var(--faint)]">
-              Last synced{" "}
-              {new Date(anilist.data.lastSyncedAt).toLocaleString()}
+              Last synced {formatDateTime(anilist.data.lastSyncedAt)}
             </p>
           ) : null}
           <div className="mt-auto flex flex-wrap gap-2 pt-5">

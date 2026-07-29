@@ -139,7 +139,12 @@ export class EnrichmentService implements OnModuleInit {
           overview: detail.overview ?? title.overview,
           runtimeMinutes: runtime,
           year: year ?? title.year,
-          posterUrl: this.tmdb.posterUrl(detail.poster_path) ?? title.posterUrl,
+          ...(title.imageManual
+            ? {}
+            : {
+                posterUrl:
+                  this.tmdb.posterUrl(detail.poster_path) ?? title.posterUrl,
+              }),
           backdropUrl:
             this.tmdb.posterUrl(detail.backdrop_path) ?? title.backdropUrl,
           originalLanguage: detail.original_language ?? title.originalLanguage,

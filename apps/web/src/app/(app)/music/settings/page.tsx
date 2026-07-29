@@ -139,7 +139,7 @@ function SourceCard({
   children?: ReactNode;
 }) {
   return (
-    <Panel className="flex h-full flex-col p-5">
+    <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
       <div className="flex items-start justify-between gap-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
           {label}
@@ -312,6 +312,7 @@ export default function MusicSettingsPage() {
       );
       void qc.invalidateQueries({ queryKey: ["music-overview"] });
       void qc.invalidateQueries({ queryKey: ["music-recent"] });
+      void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
       return;
     }
     if (next.status === "failed") {

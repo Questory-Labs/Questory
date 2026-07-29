@@ -29,6 +29,7 @@ import {
   formatShare,
   watchFetch,
 } from "@/lib/watch";
+import { withTz } from "@/lib/dates";
 
 const TOOLTIP_INK = "#f2efe8";
 
@@ -100,21 +101,25 @@ export default function WatchInsightsPage() {
     queryKey: ["watch-insights", range, media],
     queryFn: () =>
       watchFetch<WatchInsights>(
-        `/analytics/insights?range=${range}${typeQs}`,
+        withTz(`/analytics/insights?range=${range}${typeQs}`),
       ),
   });
   const hour = useQuery({
     queryKey: ["watch-ts-hour", range, media],
     queryFn: () =>
       watchFetch<WatchTimeBucket[]>(
-        `/analytics/timeseries?granularity=hourOfDay&range=${range}${typeQs}`,
+        withTz(
+          `/analytics/timeseries?granularity=hourOfDay&range=${range}${typeQs}`,
+        ),
       ),
   });
   const dow = useQuery({
     queryKey: ["watch-ts-dow", range, media],
     queryFn: () =>
       watchFetch<WatchTimeBucket[]>(
-        `/analytics/timeseries?granularity=dayOfWeek&range=${range}${typeQs}`,
+        withTz(
+          `/analytics/timeseries?granularity=dayOfWeek&range=${range}${typeQs}`,
+        ),
       ),
   });
   const years = useQuery({
@@ -259,7 +264,7 @@ export default function WatchInsightsPage() {
             {[
               d.peakHour
                 ? {
-                    label: "Peak hour (UTC)",
+                    label: "Peak hour",
                     value: d.peakHour.label,
                     hint: `${d.peakHour.count} ${scopeLabel}`,
                   }
@@ -293,7 +298,7 @@ export default function WatchInsightsPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <MiniBar title="Hour of day (UTC)" data={hourData} />
+        <MiniBar title="Hour of day" data={hourData} />
         <MiniBar title="Day of week" data={dowData} />
         <MiniBar title="Release years" data={yearData} />
         <Panel className="p-4">

@@ -2,13 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useSyncJobs } from "@/hooks/useSyncJobs";
 import {
-  useMusicImportStatus,
+  useShellSyncStatus,
   type MusicImportJob,
-} from "@/hooks/useMusicImportStatus";
-import { useWatchSyncStatus } from "@/hooks/useWatchSyncStatus";
-import { useReadSyncStatus } from "@/hooks/useReadSyncStatus";
+} from "@/hooks/useShellSyncStatus";
 
 type SourceRow = {
   id: string;
@@ -66,10 +63,12 @@ export function SyncStatusBar({
   watchEnabled?: boolean;
   readEnabled?: boolean;
 }) {
-  const steam = useSyncJobs({ enabled: steamEnabled });
-  const music = useMusicImportStatus({ enabled: musicEnabled });
-  const watch = useWatchSyncStatus({ enabled: watchEnabled });
-  const read = useReadSyncStatus({ enabled: readEnabled });
+  const shell = useShellSyncStatus({
+    steamEnabled,
+    musicEnabled,
+    watchEnabled,
+    readEnabled,
+  });
 
   const [dismissed, setDismissed] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
@@ -83,20 +82,23 @@ export function SyncStatusBar({
   const lastWatchDetail = useRef<string>("");
 
   const anyActive =
-    steam.active || music.active || watch.active || read.active;
+    shell.steam.active ||
+    shell.music.active ||
+    shell.watch.active ||
+    shell.read.active;
 
   useEffect(() => {
-    if (music.job) lastMusicJob.current = music.job;
-  }, [music.job]);
+    if (shell.music.job) lastMusicJob.current = shell.music.job;
+  }, [shell.music.job]);
 
   useEffect(() => {
-    if (steam.active) sawActive.current.steam = true;
-    if (music.active) sawActive.current.music = true;
-    if (watch.active) {
+    if (shell.steam.active) sawActive.current.steam = true;
+    if (shell.music.active) sawActive.current.music = true;
+    if (shell.watch.active) {
       sawActive.current.watch = true;
       const parts: string[] = [];
-      if (watch.letterboxd) {
-        const lb = watch.letterboxd;
+      if (shell.watch.letterboxd) {
+        const lb = shell.watch.letterboxd;
         parts.push(
           lb.total > 0
             ? `Letterboxd · ${lb.processed.toLocaleString()} / ${lb.total.toLocaleString()}`
@@ -105,19 +107,19 @@ export function SyncStatusBar({
               : "Letterboxd · importing export…",
         );
       }
-      if (watch.traktSyncing) parts.push("Trakt sync");
-      if (watch.anilistSyncing) parts.push("AniList sync");
+      if (shell.watch.traktSyncing) parts.push("Trakt sync");
+      if (shell.watch.anilistSyncing) parts.push("AniList sync");
       if (parts.length) lastWatchDetail.current = parts.join(" · ");
     }
-    if (read.active) sawActive.current.read = true;
+    if (shell.read.active) sawActive.current.read = true;
   }, [
-    steam.active,
-    music.active,
-    watch.active,
-    watch.letterboxd,
-    watch.traktSyncing,
-    watch.anilistSyncing,
-    read.active,
+    shell.steam.active,
+    shell.music.active,
+    shell.watch.active,
+    shell.watch.letterboxd,
+    shell.watch.traktSyncing,
+    shell.watch.anilistSyncing,
+    shell.read.active,
   ]);
 
   useEffect(() => {
@@ -152,26 +154,28 @@ export function SyncStatusBar({
 
   const showSteam =
     steamEnabled &&
-    (steam.active || (celebrate && sawActive.current.steam));
+    (shell.steam.active || (celebrate && sawActive.current.steam));
   if (showSteam) {
     rows.push({
       id: "steam",
       label: "Steam",
-      headline: steam.active
+      headline: shell.steam.active
         ? "Syncing your Steam library"
         : "Steam sync finished",
-      detail: steam.active
-        ? steam.current
-          ? `${steam.current.label} · ${steam.doneCount} of ${steam.total} complete`
+      detail: shell.steam.active
+        ? shell.steam.current
+          ? `${shell.steam.current.label} · ${shell.steam.doneCount} of ${shell.steam.total} complete`
           : "Pulling library, wishlist, friends, and details…"
         : "Library, wishlist, and friends are ready to browse.",
       href: "/settings/connections",
-      active: steam.active,
+      active: shell.steam.active,
       progress:
-        steam.active || steam.hasJobs
+        shell.steam.active || shell.steam.hasJobs
           ? {
-              done: steam.doneCount + (steam.active && steam.current ? 0.35 : 0),
-              total: steam.total,
+              done:
+                shell.steam.doneCount +
+                (shell.steam.active && shell.steam.current ? 0.35 : 0),
+              total: shell.steam.total,
             }
           : null,
     });
@@ -179,27 +183,27 @@ export function SyncStatusBar({
 
   const showMusic =
     musicEnabled &&
-    (music.active || (celebrate && sawActive.current.music));
+    (shell.music.active || (celebrate && sawActive.current.music));
   if (showMusic) {
-    const job = music.job ?? lastMusicJob.current;
+    const job = shell.music.job ?? lastMusicJob.current;
     const parsing = job?.phase === "parsing";
     rows.push({
       id: "music",
       label: "Music",
-      headline: music.active
+      headline: shell.music.active
         ? parsing
           ? "Parsing music import"
           : "Importing listening history"
         : "Music import finished",
-      detail: music.active
+      detail: shell.music.active
         ? parsing
           ? job?.fileName || "Reading upload…"
           : `${(job?.processed ?? 0).toLocaleString()} / ${(job?.total ?? 0).toLocaleString()} listens · ${job?.accepted ?? 0} accepted`
         : `${(job?.accepted ?? 0).toLocaleString()} listens imported`,
       href: "/music/settings",
-      active: music.active,
+      active: shell.music.active,
       progress:
-        music.active && job && job.total > 0
+        shell.music.active && job && job.total > 0
           ? { done: job.processed, total: job.total }
           : null,
     });
@@ -207,11 +211,11 @@ export function SyncStatusBar({
 
   const showWatch =
     watchEnabled &&
-    (watch.active || (celebrate && sawActive.current.watch));
+    (shell.watch.active || (celebrate && sawActive.current.watch));
   if (showWatch) {
     const parts: string[] = [];
-    if (watch.letterboxd) {
-      const lb = watch.letterboxd;
+    if (shell.watch.letterboxd) {
+      const lb = shell.watch.letterboxd;
       parts.push(
         lb.total > 0
           ? `Letterboxd · ${lb.processed.toLocaleString()} / ${lb.total.toLocaleString()}`
@@ -220,25 +224,25 @@ export function SyncStatusBar({
             : "Letterboxd · importing export…",
       );
     }
-    if (watch.traktSyncing) parts.push("Trakt sync");
-    if (watch.anilistSyncing) parts.push("AniList sync");
+    if (shell.watch.traktSyncing) parts.push("Trakt sync");
+    if (shell.watch.anilistSyncing) parts.push("AniList sync");
 
     rows.push({
       id: "watch",
       label: "Watch",
-      headline: watch.active
+      headline: shell.watch.active
         ? "Syncing your Watch library"
         : "Watch sync finished",
       detail: parts.length
         ? parts.join(" · ")
         : lastWatchDetail.current || "Movies and shows are up to date.",
       href: "/watch/settings",
-      active: watch.active,
+      active: shell.watch.active,
       progress:
-        watch.letterboxd && watch.letterboxd.total > 0
+        shell.watch.letterboxd && shell.watch.letterboxd.total > 0
           ? {
-              done: watch.letterboxd.processed,
-              total: watch.letterboxd.total,
+              done: shell.watch.letterboxd.processed,
+              total: shell.watch.letterboxd.total,
             }
           : null,
     });
@@ -247,20 +251,20 @@ export function SyncStatusBar({
   // Prefer Watch's AniList row when both flags are on (shared OAuth sync).
   const showRead =
     readEnabled &&
-    (read.active || (celebrate && sawActive.current.read)) &&
-    !(watchEnabled && watch.anilistSyncing);
+    (shell.read.active || (celebrate && sawActive.current.read)) &&
+    !(watchEnabled && shell.watch.anilistSyncing);
   if (showRead) {
     rows.push({
       id: "read",
       label: "Read",
-      headline: read.active
+      headline: shell.read.active
         ? "Syncing your Read library"
         : "Read sync finished",
-      detail: read.active
+      detail: shell.read.active
         ? "AniList manga sync"
         : "Manga and print lists are up to date.",
       href: "/read/settings",
-      active: read.active,
+      active: shell.read.active,
       progress: null,
     });
   }

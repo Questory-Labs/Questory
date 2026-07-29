@@ -1,5 +1,6 @@
 import { withApiVersion } from "@questorylabs/shared";
 import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
+import { jsonRequestHeaders } from "@/lib/json-fetch";
 
 /** Read APIs live on the Steam API origin under `/v1/read/*`. */
 export function getReadUrl(): string {
@@ -16,6 +17,7 @@ export function isReadFlagEnabled(): boolean {
 function prefixReadPath(path: string): string {
   if (
     path.startsWith("/analytics") ||
+    path.startsWith("/catalog") ||
     path.startsWith("/library") ||
     path.startsWith("/anilist") ||
     path.startsWith("/sync-status") ||
@@ -42,9 +44,7 @@ export async function readFetch<T>(
   const res = await fetch(readUrl(path), {
     ...init,
     credentials: "include",
-    headers: {
-      ...(init.headers || {}),
-    },
+    headers: jsonRequestHeaders(init),
     cache: "no-store",
   });
   if (!res.ok) {

@@ -5,20 +5,21 @@ import { useQuery } from "@tanstack/react-query";
 import type {
   MusicInsights,
   MusicOverview,
-  MusicPlayingNow,
   MusicTimeBucket,
   MusicTopsResponse,
 } from "@questorylabs/shared";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicSparkline } from "@/components/music/MusicSparkline";
 import { StatCard } from "@/components/StatCard";
-import { PageHeader, Panel, StateMessage } from "@/components/ui";
+import { OverflowMarquee, PageHeader, Panel, StateMessage } from "@/components/ui";
+import { useMusicPlayingNow } from "@/hooks/useMusicPlayingNow";
 import {
   formatDeltaPct,
   formatListenDate,
   formatMinutes,
   musicFetch,
 } from "@/lib/music";
+import { withTz } from "@/lib/dates";
 
 function TopTeaser({
   title,
@@ -66,19 +67,24 @@ function TopTeaser({
               alt=""
               size="sm"
             />
-            <Link
-              href={
-                kind === "artists"
-                  ? `/music/artists/${item.id}`
-                  : `/music/tracks/${item.id}`
-              }
-              className="min-w-0 flex-1 truncate text-[var(--ink)] hover:text-[var(--accent)]"
-            >
-              {item.name || item.title}
-              {item.artistName ? (
-                <span className="text-[var(--muted)]"> · {item.artistName}</span>
-              ) : null}
-            </Link>
+            <OverflowMarquee className="flex-1">
+              <Link
+                href={
+                  kind === "artists"
+                    ? `/music/artists/${item.id}`
+                    : `/music/tracks/${item.id}`
+                }
+                className="text-[var(--ink)] hover:text-[var(--accent)]"
+              >
+                {item.name || item.title}
+                {item.artistName ? (
+                  <span className="text-[var(--muted)]">
+                    {" "}
+                    · {item.artistName}
+                  </span>
+                ) : null}
+              </Link>
+            </OverflowMarquee>
             <span className="shrink-0 font-mono text-[11px] text-[var(--faint)]">
               {item.count}
             </span>
@@ -92,25 +98,21 @@ function TopTeaser({
 export default function MusicHomePage() {
   const overview = useQuery({
     queryKey: ["music-overview"],
-    queryFn: () => musicFetch<MusicOverview>("/analytics/overview"),
+    queryFn: () => musicFetch<MusicOverview>(withTz("/analytics/overview")),
   });
   const series = useQuery({
     queryKey: ["music-timeseries-home"],
     queryFn: () =>
       musicFetch<MusicTimeBucket[]>(
-        "/analytics/timeseries?granularity=day&range=month",
+        withTz("/analytics/timeseries?granularity=day&range=month"),
       ),
   });
   const insights = useQuery({
     queryKey: ["music-insights-week"],
     queryFn: () =>
-      musicFetch<MusicInsights>("/analytics/insights?range=week"),
+      musicFetch<MusicInsights>(withTz("/analytics/insights?range=week")),
   });
-  const playing = useQuery({
-    queryKey: ["music-playing-now"],
-    queryFn: () => musicFetch<MusicPlayingNow>("/analytics/playing-now"),
-    refetchInterval: 10_000,
-  });
+  const playing = useMusicPlayingNow();
 
   const weekListens = insights.data?.periodListens;
   const delta = insights.data?.compare.deltaPct;
@@ -153,12 +155,14 @@ export default function MusicHomePage() {
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
               Now playing
             </p>
-            <Link
-              href={`/music/tracks/${playing.data.track.id}`}
-              className="mt-1 block truncate text-[var(--ink)] hover:text-[var(--accent)]"
-            >
-              {playing.data.track.title}
-            </Link>
+            <OverflowMarquee className="mt-1 text-[var(--ink)]">
+              <Link
+                href={`/music/tracks/${playing.data.track.id}`}
+                className="hover:text-[var(--accent)]"
+              >
+                {playing.data.track.title}
+              </Link>
+            </OverflowMarquee>
             <Link
               href={`/music/artists/${playing.data.track.artistId}`}
               className="text-sm text-[var(--muted)] hover:text-[var(--accent)]"
@@ -240,7 +244,7 @@ export default function MusicHomePage() {
                     ? {
                         label: "Peak hour",
                         value: insights.data.peakHour.label,
-                        hint: `${insights.data.peakHour.count} listens (UTC)`,
+                        hint: `${insights.data.peakHour.count} listens`,
                       }
                     : null,
                   insights.data.peakDow

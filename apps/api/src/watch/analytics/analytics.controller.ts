@@ -12,6 +12,7 @@ import {
   MediaType,
   RangeKey,
 } from "./analytics.service";
+import { parseTimeZone } from "../../lib/timezone";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
 
@@ -49,8 +50,11 @@ export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
 
   @Get("overview")
-  overview(@CurrentWatchUserId() userId: string) {
-    return this.analytics.overview(userId);
+  overview(
+    @CurrentWatchUserId() userId: string,
+    @Query("tz") tz?: string,
+  ) {
+    return this.analytics.overview(userId, parseTimeZone(tz));
   }
 
   @Get("insights")
@@ -58,11 +62,13 @@ export class AnalyticsController {
     @CurrentWatchUserId() userId: string,
     @Query("range") range?: string,
     @Query("type") type?: string,
+    @Query("tz") tz?: string,
   ) {
     return this.analytics.insights(
       userId,
       parseRange(range, "week"),
       parseMediaType(type),
+      parseTimeZone(tz),
     );
   }
 
@@ -107,6 +113,7 @@ export class AnalyticsController {
     granularity: "hourOfDay" | "dayOfWeek" | "day" | "week" = "day",
     @Query("range") range: string | undefined,
     @Query("type") type: string | undefined,
+    @Query("tz") tz: string | undefined,
     @CurrentWatchUserId() userId: string,
   ) {
     const allowed = new Set(["hourOfDay", "dayOfWeek", "day", "week"]);
@@ -118,6 +125,7 @@ export class AnalyticsController {
       parseRange(range, "month"),
       userId,
       parseMediaType(type),
+      parseTimeZone(tz),
     );
   }
 
@@ -134,5 +142,14 @@ export class AnalyticsController {
       throw new BadRequestException("Invalid page or pageSize");
     }
     return this.analytics.recent(userId, page, pageSize);
+  }
+
+  @Get("titles/:id")
+  titleDetail(
+    @CurrentWatchUserId() userId: string,
+    @Param("id") id: string,
+    @Query("range") range?: string,
+  ) {
+    return this.analytics.titleDetail(userId, id, parseRange(range, "all"));
   }
 }

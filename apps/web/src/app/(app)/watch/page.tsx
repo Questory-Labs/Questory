@@ -1,15 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import type { WatchOverview, WatchTopItem } from "@questorylabs/shared";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, StateMessage } from "@/components/ui";
 import { watchFetch } from "@/lib/watch";
+import { withTz } from "@/lib/dates";
 
 export default function WatchHomePage() {
   const overview = useQuery({
     queryKey: ["watch-overview"],
-    queryFn: () => watchFetch<WatchOverview>("/analytics/overview"),
+    queryFn: () => watchFetch<WatchOverview>(withTz("/analytics/overview")),
   });
   const tops = useQuery({
     queryKey: ["watch-tops-week"],
@@ -64,12 +66,15 @@ export default function WatchHomePage() {
                 key={t.id}
                 className="flex items-baseline justify-between border-b border-[var(--line)] py-2 text-sm"
               >
-                <span className="text-[var(--ink)]">
+                <Link
+                  href={`/watch/titles/${t.id}`}
+                  className="text-[var(--ink)] hover:text-[var(--accent)]"
+                >
                   <span className="mr-3 font-mono text-[var(--faint)]">
                     {i + 1}.
                   </span>
                   {t.name}
-                </span>
+                </Link>
                 <span className="font-mono text-[var(--muted)]">{t.count}</span>
               </li>
             ))}

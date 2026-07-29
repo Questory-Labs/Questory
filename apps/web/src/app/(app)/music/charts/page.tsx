@@ -11,7 +11,7 @@ import type {
 } from "@questorylabs/shared";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
-import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
+import { Button, OverflowMarquee, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { formatShare, musicFetch } from "@/lib/music";
 
 type TopsKind = "artists" | "albums" | "tracks" | "genres" | "moods";
@@ -162,7 +162,7 @@ function MusicChartsInner() {
                 kind === "tracks") && (
                 <MusicCover src={item.imageUrl} alt="" size="sm" />
               )}
-              <span className="min-w-0 flex-1 truncate text-[var(--ink)]">
+              <OverflowMarquee className="flex-1 text-[var(--ink)]">
                 {name}
                 {item.artistName ? (
                   <span className="text-[var(--muted)]">
@@ -170,7 +170,7 @@ function MusicChartsInner() {
                     · {item.artistName}
                   </span>
                 ) : null}
-              </span>
+              </OverflowMarquee>
               <span className="shrink-0 font-mono text-[11px] text-[var(--faint)]">
                 {formatShare(item.count, periodListens)}
               </span>

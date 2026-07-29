@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { MusicPlayingNow, MusicRecentPage } from "@questorylabs/shared";
+import type { MusicRecentPage } from "@questorylabs/shared";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCover } from "@/components/music/MusicCover";
 import {
   Button,
   EmptyState,
+  OverflowMarquee,
   PageHeader,
   Panel,
   StateMessage,
 } from "@/components/ui";
+import { useMusicPlayingNow } from "@/hooks/useMusicPlayingNow";
 import {
   formatListenRowTime,
   groupListensByDay,
@@ -30,11 +32,7 @@ export default function MusicListeningPage() {
         `/analytics/recent?page=${page}&pageSize=${PAGE_SIZE}`,
       ),
   });
-  const playing = useQuery({
-    queryKey: ["music-playing-now"],
-    queryFn: () => musicFetch<MusicPlayingNow>("/analytics/playing-now"),
-    refetchInterval: 10_000,
-  });
+  const playing = useMusicPlayingNow();
 
   const total = recent.data?.total ?? 0;
   const pageSize = recent.data?.pageSize ?? PAGE_SIZE;
@@ -59,12 +57,14 @@ export default function MusicListeningPage() {
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
               Now playing
             </p>
-            <Link
-              href={`/music/tracks/${nowPlaying.id}`}
-              className="mt-1 block truncate text-[var(--ink)] hover:text-[var(--accent)]"
-            >
-              {nowPlaying.title}
-            </Link>
+            <OverflowMarquee className="mt-1 text-[var(--ink)]">
+              <Link
+                href={`/music/tracks/${nowPlaying.id}`}
+                className="hover:text-[var(--accent)]"
+              >
+                {nowPlaying.title}
+              </Link>
+            </OverflowMarquee>
             <Link
               href={`/music/artists/${nowPlaying.artistId}`}
               className="text-sm text-[var(--muted)] hover:text-[var(--accent)]"
@@ -101,7 +101,7 @@ export default function MusicListeningPage() {
                     <li key={row.id} className="flex items-start gap-3 py-3">
                       <MusicCover src={row.track.imageUrl} alt="" size="sm" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm text-[var(--ink)]">
+                        <OverflowMarquee className="text-sm text-[var(--ink)]">
                           <Link
                             href={`/music/tracks/${row.track.id}`}
                             className="hover:text-[var(--accent)]"
@@ -121,9 +121,9 @@ export default function MusicListeningPage() {
                               {row.track.artistName}
                             </span>
                           )}
-                        </div>
+                        </OverflowMarquee>
                         {row.track.releaseTitle ? (
-                          <div className="mt-0.5 truncate text-xs text-[var(--faint)]">
+                          <OverflowMarquee className="mt-0.5 text-xs text-[var(--faint)]">
                             {row.track.releaseId ? (
                               <Link
                                 href={`/music/albums/${row.track.releaseId}`}
@@ -134,7 +134,7 @@ export default function MusicListeningPage() {
                             ) : (
                               row.track.releaseTitle
                             )}
-                          </div>
+                          </OverflowMarquee>
                         ) : null}
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <span className="font-mono text-[11px] text-[var(--faint)]">

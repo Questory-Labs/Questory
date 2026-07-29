@@ -295,13 +295,17 @@ export class EnrichmentService implements OnModuleInit {
       });
 
       if (track.releaseId) {
+        const release = await this.prisma.release.findUnique({
+          where: { id: track.releaseId },
+          select: { mbid: true, imageManual: true },
+        });
         await this.prisma.release.update({
           where: { id: track.releaseId },
           data: {
             metadataSyncedAt: new Date(),
-            ...(imageUrl ? { imageUrl } : {}),
+            ...(!release?.imageManual && imageUrl ? { imageUrl } : {}),
             ...(year != null ? { year } : {}),
-            ...(releaseMbid && !track.release?.mbid ? { mbid: releaseMbid } : {}),
+            ...(releaseMbid && !release?.mbid ? { mbid: releaseMbid } : {}),
           },
         });
       }

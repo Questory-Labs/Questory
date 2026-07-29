@@ -1,5 +1,12 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  computeStreakDays,
+  zonedDayKey,
+  zonedHour,
+  zonedIsoWeekKey,
+  zonedWeekday,
+} from "../../lib/timezone";
 import { UsersService } from "../../watch/users/users.service";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
@@ -72,7 +79,7 @@ export class ReadAnalyticsService {
     };
   }
 
-  async overview(userId?: string) {
+  async overview(userId?: string, timeZone = "UTC") {
     const user = await this.resolveUser(userId);
     const [
       totalEvents,
@@ -140,7 +147,7 @@ export class ReadAnalyticsService {
       inProgress,
       latestReadAt: latest?.readAt?.toISOString() ?? null,
       earliestReadAt: earliest?.readAt?.toISOString() ?? null,
-      streakDays: await this.computeStreak(user.id),
+      streakDays: await this.computeStreak(user.id, timeZone),
     };
   }
 
@@ -226,6 +233,7 @@ export class ReadAnalyticsService {
     range: RangeKey,
     userId?: string,
     format?: FormatFilter,
+    timeZone = "UTC",
   ) {
     const user = await this.resolveUser(userId);
     const events = await this.prisma.readEvent.findMany({
@@ -239,7 +247,9 @@ export class ReadAnalyticsService {
         label: `${String(i).padStart(2, "0")}:00`,
         count: 0,
       }));
-      for (const e of events) buckets[e.readAt.getUTCHours()].count += 1;
+      for (const e of events) {
+        buckets[zonedHour(e.readAt, timeZone)].count += 1;
+      }
       return buckets;
     }
     if (granularity === "dayOfWeek") {
@@ -248,28 +258,18 @@ export class ReadAnalyticsService {
         label,
         count: 0,
       }));
-      for (const e of events) buckets[e.readAt.getUTCDay()].count += 1;
+      for (const e of events) {
+        buckets[zonedWeekday(e.readAt, timeZone)].count += 1;
+      }
       return buckets;
     }
 
     const map = new Map<string, number>();
     for (const e of events) {
-      const d = e.readAt;
-      let key: string;
-      if (granularity === "day") {
-        key = d.toISOString().slice(0, 10);
-      } else {
-        const tmp = new Date(
-          Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-        );
-        const dayNum = tmp.getUTCDay() || 7;
-        tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
-        const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-        const weekNo = Math.ceil(
-          ((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
-        );
-        key = `${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
-      }
+      const key =
+        granularity === "day"
+          ? zonedDayKey(e.readAt, timeZone)
+          : zonedIsoWeekKey(e.readAt, timeZone);
       map.set(key, (map.get(key) || 0) + 1);
     }
     return [...map.entries()]
@@ -281,6 +281,7 @@ export class ReadAnalyticsService {
     userId: string,
     range: RangeKey = "week",
     format?: FormatFilter,
+    timeZone = "UTC",
   ) {
     const user = await this.resolveUser(userId);
     const since = rangeStart(range);
@@ -316,8 +317,8 @@ export class ReadAnalyticsService {
     let chaptersLogged = 0;
 
     for (const e of events) {
-      hourBuckets[e.readAt.getUTCHours()] += 1;
-      dowBuckets[e.readAt.getUTCDay()] += 1;
+      hourBuckets[zonedHour(e.readAt, timeZone)] += 1;
+      dowBuckets[zonedWeekday(e.readAt, timeZone)] += 1;
       titleCounts.set(e.readTitleId, (titleCounts.get(e.readTitleId) || 0) + 1);
       chaptersLogged += e.chaptersRead ?? 0;
 
@@ -545,22 +546,84 @@ export class ReadAnalyticsService {
     };
   }
 
-  private async computeStreak(userId: string) {
+  async titleDetail(userId: string, titleId: string, range: RangeKey = "all") {
+    const user = await this.resolveUser(userId);
+    const title = await this.prisma.readTitle.findUnique({
+      where: { id: titleId },
+      include: { genres: { include: { genre: true } } },
+    });
+    if (!title) throw new NotFoundException("Title not found");
+
+    const since = rangeStart(range);
+    const rangeWhere = {
+      userId: user.id,
+      readTitleId: titleId,
+      ...(since ? { readAt: { gte: since } } : {}),
+    };
+
+    const [eventCount, first, latest, events, listState] = await Promise.all([
+      this.prisma.readEvent.count({ where: rangeWhere }),
+      this.prisma.readEvent.findFirst({
+        where: { userId: user.id, readTitleId: titleId },
+        orderBy: { readAt: "asc" },
+      }),
+      this.prisma.readEvent.findFirst({
+        where: { userId: user.id, readTitleId: titleId },
+        orderBy: { readAt: "desc" },
+      }),
+      this.prisma.readEvent.findMany({
+        where: rangeWhere,
+        orderBy: { readAt: "desc" },
+        take: 50,
+      }),
+      this.prisma.readListState.findFirst({
+        where: { userId: user.id, readTitleId: titleId },
+        select: { listStatus: true },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
+
+    return {
+      range,
+      title: {
+        id: title.id,
+        name: title.name,
+        displayName: title.displayName,
+        format: title.format,
+        year: title.year,
+        overview: title.overview,
+        coverUrl: title.coverUrl,
+        imageManual: title.imageManual,
+        publishingStatus: title.publishingStatus,
+        chapters: title.chapters,
+        volumes: title.volumes,
+        genres: title.genres.map((g) => g.genre.name),
+      },
+      listStatus: listState?.listStatus ?? null,
+      eventCount,
+      firstReadAt: first?.readAt.toISOString() ?? null,
+      latestReadAt: latest?.readAt.toISOString() ?? null,
+      recentEvents: events.map((e) => ({
+        id: e.id,
+        readAt: e.readAt.toISOString(),
+        source: e.source,
+        status: e.status,
+        chaptersRead: e.chaptersRead,
+        volumesRead: e.volumesRead,
+      })),
+    };
+  }
+
+  private async computeStreak(userId: string, timeZone = "UTC") {
     const recent = await this.prisma.readEvent.findMany({
       where: { userId },
       select: { readAt: true },
       orderBy: { readAt: "desc" },
       take: 400,
     });
-    const days = new Set(recent.map((r) => r.readAt.toISOString().slice(0, 10)));
-    let streak = 0;
-    const cursor = new Date();
-    for (;;) {
-      const key = cursor.toISOString().slice(0, 10);
-      if (!days.has(key)) break;
-      streak += 1;
-      cursor.setUTCDate(cursor.getUTCDate() - 1);
-    }
-    return streak;
+    return computeStreakDays(
+      recent.map((r) => r.readAt),
+      timeZone,
+    );
   }
 }

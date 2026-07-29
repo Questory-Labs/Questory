@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { hourStartUtc, normalizeName, slugify } from "../lib/normalize";
 
@@ -37,6 +37,45 @@ export type RecordReadProgressInput = {
 export class ReadCatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private coverForUpdate(
+    existing: { coverUrl: string | null; imageManual: boolean },
+    incoming?: string | null,
+  ) {
+    if (existing.imageManual) return existing.coverUrl;
+    return incoming ?? existing.coverUrl;
+  }
+
+  private normalizeOptionalText(value: string | null | undefined) {
+    if (value == null) return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  async updateTitle(
+    id: string,
+    input: { displayName?: string | null; coverUrl?: string | null },
+  ) {
+    const title = await this.prisma.readTitle.findUnique({ where: { id } });
+    if (!title) throw new NotFoundException("Title not found");
+
+    const data: {
+      displayName?: string | null;
+      coverUrl?: string | null;
+      imageManual?: boolean;
+    } = {};
+
+    if (input.displayName !== undefined) {
+      data.displayName = this.normalizeOptionalText(input.displayName);
+    }
+    if (input.coverUrl !== undefined) {
+      const url = this.normalizeOptionalText(input.coverUrl);
+      data.coverUrl = url;
+      data.imageManual = url != null;
+    }
+
+    return this.prisma.readTitle.update({ where: { id }, data });
+  }
+
   async upsertTitle(input: UpsertReadTitleInput) {
     const nameNormalized = normalizeName(input.name);
 
@@ -55,7 +94,7 @@ export class ReadCatalogService {
             overview: input.overview ?? byAni.overview,
             chapters: input.chapters ?? byAni.chapters,
             volumes: input.volumes ?? byAni.volumes,
-            coverUrl: input.coverUrl ?? byAni.coverUrl,
+            coverUrl: this.coverForUpdate(byAni, input.coverUrl),
             malId: input.malId ?? byAni.malId,
             countryOfOrigin: input.countryOfOrigin ?? byAni.countryOfOrigin,
             publishingStatus: input.publishingStatus ?? byAni.publishingStatus,
@@ -81,7 +120,7 @@ export class ReadCatalogService {
           overview: input.overview ?? existing.overview,
           chapters: input.chapters ?? existing.chapters,
           volumes: input.volumes ?? existing.volumes,
-          coverUrl: input.coverUrl ?? existing.coverUrl,
+          coverUrl: this.coverForUpdate(existing, input.coverUrl),
           countryOfOrigin: input.countryOfOrigin ?? existing.countryOfOrigin,
           publishingStatus: input.publishingStatus ?? existing.publishingStatus,
           metadataSyncedAt: new Date(),

@@ -52,6 +52,8 @@ model User {
   readEvents             ReadEvent[]
   readHourBuckets        ReadHourBucket[]
   readListStates         ReadListState[]
+  musicRules             UserMusicRule[]
+  musicLabels            UserMusicLabel[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -502,8 +504,10 @@ model Artist {
   id                 String    @id @default(cuid())
   name               String
   nameNormalized     String
+  displayName        String?
   mbid               String?
   imageUrl           String?
+  imageManual        Boolean   @default(false)
   metadataSyncedAt   DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -511,6 +515,8 @@ model Artist {
   tracks             Track[]
   releases           Release[]
   genres             ArtistGenre[]
+  trackFeatures      TrackArtist[]
+  ruleArtists        UserMusicRuleArtist[]
 
   @@index([nameNormalized])
   @@index([mbid])
@@ -520,17 +526,20 @@ model Release {
   id                 String    @id @default(cuid())
   title              String
   titleNormalized    String
+  displayName        String?
   artistId           String?
   mbid               String?
   releaseMbid        String?
   year               Int?
   imageUrl           String?
+  imageManual        Boolean   @default(false)
   metadataSyncedAt   DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   artist             Artist?   @relation(fields: [artistId], references: [id], onDelete: SetNull)
   tracks             Track[]
+  targetRules        UserMusicRule[] @relation("RuleTargetAlbum")
 
   @@index([titleNormalized])
   @@index([mbid])
@@ -541,6 +550,7 @@ model Track {
   id                 String    @id @default(cuid())
   title              String
   titleNormalized    String
+  displayName        String?
   artistId           String
   releaseId          String?
   recordingMbid      String?
@@ -558,6 +568,8 @@ model Track {
   listens            Listen[]
   playingNow         PlayingNow[]
   enrichmentJobs     EnrichmentJob[]
+  featuredArtists    TrackArtist[]
+  sourceRules        UserMusicRule[] @relation("RuleSourceTrack")
 
   @@index([titleNormalized])
   @@index([artistId])
@@ -663,6 +675,74 @@ model EnrichmentJob {
   @@index([trackId])
 }
 
+model TrackArtist {
+  trackId  String
+  artistId String
+  position Int    @default(0)
+
+  track  Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([trackId, artistId])
+  @@index([artistId])
+}
+
+/** Per-user scrobble correction rules (reassign artist/album/track). */
+model UserMusicRule {
+  id                String   @id @default(cuid())
+  userId            String
+  /** track | album | artist */
+  kind              String
+  matchArtistNorm   String
+  matchAlbumNorm    String?
+  matchTrackNorm    String?
+  sourceTrackId     String?
+  sourceReleaseId   String?
+  sourceArtistId    String?
+  targetTrackTitle  String?
+  targetAlbumTitle  String?
+  targetAlbumId     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceTrack   Track?                @relation("RuleSourceTrack", fields: [sourceTrackId], references: [id], onDelete: SetNull)
+  targetAlbum   Release?              @relation("RuleTargetAlbum", fields: [targetAlbumId], references: [id], onDelete: SetNull)
+  targetArtists UserMusicRuleArtist[]
+
+  @@index([userId, kind])
+  @@index([userId, matchArtistNorm, matchTrackNorm])
+  @@index([userId, sourceTrackId])
+  @@index([userId, sourceReleaseId])
+  @@index([userId, sourceArtistId])
+}
+
+model UserMusicRuleArtist {
+  ruleId   String
+  artistId String
+  position Int    @default(0)
+
+  rule   UserMusicRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  artist Artist        @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([ruleId, artistId])
+  @@index([artistId])
+}
+
+/** Per-user display name overlay (rename without reassignment). */
+model UserMusicLabel {
+  userId      String
+  /** artist | release | track */
+  entityKind  String
+  entityId    String
+  displayName String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, entityKind, entityId])
+  @@index([userId, entityKind])
+}
+
 /* ─── Watch / movies & TV (shared DB) ─── */
 
 model Title {
@@ -671,10 +751,12 @@ model Title {
   type             String
   name             String
   nameNormalized   String
+  displayName      String?
   overview         String?
   year             Int?
   runtimeMinutes   Int?
   posterUrl        String?
+  imageManual      Boolean   @default(false)
   backdropUrl      String?
   originalLanguage String?
   traktId          Int?
@@ -894,11 +976,13 @@ model ReadTitle {
   format             String
   name               String
   nameNormalized     String
+  displayName        String?
   overview           String?
   year               Int?
   chapters           Int?
   volumes            Int?
   coverUrl           String?
+  imageManual        Boolean   @default(false)
   anilistId          Int?      @unique
   malId              Int?
   countryOfOrigin    String?

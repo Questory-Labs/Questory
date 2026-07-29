@@ -52,6 +52,7 @@ function ConnectionsContent() {
       api<{ ok: true }>("/sync/refresh", { method: "POST" }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+      void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
     },
   });
 

@@ -872,15 +872,47 @@ export const MusicPlayingNowSchema = z
   .nullable();
 export type MusicPlayingNow = z.infer<typeof MusicPlayingNowSchema>;
 
+export const MusicNamedCountSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  count: z.number(),
+});
+export type MusicNamedCount = z.infer<typeof MusicNamedCountSchema>;
+
+export const MusicTrackPeakHourSchema = z.object({
+  hour: z.number(),
+  label: z.string(),
+  count: z.number(),
+});
+export type MusicTrackPeakHour = z.infer<typeof MusicTrackPeakHourSchema>;
+
+export const MusicTrackPeakDowSchema = z.object({
+  day: z.number(),
+  label: z.string(),
+  count: z.number(),
+});
+export type MusicTrackPeakDow = z.infer<typeof MusicTrackPeakDowSchema>;
+
+export const MusicArtistRefSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  userDisplayName: z.string().nullable().optional(),
+});
+export type MusicArtistRef = z.infer<typeof MusicArtistRefSchema>;
+
 export const MusicTrackDetailSchema = z.object({
+  range: MusicRangeSchema,
   track: z.object({
     id: z.string(),
     title: z.string(),
+    userDisplayName: z.string().nullable().optional(),
     artistName: z.string(),
     artistId: z.string(),
+    artists: z.array(MusicArtistRefSchema).optional(),
     releaseTitle: z.string().nullable(),
     releaseId: z.string().nullable(),
     imageUrl: z.string().nullable(),
+    releaseImageManual: z.boolean().optional(),
     recordingMbid: z.string().nullable().optional(),
     spotifyId: z.string().nullable().optional(),
     durationMs: z.number().nullable().optional(),
@@ -895,16 +927,54 @@ export const MusicTrackDetailSchema = z.object({
   listenCount: z.number(),
   firstListenAt: z.string().nullable().optional(),
   latestListenAt: z.string().nullable().optional(),
-  recentListens: z.array(z.string()),
+  listeningMinutes: z.number(),
+  uniqueDays: z.number(),
+  avgListensPerDay: z.number(),
+  peakHour: MusicTrackPeakHourSchema.nullable(),
+  peakDow: MusicTrackPeakDowSchema.nullable(),
+  topService: z.object({ name: z.string(), count: z.number() }).nullable(),
 });
 export type MusicTrackDetail = z.infer<typeof MusicTrackDetailSchema>;
 
+export const MusicTrackListenRowSchema = z.object({
+  id: z.string(),
+  listenedAt: z.string(),
+  musicService: z.string().nullable().optional(),
+  mediaPlayer: z.string().nullable().optional(),
+});
+export type MusicTrackListenRow = z.infer<typeof MusicTrackListenRowSchema>;
+
+export const MusicTrackListenPageSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  items: z.array(MusicTrackListenRowSchema),
+});
+export type MusicTrackListenPage = z.infer<typeof MusicTrackListenPageSchema>;
+
+export const MusicHeatmapSchema = z.object({
+  dayLabels: z.array(z.string()),
+  hourLabels: z.array(z.string()),
+  cells: z.array(
+    z.object({
+      day: z.number(),
+      hour: z.number(),
+      count: z.number(),
+    }),
+  ),
+  maxCount: z.number(),
+});
+export type MusicHeatmap = z.infer<typeof MusicHeatmapSchema>;
+
 export const MusicArtistDetailSchema = z.object({
+  range: MusicRangeSchema,
   artist: z.object({
     id: z.string(),
     name: z.string(),
+    userDisplayName: z.string().nullable().optional(),
     mbid: z.string().nullable().optional(),
     imageUrl: z.string().nullable().optional(),
+    imageManual: z.boolean().optional(),
     genres: z.array(z.string()),
   }),
   listenCount: z.number(),
@@ -919,15 +989,27 @@ export const MusicArtistDetailSchema = z.object({
       count: z.number(),
     }),
   ),
+  topAlbums: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      imageUrl: z.string().nullable().optional(),
+      count: z.number(),
+    }),
+  ),
+  topMoods: z.array(MusicNamedCountSchema),
 });
 export type MusicArtistDetail = z.infer<typeof MusicArtistDetailSchema>;
 
 export const MusicAlbumDetailSchema = z.object({
+  range: MusicRangeSchema,
   album: z.object({
     id: z.string(),
     title: z.string(),
+    userDisplayName: z.string().nullable().optional(),
     year: z.number().nullable().optional(),
     imageUrl: z.string().nullable().optional(),
+    imageManual: z.boolean().optional(),
     mbid: z.string().nullable().optional(),
     artistId: z.string().nullable(),
     artistName: z.string().nullable(),
@@ -935,6 +1017,9 @@ export const MusicAlbumDetailSchema = z.object({
   listenCount: z.number(),
   firstListenAt: z.string().nullable().optional(),
   latestListenAt: z.string().nullable().optional(),
+  listeningMinutes: z.number(),
+  peakHour: MusicTrackPeakHourSchema.nullable(),
+  peakDow: MusicTrackPeakDowSchema.nullable(),
   topTracks: z.array(
     z.object({
       id: z.string(),
@@ -943,8 +1028,105 @@ export const MusicAlbumDetailSchema = z.object({
       count: z.number(),
     }),
   ),
+  topMoods: z.array(MusicNamedCountSchema),
 });
 export type MusicAlbumDetail = z.infer<typeof MusicAlbumDetailSchema>;
+
+export const MusicAlbumListenRowSchema = z.object({
+  id: z.string(),
+  listenedAt: z.string(),
+  track: z.object({
+    id: z.string(),
+    title: z.string(),
+  }),
+  musicService: z.string().nullable().optional(),
+  mediaPlayer: z.string().nullable().optional(),
+});
+export type MusicAlbumListenRow = z.infer<typeof MusicAlbumListenRowSchema>;
+
+export const MusicAlbumListenPageSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  items: z.array(MusicAlbumListenRowSchema),
+});
+export type MusicAlbumListenPage = z.infer<typeof MusicAlbumListenPageSchema>;
+
+export const MusicArtistUpdateSchema = z.object({
+  displayName: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+});
+export type MusicArtistUpdate = z.infer<typeof MusicArtistUpdateSchema>;
+
+export const MusicAlbumUpdateSchema = z.object({
+  displayName: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+});
+export type MusicAlbumUpdate = z.infer<typeof MusicAlbumUpdateSchema>;
+
+export const MusicTrackUpdateSchema = z.object({
+  displayName: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+});
+export type MusicTrackUpdate = z.infer<typeof MusicTrackUpdateSchema>;
+
+export const MusicEntityRefSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+});
+export type MusicEntityRef = z.infer<typeof MusicEntityRefSchema>;
+
+export const MusicCatalogSuggestKindSchema = z.enum([
+  "artist",
+  "album",
+  "track",
+]);
+export type MusicCatalogSuggestKind = z.infer<
+  typeof MusicCatalogSuggestKindSchema
+>;
+
+export const MusicCatalogSuggestItemSchema = z.object({
+  id: z.string().optional(),
+  name: z.string(),
+  isNew: z.boolean().optional(),
+});
+export type MusicCatalogSuggestItem = z.infer<
+  typeof MusicCatalogSuggestItemSchema
+>;
+
+export const MusicCatalogSuggestResponseSchema = z.object({
+  items: z.array(MusicCatalogSuggestItemSchema),
+});
+export type MusicCatalogSuggestResponse = z.infer<
+  typeof MusicCatalogSuggestResponseSchema
+>;
+
+export const MusicCorrectionSaveSchema = z.object({
+  trackTitle: z.string().min(1).optional(),
+  albumTitle: z.string().nullable().optional(),
+  artists: z.array(MusicEntityRefSchema).min(1).optional(),
+  artistName: z.string().min(1).optional(),
+  displayName: z.string().nullable().optional(),
+});
+export type MusicCorrectionSave = z.infer<typeof MusicCorrectionSaveSchema>;
+
+export const MusicCorrectionFormSchema = z.object({
+  kind: z.enum(["track", "album", "artist"]),
+  original: z.object({
+    title: z.string().optional(),
+    artistName: z.string().optional(),
+    albumTitle: z.string().nullable().optional(),
+  }),
+  current: z.object({
+    title: z.string().optional(),
+    displayName: z.string().nullable().optional(),
+    artists: z.array(MusicArtistRefSchema).optional(),
+    albumTitle: z.string().nullable().optional(),
+    albumId: z.string().nullable().optional(),
+  }),
+  hasRule: z.boolean(),
+});
+export type MusicCorrectionForm = z.infer<typeof MusicCorrectionFormSchema>;
 
 /* ─── Watch service DTOs ─── */
 
@@ -1074,6 +1256,55 @@ export const WatchBreakdownResponseSchema = z.object({
 export type WatchBreakdownResponse = z.infer<
   typeof WatchBreakdownResponseSchema
 >;
+
+export const WatchTitleDetailSchema = z.object({
+  range: WatchRangeSchema,
+  title: z.object({
+    id: z.string(),
+    name: z.string(),
+    displayName: z.string().nullable().optional(),
+    type: z.string(),
+    year: z.number().nullable().optional(),
+    overview: z.string().nullable().optional(),
+    posterUrl: z.string().nullable().optional(),
+    imageManual: z.boolean().optional(),
+    genres: z.array(z.string()),
+  }),
+  eventCount: z.number(),
+  firstWatchAt: z.string().nullable().optional(),
+  latestWatchAt: z.string().nullable().optional(),
+  topEpisodes: z.array(
+    z.object({
+      id: z.string(),
+      seasonNumber: z.number(),
+      episodeNumber: z.number(),
+      name: z.string().nullable().optional(),
+      count: z.number(),
+    }),
+  ),
+  recentEvents: z.array(
+    z.object({
+      id: z.string(),
+      watchedAt: z.string(),
+      source: z.string(),
+      episode: z
+        .object({
+          seasonNumber: z.number(),
+          episodeNumber: z.number(),
+          name: z.string().nullable().optional(),
+        })
+        .nullable()
+        .optional(),
+    }),
+  ),
+});
+export type WatchTitleDetail = z.infer<typeof WatchTitleDetailSchema>;
+
+export const WatchTitleUpdateSchema = z.object({
+  displayName: z.string().nullable().optional(),
+  posterUrl: z.string().nullable().optional(),
+});
+export type WatchTitleUpdate = z.infer<typeof WatchTitleUpdateSchema>;
 
 /* ─── Read service DTOs (manga / print) ─── */
 
@@ -1210,6 +1441,45 @@ export const ReadBreakdownResponseSchema = z.object({
 export type ReadBreakdownResponse = z.infer<
   typeof ReadBreakdownResponseSchema
 >;
+
+export const ReadTitleDetailSchema = z.object({
+  range: ReadRangeSchema,
+  title: z.object({
+    id: z.string(),
+    name: z.string(),
+    displayName: z.string().nullable().optional(),
+    format: z.string(),
+    year: z.number().nullable().optional(),
+    overview: z.string().nullable().optional(),
+    coverUrl: z.string().nullable().optional(),
+    imageManual: z.boolean().optional(),
+    publishingStatus: z.string().nullable().optional(),
+    chapters: z.number().nullable().optional(),
+    volumes: z.number().nullable().optional(),
+    genres: z.array(z.string()),
+  }),
+  listStatus: ReadListStatusSchema.nullable().optional(),
+  eventCount: z.number(),
+  firstReadAt: z.string().nullable().optional(),
+  latestReadAt: z.string().nullable().optional(),
+  recentEvents: z.array(
+    z.object({
+      id: z.string(),
+      readAt: z.string(),
+      source: z.string(),
+      status: z.string().nullable().optional(),
+      chaptersRead: z.number().nullable().optional(),
+      volumesRead: z.number().nullable().optional(),
+    }),
+  ),
+});
+export type ReadTitleDetail = z.infer<typeof ReadTitleDetailSchema>;
+
+export const ReadTitleUpdateSchema = z.object({
+  displayName: z.string().nullable().optional(),
+  coverUrl: z.string().nullable().optional(),
+});
+export type ReadTitleUpdate = z.infer<typeof ReadTitleUpdateSchema>;
 
 export const ReadLibraryItemSchema = z.object({
   id: z.string(),
