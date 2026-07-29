@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
   Query,
   Res,
   UseGuards,
@@ -54,9 +53,4 @@ export class ReadAnilistController {
     );
   }
 
-  @Post("sync")
-  @UseGuards(ReadSessionUserGuard)
-  sync(@CurrentReadUserId() userId: string) {
-    return this.anilist.syncList(userId);
-  }
 }

@@ -323,6 +323,10 @@ export class AdminService {
       ...CRON_JOB_NAMES,
       "trakt-sync",
       "anilist-sync",
+      "mal-sync",
+      "kitsu-sync",
+      "bangumi-sync",
+      "shikimori-sync",
     ] as const;
 
     const jobs = statusJobNames.map((name) => {
@@ -333,12 +337,26 @@ export class AdminService {
         name === "watch-sync"
       ) {
         schedule = getCronSchedule(name as ScheduledCronJobName);
-      } else if (name === "trakt-sync" || name === "anilist-sync") {
+      } else if (
+        name === "trakt-sync" ||
+        name === "anilist-sync" ||
+        name === "mal-sync" ||
+        name === "kitsu-sync" ||
+        name === "bangumi-sync" ||
+        name === "shikimori-sync"
+      ) {
         schedule = getCronSchedule("watch-sync");
       }
 
       const registryName =
-        name === "trakt-sync" || name === "anilist-sync" ? "watch-sync" : name;
+        name === "trakt-sync" ||
+        name === "anilist-sync" ||
+        name === "mal-sync" ||
+        name === "kitsu-sync" ||
+        name === "bangumi-sync" ||
+        name === "shikimori-sync"
+          ? "watch-sync"
+          : name;
 
       let registered = false;
       let running = false;
@@ -391,6 +409,26 @@ export class AdminService {
               throw new BadRequestException("Watch module unavailable");
             }
             return this.watchCron.runAnilistSync();
+          case "mal-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runMalSync();
+          case "kitsu-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runKitsuSync();
+          case "bangumi-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runBangumiSync();
+          case "shikimori-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runShikimoriSync();
           default:
             throw new BadRequestException(`Unknown job: ${jobName}`);
         }

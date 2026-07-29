@@ -115,6 +115,12 @@ export class TraktService {
         ? new Date(Date.now() + data.expires_in * 1000)
         : null;
 
+    const existing = await this.prisma.sourceConnection.findUnique({
+      where: {
+        userId_provider: { userId: user.id, provider: "trakt" },
+      },
+    });
+
     await this.prisma.sourceConnection.upsert({
       where: {
         userId_provider: { userId: user.id, provider: "trakt" },
@@ -133,11 +139,13 @@ export class TraktService {
       },
     });
 
-    void this.syncHistory(user.id).catch((err) =>
-      this.logger.error(
-        `Trakt backfill failed: ${err instanceof Error ? err.message : String(err)}`,
-      ),
-    );
+    if (!existing) {
+      void this.syncHistory(user.id).catch((err) =>
+        this.logger.error(
+          `Trakt backfill failed: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+    }
 
     return { ok: true, userId: user.id };
   }

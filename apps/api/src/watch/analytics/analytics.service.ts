@@ -532,6 +532,7 @@ export class AnalyticsService {
         watchedAt: r.watchedAt.toISOString(),
         source: r.source,
         precision: r.precision,
+        rating: r.rating,
         title: {
           id: r.title.id,
           name: r.title.name,
@@ -566,7 +567,7 @@ export class AnalyticsService {
       ...(since ? { watchedAt: { gte: since } } : {}),
     };
 
-    const [eventCount, first, latest, events] = await Promise.all([
+    const [eventCount, first, latest, events, userRatingRow] = await Promise.all([
       this.prisma.watchEvent.count({ where: rangeWhere }),
       this.prisma.watchEvent.findFirst({
         where: { userId: user.id, titleId },
@@ -590,6 +591,11 @@ export class AnalyticsService {
             },
           },
         },
+      }),
+      this.prisma.titleListState.findFirst({
+        where: { userId: user.id, titleId, listType: "rating" },
+        orderBy: { updatedAt: "desc" },
+        select: { rating: true },
       }),
     ]);
 
@@ -633,6 +639,7 @@ export class AnalyticsService {
       eventCount,
       firstWatchAt: first?.watchedAt.toISOString() ?? null,
       latestWatchAt: latest?.watchedAt.toISOString() ?? null,
+      userRating: userRatingRow?.rating ?? null,
       topEpisodes: [...episodeCounts.values()]
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
@@ -640,6 +647,7 @@ export class AnalyticsService {
         id: e.id,
         watchedAt: e.watchedAt.toISOString(),
         source: e.source,
+        rating: e.rating,
         episode: e.episode
           ? {
               seasonNumber: e.episode.seasonNumber,

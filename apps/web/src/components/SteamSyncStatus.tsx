@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Panel } from "@/components/ui";
-import { api } from "@/lib/api";
+import { Panel } from "@/components/ui";
 import { useSyncJobs, type SyncStage } from "@/hooks/useSyncJobs";
 import type { SyncJob } from "@questorylabs/shared";
 
@@ -122,21 +120,11 @@ export function SteamSyncStatus({
   forceVisible?: boolean;
   enabled?: boolean;
 }) {
-  const qc = useQueryClient();
   const sync = useSyncJobs({ enabled });
   const [celebrate, setCelebrate] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const sawActive = useRef(false);
   const wasForced = useRef(false);
-
-  const retry = useMutation({
-    mutationFn: () =>
-      api<{ ok: true }>("/sync/refresh?force=1", { method: "POST" }),
-    onSuccess: () => {
-      setDismissed(false);
-      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-    },
-  });
 
   // Re-open when a fresh post-link redirect asks us to show status.
   useEffect(() => {
@@ -197,7 +185,7 @@ export function SteamSyncStatus({
       ? `${sync.current.label} · ${sync.doneCount} of ${sync.total} complete`
       : `Pulling library, wishlist, friends, and details…`
     : showFailed
-      ? `${sync.failed.length} step${sync.failed.length === 1 ? "" : "s"} failed. Retry to continue.`
+      ? `${sync.failed.length} step${sync.failed.length === 1 ? "" : "s"} failed. The next scheduled sync will retry.`
       : celebrate || sync.allDone
         ? "Library, wishlist, and friends are ready to browse."
         : "Jobs are queued — this usually takes a minute or two.";
@@ -233,17 +221,6 @@ export function SteamSyncStatus({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {showFailed ? (
-              <Button
-                type="button"
-                variant="secondary"
-                className="!px-3 !py-1.5 text-xs"
-                disabled={retry.isPending}
-                onClick={() => retry.mutate()}
-              >
-                {retry.isPending ? "Retrying…" : "Retry sync"}
-              </Button>
-            ) : null}
             {!sync.active ? (
               <button
                 type="button"
@@ -279,16 +256,7 @@ export function SteamSyncStatus({
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">{sub}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          {showFailed ? (
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={retry.isPending}
-              onClick={() => retry.mutate()}
-            >
-              {retry.isPending ? "Retrying…" : "Retry sync"}
-            </Button>
-          ) : sync.active || (forceVisible && !sync.allDone) ? (
+          {sync.active || (forceVisible && !sync.allDone) ? (
             <span className="font-mono text-[11px] text-[var(--warm)]">
               {sync.doneCount}/{sync.total}
             </span>

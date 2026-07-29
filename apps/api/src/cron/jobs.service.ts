@@ -96,30 +96,29 @@ export class JobsService implements OnModuleInit {
       this.logger.debug("watch-sync skipped (watch module not available)");
       return;
     }
-    this.logger.log("Starting watch-sync (Trakt + AniList)");
-    try {
-      const { result: trakt } = await this.cronRunner.run(
-        "trakt-sync",
-        "system",
-        () => this.watchCron!.runTraktSync(),
-      );
-      this.logger.log(`trakt-sync done: ${JSON.stringify(trakt)}`);
-    } catch (err) {
-      this.logger.warn(
-        `trakt-sync skipped/failed: ${err instanceof Error ? err.message : err}`,
-      );
-    }
-    try {
-      const { result: ani } = await this.cronRunner.run(
-        "anilist-sync",
-        "system",
-        () => this.watchCron!.runAnilistSync(),
-      );
-      this.logger.log(`anilist-sync done: ${JSON.stringify(ani)}`);
-    } catch (err) {
-      this.logger.warn(
-        `anilist-sync skipped/failed: ${err instanceof Error ? err.message : err}`,
-      );
+    this.logger.log("Starting watch-sync (Trakt + AniList + anime providers)");
+    const providerJobs: Array<{ name: string; run: () => Promise<unknown> }> = [
+      { name: "trakt-sync", run: () => this.watchCron!.runTraktSync() },
+      { name: "anilist-sync", run: () => this.watchCron!.runAnilistSync() },
+      { name: "mal-sync", run: () => this.watchCron!.runMalSync() },
+      { name: "kitsu-sync", run: () => this.watchCron!.runKitsuSync() },
+      { name: "bangumi-sync", run: () => this.watchCron!.runBangumiSync() },
+      { name: "shikimori-sync", run: () => this.watchCron!.runShikimoriSync() },
+    ];
+
+    for (const job of providerJobs) {
+      try {
+        const { result } = await this.cronRunner.run(
+          job.name,
+          "system",
+          job.run,
+        );
+        this.logger.log(`${job.name} done: ${JSON.stringify(result)}`);
+      } catch (err) {
+        this.logger.warn(
+          `${job.name} skipped/failed: ${err instanceof Error ? err.message : err}`,
+        );
+      }
     }
   }
 }

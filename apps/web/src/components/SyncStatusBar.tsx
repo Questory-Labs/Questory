@@ -109,6 +109,7 @@ export function SyncStatusBar({
       }
       if (shell.watch.traktSyncing) parts.push("Trakt sync");
       if (shell.watch.anilistSyncing) parts.push("AniList sync");
+      if (shell.watch.animeListSyncing) parts.push("Anime list sync");
       if (parts.length) lastWatchDetail.current = parts.join(" · ");
     }
     if (shell.read.active) sawActive.current.read = true;
@@ -119,6 +120,7 @@ export function SyncStatusBar({
     shell.watch.letterboxd,
     shell.watch.traktSyncing,
     shell.watch.anilistSyncing,
+    shell.watch.animeListSyncing,
     shell.read.active,
   ]);
 
@@ -252,7 +254,7 @@ export function SyncStatusBar({
   const showRead =
     readEnabled &&
     (shell.read.active || (celebrate && sawActive.current.read)) &&
-    !(watchEnabled && shell.watch.anilistSyncing);
+    !(watchEnabled && (shell.watch.anilistSyncing || shell.watch.animeListSyncing));
   if (showRead) {
     rows.push({
       id: "read",
@@ -261,7 +263,11 @@ export function SyncStatusBar({
         ? "Syncing your Read library"
         : "Read sync finished",
       detail: shell.read.active
-        ? "AniList manga sync"
+        ? shell.read.anilistSyncing
+          ? "AniList manga sync"
+          : shell.read.animeListSyncing
+            ? "Anime list manga sync"
+            : "Read library sync"
         : "Manga and print lists are up to date.",
       href: "/read/settings",
       active: shell.read.active,

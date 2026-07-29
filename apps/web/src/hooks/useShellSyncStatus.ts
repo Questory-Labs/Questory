@@ -28,6 +28,12 @@ export type MusicImportJob = {
   completedAt?: string | null;
 };
 
+export type ProviderConnStatus = {
+  connected: boolean;
+  syncing: boolean;
+  lastSyncedAt: string | null;
+};
+
 export type WatchSyncStatus = {
   active: boolean;
   letterboxd: {
@@ -42,25 +48,21 @@ export type WatchSyncStatus = {
     percent: number | null;
     lastError?: string | null;
   } | null;
-  trakt: {
-    connected: boolean;
-    syncing: boolean;
-    lastSyncedAt: string | null;
-  };
-  anilist: {
-    connected: boolean;
-    syncing: boolean;
-    lastSyncedAt: string | null;
-  };
+  trakt: ProviderConnStatus;
+  anilist: ProviderConnStatus;
+  mal: ProviderConnStatus;
+  kitsu: ProviderConnStatus;
+  bangumi: ProviderConnStatus;
+  shikimori: ProviderConnStatus;
 };
 
 export type ReadSyncStatus = {
   active: boolean;
-  anilist: {
-    connected: boolean;
-    syncing: boolean;
-    lastSyncedAt: string | null;
-  };
+  anilist: ProviderConnStatus;
+  mal: ProviderConnStatus;
+  kitsu: ProviderConnStatus;
+  bangumi: ProviderConnStatus;
+  shikimori: ProviderConnStatus;
 };
 
 export type ShellSyncStatus = {
@@ -214,6 +216,12 @@ export function useShellSyncStatus(opts?: {
   const watchLetterboxd = watchStatus?.letterboxd ?? null;
   const watchTraktSyncing = Boolean(watchStatus?.trakt.syncing);
   const watchAnilistSyncing = Boolean(watchStatus?.anilist.syncing);
+  const watchAnimeListSyncing = Boolean(
+    watchStatus?.mal.syncing ||
+      watchStatus?.kitsu.syncing ||
+      watchStatus?.bangumi.syncing ||
+      watchStatus?.shikimori.syncing,
+  );
 
   const readStatus = data?.read ?? null;
   const readActive = Boolean(readStatus?.active);
@@ -247,6 +255,10 @@ export function useShellSyncStatus(opts?: {
       void qc.invalidateQueries({ queryKey: ["read-recent"] });
       void qc.invalidateQueries({ queryKey: ["read-library"] });
       void qc.invalidateQueries({ queryKey: ["read-anilist-status"] });
+      void qc.invalidateQueries({ queryKey: ["read-mal-status"] });
+      void qc.invalidateQueries({ queryKey: ["read-kitsu-status"] });
+      void qc.invalidateQueries({ queryKey: ["read-bangumi-status"] });
+      void qc.invalidateQueries({ queryKey: ["read-shikimori-status"] });
     }
 
     wasActive.current = {
@@ -285,11 +297,18 @@ export function useShellSyncStatus(opts?: {
       letterboxd: watchLetterboxd,
       traktSyncing: watchTraktSyncing,
       anilistSyncing: watchAnilistSyncing,
+      animeListSyncing: watchAnimeListSyncing,
     },
     read: {
       active: readActive,
       status: readStatus,
       anilistSyncing: Boolean(readStatus?.anilist.syncing),
+      animeListSyncing: Boolean(
+        readStatus?.mal.syncing ||
+          readStatus?.kitsu.syncing ||
+          readStatus?.bangumi.syncing ||
+          readStatus?.shikimori.syncing,
+      ),
     },
   };
 }

@@ -115,12 +115,14 @@ export class AuthService {
       summary?.personaname || user.personaName,
     );
 
-    try {
-      await this.sync.enqueueAll(user.id, steamId);
-    } catch (err) {
-      this.logger.warn(
-        `Sync enqueue after Steam link failed: ${err instanceof Error ? err.message : err}`,
-      );
+    if (!linked) {
+      try {
+        await this.sync.enqueueAll(user.id, steamId);
+      } catch (err) {
+        this.logger.warn(
+          `Sync enqueue after Steam link failed: ${err instanceof Error ? err.message : err}`,
+        );
+      }
     }
 
     return { ...user, steamId };

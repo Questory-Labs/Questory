@@ -10,6 +10,7 @@ const BASE_NAV = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/cron", label: "Cron" },
+  { href: "/admin/migrations", label: "Migrations" },
   { href: "/admin/enrichment", label: "Enrichment" },
   { href: "/admin/settings", label: "Settings" },
 ] as const;
@@ -38,11 +39,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const authReady = me.isSuccess || me.isError;
 
   const nav = [
-    ...BASE_NAV.slice(0, 4),
+    ...BASE_NAV.slice(0, 5),
     ...(enterpriseEnabled
       ? [{ href: "/admin/telemetry", label: "Telemetry" }]
       : []),
-    BASE_NAV[4],
+    BASE_NAV[5],
   ];
 
   if (!authReady) {

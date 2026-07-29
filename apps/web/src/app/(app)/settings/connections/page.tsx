@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { StoreBadge } from "@/components/StoreBadge";
 import { SteamSyncStatus } from "@/components/SteamSyncStatus";
 import { Button, PageHeader, Panel } from "@/components/ui";
@@ -31,7 +31,6 @@ function ConnectionsContent() {
   const music = useMusicEnabled();
   const watch = useWatchEnabled();
   const read = useReadEnabled();
-  const qc = useQueryClient();
 
   const me = useQuery({
     queryKey: ["me"],
@@ -46,15 +45,6 @@ function ConnectionsContent() {
   const steamStatus = stores.data?.find((s) => s.store === "steam");
   const justLinked = linked === "steam";
   const sync = useSyncJobs({ enabled: steamConnected });
-
-  const refresh = useMutation({
-    mutationFn: () =>
-      api<{ ok: true }>("/sync/refresh", { method: "POST" }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-      void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
-    },
-  });
 
   return (
     <>
@@ -109,23 +99,9 @@ function ConnectionsContent() {
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {steamConnected ? (
-              <>
-                <span className="border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--muted)]">
-                  {sync.active ? "Connected · syncing" : "Connected"}
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={refresh.isPending || sync.active}
-                  onClick={() => refresh.mutate()}
-                >
-                  {refresh.isPending
-                    ? "Queuing…"
-                    : sync.active
-                      ? "Sync running"
-                      : "Sync now"}
-                </Button>
-              </>
+              <span className="border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--muted)]">
+                {sync.active ? "Connected · syncing" : "Connected"}
+              </span>
             ) : (
               <a href={steamLinkUrl()} className="inline-block">
                 <Button type="button">Link Steam</Button>

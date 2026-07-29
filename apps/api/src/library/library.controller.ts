@@ -1,26 +1,20 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
-  Post,
   Query,
   UseGuards,
 } from "@nestjs/common";
 import { LibraryService } from "./library.service";
-import { SyncService } from "../sync/sync.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 
 @Controller("library")
 @UseGuards(SteamAuthGuard)
 export class LibraryController {
-  constructor(
-    private readonly library: LibraryService,
-    private readonly sync: SyncService,
-  ) {}
+  constructor(private readonly library: LibraryService) {}
 
   @Get()
   list(
@@ -74,14 +68,6 @@ export class LibraryController {
       return this.library.getOneByAppId(user.userId, Number(id));
     }
     return this.library.getOne(user.userId, id);
-  }
-
-  @Post("sync")
-  syncLibrary(@CurrentUser() user: { userId: string; steamId: string | null }) {
-    if (!user.steamId) {
-      throw new BadRequestException("Link a Steam account first");
-    }
-    return this.sync.enqueueAll(user.userId, user.steamId);
   }
 
   @Patch(":id/price")

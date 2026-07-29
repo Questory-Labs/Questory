@@ -14,6 +14,9 @@ export type UpsertTitleInput = {
   imdbId?: string | null;
   anilistId?: number | null;
   malId?: number | null;
+  kitsuId?: number | null;
+  bangumiId?: number | null;
+  shikimoriId?: number | null;
 };
 
 export type UpsertEpisodeInput = {
@@ -86,6 +89,49 @@ export class CatalogService {
 
   async upsertTitle(input: UpsertTitleInput) {
     const nameNormalized = normalizeName(input.name);
+    const idMerge = {
+      traktId: input.traktId ?? null,
+      tmdbId: input.tmdbId ?? null,
+      imdbId: input.imdbId ?? null,
+      anilistId: input.anilistId ?? null,
+      malId: input.malId ?? null,
+      kitsuId: input.kitsuId ?? null,
+      bangumiId: input.bangumiId ?? null,
+      shikimoriId: input.shikimoriId ?? null,
+    };
+
+    const mergeUpdate = (
+      existing: {
+        traktId: number | null;
+        tmdbId: number | null;
+        imdbId: string | null;
+        anilistId: number | null;
+        malId: number | null;
+        kitsuId: number | null;
+        bangumiId: number | null;
+        shikimoriId: number | null;
+        year: number | null;
+        overview: string | null;
+        runtimeMinutes: number | null;
+        posterUrl: string | null;
+        imageManual: boolean;
+      },
+    ) => ({
+      name: input.name,
+      nameNormalized,
+      year: input.year ?? existing.year,
+      overview: input.overview ?? existing.overview,
+      runtimeMinutes: input.runtimeMinutes ?? existing.runtimeMinutes,
+      posterUrl: this.posterForUpdate(existing, input.posterUrl),
+      traktId: idMerge.traktId ?? existing.traktId,
+      tmdbId: idMerge.tmdbId ?? existing.tmdbId,
+      imdbId: idMerge.imdbId ?? existing.imdbId,
+      anilistId: idMerge.anilistId ?? existing.anilistId,
+      malId: idMerge.malId ?? existing.malId,
+      kitsuId: idMerge.kitsuId ?? existing.kitsuId,
+      bangumiId: idMerge.bangumiId ?? existing.bangumiId,
+      shikimoriId: idMerge.shikimoriId ?? existing.shikimoriId,
+    });
 
     if (input.tmdbId != null) {
       const byTmdb = await this.prisma.title.findUnique({
@@ -94,57 +140,44 @@ export class CatalogService {
       if (byTmdb) {
         return this.prisma.title.update({
           where: { id: byTmdb.id },
-          data: {
-            name: input.name,
-            nameNormalized,
-            year: input.year ?? byTmdb.year,
-            overview: input.overview ?? byTmdb.overview,
-            runtimeMinutes: input.runtimeMinutes ?? byTmdb.runtimeMinutes,
-            posterUrl: this.posterForUpdate(byTmdb, input.posterUrl),
-            traktId: input.traktId ?? byTmdb.traktId,
-            imdbId: input.imdbId ?? byTmdb.imdbId,
-            anilistId: input.anilistId ?? byTmdb.anilistId,
-            malId: input.malId ?? byTmdb.malId,
-          },
+          data: mergeUpdate(byTmdb),
         });
       }
     }
 
-    if (input.traktId != null) {
-      const byTrakt = await this.prisma.title.findFirst({
-        where: { type: input.type, traktId: input.traktId },
-      });
-      if (byTrakt) {
-        return this.prisma.title.update({
-          where: { id: byTrakt.id },
-          data: {
-            name: input.name,
-            nameNormalized,
-            year: input.year ?? byTrakt.year,
-            tmdbId: input.tmdbId ?? byTrakt.tmdbId,
-            imdbId: input.imdbId ?? byTrakt.imdbId,
-            overview: input.overview ?? byTrakt.overview,
-            runtimeMinutes: input.runtimeMinutes ?? byTrakt.runtimeMinutes,
-            posterUrl: this.posterForUpdate(byTrakt, input.posterUrl),
-          },
-        });
-      }
-    }
+    const idLookups: Array<{
+      field: keyof Pick<
+        UpsertTitleInput,
+        | "traktId"
+        | "anilistId"
+        | "malId"
+        | "kitsuId"
+        | "bangumiId"
+        | "shikimoriId"
+      >;
+      where: Record<string, unknown>;
+    }> = [
+      {
+        field: "traktId",
+        where: { type: input.type, traktId: input.traktId ?? undefined },
+      },
+      { field: "anilistId", where: { anilistId: input.anilistId ?? undefined } },
+      { field: "malId", where: { malId: input.malId ?? undefined } },
+      { field: "kitsuId", where: { kitsuId: input.kitsuId ?? undefined } },
+      { field: "bangumiId", where: { bangumiId: input.bangumiId ?? undefined } },
+      {
+        field: "shikimoriId",
+        where: { shikimoriId: input.shikimoriId ?? undefined },
+      },
+    ];
 
-    if (input.anilistId != null) {
-      const byAni = await this.prisma.title.findFirst({
-        where: { anilistId: input.anilistId },
-      });
-      if (byAni) {
+    for (const lookup of idLookups) {
+      if (input[lookup.field] == null) continue;
+      const found = await this.prisma.title.findFirst({ where: lookup.where });
+      if (found) {
         return this.prisma.title.update({
-          where: { id: byAni.id },
-          data: {
-            name: input.name,
-            nameNormalized,
-            year: input.year ?? byAni.year,
-            tmdbId: input.tmdbId ?? byAni.tmdbId,
-            malId: input.malId ?? byAni.malId,
-          },
+          where: { id: found.id },
+          data: mergeUpdate(found),
         });
       }
     }
@@ -159,16 +192,7 @@ export class CatalogService {
     if (existing) {
       return this.prisma.title.update({
         where: { id: existing.id },
-        data: {
-          traktId: input.traktId ?? existing.traktId,
-          tmdbId: input.tmdbId ?? existing.tmdbId,
-          imdbId: input.imdbId ?? existing.imdbId,
-          anilistId: input.anilistId ?? existing.anilistId,
-          malId: input.malId ?? existing.malId,
-          overview: input.overview ?? existing.overview,
-          runtimeMinutes: input.runtimeMinutes ?? existing.runtimeMinutes,
-          posterUrl: this.posterForUpdate(existing, input.posterUrl),
-        },
+        data: mergeUpdate(existing),
       });
     }
 
@@ -181,11 +205,14 @@ export class CatalogService {
         overview: input.overview ?? null,
         runtimeMinutes: input.runtimeMinutes ?? null,
         posterUrl: input.posterUrl ?? null,
-        traktId: input.traktId ?? null,
-        tmdbId: input.tmdbId ?? null,
-        imdbId: input.imdbId ?? null,
-        anilistId: input.anilistId ?? null,
-        malId: input.malId ?? null,
+        traktId: idMerge.traktId,
+        tmdbId: idMerge.tmdbId,
+        imdbId: idMerge.imdbId,
+        anilistId: idMerge.anilistId,
+        malId: idMerge.malId,
+        kitsuId: idMerge.kitsuId,
+        bangumiId: idMerge.bangumiId,
+        shikimoriId: idMerge.shikimoriId,
       },
     });
   }
@@ -292,7 +319,7 @@ export class CatalogService {
       },
       update: {
         progress: input.progress ?? 100,
-        rating: input.rating ?? undefined,
+        ...(input.rating != null ? { rating: input.rating } : {}),
         runtimeMinutes: input.runtimeMinutes ?? undefined,
       },
     });
@@ -322,6 +349,20 @@ export class CatalogService {
         minutesWatched: { increment: Math.max(0, minutes) },
       },
     });
+  }
+
+  async rebuildWatchHourBuckets(userId: string) {
+    await this.prisma.watchHourBucket.deleteMany({ where: { userId } });
+    const events = await this.prisma.watchEvent.findMany({
+      where: { userId },
+      include: { title: { select: { runtimeMinutes: true } } },
+      orderBy: { watchedAt: "asc" },
+    });
+    for (const event of events) {
+      const minutes =
+        event.runtimeMinutes ?? event.title.runtimeMinutes ?? 0;
+      await this.bumpHourBucket(userId, event.watchedAt, minutes);
+    }
   }
 
   async upsertListState(input: {

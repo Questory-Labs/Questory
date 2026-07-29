@@ -1197,6 +1197,7 @@ export const WatchRecentEventSchema = z.object({
   watchedAt: z.string(),
   source: z.string(),
   precision: z.string(),
+  rating: z.number().nullable().optional(),
   title: z.object({
     id: z.string(),
     name: z.string(),
@@ -1286,6 +1287,7 @@ export const WatchTitleDetailSchema = z.object({
   eventCount: z.number(),
   firstWatchAt: z.string().nullable().optional(),
   latestWatchAt: z.string().nullable().optional(),
+  userRating: z.number().nullable().optional(),
   topEpisodes: z.array(
     z.object({
       id: z.string(),
@@ -1300,6 +1302,7 @@ export const WatchTitleDetailSchema = z.object({
       id: z.string(),
       watchedAt: z.string(),
       source: z.string(),
+      rating: z.number().nullable().optional(),
       episode: z
         .object({
           seasonNumber: z.number(),

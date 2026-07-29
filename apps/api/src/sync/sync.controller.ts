@@ -1,10 +1,8 @@
 import {
-  BadRequestException,
   Controller,
   ForbiddenException,
   Get,
   Post,
-  Query,
   UseGuards,
 } from "@nestjs/common";
 import { SyncService } from "./sync.service";
@@ -19,19 +17,6 @@ export class SyncController {
     private readonly sync: SyncService,
     private readonly catalog: CatalogService,
   ) {}
-
-  @Post("refresh")
-  async refresh(
-    @CurrentUser() user: { userId: string; steamId: string | null },
-    @Query("force") force?: string,
-  ) {
-    if (!user.steamId) {
-      throw new BadRequestException("Link a Steam account first");
-    }
-    return this.sync.enqueueAll(user.userId, user.steamId, {
-      force: force === "1" || force === "true",
-    });
-  }
 
   @Get("jobs")
   async jobs(@CurrentUser() user: { userId: string; steamId: string | null }) {

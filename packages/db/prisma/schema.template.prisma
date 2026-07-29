@@ -81,6 +81,21 @@ model CronRun {
   @@index([startedAt])
 }
 
+model DataMigration {
+  key               String    @id
+  status            String    @default("pending")
+  lastStartedAt     DateTime?
+  lastCompletedAt   DateTime?
+  lastError         String?
+  lastResult        String    @default("{}")
+  runCount          Int       @default(0)
+  triggeredByUserId String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status, updatedAt])
+}
+
 /**
  * Linked third-party identity (Steam, ListenBrainz username, future Google, …).
  * OAuth sync credentials stay on StoreAccount / SourceConnection.
@@ -768,6 +783,9 @@ model Title {
   imdbId           String?
   anilistId        Int?
   malId            Int?
+  kitsuId          Int?
+  bangumiId        Int?
+  shikimoriId      Int?
   metadataSyncedAt DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -785,6 +803,9 @@ model Title {
   @@index([tmdbId])
   @@index([anilistId])
   @@index([malId])
+  @@index([kitsuId])
+  @@index([bangumiId])
+  @@index([shikimoriId])
   @@unique([type, tmdbId])
 }
 
@@ -894,7 +915,7 @@ model WatchHourBucket {
 model SourceConnection {
   id             String    @id @default(cuid())
   userId         String
-  /** trakt | anilist | mal */
+  /** trakt | anilist | mal | kitsu | bangumi | shikimori */
   provider       String
   externalUserId String?
   accessToken    String
@@ -989,6 +1010,9 @@ model ReadTitle {
   imageManual        Boolean   @default(false)
   anilistId          Int?      @unique
   malId              Int?
+  kitsuId            Int?
+  bangumiId          Int?
+  shikimoriId        Int?
   countryOfOrigin    String?
   /** RELEASING | FINISHED | … (AniList media status) */
   publishingStatus   String?
@@ -1003,6 +1027,9 @@ model ReadTitle {
   @@index([nameNormalized])
   @@index([format])
   @@index([malId])
+  @@index([kitsuId])
+  @@index([bangumiId])
+  @@index([shikimoriId])
 }
 
 model ReadTitleGenre {

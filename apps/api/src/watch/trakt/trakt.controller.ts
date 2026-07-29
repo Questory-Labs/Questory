@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Query,
   Res,
   UseGuards,
@@ -54,9 +53,4 @@ export class TraktController {
     );
   }
 
-  @Post("sync")
-  @UseGuards(SessionUserGuard)
-  sync(@CurrentWatchUserId() userId: string) {
-    return this.trakt.syncHistory(userId);
-  }
 }

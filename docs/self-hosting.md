@@ -160,9 +160,13 @@ Locally: `pnpm setup` then `pnpm dev` (watch modules load with the API).
 | **TMDB** | Metadata enrichment (genres, posters, runtime). Attribution required in UI. |
 | **Letterboxd** | Official export zip or CSV (`POST /v1/watch/imports/letterboxd`, optional `include=diary,ratings,watched,watchlist`) — no scraping |
 | **AniList** | OAuth + list sync (day/unknown precision) |
+| **MyAnimeList** | OAuth + PKCE at `/v1/watch/mal/authorize` → anime + manga import |
+| **Shikimori** | OAuth at `/v1/watch/shikimori/authorize` → anime + manga import |
+| **Bangumi** | OAuth at `/v1/watch/bangumi/authorize` → collection import |
+| **Kitsu** | Email/password connect at `POST /v1/watch/kitsu/connect` → library import |
 | **Plex / Jellyfin** | `POST /webhooks/plex` and `POST /webhooks/jellyfin` on the API (unversioned) |
 
-By default the API schedules Trakt/AniList sync every 6 hours (`CRON_WATCH_SCHEDULE`; disable with `CRON_ENABLED=false`).
+By default the API schedules Trakt, AniList, MAL, Kitsu, Bangumi, and Shikimori sync every 6 hours (`CRON_WATCH_SCHEDULE`; disable with `CRON_ENABLED=false`).
 
 ### Frontend menus
 
@@ -170,12 +174,12 @@ Watch nav appears when `NEXT_PUBLIC_ENABLE_WATCH=true` **and** API `GET /health`
 
 ### Optional: Read (manga / print)
 
-Questory Read is an **API module** under `/v1/read/*`. It syncs AniList manga/manhwa/novels into dedicated Read tables (not Watch `Title` / `WatchEvent`).
+Questory Read is an **API module** under `/v1/read/*`. It syncs manga/manhwa/novels from AniList, MyAnimeList, Kitsu, Bangumi, and Shikimori into dedicated Read tables (not Watch `Title` / `WatchEvent`).
 
 ```env
 NEXT_PUBLIC_ENABLE_READ=true
-# Same AniList OAuth as Watch — anime lists → Watch, manga lists → Read
-# ANILIST_CLIENT_ID / SECRET / REDIRECT_URI (see Watch section)
+# AniList / MAL / Shikimori / Bangumi OAuth — see Watch section
+# Kitsu: connect in Read → Sources (email + password; tokens only stored)
 ```
 
 Read nav appears when `NEXT_PUBLIC_ENABLE_READ=true` **and** API `GET /health` reports `ok: true` with `read.enabled` not `false`. Connect AniList under **Read → Sources** (or Watch → Sources — shared connection), then sync. Cron AniList sync also refreshes manga.

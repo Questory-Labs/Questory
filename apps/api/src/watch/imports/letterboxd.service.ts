@@ -10,6 +10,14 @@ import { EnrichmentService } from "../enrichment/enrichment.service";
 import { TmdbService } from "../tmdb/tmdb.service";
 import { UsersService } from "../users/users.service";
 import {
+  letterboxdRepairGroupKey,
+  letterboxdWatchDedupeKey,
+  normalizeLetterboxdName,
+  parseLegacyLetterboxdDedupeKey,
+  watchedAtDayUtc,
+  watchedAtDateStr,
+} from "./letterboxd-keys";
+import {
   extractLetterboxdCsvs,
   inferLetterboxdKindFromFileName,
   isZipBuffer,
@@ -18,6 +26,18 @@ import {
 
 const PROGRESS_EVERY = 5;
 const YIELD_EVERY = 25;
+const WATCH_KINDS = new Set<LetterboxdCsvKind>(["diary", "watched"]);
+
+function watchCsvFilesForImport(
+  files: { kind: LetterboxdCsvKind; text: string }[],
+) {
+  const hasDiary = files.some((f) => f.kind === "diary");
+  return files.filter((f) => {
+    if (!WATCH_KINDS.has(f.kind)) return false;
+    if (f.kind === "watched" && hasDiary) return false;
+    return true;
+  });
+}
 
 /** Minimal CSV line parser (handles quoted fields). */
 function parseCsv(text: string): string[][] {
@@ -60,16 +80,6 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-function normalizeKey(name: string) {
-  return name.trim().toLowerCase().replace(/\s+/g, "-");
-}
-
-function dayUtc(dateStr: string): Date | null {
-  const watchedAt = new Date(`${dateStr}T12:00:00.000Z`);
-  if (Number.isNaN(watchedAt.getTime())) return null;
-  return watchedAt;
-}
-
 function errMessage(err: unknown): string {
   if (err instanceof BadRequestException) {
     const res = err.getResponse();
@@ -95,6 +105,25 @@ type CsvColumns = {
   ratingI: number;
 };
 
+type WatchIntent = {
+  name: string;
+  year: number | null;
+  dateStr: string;
+  rating: number | null;
+  fromDiary: boolean;
+};
+
+type LetterboxdWatchEvent = {
+  id: string;
+  userId: string;
+  titleId: string;
+  watchedAt: Date;
+  dedupeKey: string;
+  rating: number | null;
+  createdAt: Date;
+  title: { name: string; year: number | null };
+};
+
 function mapColumns(header: string[]): CsvColumns {
   const idx = (name: string) => header.indexOf(name);
   const nameI = idx("name") >= 0 ? idx("name") : idx("title");
@@ -105,6 +134,37 @@ function mapColumns(header: string[]): CsvColumns {
     watchedDateI: idx("watched date"),
     ratingI: idx("rating"),
   };
+}
+
+function pickSurvivor(group: LetterboxdWatchEvent[]): LetterboxdWatchEvent {
+  return [...group].sort((a, b) => {
+    const aRating = a.rating != null ? 1 : 0;
+    const bRating = b.rating != null ? 1 : 0;
+    if (bRating !== aRating) return bRating - aRating;
+    const aDiary = a.dedupeKey.includes(":diary:") ? 1 : 0;
+    const bDiary = b.dedupeKey.includes(":diary:") ? 1 : 0;
+    if (bDiary !== aDiary) return bDiary - aDiary;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  })[0];
+}
+
+function bestRating(group: LetterboxdWatchEvent[]): number | null {
+  return group.find((e) => e.rating != null)?.rating ?? null;
+}
+
+function bestYear(group: LetterboxdWatchEvent[]): number | null {
+  for (const event of group) {
+    if (event.title.year != null && Number.isFinite(event.title.year)) {
+      return event.title.year;
+    }
+  }
+  return null;
+}
+
+function repairDateStr(event: LetterboxdWatchEvent): string {
+  const legacy = parseLegacyLetterboxdDedupeKey(event.dedupeKey);
+  if (legacy) return legacy.dateStr;
+  return watchedAtDateStr(event.watchedAt);
 }
 
 @Injectable()
@@ -161,6 +221,124 @@ export class LetterboxdService {
     };
   }
 
+  async repairLetterboxdDuplicates(userId?: string) {
+    const events = await this.prisma.watchEvent.findMany({
+      where: {
+        source: "letterboxd_csv",
+        ...(userId ? { userId } : {}),
+      },
+      include: {
+        title: { select: { name: true, year: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    let legacyKeys = 0;
+    let alreadyCanonical = 0;
+    const groups = new Map<string, LetterboxdWatchEvent[]>();
+    for (const event of events) {
+      if (parseLegacyLetterboxdDedupeKey(event.dedupeKey)) {
+        legacyKeys += 1;
+      } else if (event.dedupeKey.startsWith("letterboxd_csv:watch:")) {
+        alreadyCanonical += 1;
+      }
+
+      const key = letterboxdRepairGroupKey(
+        event.userId,
+        event.dedupeKey,
+        event.title.name,
+        event.watchedAt,
+      );
+      const list = groups.get(key) ?? [];
+      list.push(event);
+      groups.set(key, list);
+    }
+
+    const affectedUsers = new Set<string>();
+    let merged = 0;
+    let migrated = 0;
+    let duplicateGroups = 0;
+
+    for (const group of groups.values()) {
+      if (group.length > 1) duplicateGroups += 1;
+
+      const survivor = pickSurvivor(group);
+      const dateStr = repairDateStr(survivor);
+      const newKey = letterboxdWatchDedupeKey(
+        survivor.title.name,
+        bestYear(group),
+        dateStr,
+      );
+      const rating = bestRating(group);
+      const watchedAt = watchedAtDayUtc(dateStr) ?? survivor.watchedAt;
+
+      if (group.length > 1) {
+        const toDelete = group
+          .filter((e) => e.id !== survivor.id)
+          .map((e) => e.id);
+        await this.prisma.watchEvent.deleteMany({
+          where: { id: { in: toDelete } },
+        });
+        merged += toDelete.length;
+      }
+
+      const conflict = await this.prisma.watchEvent.findUnique({
+        where: {
+          userId_dedupeKey: { userId: survivor.userId, dedupeKey: newKey },
+        },
+      });
+
+      if (conflict && conflict.id !== survivor.id) {
+        if (rating != null && conflict.rating == null) {
+          await this.prisma.watchEvent.update({
+            where: { id: conflict.id },
+            data: { rating },
+          });
+        }
+        const toDelete = group.map((e) => e.id);
+        await this.prisma.watchEvent.deleteMany({
+          where: { id: { in: toDelete } },
+        });
+        merged += toDelete.length;
+        affectedUsers.add(survivor.userId);
+        continue;
+      }
+
+      const needsUpdate =
+        survivor.dedupeKey !== newKey ||
+        survivor.rating !== rating ||
+        survivor.watchedAt.getTime() !== watchedAt.getTime();
+
+      if (needsUpdate) {
+        await this.prisma.watchEvent.update({
+          where: { id: survivor.id },
+          data: {
+            dedupeKey: newKey,
+            rating,
+            watchedAt,
+          },
+        });
+        if (group.length === 1) migrated += 1;
+      }
+
+      affectedUsers.add(survivor.userId);
+    }
+
+    for (const uid of affectedUsers) {
+      await this.catalog.rebuildWatchHourBuckets(uid);
+    }
+
+    return {
+      scanned: events.length,
+      groups: groups.size,
+      legacyKeys,
+      alreadyCanonical,
+      duplicateGroups,
+      merged,
+      migrated,
+    };
+  }
+
   async importUpload(input: {
     buffer: Buffer;
     fileName?: string;
@@ -186,6 +364,8 @@ export class LetterboxdService {
         jobId: active.id,
       });
     }
+
+    await this.repairLetterboxdDuplicates(user.id);
 
     const fileName = (input.fileName || "letterboxd").replace(/[/\\]/g, "_");
     const job = await this.prisma.importJob.create({
@@ -214,7 +394,32 @@ export class LetterboxdService {
       const used: LetterboxdCsvKind[] = [];
       const fileErrors: string[] = [];
 
-      for (const file of files) {
+      const watchFiles = files.filter((f) => WATCH_KINDS.has(f.kind));
+      const effectiveWatchFiles = watchCsvFilesForImport(watchFiles);
+      const otherFiles = files.filter((f) => !WATCH_KINDS.has(f.kind));
+
+      const ratingsFile = files.find((f) => f.kind === "ratings");
+
+      if (effectiveWatchFiles.length) {
+        try {
+          const result = await this.importMergedWatches(
+            effectiveWatchFiles,
+            user.id,
+            job.id,
+            { accepted, skipped },
+            ratingsFile?.text,
+          );
+          accepted = result.accepted;
+          skipped = result.skipped;
+          for (const f of effectiveWatchFiles) used.push(f.kind);
+        } catch (err) {
+          const message = errMessage(err);
+          fileErrors.push(`watch csvs: ${message}`);
+          this.logger.warn(`Letterboxd watch CSVs failed: ${message}`);
+        }
+      }
+
+      for (const file of otherFiles) {
         try {
           const result = await this.importCsvKind(
             file.kind,
@@ -323,6 +528,261 @@ export class LetterboxdService {
     ];
   }
 
+  private async importMergedWatches(
+    files: { kind: LetterboxdCsvKind; text: string }[],
+    userId: string,
+    jobId: string,
+    counters: { accepted: number; skipped: number },
+    ratingsCsvText?: string,
+  ) {
+    const intents = new Map<string, WatchIntent>();
+    let { accepted, skipped } = counters;
+
+    for (const file of files) {
+      if (file.kind !== "diary" && file.kind !== "watched") continue;
+      const rows = parseCsv(file.text.replace(/^\uFEFF/, ""));
+      if (rows.length < 2) {
+        throw new BadRequestException(`${file.kind}.csv has no data rows`);
+      }
+      const header = rows[0].map((h) => h.trim().toLowerCase());
+      const cols = mapColumns(header);
+
+      if (cols.nameI < 0) {
+        throw new BadRequestException(
+          `${file.kind}.csv must include a Name/Title column`,
+        );
+      }
+
+      if (file.kind === "diary" && cols.watchedDateI < 0 && cols.dateI < 0) {
+        throw new BadRequestException(
+          "diary.csv must include Watched Date or Date columns",
+        );
+      }
+
+      for (const row of rows.slice(1)) {
+        try {
+          const outcome = this.mergeWatchRow(file.kind, row, cols, intents);
+          if (outcome === "accepted") accepted += 1;
+          else skipped += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
+    }
+
+    if (ratingsCsvText) {
+      this.mergeRatingsIntoIntents(ratingsCsvText, intents);
+    }
+
+    let processed = 0;
+    const totalIntents = intents.size;
+    for (const intent of intents.values()) {
+      try {
+        await this.writeWatchIntent(intent, userId);
+      } catch (err) {
+        this.logger.debug(`Skip watch intent: ${errMessage(err)}`);
+      }
+
+      processed += 1;
+      if (
+        processed % PROGRESS_EVERY === 0 ||
+        processed === totalIntents
+      ) {
+        await this.prisma.importJob.update({
+          where: { id: jobId },
+          data: { accepted, skipped },
+        });
+      }
+      if (processed % YIELD_EVERY === 0) {
+        await yieldEventLoop();
+      }
+    }
+
+    return { accepted, skipped };
+  }
+
+  private mergeWatchRow(
+    kind: "diary" | "watched",
+    row: string[],
+    cols: CsvColumns,
+    intents: Map<string, WatchIntent>,
+  ): "accepted" | "skipped" {
+    const name = (row[cols.nameI] || "").trim();
+    if (!name) return "skipped";
+
+    const yearRaw =
+      cols.yearI >= 0 && row[cols.yearI] ? Number(row[cols.yearI]) : null;
+    const year = Number.isFinite(yearRaw as number) ? yearRaw : null;
+
+    const ratingRaw =
+      cols.ratingI >= 0 && row[cols.ratingI]
+        ? Number(row[cols.ratingI])
+        : null;
+    const rating = Number.isFinite(ratingRaw as number) ? ratingRaw : null;
+
+    const dateStr = (
+      (kind === "diary"
+        ? row[cols.watchedDateI >= 0 ? cols.watchedDateI : cols.dateI]
+        : row[cols.dateI >= 0 ? cols.dateI : cols.watchedDateI]) || ""
+    ).trim();
+
+    if (!dateStr || !watchedAtDayUtc(dateStr)) return "skipped";
+
+    const dedupeKey = letterboxdWatchDedupeKey(name, year, dateStr);
+    const existing = intents.get(dedupeKey);
+
+    if (!existing) {
+      intents.set(dedupeKey, {
+        name,
+        year,
+        dateStr,
+        rating,
+        fromDiary: kind === "diary",
+      });
+      return "accepted";
+    }
+
+    if (kind === "diary") {
+      intents.set(dedupeKey, {
+        ...existing,
+        fromDiary: true,
+        rating: rating ?? existing.rating,
+      });
+    } else {
+      intents.set(dedupeKey, {
+        ...existing,
+        rating: existing.rating ?? rating,
+      });
+    }
+    return "accepted";
+  }
+
+  private mergeRatingsIntoIntents(
+    csvText: string,
+    intents: Map<string, WatchIntent>,
+  ) {
+    const rows = parseCsv(csvText.replace(/^\uFEFF/, ""));
+    if (rows.length < 2) return;
+
+    const header = rows[0].map((h) => h.trim().toLowerCase());
+    const cols = mapColumns(header);
+    if (cols.nameI < 0 || cols.ratingI < 0) return;
+
+    const byFilm = new Map<string, WatchIntent[]>();
+    for (const intent of intents.values()) {
+      const key = `${normalizeLetterboxdName(intent.name)}:${intent.year ?? ""}`;
+      const list = byFilm.get(key) ?? [];
+      list.push(intent);
+      byFilm.set(key, list);
+    }
+
+    for (const row of rows.slice(1)) {
+      const name = (row[cols.nameI] || "").trim();
+      if (!name) continue;
+
+      const yearRaw =
+        cols.yearI >= 0 && row[cols.yearI] ? Number(row[cols.yearI]) : null;
+      const year = Number.isFinite(yearRaw as number) ? yearRaw : null;
+
+      const ratingRaw =
+        cols.ratingI >= 0 && row[cols.ratingI]
+          ? Number(row[cols.ratingI])
+          : null;
+      const rating = Number.isFinite(ratingRaw as number) ? ratingRaw : null;
+      if (rating == null) continue;
+
+      const key = `${normalizeLetterboxdName(name)}:${year ?? ""}`;
+      const matches = byFilm.get(key);
+      if (!matches?.length) continue;
+
+      for (const intent of matches) {
+        intent.rating = rating;
+      }
+    }
+  }
+
+  private async applyRatingToTitleWatch(
+    userId: string,
+    titleId: string,
+    rating: number,
+    watchedAt?: Date | null,
+  ) {
+    if (watchedAt) {
+      const patched = await this.prisma.watchEvent.updateMany({
+        where: { userId, titleId, watchedAt, rating: null },
+        data: { rating },
+      });
+      if (patched.count > 0) return;
+    }
+
+    const latest = await this.prisma.watchEvent.findFirst({
+      where: { userId, titleId, rating: null },
+      orderBy: { watchedAt: "desc" },
+    });
+    if (latest) {
+      await this.prisma.watchEvent.update({
+        where: { id: latest.id },
+        data: { rating },
+      });
+    }
+  }
+
+  private async writeWatchIntent(
+    intent: WatchIntent,
+    userId: string,
+  ): Promise<"accepted" | "skipped"> {
+    const at = watchedAtDayUtc(intent.dateStr);
+    if (!at) return "skipped";
+
+    let tmdbId: number | null = null;
+    if (this.tmdb.configured()) {
+      try {
+        const hit = await this.tmdb.searchMovie(intent.name, intent.year);
+        tmdbId = hit?.id ?? null;
+      } catch {
+        tmdbId = null;
+      }
+    }
+
+    const title = await this.catalog.upsertTitle({
+      type: "movie",
+      name: intent.name,
+      year: intent.year,
+      tmdbId,
+    });
+
+    const dedupeKey = letterboxdWatchDedupeKey(
+      intent.name,
+      intent.year,
+      intent.dateStr,
+    );
+
+    await this.catalog.recordWatch({
+      userId,
+      titleId: title.id,
+      watchedAt: at,
+      source: "letterboxd_csv",
+      dedupeKey,
+      action: "import",
+      rating: intent.rating,
+      precision: "day",
+    });
+
+    if (intent.rating != null) {
+      await this.catalog.upsertListState({
+        userId,
+        titleId: title.id,
+        listType: "rating",
+        source: "letterboxd_csv",
+        rating: intent.rating,
+        listedAt: at,
+      });
+    }
+
+    this.enrichment.enqueueTitle(title.id);
+    return "accepted";
+  }
+
   private async importCsvKind(
     kind: LetterboxdCsvKind,
     csvText: string,
@@ -343,12 +803,6 @@ export class LetterboxdService {
       );
     }
 
-    if (kind === "diary" && cols.watchedDateI < 0 && cols.dateI < 0) {
-      throw new BadRequestException(
-        "diary.csv must include Watched Date or Date columns",
-      );
-    }
-
     if (kind === "ratings" && cols.ratingI < 0) {
       throw new BadRequestException("ratings.csv must include a Rating column");
     }
@@ -358,14 +812,12 @@ export class LetterboxdService {
 
     for (const row of rows.slice(1)) {
       try {
-        const outcome = await this.importRow(kind, row, cols, userId);
+        const outcome = await this.importListRow(kind, row, cols, userId);
         if (outcome === "accepted") accepted += 1;
         else skipped += 1;
       } catch (err) {
         skipped += 1;
-        this.logger.debug(
-          `Skip ${kind} row: ${errMessage(err)}`,
-        );
+        this.logger.debug(`Skip ${kind} row: ${errMessage(err)}`);
       }
 
       processedInFile += 1;
@@ -386,7 +838,7 @@ export class LetterboxdService {
     return { accepted, skipped };
   }
 
-  private async importRow(
+  private async importListRow(
     kind: LetterboxdCsvKind,
     row: string[],
     cols: CsvColumns,
@@ -395,8 +847,10 @@ export class LetterboxdService {
     const name = (row[cols.nameI] || "").trim();
     if (!name) return "skipped";
 
-    const year =
+    const yearRaw =
       cols.yearI >= 0 && row[cols.yearI] ? Number(row[cols.yearI]) : null;
+    const year = Number.isFinite(yearRaw as number) ? yearRaw : null;
+
     const ratingRaw =
       cols.ratingI >= 0 && row[cols.ratingI]
         ? Number(row[cols.ratingI])
@@ -404,14 +858,10 @@ export class LetterboxdService {
     const rating = Number.isFinite(ratingRaw as number) ? ratingRaw : null;
 
     const dateStr = (
-      (kind === "diary"
-        ? row[cols.watchedDateI >= 0 ? cols.watchedDateI : cols.dateI]
-        : row[cols.dateI >= 0 ? cols.dateI : cols.watchedDateI]) || ""
+      row[cols.dateI >= 0 ? cols.dateI : cols.watchedDateI] || ""
     ).trim();
+    const at = dateStr ? watchedAtDayUtc(dateStr) : null;
 
-    const at = dateStr ? dayUtc(dateStr) : null;
-
-    // TMDB already swallows network errors; keep lookup optional.
     let tmdbId: number | null = null;
     if (this.tmdb.configured()) {
       try {
@@ -425,52 +875,9 @@ export class LetterboxdService {
     const title = await this.catalog.upsertTitle({
       type: "movie",
       name,
-      year: Number.isFinite(year as number) ? year : null,
+      year,
       tmdbId,
     });
-
-    if (kind === "diary") {
-      if (!at || !dateStr) return "skipped";
-      const dedupeKey = `letterboxd_csv:diary:${normalizeKey(name)}:${dateStr}`;
-      await this.catalog.recordWatch({
-        userId,
-        titleId: title.id,
-        watchedAt: at,
-        source: "letterboxd_csv",
-        dedupeKey,
-        action: "import",
-        rating,
-        precision: "day",
-      });
-      if (rating != null) {
-        await this.catalog.upsertListState({
-          userId,
-          titleId: title.id,
-          listType: "rating",
-          source: "letterboxd_csv",
-          rating,
-          listedAt: at,
-        });
-      }
-      this.enrichment.enqueueTitle(title.id);
-      return "accepted";
-    }
-
-    if (kind === "watched") {
-      if (!at || !dateStr) return "skipped";
-      const dedupeKey = `letterboxd_csv:watched:${normalizeKey(name)}:${dateStr}`;
-      await this.catalog.recordWatch({
-        userId,
-        titleId: title.id,
-        watchedAt: at,
-        source: "letterboxd_csv",
-        dedupeKey,
-        action: "import",
-        precision: "day",
-      });
-      this.enrichment.enqueueTitle(title.id);
-      return "accepted";
-    }
 
     if (kind === "ratings") {
       if (rating == null) return "skipped";
@@ -482,18 +889,23 @@ export class LetterboxdService {
         rating,
         listedAt: at,
       });
+      await this.applyRatingToTitleWatch(userId, title.id, rating, at);
       this.enrichment.enqueueTitle(title.id);
       return "accepted";
     }
 
-    await this.catalog.upsertListState({
-      userId,
-      titleId: title.id,
-      listType: "watchlist",
-      source: "letterboxd_csv",
-      listedAt: at,
-    });
-    this.enrichment.enqueueTitle(title.id);
-    return "accepted";
+    if (kind === "watchlist") {
+      await this.catalog.upsertListState({
+        userId,
+        titleId: title.id,
+        listType: "watchlist",
+        source: "letterboxd_csv",
+        listedAt: at,
+      });
+      this.enrichment.enqueueTitle(title.id);
+      return "accepted";
+    }
+
+    return "skipped";
   }
 }

@@ -12,6 +12,9 @@ export type UpsertReadTitleInput = {
   coverUrl?: string | null;
   anilistId?: number | null;
   malId?: number | null;
+  kitsuId?: number | null;
+  bangumiId?: number | null;
+  shikimoriId?: number | null;
   countryOfOrigin?: string | null;
   publishingStatus?: string | null;
 };
@@ -78,6 +81,49 @@ export class ReadCatalogService {
 
   async upsertTitle(input: UpsertReadTitleInput) {
     const nameNormalized = normalizeName(input.name);
+    const idMerge = {
+      anilistId: input.anilistId ?? null,
+      malId: input.malId ?? null,
+      kitsuId: input.kitsuId ?? null,
+      bangumiId: input.bangumiId ?? null,
+      shikimoriId: input.shikimoriId ?? null,
+    };
+
+    const mergeUpdate = (
+      existing: {
+        format: string;
+        year: number | null;
+        overview: string | null;
+        chapters: number | null;
+        volumes: number | null;
+        coverUrl: string | null;
+        imageManual: boolean;
+        anilistId: number | null;
+        malId: number | null;
+        kitsuId: number | null;
+        bangumiId: number | null;
+        shikimoriId: number | null;
+        countryOfOrigin: string | null;
+        publishingStatus: string | null;
+      },
+    ) => ({
+      name: input.name,
+      nameNormalized,
+      format: input.format,
+      year: input.year ?? existing.year,
+      overview: input.overview ?? existing.overview,
+      chapters: input.chapters ?? existing.chapters,
+      volumes: input.volumes ?? existing.volumes,
+      coverUrl: this.coverForUpdate(existing, input.coverUrl),
+      anilistId: idMerge.anilistId ?? existing.anilistId,
+      malId: idMerge.malId ?? existing.malId,
+      kitsuId: idMerge.kitsuId ?? existing.kitsuId,
+      bangumiId: idMerge.bangumiId ?? existing.bangumiId,
+      shikimoriId: idMerge.shikimoriId ?? existing.shikimoriId,
+      countryOfOrigin: input.countryOfOrigin ?? existing.countryOfOrigin,
+      publishingStatus: input.publishingStatus ?? existing.publishingStatus,
+      metadataSyncedAt: new Date(),
+    });
 
     if (input.anilistId != null) {
       const byAni = await this.prisma.readTitle.findUnique({
@@ -86,20 +132,36 @@ export class ReadCatalogService {
       if (byAni) {
         return this.prisma.readTitle.update({
           where: { id: byAni.id },
-          data: {
-            name: input.name,
-            nameNormalized,
-            format: input.format,
-            year: input.year ?? byAni.year,
-            overview: input.overview ?? byAni.overview,
-            chapters: input.chapters ?? byAni.chapters,
-            volumes: input.volumes ?? byAni.volumes,
-            coverUrl: this.coverForUpdate(byAni, input.coverUrl),
-            malId: input.malId ?? byAni.malId,
-            countryOfOrigin: input.countryOfOrigin ?? byAni.countryOfOrigin,
-            publishingStatus: input.publishingStatus ?? byAni.publishingStatus,
-            metadataSyncedAt: new Date(),
-          },
+          data: mergeUpdate(byAni),
+        });
+      }
+    }
+
+    const idLookups: Array<{
+      field: keyof Pick<
+        UpsertReadTitleInput,
+        "malId" | "kitsuId" | "bangumiId" | "shikimoriId"
+      >;
+      where: Record<string, unknown>;
+    }> = [
+      { field: "malId", where: { malId: input.malId ?? undefined } },
+      { field: "kitsuId", where: { kitsuId: input.kitsuId ?? undefined } },
+      { field: "bangumiId", where: { bangumiId: input.bangumiId ?? undefined } },
+      {
+        field: "shikimoriId",
+        where: { shikimoriId: input.shikimoriId ?? undefined },
+      },
+    ];
+
+    for (const lookup of idLookups) {
+      if (input[lookup.field] == null) continue;
+      const found = await this.prisma.readTitle.findFirst({
+        where: lookup.where,
+      });
+      if (found) {
+        return this.prisma.readTitle.update({
+          where: { id: found.id },
+          data: mergeUpdate(found),
         });
       }
     }
@@ -114,17 +176,7 @@ export class ReadCatalogService {
     if (existing) {
       return this.prisma.readTitle.update({
         where: { id: existing.id },
-        data: {
-          anilistId: input.anilistId ?? existing.anilistId,
-          malId: input.malId ?? existing.malId,
-          overview: input.overview ?? existing.overview,
-          chapters: input.chapters ?? existing.chapters,
-          volumes: input.volumes ?? existing.volumes,
-          coverUrl: this.coverForUpdate(existing, input.coverUrl),
-          countryOfOrigin: input.countryOfOrigin ?? existing.countryOfOrigin,
-          publishingStatus: input.publishingStatus ?? existing.publishingStatus,
-          metadataSyncedAt: new Date(),
-        },
+        data: mergeUpdate(existing),
       });
     }
 
@@ -138,8 +190,11 @@ export class ReadCatalogService {
         chapters: input.chapters ?? null,
         volumes: input.volumes ?? null,
         coverUrl: input.coverUrl ?? null,
-        anilistId: input.anilistId ?? null,
-        malId: input.malId ?? null,
+        anilistId: idMerge.anilistId,
+        malId: idMerge.malId,
+        kitsuId: idMerge.kitsuId,
+        bangumiId: idMerge.bangumiId,
+        shikimoriId: idMerge.shikimoriId,
         countryOfOrigin: input.countryOfOrigin ?? null,
         publishingStatus: input.publishingStatus ?? null,
         metadataSyncedAt: new Date(),

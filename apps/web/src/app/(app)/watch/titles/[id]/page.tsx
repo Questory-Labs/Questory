@@ -9,7 +9,7 @@ import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
 import { WatchRangePicker } from "@/components/watch/WatchRangePicker";
 import { PageHeader, StateMessage } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
-import { watchFetch } from "@/lib/watch";
+import { formatYourWatchRating, watchFetch } from "@/lib/watch";
 
 function displayLabel(
   displayName: string | null | undefined,
@@ -57,7 +57,14 @@ export default function WatchTitlePage() {
         title={title}
         description={
           detail.data
-            ? `${detail.data.eventCount} watches in range · first ${formatDate(detail.data.firstWatchAt)} · latest ${formatDate(detail.data.latestWatchAt)}`
+            ? [
+                `${detail.data.eventCount} watches in range · first ${formatDate(detail.data.firstWatchAt)} · latest ${formatDate(detail.data.latestWatchAt)}`,
+                detail.data.userRating != null
+                  ? formatYourWatchRating(detail.data.userRating)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
             : undefined
         }
         actions={
@@ -153,6 +160,9 @@ export default function WatchTitlePage() {
                       className="py-2 font-mono text-[12px] text-[var(--muted)]"
                     >
                       {formatDateTime(e.watchedAt)}
+                      {e.rating != null
+                        ? ` · ${formatYourWatchRating(e.rating)}`
+                        : ""}
                       {e.episode
                         ? ` · S${e.episode.seasonNumber}E${e.episode.episodeNumber}`
                         : ""}

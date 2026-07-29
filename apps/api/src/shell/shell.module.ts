@@ -4,6 +4,10 @@ import { ImportsModule as MusicImportsModule } from "../music/imports/imports.mo
 import { ImportsModule as WatchImportsModule } from "../watch/imports/imports.module";
 import { TraktModule } from "../watch/trakt/trakt.module";
 import { AnilistModule } from "../watch/anilist/anilist.module";
+import { MalModule } from "../watch/mal/mal.module";
+import { KitsuModule } from "../watch/kitsu/kitsu.module";
+import { BangumiModule } from "../watch/bangumi/bangumi.module";
+import { ShikimoriModule } from "../watch/shikimori/shikimori.module";
 import { ShellSyncStatusController } from "./shell-sync-status.controller";
 import { ShellSyncStatusService } from "./shell-sync-status.service";
 
@@ -14,6 +18,10 @@ import { ShellSyncStatusService } from "./shell-sync-status.service";
     WatchImportsModule,
     TraktModule,
     AnilistModule,
+    MalModule,
+    KitsuModule,
+    BangumiModule,
+    ShikimoriModule,
   ],
   controllers: [ShellSyncStatusController],
   providers: [ShellSyncStatusService],

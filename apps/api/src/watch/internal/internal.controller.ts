@@ -7,6 +7,10 @@ import {
 import { timingSafeEqual } from "node:crypto";
 import { TraktService } from "../trakt/trakt.service";
 import { AnilistService } from "../anilist/anilist.service";
+import { MalService } from "../mal/mal.service";
+import { KitsuService } from "../kitsu/kitsu.service";
+import { BangumiService } from "../bangumi/bangumi.service";
+import { ShikimoriService } from "../shikimori/shikimori.service";
 
 function safeStringEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
@@ -20,6 +24,10 @@ export class InternalController {
   constructor(
     private readonly trakt: TraktService,
     private readonly anilist: AnilistService,
+    private readonly mal: MalService,
+    private readonly kitsu: KitsuService,
+    private readonly bangumi: BangumiService,
+    private readonly shikimori: ShikimoriService,
   ) {}
 
   private assertCron(auth?: string) {
@@ -41,5 +49,29 @@ export class InternalController {
   async anilistSync(@Headers("authorization") auth?: string) {
     this.assertCron(auth);
     return this.anilist.syncList();
+  }
+
+  @Post("mal-sync")
+  async malSync(@Headers("authorization") auth?: string) {
+    this.assertCron(auth);
+    return this.mal.syncList();
+  }
+
+  @Post("kitsu-sync")
+  async kitsuSync(@Headers("authorization") auth?: string) {
+    this.assertCron(auth);
+    return this.kitsu.syncList();
+  }
+
+  @Post("bangumi-sync")
+  async bangumiSync(@Headers("authorization") auth?: string) {
+    this.assertCron(auth);
+    return this.bangumi.syncList();
+  }
+
+  @Post("shikimori-sync")
+  async shikimoriSync(@Headers("authorization") auth?: string) {
+    this.assertCron(auth);
+    return this.shikimori.syncList();
   }
 }

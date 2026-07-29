@@ -80,6 +80,12 @@ export class AnilistService {
     }
     const data = (await res.json()) as { access_token: string };
 
+    const existing = await this.prisma.sourceConnection.findUnique({
+      where: {
+        userId_provider: { userId: user.id, provider: "anilist" },
+      },
+    });
+
     await this.prisma.sourceConnection.upsert({
       where: {
         userId_provider: { userId: user.id, provider: "anilist" },
@@ -92,11 +98,13 @@ export class AnilistService {
       update: { accessToken: data.access_token },
     });
 
-    void this.syncList(user.id).catch((e) =>
-      this.logger.error(
-        `AniList sync failed: ${e instanceof Error ? e.message : e}`,
-      ),
-    );
+    if (!existing) {
+      void this.syncList(user.id).catch((e) =>
+        this.logger.error(
+          `AniList sync failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
+    }
 
     return { ok: true, userId: user.id };
   }
@@ -146,7 +154,9 @@ export class AnilistService {
           lists {
             entries {
               id status score progress
-              updatedAt completedAt startedAt
+              updatedAt
+              completedAt { year month day }
+              startedAt { year month day }
               media {
                 id idMal
                 title { romaji english native }
@@ -321,7 +331,9 @@ export class AnilistService {
           lists {
             entries {
               id status score progress progressVolumes
-              updatedAt completedAt startedAt
+              updatedAt
+              completedAt { year month day }
+              startedAt { year month day }
               media {
                 id idMal
                 title { romaji english native }

@@ -13,6 +13,7 @@ import { z } from "zod";
 import { AdminGuard } from "../auth/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { AdminService } from "./admin.service";
+import { MigrationsService } from "./migrations/migrations.service";
 
 const PatchSettingsSchema = z.object({
   signupEnabled: z.boolean().optional(),
@@ -55,7 +56,10 @@ const OpsUserSchema = z.object({
 @Controller("admin")
 @UseGuards(AdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly migrations: MigrationsService,
+  ) {}
 
   @Get("overview")
   overview() {
@@ -169,5 +173,18 @@ export class AdminController {
       return { error: "Invalid body" };
     }
     return this.admin.syncUser(parsed.data.userId);
+  }
+
+  @Get("migrations")
+  listMigrations() {
+    return this.migrations.listMigrations();
+  }
+
+  @Post("migrations/:key/run")
+  runMigration(
+    @Param("key") key: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.migrations.runMigration(key, user.userId);
   }
 }

@@ -27,4 +27,16 @@ describe("formatDateTime", () => {
     expect(formatDateTime(null)).toBe("—");
     expect(formatDateTime(undefined)).toBe("—");
   });
+
+  it("includes year when not the current year", () => {
+    const now = new Date(2026, 6, 29, 12, 0, 0);
+    const formatted = formatDateTime("2024-01-15T15:30:00.000Z", now);
+    expect(formatted).toMatch(/2024/);
+  });
+
+  it("omits year for the current year", () => {
+    const now = new Date(2026, 6, 29, 12, 0, 0);
+    const formatted = formatDateTime("2026-03-10T15:30:00.000Z", now);
+    expect(formatted).not.toMatch(/2026/);
+  });
 });

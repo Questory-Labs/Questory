@@ -4,12 +4,22 @@ import { ImportsService } from "../music/imports/imports.service";
 import { LetterboxdService } from "../watch/imports/letterboxd.service";
 import { TraktService } from "../watch/trakt/trakt.service";
 import { AnilistService } from "../watch/anilist/anilist.service";
+import { MalService } from "../watch/mal/mal.service";
+import { KitsuService } from "../watch/kitsu/kitsu.service";
+import { BangumiService } from "../watch/bangumi/bangumi.service";
+import { ShikimoriService } from "../watch/shikimori/shikimori.service";
 
 export type ShellSyncModules = {
   steam?: boolean;
   music?: boolean;
   watch?: boolean;
   read?: boolean;
+};
+
+export type ProviderConnStatus = {
+  connected: boolean;
+  syncing: boolean;
+  lastSyncedAt: string | null;
 };
 
 export type ShellSyncStatus = {
@@ -55,29 +65,41 @@ export type ShellSyncStatus = {
       percent: number | null;
       lastError?: string | null;
     } | null;
-    trakt: {
-      connected: boolean;
-      syncing: boolean;
-      lastSyncedAt: string | null;
-    };
-    anilist: {
-      connected: boolean;
-      syncing: boolean;
-      lastSyncedAt: string | null;
-    };
+    trakt: ProviderConnStatus;
+    anilist: ProviderConnStatus;
+    mal: ProviderConnStatus;
+    kitsu: ProviderConnStatus;
+    bangumi: ProviderConnStatus;
+    shikimori: ProviderConnStatus;
   } | null;
   read: {
     active: boolean;
-    anilist: {
-      connected: boolean;
-      syncing: boolean;
-      lastSyncedAt: string | null;
-    };
+    anilist: ProviderConnStatus;
+    mal: ProviderConnStatus;
+    kitsu: ProviderConnStatus;
+    bangumi: ProviderConnStatus;
+    shikimori: ProviderConnStatus;
   } | null;
 };
 
 function isSteamJobActive(status: string | undefined) {
   return status === "pending" || status === "running";
+}
+
+function mapProviderStatus(
+  conn: {
+    connected?: boolean;
+    syncing?: boolean;
+    lastSyncedAt?: string | null;
+  } | null,
+): ProviderConnStatus {
+  return conn
+    ? {
+        connected: Boolean(conn.connected),
+        syncing: Boolean(conn.syncing),
+        lastSyncedAt: conn.lastSyncedAt ?? null,
+      }
+    : { connected: false, syncing: false, lastSyncedAt: null };
 }
 
 @Injectable()
@@ -88,6 +110,10 @@ export class ShellSyncStatusService {
     private readonly letterboxd: LetterboxdService,
     private readonly trakt: TraktService,
     private readonly anilist: AnilistService,
+    private readonly mal: MalService,
+    private readonly kitsu: KitsuService,
+    private readonly bangumi: BangumiService,
+    private readonly shikimori: ShikimoriService,
   ) {}
 
   async getStatus(
@@ -99,7 +125,17 @@ export class ShellSyncStatusService {
     const wantWatch = modules.watch === true;
     const wantRead = modules.read === true;
 
-    const [jobs, musicJob, letterboxd, trakt, anilist] = await Promise.all([
+    const [
+      jobs,
+      musicJob,
+      letterboxd,
+      trakt,
+      anilist,
+      mal,
+      kitsu,
+      bangumi,
+      shikimori,
+    ] = await Promise.all([
       wantSteam ? this.sync.latestJobs(userId) : Promise.resolve([]),
       wantMusic ? this.musicImports.getActiveJob(userId) : Promise.resolve(null),
       wantWatch ? this.letterboxd.getActiveJob(userId) : Promise.resolve(null),
@@ -108,6 +144,18 @@ export class ShellSyncStatusService {
         : Promise.resolve(null),
       wantWatch || wantRead
         ? this.anilist.getConnection(userId)
+        : Promise.resolve(null),
+      wantWatch || wantRead
+        ? this.mal.getConnection(userId)
+        : Promise.resolve(null),
+      wantWatch || wantRead
+        ? this.kitsu.getConnection(userId)
+        : Promise.resolve(null),
+      wantWatch || wantRead
+        ? this.bangumi.getConnection(userId)
+        : Promise.resolve(null),
+      wantWatch || wantRead
+        ? this.shikimori.getConnection(userId)
         : Promise.resolve(null),
     ]);
 
@@ -122,54 +170,51 @@ export class ShellSyncStatusService {
     const steamActive = steamJobs.some((j) => isSteamJobActive(j.status));
 
     const music =
-      wantMusic ?
-        {
-          active: musicJob?.status === "running",
-          job: musicJob,
-        }
-      : null;
+      wantMusic
+        ? {
+            active: musicJob?.status === "running",
+            job: musicJob,
+          }
+        : null;
 
-    const traktSyncing = Boolean(trakt?.connected && trakt.syncing);
-    const anilistSyncing = Boolean(anilist?.connected && anilist.syncing);
+    const providerSyncing = [
+      trakt,
+      anilist,
+      mal,
+      kitsu,
+      bangumi,
+      shikimori,
+    ].some((p) => Boolean(p?.connected && p.syncing));
 
     const watch =
-      wantWatch ?
-        {
-          active: Boolean(letterboxd || traktSyncing || anilistSyncing),
-          letterboxd,
-          trakt:
-            trakt ?
-              {
-                connected: trakt.connected,
-                syncing: Boolean(trakt.syncing),
-                lastSyncedAt: trakt.lastSyncedAt ?? null,
-              }
-            : { connected: false, syncing: false, lastSyncedAt: null },
-          anilist:
-            anilist ?
-              {
-                connected: anilist.connected,
-                syncing: Boolean(anilist.syncing),
-                lastSyncedAt: anilist.lastSyncedAt ?? null,
-              }
-            : { connected: false, syncing: false, lastSyncedAt: null },
-        }
-      : null;
+      wantWatch
+        ? {
+            active: Boolean(letterboxd || providerSyncing),
+            letterboxd,
+            trakt: mapProviderStatus(trakt),
+            anilist: mapProviderStatus(anilist),
+            mal: mapProviderStatus(mal),
+            kitsu: mapProviderStatus(kitsu),
+            bangumi: mapProviderStatus(bangumi),
+            shikimori: mapProviderStatus(shikimori),
+          }
+        : null;
+
+    const readActive = [anilist, mal, kitsu, bangumi, shikimori].some((p) =>
+      Boolean(p?.connected && p.syncing),
+    );
 
     const read =
-      wantRead ?
-        {
-          active: anilistSyncing,
-          anilist:
-            anilist ?
-              {
-                connected: anilist.connected,
-                syncing: Boolean(anilist.syncing),
-                lastSyncedAt: anilist.lastSyncedAt ?? null,
-              }
-            : { connected: false, syncing: false, lastSyncedAt: null },
-        }
-      : null;
+      wantRead
+        ? {
+            active: readActive,
+            anilist: mapProviderStatus(anilist),
+            mal: mapProviderStatus(mal),
+            kitsu: mapProviderStatus(kitsu),
+            bangumi: mapProviderStatus(bangumi),
+            shikimori: mapProviderStatus(shikimori),
+          }
+        : null;
 
     return { steam: { active: steamActive, jobs: steamJobs }, music, watch, read };
   }

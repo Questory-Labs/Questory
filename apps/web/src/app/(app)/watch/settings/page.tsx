@@ -2,6 +2,12 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
+import {
+  ListProviderCard,
+  type ListProviderConfig,
+} from "@/components/sources/ListProviderCard";
+import { SourcesSectionHeading } from "@/components/sources/SourcesSectionHeading";
+import { AnimeListSourcesSection } from "@/components/watch/AnimeListSourcesSection";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { getWatchUrl, watchFetch, watchUrl } from "@/lib/watch";
@@ -49,6 +55,15 @@ type IdentityResponse = {
 };
 
 type LiveSourceId = "trakt" | "anilist" | "webhook";
+
+const WATCH_ANILIST: ListProviderConfig = {
+  id: "anilist",
+  title: "AniList",
+  blurb:
+    "Connect AniList to sync anime into Watch (manga syncs into Read when enabled).",
+  statusPath: "/anilist/status",
+  authorizePath: "/anilist/authorize",
+};
 
 const LETTERBOXD_KINDS = [
   { id: "diary", label: "diary.csv", hint: "Logged watches" },
@@ -111,35 +126,6 @@ function SourceCard({
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{blurb}</p>
       {children ? <div className="mt-auto pt-5">{children}</div> : null}
     </Panel>
-  );
-}
-
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-  action,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-          {eyebrow}
-        </div>
-        <h2 className="mt-1 font-display text-lg font-bold tracking-tight text-[var(--ink)]">
-          {title}
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-          {description}
-        </p>
-      </div>
-      {action}
-    </div>
   );
 }
 
@@ -213,7 +199,7 @@ export default function WatchSettingsPage() {
   const [include, setInclude] = useState<Record<LetterboxdKind, boolean>>({
     diary: true,
     ratings: true,
-    watched: true,
+    watched: false,
     watchlist: true,
   });
   const [addOpen, setAddOpen] = useState(false);
@@ -226,7 +212,7 @@ export default function WatchSettingsPage() {
     queryFn: () => watchFetch<ConnStatus>("/trakt/status"),
   });
   const anilist = useQuery({
-    queryKey: ["anilist-status"],
+    queryKey: ["watch-anilist-status"],
     queryFn: () => watchFetch<ConnStatus>("/anilist/status"),
   });
   const identity = useQuery({
@@ -261,7 +247,7 @@ export default function WatchSettingsPage() {
       setInclude({
         diary: true,
         ratings: true,
-        watched: true,
+        watched: false,
         watchlist: true,
       });
     }
@@ -456,7 +442,7 @@ export default function WatchSettingsPage() {
       />
 
       <section className="mb-10">
-        <SectionHeading
+        <SourcesSectionHeading
           eyebrow="Live"
           title="Live sources"
           description="Active connections that sync ongoing watches."
@@ -556,31 +542,12 @@ export default function WatchSettingsPage() {
             ) : null}
 
             {showAnilist ? (
-              <SourceCard
-                label="OAuth"
-                title="AniList"
-                blurb={
-                  anilistConnected
-                    ? `Connected · last sync ${formatLastSync(anilist.data?.lastSyncedAt)}`
-                    : "Connect AniList to sync anime into Watch (manga syncs into Read when enabled)."
-                }
-                status={
-                  anilistConnected ? (
-                    <StatusPill tone="ok">Connected</StatusPill>
-                  ) : (
-                    <StatusPill tone="idle">Connect</StatusPill>
-                  )
-                }
-              >
-                <div className="flex flex-wrap gap-3">
-                  <a
-                    href={watchUrl("/anilist/authorize")}
-                    className="btn btn-secondary"
-                  >
-                    {anilistConnected ? "Reconnect AniList" : "Connect AniList"}
-                  </a>
-                </div>
-              </SourceCard>
+              <ListProviderCard
+                provider={WATCH_ANILIST}
+                queryKeyPrefix="watch"
+                fetchFn={watchFetch}
+                urlFn={watchUrl}
+              />
             ) : null}
 
             {showWebhook ? (
@@ -618,8 +585,10 @@ export default function WatchSettingsPage() {
         ) : null}
       </section>
 
+      <AnimeListSourcesSection />
+
       <section>
-        <SectionHeading
+        <SourcesSectionHeading
           eyebrow="Enrich"
           title="Enrich with history"
           description="Import a Letterboxd export to backfill past watches. This does not replace a live source."

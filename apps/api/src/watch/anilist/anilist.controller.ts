@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
   Query,
   Res,
   UseGuards,
@@ -51,9 +50,4 @@ export class AnilistController {
     );
   }
 
-  @Post("sync")
-  @UseGuards(SessionUserGuard)
-  sync(@CurrentWatchUserId() userId: string) {
-    return this.anilist.syncList(userId);
-  }
 }

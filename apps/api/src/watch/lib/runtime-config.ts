@@ -67,6 +67,54 @@ export function resolveAniListRedirectUri(): string {
   ).trim();
 }
 
+export function resolveMalClientId(): string {
+  return (process.env.MAL_CLIENT_ID || "").trim();
+}
+
+export function resolveMalClientSecret(): string {
+  return (process.env.MAL_CLIENT_SECRET || "").trim();
+}
+
+export function resolveMalRedirectUri(): string {
+  const port = resolveApiPort();
+  return (
+    process.env.MAL_REDIRECT_URI ||
+    `http://localhost:${port}/v1/watch/mal/callback`
+  ).trim();
+}
+
+export function resolveShikimoriClientId(): string {
+  return (process.env.SHIKIMORI_CLIENT_ID || "").trim();
+}
+
+export function resolveShikimoriClientSecret(): string {
+  return (process.env.SHIKIMORI_CLIENT_SECRET || "").trim();
+}
+
+export function resolveShikimoriRedirectUri(): string {
+  const port = resolveApiPort();
+  return (
+    process.env.SHIKIMORI_REDIRECT_URI ||
+    `http://localhost:${port}/v1/watch/shikimori/callback`
+  ).trim();
+}
+
+export function resolveBangumiClientId(): string {
+  return (process.env.BANGUMI_CLIENT_ID || "").trim();
+}
+
+export function resolveBangumiClientSecret(): string {
+  return (process.env.BANGUMI_CLIENT_SECRET || "").trim();
+}
+
+export function resolveBangumiRedirectUri(): string {
+  const port = resolveApiPort();
+  return (
+    process.env.BANGUMI_REDIRECT_URI ||
+    `http://localhost:${port}/v1/watch/bangumi/callback`
+  ).trim();
+}
+
 export function isApiSecretRequired(): boolean {
   const mode = resolveAppMode();
   if (mode === "local") {

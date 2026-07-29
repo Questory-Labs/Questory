@@ -101,3 +101,17 @@ export async function fetchWatchHealth(): Promise<WatchHealth> {
     clearTimeout(timer);
   }
 }
+
+export function formatWatchRating(
+  rating: number | null | undefined,
+): string | null {
+  if (rating == null || !Number.isFinite(rating)) return null;
+  return `★ ${rating}`;
+}
+
+export function formatYourWatchRating(
+  rating: number | null | undefined,
+): string | null {
+  const stars = formatWatchRating(rating);
+  return stars ? `${stars}` : null;
+}

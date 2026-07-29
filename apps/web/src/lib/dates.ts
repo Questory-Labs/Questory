@@ -23,11 +23,17 @@ export function formatDate(iso: string | null | undefined): string {
   });
 }
 
-export function formatDateTime(iso: string | null | undefined): string {
+export function formatDateTime(
+  iso: string | null | undefined,
+  now = new Date(),
+): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
+  const at = new Date(iso);
+  const sameYear = at.getFullYear() === now.getFullYear();
+  return at.toLocaleString(undefined, {
     month: "short",
     day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
     hour: "numeric",
     minute: "2-digit",
   });

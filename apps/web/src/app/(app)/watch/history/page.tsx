@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { WatchRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { formatDateTime } from "@/lib/dates";
-import { watchFetch } from "@/lib/watch";
+import { formatYourWatchRating, watchFetch } from "@/lib/watch";
 
 const PAGE_SIZE = 40;
 
@@ -64,6 +64,9 @@ export default function WatchHistoryPage() {
                 </div>
                 <p className="mt-1 font-mono text-xs text-[var(--muted)]">
                   {formatDateTime(e.watchedAt)}
+                  {e.rating != null
+                    ? ` · ${formatYourWatchRating(e.rating)}`
+                    : ""}
                 </p>
               </li>
             ))}
