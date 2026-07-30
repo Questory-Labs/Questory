@@ -164,9 +164,9 @@ export default function FamilyPage() {
         description="Browse shareable family games by member, with ownership and price stats"
       />
 
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <form
-          className="flex flex-wrap gap-2"
+          className="flex flex-wrap items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (steamId.trim()) add.mutate();
@@ -179,11 +179,12 @@ export default function FamilyPage() {
               setAddError(null);
             }}
             placeholder="Add member SteamID64"
-            className="min-w-[260px] rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm"
+            className="h-9 min-w-[260px] rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 text-sm"
           />
           <Button
             type="submit"
             disabled={add.isPending || !steamId.trim()}
+            className="h-9"
           >
             {add.isPending ? "Adding…" : "Add member"}
           </Button>
@@ -191,6 +192,7 @@ export default function FamilyPage() {
         <Button
           variant="secondary"
           onClick={() => setShowImport((v) => !v)}
+          className="h-9"
         >
           {showImport ? "Hide friends" : "Import from friends"}
         </Button>
@@ -205,12 +207,12 @@ export default function FamilyPage() {
             <h2 className="font-display text-lg font-bold tracking-tight">
               Import from friends
             </h2>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="secondary"
                 onClick={toggleAllVisible}
                 disabled={!importable.length}
-                className="px-3 py-1.5 text-xs"
+                className="h-9 px-3 text-xs"
               >
                 {importable.length &&
                 importable.every((f) => selected.has(f.steamId))
@@ -220,7 +222,7 @@ export default function FamilyPage() {
               <Button
                 disabled={selected.size === 0 || importFriends.isPending}
                 onClick={() => importFriends.mutate([...selected])}
-                className="px-3 py-1.5 text-xs"
+                className="h-9 px-3 text-xs"
               >
                 {importFriends.isPending
                   ? "Importing…"

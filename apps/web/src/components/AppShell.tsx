@@ -57,10 +57,9 @@ const ENTERPRISE_NAV_GROUP = {
 const MUSIC_NAV_GROUP = {
   label: "Music",
   items: [
-    { href: "/music", label: "Music home" },
+    { href: "/music", label: "Music" },
     { href: "/music/listening", label: "Listening" },
     { href: "/music/charts", label: "Top charts" },
-    { href: "/music/insights", label: "Insights" },
     { href: "/music/settings", label: "Sources" },
   ],
 };
@@ -68,9 +67,8 @@ const MUSIC_NAV_GROUP = {
 const WATCH_NAV_GROUP = {
   label: "Watch",
   items: [
-    { href: "/watch", label: "Watch home" },
+    { href: "/watch", label: "Watch" },
     { href: "/watch/history", label: "History" },
-    { href: "/watch/insights", label: "Insights" },
     { href: "/watch/settings", label: "Sources" },
   ],
 };
@@ -78,10 +76,9 @@ const WATCH_NAV_GROUP = {
 const READ_NAV_GROUP = {
   label: "Read",
   items: [
-    { href: "/read", label: "Read home" },
+    { href: "/read", label: "Read" },
     { href: "/read/library", label: "Library" },
     { href: "/read/history", label: "History" },
-    { href: "/read/insights", label: "Insights" },
     { href: "/read/settings", label: "Sources" },
   ],
 };
