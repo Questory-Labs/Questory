@@ -57,14 +57,23 @@ QEngine: opt-in via `ENTERPRISE=true` (web exposes the flag through `next.config
 
 ## Code conventions
 
-Enforceable per-area standards live in [.cursor/rules/](.cursor/rules/): `code-standards.mdc` (always applies: size budgets, no domain cloning, naming, tests), `api-nest.mdc`, `web-next.mdc`, `shared-packages.mdc`. Follow them; the bullets below are the summary.
+Enforceable standards live in [.cursor/rules/](.cursor/rules/) and are the source of truth for how code is written here:
 
-- Prefer types and Zod schemas from `@questorylabs/shared`; validate with `safeParse` in Nest controllers.
-- Nest: feature `*.module.ts` / `*.controller.ts` / `*.service.ts`; match existing guards/decorators.
+| Rule | Scope | Covers |
+|------|-------|--------|
+| `code-standards.mdc` | always applies | File size budgets, no music/watch/read module cloning, naming, test requirements |
+| `api-nest.mdc` | `apps/api` | Zod `safeParse` validation, HTTP-exception errors, guard/decorator selection, thin controllers |
+| `web-next.mdc` | `apps/web` | Fetch wrappers + React Query, shared types, feature gates, `components/ui` reuse, Tailwind |
+| `shared-packages.mdc` | `packages/` | Schema layout, server-only subpaths, Prisma template workflow |
+
+Facts the rules assume:
+
 - API resource routes under `/v1`. Unversioned by design: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks at `/webhooks/*`. Music/watch/read session APIs: `/v1/music/*`, `/v1/watch/*`, `/v1/read/*`.
-- Web: App Router under `apps/web/src/app`; soft-gate `/music/*`, `/watch/*`, `/read/*`, and QEngine routes (`/recommendations`, `/admin/telemetry`) with existing gate hooks/components. QEngine also requires `ENTERPRISE=true`.
+- Soft-gated web routes: `/music/*`, `/watch/*`, `/read/*`, and QEngine routes (`/recommendations`, `/admin/telemetry`; QEngine also requires `ENTERPRISE=true`).
 - Match nearby patterns. Do not invent eslint/prettier configs or lint scripts unless the repo already has them.
 - Keep changes scoped; avoid drive-by refactors and unsolicited markdown docs.
+
+Work under `enterprise/` follows its own [enterprise/AGENTS.md](enterprise/AGENTS.md) and nested rules (private repo).
 
 ## Secrets and git
 
