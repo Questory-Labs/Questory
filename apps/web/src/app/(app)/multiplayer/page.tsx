@@ -140,16 +140,16 @@ export default function MultiplayerPage() {
 
   return (
     <>
-      <PageHeader
-        title="Multiplayer Planner"
-        description="Find multiplayer games for your group — strict library match, filters, or trending suggestions"
-      />
+      <div className="flex flex-col lg:h-[calc(100dvh-7.5rem)] lg:overflow-hidden">
+        <PageHeader
+          title="Multiplayer Planner"
+          description="Find multiplayer games for your group — strict library match, filters, or trending suggestions"
+          className="shrink-0"
+        />
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
-        <Panel
-          wrapperClassName="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
-          className="space-y-4 p-4"
-        >
+        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[320px_1fr]">
+          <div className="min-h-0 min-w-0 overflow-y-auto lg:overscroll-y-contain">
+            <Panel className="space-y-4 p-4">
           <label className="block text-sm text-[var(--muted)]">
             Sort by
             <select
@@ -293,10 +293,11 @@ export default function MultiplayerPage() {
                   </p>
                 )}
             </div>
+            </div>
+          </Panel>
           </div>
-        </Panel>
 
-        <div>
+          <div className="min-h-0 min-w-0 overflow-y-auto lg:overscroll-y-contain">
           {plan.isLoading && (
             <p className="text-sm text-[var(--muted)]">Finding games…</p>
           )}
@@ -387,6 +388,7 @@ export default function MultiplayerPage() {
               </Button>
             </div>
           )}
+          </div>
         </div>
       </div>
 

@@ -4,20 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import type {
   MusicAlbumDetail,
   MusicAlbumListenPage,
   MusicRange,
   MusicTimeBucket,
 } from "@questorylabs/shared";
+import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
 import { MusicCorrectionEdit } from "@/components/music/MusicCorrectionEdit";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
@@ -33,68 +26,12 @@ import { withTz } from "@/lib/dates";
 import { formatListenDateTime, formatMinutes, musicFetch } from "@/lib/music";
 
 const PAGE_SIZE = 20;
-const TOOLTIP_INK = "#f2efe8";
 
 function displayLabel(
   userDisplayName: string | null | undefined,
   title: string,
 ): string {
   return userDisplayName?.trim() || title;
-}
-
-function chartTooltipStyle() {
-  return {
-    background: "#1f1f24",
-    border: "1px solid rgba(242, 239, 232, 0.12)",
-    borderRadius: 8,
-    color: TOOLTIP_INK,
-    fontSize: 12,
-  };
-}
-
-function MiniBar({
-  title,
-  data,
-}: {
-  title: string;
-  data: { label: string; count: number }[];
-}) {
-  return (
-    <Panel className="p-4">
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-        {title}
-      </h2>
-      {data.length === 0 ? (
-        <p className="mt-3 text-sm text-[var(--muted)]">No listens in this range.</p>
-      ) : (
-        <div className="mt-3 h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
-            >
-              <XAxis
-                dataKey="label"
-                stroke="var(--faint)"
-                fontSize={10}
-                interval={0}
-                angle={data.length > 12 ? -40 : 0}
-                textAnchor={data.length > 12 ? "end" : "middle"}
-                height={data.length > 12 ? 48 : 28}
-              />
-              <YAxis stroke="var(--faint)" fontSize={10} width={32} />
-              <Tooltip
-                contentStyle={chartTooltipStyle()}
-                itemStyle={{ color: TOOLTIP_INK }}
-                labelStyle={{ color: TOOLTIP_INK, fontWeight: 600 }}
-              />
-              <Bar dataKey="count" fill="var(--accent)" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </Panel>
-  );
 }
 
 export default function MusicAlbumPage() {
@@ -272,8 +209,18 @@ export default function MusicAlbumPage() {
             </div>
 
             <div className="mt-8 grid gap-6 lg:grid-cols-2">
-              <MiniBar title="Day of week" data={dowData} />
-              <MiniBar title="Hour of day" data={hourData} />
+              <SketchChartPanel
+                title="Day of week"
+                data={dowData}
+                valueLabel="listens"
+                emptyMessage="No listens in this range."
+              />
+              <SketchChartPanel
+                title="Hour of day"
+                data={hourData}
+                valueLabel="listens"
+                emptyMessage="No listens in this range."
+              />
             </div>
 
             <h2 className="mt-8 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">

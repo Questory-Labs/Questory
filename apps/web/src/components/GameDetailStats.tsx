@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { GameDetail } from "@questorylabs/shared";
 import type { ReactNode } from "react";
+import { LineChart } from "@/components/charts/LineChart";
 import { formatMoney } from "@/lib/money";
 
 function formatPlayers(n: number | null | undefined) {
@@ -32,82 +33,40 @@ function deckLabel(status: string | null | undefined) {
   return status;
 }
 
-export function Sparkline({
+function HistoryChart({
   history,
   valueKey,
   label,
   size = "sm",
+  formatValue,
+  valueLabel = "",
 }: {
   history: { date: string; [k: string]: string | number }[];
   valueKey: string;
   label: string;
-  /** sm = sidebar sparkline; lg = full-page chart */
   size?: "sm" | "lg";
+  formatValue?: (n: number) => string;
+  valueLabel?: string;
 }) {
-  if (history.length < 2) {
-    return <p className="text-xs text-[var(--muted)]">No history yet.</p>;
-  }
-
-  const values = history.map((h) => Number(h[valueKey]));
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const large = size === "lg";
-  const w = large ? 720 : 280;
-  const h = large ? 180 : 72;
-  const pad = large ? 8 : 4;
-  const stroke = large ? 2.5 : 2;
-  // Place points by real time so long dead tails don't fake a full-width line.
-  const times = history.map((p) => Date.parse(String(p.date)));
-  const t0 = times[0];
-  const tSpan = Math.max(times[times.length - 1] - t0, 1);
-  const points = history
-    .map((p, i) => {
-      const x = pad + ((times[i] - t0) / tSpan) * (w - pad * 2);
-      const y = pad + (1 - (Number(p[valueKey]) - min) / span) * (h - pad * 2);
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  const area = `${pad},${h - pad} ${points} ${w - pad},${h - pad}`;
+  const data = history.map((h) => ({
+    label: String(h.date),
+    value: Number(h[valueKey]),
+  }));
 
   return (
     <div
       className={
-        large ? "panel-outline bg-[var(--bg-0)] px-3 py-3" : undefined
+        size === "lg" ? "panel-outline bg-[var(--bg-0)] px-3 py-3" : undefined
       }
     >
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        className={`w-full overflow-visible ${large ? "h-48 sm:h-56" : "h-20"}`}
-        role="img"
-        aria-label={label}
-        preserveAspectRatio="none"
-      >
-        <polygon
-          fill="color-mix(in oklab, var(--accent) 18%, transparent)"
-          points={area}
-        />
-        <polyline
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth={stroke}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-          points={points}
-        />
-      </svg>
-      <div
-        className={`mt-1 flex justify-between font-mono text-[var(--faint)] ${
-          large ? "text-[11px]" : "text-[10px]"
-        }`}
-      >
-        <span>{new Date(history[0].date).toLocaleDateString()}</span>
-        <span>
-          {new Date(history[history.length - 1].date).toLocaleDateString()}
-        </span>
-      </div>
+      <LineChart
+        data={data}
+        ariaLabel={label}
+        size={size === "lg" ? "lg" : "sm"}
+        xMode="time"
+        valueLabel={valueLabel}
+        formatValue={formatValue}
+      />
     </div>
   );
 }
@@ -273,11 +232,13 @@ export function GameDetailStats({
               </div>
             </div>
             <div className="mt-4">
-              <Sparkline
+              <HistoryChart
                 history={online.history}
                 valueKey="players"
                 label="Concurrent players history"
                 size={chartSize}
+                valueLabel="players"
+                formatValue={(n) => formatPlayers(n) ?? String(n)}
               />
             </div>
             <a
@@ -399,11 +360,13 @@ export function GameDetailStats({
           </div>
         </div>
         <div className="mt-4">
-          <Sparkline
+          <HistoryChart
             history={d.price.history}
             valueKey="price"
             label="Steam price history"
             size={chartSize}
+            valueLabel=""
+            formatValue={(n) => formatMoney(n, d.price.currency)}
           />
         </div>
       </section>
@@ -470,7 +433,7 @@ export function GameDetailStats({
             )}
             {d.review.histogram && d.review.histogram.length > 1 && (
               <div className="mt-4">
-                <Sparkline
+                <HistoryChart
                   history={d.review.histogram.map((h) => ({
                     date: new Date(h.date * 1000).toISOString().slice(0, 10),
                     price: h.recommendationsUp,
@@ -478,6 +441,7 @@ export function GameDetailStats({
                   valueKey="price"
                   label="Positive reviews over time"
                   size={chartSize}
+                  valueLabel="positive"
                 />
               </div>
             )}

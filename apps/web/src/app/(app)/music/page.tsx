@@ -213,10 +213,14 @@ export default function MusicHomePage() {
           </div>
 
           <section className="mt-10">
-            <h2 className="font-display text-xl text-[var(--ink)]">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
               Last 30 days
             </h2>
-            <Panel wrapperClassName="mt-4" className="p-4">
+            <Panel
+              wrapperClassName="mt-3"
+              className="p-4 sm:p-5"
+              faceClassName="panel bg-[var(--bg-0)]"
+            >
               {series.isLoading ? (
                 <StateMessage variant="loading">Loading activity…</StateMessage>
               ) : (

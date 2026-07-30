@@ -57,6 +57,8 @@ QEngine: opt-in via `ENTERPRISE=true` (web exposes the flag through `next.config
 
 ## Code conventions
 
+Enforceable per-area standards live in [.cursor/rules/](.cursor/rules/): `code-standards.mdc` (always applies: size budgets, no domain cloning, naming, tests), `api-nest.mdc`, `web-next.mdc`, `shared-packages.mdc`. Follow them; the bullets below are the summary.
+
 - Prefer types and Zod schemas from `@questorylabs/shared`; validate with `safeParse` in Nest controllers.
 - Nest: feature `*.module.ts` / `*.controller.ts` / `*.service.ts`; match existing guards/decorators.
 - API resource routes under `/v1`. Unversioned by design: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks at `/webhooks/*`. Music/watch/read session APIs: `/v1/music/*`, `/v1/watch/*`, `/v1/read/*`.

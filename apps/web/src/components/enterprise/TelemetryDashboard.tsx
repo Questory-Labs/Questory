@@ -2,20 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { LineChart } from "@/components/charts/LineChart";
+import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { StatCard } from "@/components/StatCard";
 import { Button, Panel } from "@/components/ui";
 import {
@@ -37,23 +25,11 @@ import {
 const PAGE_SIZE = 20;
 const TIME_RANGES = ["1h", "6h", "24h", "7d", "30d"] as const;
 type TimeRange = (typeof TIME_RANGES)[number];
-const CHART_MUTED = "#8fa3b5";
-const CHART_INK = "#f2efe8";
 const COLOR_REQUESTS = "#7dd3c0";
 const COLOR_INPUT = "#5bb8a8";
 const COLOR_OUTPUT = "#c4a35a";
 const COLOR_TOTAL = "#8a9bb8";
 const COLOR_COST = "#d4a27f";
-
-function chartTooltipStyle() {
-  return {
-    background: "#1f1f24",
-    border: "1px solid rgba(242, 239, 232, 0.12)",
-    borderRadius: 8,
-    color: CHART_INK,
-    fontSize: 12,
-  };
-}
 
 function formatDurationNs(ns?: number): string {
   if (ns == null || Number.isNaN(ns)) return "—";
@@ -608,66 +584,26 @@ export function TelemetryDashboard() {
           ) : series.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No token samples yet.</p>
           ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={series}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="otelInput" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COLOR_INPUT} stopOpacity={0.35} />
-                      <stop offset="100%" stopColor={COLOR_INPUT} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="otelOutput" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COLOR_OUTPUT} stopOpacity={0.35} />
-                      <stop offset="100%" stopColor={COLOR_OUTPUT} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="rgba(242,239,232,0.06)" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    tickLine={false}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    width={40}
-                    tickFormatter={formatCompact}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle()}
-                    itemStyle={{ color: CHART_INK }}
-                    labelStyle={{ color: CHART_INK, fontWeight: 600 }}
-                    formatter={(value: number | string, name: string) => [
-                      Number(value).toLocaleString(),
-                      name,
-                    ]}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 11, color: CHART_MUTED }} />
-                  <Area
-                    type="monotone"
-                    dataKey="input_tokens"
-                    name="Input"
-                    stroke={COLOR_INPUT}
-                    fill="url(#otelInput)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="output_tokens"
-                    name="Output"
-                    stroke={COLOR_OUTPUT}
-                    fill="url(#otelOutput)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <MultiLineChart
+              data={series}
+              ariaLabel="Tokens over time"
+              size="md"
+              formatXLabel={(l) => l}
+              series={[
+                {
+                  key: "input_tokens",
+                  name: "Input",
+                  color: COLOR_INPUT,
+                  variant: "area",
+                },
+                {
+                  key: "output_tokens",
+                  name: "Output",
+                  color: COLOR_OUTPUT,
+                  variant: "area",
+                },
+              ]}
+            />
           )}
         </TitledPanel>
 
@@ -677,83 +613,49 @@ export function TelemetryDashboard() {
           ) : series.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No request samples yet.</p>
           ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={series}
-                  margin={{ top: 8, right: 8, left: 4, bottom: 0 }}
-                >
-                  <CartesianGrid stroke="rgba(242,239,232,0.06)" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    tickLine={false}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    yAxisId="req"
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    width={44}
-                    allowDecimals={false}
-                    tickFormatter={formatCompact}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    yAxisId="cost"
-                    orientation="right"
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    width={48}
-                    tickFormatter={(v: number) => formatUsd(v)}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle()}
-                    itemStyle={{ color: CHART_INK }}
-                    labelStyle={{ color: CHART_INK, fontWeight: 600 }}
-                    formatter={(value: number | string, name: string) => [
-                      name === "Cost"
-                        ? formatUsd(Number(value))
-                        : Number(value).toLocaleString(),
-                      name,
-                    ]}
-                  />
-                  <Line
-                    yAxisId="req"
-                    type="monotone"
-                    dataKey="request_count"
-                    name="Requests"
-                    stroke={COLOR_REQUESTS}
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                  <Line
-                    yAxisId="req"
-                    type="monotone"
-                    dataKey="total_tokens"
-                    name="Total tokens"
-                    stroke={COLOR_TOTAL}
-                    strokeWidth={1.5}
-                    strokeDasharray="4 4"
-                    dot={false}
-                  />
-                  {pricingConfigured ? (
-                    <Line
-                      yAxisId="cost"
-                      type="monotone"
-                      dataKey="cost_usd"
-                      name="Cost"
-                      stroke={COLOR_COST}
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  ) : null}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <MultiLineChart
+              data={series}
+              ariaLabel="Requests and cost over time"
+              size="md"
+              formatXLabel={(l) => l}
+              yAxes={[
+                {
+                  id: "req",
+                  side: "left",
+                  formatTick: formatCompact,
+                },
+                {
+                  id: "cost",
+                  side: "right",
+                  formatTick: (v) => formatUsd(v),
+                },
+              ]}
+              series={[
+                {
+                  key: "request_count",
+                  name: "Requests",
+                  color: COLOR_REQUESTS,
+                  yAxisId: "req",
+                },
+                {
+                  key: "total_tokens",
+                  name: "Total tokens",
+                  color: COLOR_TOTAL,
+                  yAxisId: "req",
+                  strokeDasharray: "4 4",
+                },
+                ...(pricingConfigured
+                  ? [
+                      {
+                        key: "cost_usd",
+                        name: "Cost",
+                        color: COLOR_COST,
+                        yAxisId: "cost",
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           )}
         </TitledPanel>
       </section>
@@ -761,49 +663,31 @@ export function TelemetryDashboard() {
       {modelRows.length > 0 ? (
         <TitledPanel title="By model">
           <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={modelRows}
-                  layout="vertical"
-                  margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
-                >
-                  <XAxis
-                    type="number"
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    tickFormatter={formatCompact}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="model"
-                    width={120}
-                    stroke={CHART_MUTED}
-                    fontSize={10}
-                    tickFormatter={(v: string) =>
-                      v.length > 18 ? `${v.slice(0, 17)}…` : v
-                    }
-                  />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle()}
-                    itemStyle={{ color: CHART_INK }}
-                    labelStyle={{ color: CHART_INK, fontWeight: 600 }}
-                    formatter={(value: number | string, name: string) => [
-                      name === "Cost"
-                        ? formatUsd(Number(value))
-                        : Number(value).toLocaleString(),
-                      name,
-                    ]}
-                  />
-                  <Bar
-                    dataKey={pricingConfigured ? "cost_usd" : "total_tokens"}
-                    name={pricingConfigured ? "Cost" : "Tokens"}
-                    fill={pricingConfigured ? COLOR_COST : COLOR_REQUESTS}
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <LineChart
+              data={[...modelRows]
+                .sort(
+                  (a, b) =>
+                    (pricingConfigured ? b.cost_usd : b.total_tokens) -
+                    (pricingConfigured ? a.cost_usd : a.total_tokens),
+                )
+                .map((row) => ({
+                  label:
+                    row.model.length > 18
+                      ? `${row.model.slice(0, 17)}…`
+                      : row.model,
+                  value: pricingConfigured ? row.cost_usd : row.total_tokens,
+                }))}
+              ariaLabel="Usage by model"
+              size="md"
+              formatXLabel={(l) => l}
+              formatValue={(n) =>
+                pricingConfigured ? formatUsd(n) : n.toLocaleString()
+              }
+              formatYTick={(n) =>
+                pricingConfigured ? formatUsd(n) : formatCompact(n)
+              }
+              valueLabel={pricingConfigured ? "cost" : "tokens"}
+            />
             <ul className="space-y-2 font-mono text-xs">
               {modelRows.map((row) => (
                 <li

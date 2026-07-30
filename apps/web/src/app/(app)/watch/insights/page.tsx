@@ -2,20 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import type {
   WatchBreakdownResponse,
   WatchInsights,
   WatchRange,
   WatchTimeBucket,
 } from "@questorylabs/shared";
+import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
 import {
   WatchMediaPicker,
   type WatchMediaFilter,
@@ -31,65 +24,8 @@ import {
 } from "@/lib/watch";
 import { withTz } from "@/lib/dates";
 
-const TOOLTIP_INK = "#f2efe8";
-
 function typeQuery(type: WatchMediaFilter): string {
   return type === "all" ? "" : `&type=${type}`;
-}
-
-function chartTooltipStyle() {
-  return {
-    background: "#1f1f24",
-    border: "1px solid rgba(242, 239, 232, 0.12)",
-    borderRadius: 8,
-    color: TOOLTIP_INK,
-    fontSize: 12,
-  };
-}
-
-function MiniBar({
-  title,
-  data,
-}: {
-  title: string;
-  data: { label: string; count: number }[];
-}) {
-  return (
-    <Panel className="p-4">
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-        {title}
-      </h2>
-      {data.length === 0 ? (
-        <p className="mt-3 text-sm text-[var(--muted)]">No data yet.</p>
-      ) : (
-        <div className="mt-3 h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
-            >
-              <XAxis
-                dataKey="label"
-                stroke="var(--faint)"
-                fontSize={10}
-                interval={0}
-                angle={data.length > 12 ? -40 : 0}
-                textAnchor={data.length > 12 ? "end" : "middle"}
-                height={data.length > 12 ? 48 : 28}
-              />
-              <YAxis stroke="var(--faint)" fontSize={10} width={32} />
-              <Tooltip
-                contentStyle={chartTooltipStyle()}
-                itemStyle={{ color: TOOLTIP_INK }}
-                labelStyle={{ color: TOOLTIP_INK, fontWeight: 600 }}
-              />
-              <Bar dataKey="count" fill="var(--accent)" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </Panel>
-  );
 }
 
 export default function WatchInsightsPage() {
@@ -298,9 +234,9 @@ export default function WatchInsightsPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <MiniBar title="Hour of day" data={hourData} />
-        <MiniBar title="Day of week" data={dowData} />
-        <MiniBar title="Release years" data={yearData} />
+        <SketchChartPanel title="Hour of day" data={hourData} valueLabel="watches" />
+        <SketchChartPanel title="Day of week" data={dowData} valueLabel="watches" />
+        <SketchChartPanel title="Release years" data={yearData} valueLabel="watches" />
         <Panel className="p-4">
           <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
             Sources

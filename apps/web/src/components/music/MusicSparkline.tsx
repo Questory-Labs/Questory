@@ -1,6 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
 import type { MusicTimeBucket } from "@questorylabs/shared";
+import { LineChart } from "@/components/charts/LineChart";
+
+function shortDate(label: string): string {
+  const d = new Date(`${label}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return label;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatCount(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
 
 export function MusicSparkline({
   buckets,
@@ -9,55 +21,61 @@ export function MusicSparkline({
   buckets: MusicTimeBucket[];
   label?: string;
 }) {
+  const data = useMemo(
+    () => buckets.map((b) => ({ label: b.label, value: b.count })),
+    [buckets],
+  );
+
+  const stats = useMemo(() => {
+    if (buckets.length === 0) return null;
+    const total = buckets.reduce((sum, b) => sum + b.count, 0);
+    const avg = total / buckets.length;
+    const peak = buckets.reduce(
+      (best, b) => (b.count > best.count ? b : best),
+      buckets[0],
+    );
+    return { total, avg, peak };
+  }, [buckets]);
+
   if (buckets.length < 2) {
     return (
       <p className="text-xs text-[var(--muted)]">Not enough activity yet.</p>
     );
   }
 
-  const values = buckets.map((b) => b.count);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const w = 640;
-  const h = 96;
-  const pad = 6;
-  const points = buckets
-    .map((b, i) => {
-      const x = pad + (i / (buckets.length - 1)) * (w - pad * 2);
-      const y = pad + (1 - (b.count - min) / span) * (h - pad * 2);
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const area = `${pad},${h - pad} ${points} ${w - pad},${h - pad}`;
-
   return (
     <div>
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        className="h-24 w-full overflow-visible"
-        role="img"
-        aria-label={label}
-        preserveAspectRatio="none"
-      >
-        <polygon
-          fill="color-mix(in oklab, var(--accent) 18%, transparent)"
-          points={area}
-        />
-        <polyline
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-          points={points}
-        />
-      </svg>
-      <div className="mt-1 flex justify-between font-mono text-[10px] text-[var(--faint)]">
-        <span>{buckets[0].label}</span>
-        <span>{buckets[buckets.length - 1].label}</span>
-      </div>
+      {stats ? (
+        <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-[11px] text-[var(--muted)]">
+          <span>
+            <span className="text-[var(--ink)]">
+              {stats.total.toLocaleString()}
+            </span>{" "}
+            listens
+          </span>
+          <span>
+            <span className="text-[var(--ink)]">
+              {formatCount(Math.round(stats.avg * 10) / 10)}
+            </span>{" "}
+            / day avg
+          </span>
+          {stats.peak.count > 0 ? (
+            <span>
+              peak{" "}
+              <span className="text-[var(--ink)]">
+                {stats.peak.count.toLocaleString()}
+              </span>{" "}
+              on {shortDate(stats.peak.label)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <LineChart
+        data={data}
+        ariaLabel={label}
+        valueLabel="listens"
+      />
     </div>
   );
 }

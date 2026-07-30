@@ -1,0 +1,42 @@
+---
+description: Cross-cutting code standards — file size budgets, no module cloning, naming, tests
+alwaysApply: true
+---
+
+# Code standards (all packages)
+
+## File size budget
+
+Keep every new file under ~400 lines; split by concern before crossing it. Do not grow existing god-files (`apps/api/src/music/analytics/analytics.service.ts` is 1500+ lines, `apps/web/src/components/enterprise/TelemetryDashboard.tsx` is 1300+ — never repeat this). When adding to a file already over budget, extract your addition into a new focused file instead of appending.
+
+## Never clone a module for a new domain
+
+Music/watch/read features must NOT be built by copy-pasting a sibling domain's code. The codebase already suffers from triplicated `musicFetch`/`watchFetch`/`readFetch`, three `runtime-config.ts` copies, and line-for-line duplicate `MusicRangePicker`/`WatchRangePicker`. When you need a domain variant:
+
+1. Extract the shared logic into a generic helper/component (parameterize the domain).
+2. Make each domain a thin wrapper over it.
+
+Never add a fourth copy of anything that already exists three times.
+
+## Naming
+
+| Thing | Convention | Example |
+|-------|-----------|---------|
+| Nest files | kebab + dot suffix | `steam-api.service.ts`, `session-user.guard.ts` |
+| Nest classes | PascalCase matching file | `FamilyController` |
+| React components | PascalCase file = export | `GameShelf.tsx` |
+| Hooks | `useX.ts` | `useMusicEnabled.ts` |
+| Web lib | kebab-case | `json-fetch.ts` |
+| Zod | `XSchema` + `export type X = z.infer<typeof XSchema>` | `NotificationSchema` |
+
+Class names must be unique across the repo. Two `SessionUserGuard` classes already exist (music + watch) — do not add another duplicate name; pick a domain-prefixed name (`ReadSessionUserGuard` style).
+
+## Tests
+
+Every new endpoint, service method, hook, or component gets a Vitest spec:
+
+- API: `apps/api/test/<area>/*.spec.ts` (Nest testing module, mocked Prisma/services).
+- Web: colocated `*.spec.ts(x)` with React Testing Library.
+- Shared: colocated `*.spec.ts`.
+
+Run the package-scoped tests before declaring work done: `pnpm --filter @questorylabs/<pkg> test`.

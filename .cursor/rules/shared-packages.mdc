@@ -1,0 +1,26 @@
+---
+description: Shared package and Prisma conventions — Zod schema layout, server-only subpaths, schema template
+globs: packages/**/*.ts,packages/**/*.prisma
+alwaysApply: false
+---
+
+# Shared packages (`@questorylabs/shared`, `@questorylabs/db`)
+
+## Zod schemas
+
+- Pattern: `export const XSchema = z.object({...})` + `export type X = z.infer<typeof XSchema>`.
+- `packages/shared/src/index.ts` is already a 1500+ line barrel. Do not keep appending: new domains or large schema groups go in their own file (like `pagination.ts` / `safe-href.ts`) and are re-exported from the index.
+- Any request/response contract consumed by both `apps/api` and `apps/web` belongs here — not in `apps/web/src/lib` (the enterprise types stranded in `apps/web/src/lib/enterprise-types.ts` are the anti-pattern).
+
+## Server-only code
+
+Session and OAuth crypto stay in the `@questorylabs/shared/session` and `@questorylabs/shared/oauth-state` subpath exports. Never re-export them (or any Node-only code) from the browser-safe barrel `src/index.ts`.
+
+## Prisma (`packages/db`)
+
+- Edit only `packages/db/prisma/schema.template.prisma`. The generated `schema.prisma` and Prisma client are build artifacts (`pnpm db:schema` / `db:generate`) — never edit or commit them, never fork per-app schemas.
+- After schema changes, run `pnpm db:schema && pnpm db:generate` so `apps/api` picks up the regenerated client.
+
+## Tests
+
+Every exported helper/schema gets a colocated `*.spec.ts` (see `session.spec.ts`, `pagination.spec.ts`). Run with `pnpm --filter @questorylabs/shared test`.

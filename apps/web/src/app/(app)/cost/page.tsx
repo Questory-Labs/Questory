@@ -2,17 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { LineChart } from "@/components/charts/LineChart";
+import { SketchDonut } from "@/components/charts/SketchDonut";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -20,10 +11,6 @@ import { formatMoney } from "@/lib/money";
 import type { CostRoiRow, CostSummary } from "@questorylabs/shared";
 
 type ValueTab = "paid" | "free";
-
-const CHART_FILL = "#7dd3c0";
-const CHART_MUTED = "#8fa3b5";
-const BUCKET_COLORS = ["#7dd3c0", "#5bb8a8", "#c4a35a", "#c47c6c", "#8a7f9a"];
 
 function matchesValueTab(row: CostRoiRow, tab: ValueTab) {
   return tab === "paid" ? row.amount > 0 : row.amount === 0;
@@ -56,28 +43,7 @@ function ValueTabs({
   );
 }
 
-const CHART_TOOLTIP_INK = "#f2efe8";
-
-function chartTooltipStyle() {
-  return {
-    background: "#1f1f24",
-    border: "1px solid rgba(242, 239, 232, 0.12)",
-    borderRadius: 8,
-    color: CHART_TOOLTIP_INK,
-    fontSize: 12,
-  };
-}
-
-/** Recharts defaults item text to entry.color || '#000', which disappears on dark tooltips. */
-function chartTooltipItemStyle() {
-  return { color: CHART_TOOLTIP_INK };
-}
-
-function chartTooltipLabelStyle() {
-  return { color: CHART_TOOLTIP_INK, fontWeight: 600 };
-}
-
-function HorizontalSpendChart({
+function SpendChart({
   title,
   data,
   currency,
@@ -86,50 +52,31 @@ function HorizontalSpendChart({
   data: { name: string; amount: number }[];
   currency: string;
 }) {
+  const chartData = useMemo(
+    () =>
+      [...data]
+        .sort((a, b) => b.amount - a.amount)
+        .map((row) => ({ label: row.name, value: row.amount })),
+    [data],
+  );
+
   return (
     <Panel className="p-4">
       <h2 className="mb-4 text-sm uppercase tracking-[0.14em] text-[var(--muted)]">
         {title}
       </h2>
-      {data.length === 0 ? (
+      {chartData.length === 0 ? (
         <p className="text-sm text-[var(--muted)]">No data yet.</p>
       ) : (
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
-            >
-              <XAxis
-                type="number"
-                stroke={CHART_MUTED}
-                fontSize={11}
-                tickFormatter={(v) => formatMoney(Number(v), currency)}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={108}
-                stroke={CHART_MUTED}
-                fontSize={11}
-                tickFormatter={(v: string) =>
-                  v.length > 14 ? `${v.slice(0, 13)}…` : v
-                }
-              />
-              <Tooltip
-                contentStyle={chartTooltipStyle()}
-                itemStyle={chartTooltipItemStyle()}
-                labelStyle={chartTooltipLabelStyle()}
-                formatter={(value: number | string) => [
-                  formatMoney(Number(value), currency),
-                  "Value",
-                ]}
-              />
-              <Bar dataKey="amount" fill={CHART_FILL} radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <LineChart
+          data={chartData}
+          ariaLabel={title}
+          valueLabel="value"
+          size="lg"
+          formatXLabel={(l) => (l.length > 14 ? `${l.slice(0, 13)}…` : l)}
+          formatValue={(n) => formatMoney(n, currency)}
+          formatYTick={(n) => formatMoney(n, currency)}
+        />
       )}
     </Panel>
   );
@@ -215,6 +162,11 @@ export default function CostPage() {
   const currency = s?.currency || "USD";
   const money = (n: number | null | undefined) => formatMoney(n, currency);
 
+  const bucketChartData = analytics.buckets.map((b) => ({
+    label: b.name,
+    value: b.amount,
+  }));
+
   return (
     <>
       <PageHeader
@@ -263,12 +215,8 @@ export default function CostPage() {
 
       {(genreChart.length > 0 || publisherChart.length > 0) && (
         <section className="mt-10 grid gap-8 lg:grid-cols-2">
-          <HorizontalSpendChart
-            title="By genre"
-            data={genreChart}
-            currency={currency}
-          />
-          <HorizontalSpendChart
+          <SpendChart title="By genre" data={genreChart} currency={currency} />
+          <SpendChart
             title="By publisher"
             data={publisherChart}
             currency={currency}
@@ -288,45 +236,15 @@ export default function CostPage() {
             {analytics.buckets.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">No priced games yet.</p>
             ) : (
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={analytics.buckets}
-                    margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
-                  >
-                    <XAxis dataKey="name" stroke={CHART_MUTED} fontSize={11} />
-                    <YAxis
-                      stroke={CHART_MUTED}
-                      fontSize={11}
-                      tickFormatter={(v) => formatMoney(Number(v), currency)}
-                    />
-                    <Tooltip
-                      contentStyle={chartTooltipStyle()}
-                      itemStyle={chartTooltipItemStyle()}
-                      labelStyle={chartTooltipLabelStyle()}
-                      formatter={(value: number | string, _name, item) => {
-                        const count = (
-                          item?.payload as { count?: number } | undefined
-                        )?.count;
-                        return [
-                          `${money(Number(value))}${
-                            count != null ? ` · ${count} games` : ""
-                          }`,
-                          "Value",
-                        ];
-                      }}
-                    />
-                    <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                      {analytics.buckets.map((_, i) => (
-                        <Cell
-                          key={analytics.buckets[i].name}
-                          fill={BUCKET_COLORS[i % BUCKET_COLORS.length]}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <LineChart
+                data={bucketChartData}
+                ariaLabel="Value by playtime"
+                valueLabel="value"
+                size="lg"
+                formatXLabel={(l) => l}
+                formatValue={(n) => money(n)}
+                formatYTick={(n) => money(n)}
+              />
             )}
           </Panel>
 
@@ -341,43 +259,22 @@ export default function CostPage() {
               <p className="text-sm text-[var(--muted)]">No priced games yet.</p>
             ) : (
               <div className="flex h-72 flex-col items-center justify-center gap-4 sm:flex-row">
-                <div className="h-56 w-full max-w-[240px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={analytics.freeVsPaid}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={52}
-                        outerRadius={84}
-                        paddingAngle={3}
-                      >
-                        {analytics.freeVsPaid.map((entry, i) => (
-                          <Cell
-                            key={entry.name}
-                            fill={i === 0 ? CHART_FILL : "#8a7f9a"}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={chartTooltipStyle()}
-                        itemStyle={chartTooltipItemStyle()}
-                        labelStyle={chartTooltipLabelStyle()}
-                        formatter={(value: number | string, name) => [
-                          `${value} games`,
-                          String(name),
-                        ]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <SketchDonut
+                  data={analytics.freeVsPaid.map((entry, i) => ({
+                    name: entry.name,
+                    value: entry.value,
+                    color: i === 0 ? "#7dd3c0" : "#8a7f9a",
+                  }))}
+                  ariaLabel="Paid vs free library mix"
+                  formatValue={(n) => `${n} games`}
+                />
                 <div className="space-y-3 text-sm">
                   {analytics.freeVsPaid.map((entry, i) => (
                     <div key={entry.name} className="flex items-center gap-3">
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-sm"
                         style={{
-                          background: i === 0 ? CHART_FILL : "#8a7f9a",
+                          background: i === 0 ? "#7dd3c0" : "#8a7f9a",
                         }}
                       />
                       <div>

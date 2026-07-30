@@ -1,0 +1,33 @@
+---
+description: Next.js web app conventions — fetch wrappers, React Query, gates, UI reuse, Tailwind
+globs: apps/web/**/*.ts,apps/web/**/*.tsx
+alwaysApply: false
+---
+
+# Next.js web conventions
+
+## Data fetching
+
+All API calls go through the existing wrappers in `src/lib` (`api()` in `lib/api.ts`, or the domain wrappers `musicFetch`/`watchFetch`/`readFetch`, `authApi`, `enterprise-api`) wrapped in TanStack React Query (`useQuery`/`useMutation`). Never call raw `fetch()` inside a component or page. For live data use the existing SSE hooks (`useSseBackedQuery`, etc.), not polling loops.
+
+## Types come from shared
+
+API response/request shapes are `import type { X } from "@questorylabs/shared"`. Do not re-declare local interfaces for API payloads (`AppShell`'s local `MeResponse` instead of the shared user schema is the anti-pattern — don't copy it). If a shape is missing from shared, add it there.
+
+## Feature gating
+
+Soft-gated routes (`/music/*`, `/watch/*`, `/read/*`, `/recommendations`, `/admin/telemetry`) are gated by the existing components/hooks: `MusicGate`, `WatchGate`, `ReadGate`, `EnterpriseGate` in layouts, and `useMusicEnabled`/`useWatchEnabled`/`useReadEnabled`/`useEnterpriseEnabled` for conditional UI. Never read feature-flag env vars or `/health` flags inline in a page.
+
+## Components and pages
+
+- Reuse `components/ui/*` primitives first (`Button`, `Dialog`, `EmptyState`, `PageHeader`, `Panel`, `StateMessage`, `OverflowMarquee`). New generic UI goes in `components/ui` (re-export from `ui/index.ts`); domain UI goes in `components/<domain>/`.
+- A `page.tsx` wires queries to components — keep it well under 400 lines. The 650–750 line music/watch settings pages are the anti-pattern; extract sections into components instead.
+- Before building a music/watch/read variant of an existing component (pickers, insights charts, detail pages), generalize the existing one and parameterize the domain — do not add another near-identical copy.
+
+## Styling
+
+Tailwind v4 utility classes plus the CSS variables defined in `globals.css` (`--ink`, `--accent`, fonts). No new CSS modules (the only existing ones are legacy under `components/enterprise/`), no inline style objects for things Tailwind covers.
+
+## App Router
+
+Routes live under `src/app` with the `(app)`/`(admin)` route groups and their shells. Follow the existing client-component + React Query pattern for pages; do not introduce one-off server-side data fetching patterns without need.

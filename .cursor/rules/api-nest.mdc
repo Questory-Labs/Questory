@@ -1,0 +1,55 @@
+---
+description: NestJS API conventions — Zod validation, guards, error handling, thin controllers
+globs: apps/api/**/*.ts
+alwaysApply: false
+---
+
+# NestJS API conventions
+
+## Request validation (mandatory)
+
+Every endpoint that accepts a body or non-trivial query takes `@Body() body: unknown` and validates with Zod `safeParse`. Put reusable schemas in `@questorylabs/shared`; controller-local `z.object(...)` is acceptable only for single-use shapes.
+
+```typescript
+// ❌ BAD — inline typed body, no validation (wishlist.controller.ts today)
+setTarget(@Body() body: { targetPrice: number | null }) { ... }
+
+// ❌ BAD — soft-fail with HTTP 200 (admin.controller.ts today)
+if (!parsed.success) return { error: "Invalid body" };
+
+// ❌ BAD — body as any
+
+// ✅ GOOD — collections.controller.ts pattern
+create(@CurrentUser() user: { userId: string }, @Body() body: unknown) {
+  const parsed = CreateCollectionSchema.safeParse(body);
+  if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+  return this.collections.createCustom(user.userId, parsed.data.name);
+}
+```
+
+## Errors
+
+Only Nest HTTP exceptions (`BadRequestException`, `UnauthorizedException`, `NotFoundException`, `ForbiddenException`). Never return `{ error: ... }` bodies with HTTP 200.
+
+## Controllers and routing
+
+- Path lives on `@Controller("segment")`; methods add relative subpaths. Do not use empty `@Controller()` with absolute method paths (the `stores.controller.ts` style is the deviation, not the pattern).
+- Controllers stay thin: guard, parse, delegate. All logic lives in services. Prisma only via injected `PrismaService` in services, never in controllers.
+- Routes are `/v1/*` via global URI versioning. Version-neutral surfaces are fixed: `/auth/*`, `/health`, `/webhooks/*`, ListenBrainz `/1/*`.
+
+## Guards and current-user decorators
+
+| Scope | Guard | Decorator |
+|-------|-------|-----------|
+| Any signed-in user | `SteamAuthGuard` (auth/auth.guard.ts) | `@CurrentUser()` |
+| Admin | `AdminGuard` | — |
+| Music session | music `SessionUserGuard` | `@CurrentMusicUser()` |
+| Watch session | watch `SessionUserGuard` | `@CurrentWatchUser()` |
+| Read session | `ReadSessionUserGuard` | `@CurrentReadUserId()` |
+| Cron / internal | `CronSecretGuard` / `ApiSecretGuard` | — |
+
+Sole-user fallback decisions must go through `allowsSoleUserFallback()` (watch/lib/runtime-config.ts) — never re-implement inline `mode === "local" || mode === "selfhosted"` checks.
+
+## Module layout
+
+Feature = `x.module.ts` + `x.controller.ts` + `x.service.ts` in its own folder, wired in `app.module.ts` (or the music/watch/read aggregator module). Split services that approach 400 lines into focused collaborators registered in the same module.
