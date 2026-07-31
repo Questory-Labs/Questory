@@ -1,0 +1,22 @@
+# OSV Scanner configuration for pnpm-lock.yaml
+# https://google.github.io/osv-scanner/configuration/
+
+# brace-expansion 1.1.17 / 2.1.3 — GHSA-mh99-v99m-4gvg backports.
+# The GitHub advisory still lists only 5.0.8 as patched (range <=5.0.7), so OSV
+# flags the v1/v2 backports even though they contain the EXPANSION_MAX_LENGTH fix.
+# See: https://github.com/juliangruber/brace-expansion/issues/131
+# We cannot force all consumers onto brace-expansion@5 — minimatch@3 (Nest CLI
+# build tooling) requires the v1 callable CommonJS API.
+[[PackageOverrides]]
+name = "brace-expansion"
+version = "1.1.17"
+ecosystem = "npm"
+vulnerability.ignore = true
+reason = "Patched v1 backport for GHSA-mh99-v99m-4gvg; OSV advisory range not yet updated."
+
+[[PackageOverrides]]
+name = "brace-expansion"
+version = "2.1.3"
+ecosystem = "npm"
+vulnerability.ignore = true
+reason = "Patched v2 backport for GHSA-mh99-v99m-4gvg; OSV advisory range not yet updated."

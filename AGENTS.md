@@ -28,7 +28,7 @@ Never relicense as MIT/Apache, strip notices, or imply commercial rights under t
 | Path | Role |
 |------|------|
 | `apps/api` | NestJS API (Steam + music + watch + in-process cron) |
-| `apps/web` | Next.js 15 App Router UI |
+| `apps/web` | Next.js 16 App Router UI |
 | `packages/shared` | Zod schemas, session/oauth helpers (`@questorylabs/shared`) |
 | `packages/db` | Shared Prisma schema template + client (`@questorylabs/db`) |
 | `docs/` | Self-hosting, testing |

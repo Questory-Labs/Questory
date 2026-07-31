@@ -1,0 +1,26 @@
+name: OSV Scanner PR
+
+# Compare base vs PR lockfile and fail only on newly introduced vulnerabilities.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - pnpm-lock.yaml
+  merge_group:
+    branches: [main]
+
+concurrency:
+  group: osv-scanner-pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan-pr:
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
+    with:
+      scan-args: |-
+        --lockfile=pnpm-lock.yaml

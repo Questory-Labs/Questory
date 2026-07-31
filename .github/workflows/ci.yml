@@ -23,6 +23,8 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          cache-playwright: ${{ matrix.service == 'web' && 'true' || 'false' }}
 
       - name: Build shared
         run: pnpm --filter @questorylabs/shared build

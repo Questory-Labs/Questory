@@ -27,6 +27,8 @@ loadEnvFile(resolve(__dirname, ".env.local"));
 loadEnvFile(resolve(__dirname, ".env"));
 
 const nextConfig: NextConfig = {
+  // Playwright e2e and local API calls use 127.0.0.1; Next 16 blocks cross-origin dev access by default.
+  allowedDevOrigins: ["127.0.0.1"],
   // Expose enterprise opt-in + Rust service URL to the browser.
   env: {
     ENTERPRISE: process.env.ENTERPRISE ?? "",

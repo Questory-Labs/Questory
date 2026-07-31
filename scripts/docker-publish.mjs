@@ -78,14 +78,24 @@ function run(cmd, args) {
   }
 }
 
-for (const name of names) {
-  const { dockerfile, buildArgs } = allImages[name];
-  const tags = allRefs(name);
-  if (tag !== "latest") {
-    tags.push(...allRefs(name, "latest"));
-  }
+function buildCacheDir(name) {
+  const toolCache = process.env.RUNNER_TOOL_CACHE || "/tmp/gha-tool-cache";
+  const cacheRoot =
+    process.env.DOCKER_BUILDX_CACHE_DIR || `${toolCache}/docker-buildx`;
+  return `${cacheRoot}/${name}`;
+}
 
-  const args = ["build", "-f", dockerfile];
+function buildImage(name, dockerfile, buildArgs, tags) {
+  const cacheDir = buildCacheDir(name);
+  run("mkdir", ["-p", cacheDir]);
+
+  const useBuildx =
+    process.env.DOCKER_BUILDX !== "0" &&
+    (process.env.CI === "true" || process.env.DOCKER_BUILDX_CACHE_DIR);
+
+  const args = useBuildx ? ["buildx", "build", "--load"] : ["build"];
+  args.push("-f", dockerfile);
+
   for (const t of tags) {
     args.push("-t", t);
   }
@@ -95,8 +105,22 @@ for (const name of names) {
   if (sourceRepo) {
     args.push("--label", `org.opencontainers.image.source=${sourceRepo}`);
   }
+  if (useBuildx) {
+    args.push("--cache-from", `type=local,src=${cacheDir}`);
+    args.push("--cache-to", `type=local,dest=${cacheDir},mode=max`);
+  }
   args.push(".");
   run("docker", args);
+}
+
+for (const name of names) {
+  const { dockerfile, buildArgs } = allImages[name];
+  const tags = allRefs(name);
+  if (tag !== "latest") {
+    tags.push(...allRefs(name, "latest"));
+  }
+
+  buildImage(name, dockerfile, buildArgs, tags);
 
   if (!noPush) {
     for (const t of tags) {

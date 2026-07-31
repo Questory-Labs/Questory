@@ -14,6 +14,7 @@ import type {
   FamilyLibrary,
 } from "@questorylabs/shared";
 import { useMemo, useState } from "react";
+import { DOT_NEXT_ALIAS } from "next/dist/lib/constants";
 
 function parseApiError(err: Error) {
   try {
@@ -382,7 +383,7 @@ export default function FamilyPage() {
                     </span>
                     {d?.suggestedPurchaser?.steamId === m.steamId && (
                       <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--accent)]">
-                        next buyer
+                        &bull;
                       </span>
                     )}
                   </div>

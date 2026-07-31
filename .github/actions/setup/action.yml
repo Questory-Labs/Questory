@@ -1,10 +1,14 @@
 name: Setup Node + pnpm
-description: Checkout-ready Node and pnpm install
+description: Checkout-ready Node and pnpm install with persistent self-hosted caches
 inputs:
   install:
     description: Run pnpm install
     required: false
     default: "true"
+  cache-playwright:
+    description: Point Playwright at the persistent browser cache (set before install)
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -21,6 +25,56 @@ runs:
         corepack prepare --activate
       env:
         COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+    - name: Configure persistent caches
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        tool_cache="${RUNNER_TOOL_CACHE:-/tmp/gha-tool-cache}"
+        self_hosted="false"
+        if [ "${RUNNER_ENVIRONMENT:-}" = "self-hosted" ] || [ -n "${RUNNER_PNPM_STORE_PATH:-}" ]; then
+          self_hosted="true"
+        fi
+
+        if [ "${self_hosted}" = "true" ]; then
+          pnpm_store="${RUNNER_PNPM_STORE_PATH:-${tool_cache}/pnpm-store}"
+          mkdir -p "${pnpm_store}"
+          pnpm config set store-dir "${pnpm_store}"
+          echo "GHA_PNPM_CACHE=skip" >> "${GITHUB_ENV}"
+          echo "pnpm store-dir (persistent): ${pnpm_store}"
+        else
+          echo "PNPM_STORE_PATH=${HOME}/.local/share/pnpm/store" >> "${GITHUB_ENV}"
+        fi
+
+        if [ "${{ inputs.cache-playwright }}" = "true" ]; then
+          if [ "${self_hosted}" = "true" ] || [ -n "${RUNNER_PLAYWRIGHT_BROWSERS_PATH:-}" ]; then
+            playwright_dir="${RUNNER_PLAYWRIGHT_BROWSERS_PATH:-${tool_cache}/playwright}"
+            mkdir -p "${playwright_dir}"
+            echo "PLAYWRIGHT_BROWSERS_PATH=${playwright_dir}" >> "${GITHUB_ENV}"
+            echo "Playwright browsers path (persistent): ${playwright_dir}"
+          else
+            echo "PLAYWRIGHT_CACHE_PATH=${HOME}/.cache/ms-playwright" >> "${GITHUB_ENV}"
+          fi
+        fi
+
+    - name: Restore pnpm store (GitHub cache fallback)
+      if: env.GHA_PNPM_CACHE != 'skip'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.PNPM_STORE_PATH }}
+        key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-store-${{ runner.os }}-
+
+    - name: Restore Playwright browsers (GitHub cache fallback)
+      if: inputs.cache-playwright == 'true' && env.GHA_PNPM_CACHE != 'skip'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.PLAYWRIGHT_CACHE_PATH }}
+        key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json') }}
+        restore-keys: |
+          playwright-${{ runner.os }}-
 
     - name: Install dependencies
       if: inputs.install == 'true'

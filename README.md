@@ -4,7 +4,7 @@ Steam-first library and media intelligence — games dashboard, wishlist and cos
 
 ## Stack
 
-- **Web**: Next.js 15, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion
+- **Web**: Next.js 16, Tailwind CSS 4, TanStack Query, Recharts, Framer Motion
 - **API**: NestJS, Prisma, BullMQ (when Redis is configured); optional Music + Watch modules and in-process cron
 - **Music** (optional): ListenBrainz ingest + analytics inside the API (`/v1/music/`*, `/1/`*); **shared DB**; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
 - **Watch** (optional): movie/TV ingest + analytics inside the API (`/v1/watch/`*, `/webhooks/`*); **shared DB**
