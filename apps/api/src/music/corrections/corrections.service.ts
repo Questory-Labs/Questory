@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from "@nestjs/common";
 import type { MusicEntityRef } from "@questorylabs/shared";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -39,6 +41,7 @@ export class CorrectionsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => CatalogService))
     private readonly catalog: CatalogService,
   ) {}
 

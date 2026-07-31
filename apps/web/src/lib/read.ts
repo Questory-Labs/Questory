@@ -20,6 +20,10 @@ function prefixReadPath(path: string): string {
     path.startsWith("/catalog") ||
     path.startsWith("/library") ||
     path.startsWith("/anilist") ||
+    path.startsWith("/mal") ||
+    path.startsWith("/shikimori") ||
+    path.startsWith("/bangumi") ||
+    path.startsWith("/kitsu") ||
     path.startsWith("/sync-status") ||
     path.startsWith("/read/")
   ) {

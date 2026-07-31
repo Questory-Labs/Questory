@@ -14,10 +14,17 @@ import { z } from "zod";
 import { AdminGuard } from "../auth/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { AdminService } from "./admin.service";
+import { AdminUserOpsService } from "./admin-user-ops.service";
 import { MigrationsService } from "./migrations/migrations.service";
 
 const PatchSettingsSchema = z.object({
   signupEnabled: z.boolean().optional(),
+});
+
+const CreateUserSchema = z.object({
+  personaName: z.string().min(1).max(64),
+  email: z.string().email(),
+  password: z.string().min(10).max(128),
 });
 
 const PatchUserSchema = z.object({
@@ -59,11 +66,17 @@ const OpsUserSchema = z.object({
   userId: z.string().min(1),
 });
 
+const OpsUserTargetSchema = z.object({
+  userId: z.string().min(1),
+  target: z.enum(["music", "movie", "read", "catalog", "price"]),
+});
+
 @Controller("admin")
 @UseGuards(AdminGuard)
 export class AdminController {
   constructor(
     private readonly admin: AdminService,
+    private readonly adminUserOps: AdminUserOpsService,
     private readonly migrations: MigrationsService,
   ) {}
 
@@ -89,6 +102,15 @@ export class AdminController {
   @Get("users")
   users() {
     return this.admin.listUsers();
+  }
+
+  @Post("users")
+  createUser(@Body() body: unknown) {
+    const parsed = CreateUserSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.admin.createUser(parsed.data);
   }
 
   @Patch("users/:id")
@@ -183,6 +205,18 @@ export class AdminController {
       return { error: "Invalid body" };
     }
     return this.admin.syncUser(parsed.data.userId);
+  }
+
+  @Post("ops/user-sync-target")
+  userSyncTarget(@Body() body: unknown) {
+    const parsed = OpsUserTargetSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.adminUserOps.syncTarget(
+      parsed.data.userId,
+      parsed.data.target,
+    );
   }
 
   @Get("migrations")

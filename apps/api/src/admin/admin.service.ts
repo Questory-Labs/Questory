@@ -159,6 +159,51 @@ export class AdminService {
     };
   }
 
+  async createUser(body: {
+    personaName: string;
+    email: string;
+    password: string;
+  }) {
+    const email = normalizeEmail(body.email);
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new BadRequestException("Email already in use");
+    }
+
+    const personaName = body.personaName.trim().slice(0, 64);
+    if (!personaName) {
+      throw new BadRequestException("Username is required");
+    }
+
+    if (body.password.length < 10 || body.password.length > 128) {
+      throw new BadRequestException("Password must be 10–128 characters");
+    }
+
+    const passwordHash = await hashPassword(body.password);
+    const isAdmin = isAdminEmail(email);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        personaName,
+        isAdmin,
+      },
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        isAdmin: user.isAdmin || isAdminEmail(user.email),
+        personaName: user.personaName,
+        steamId: null,
+        createdAt: user.createdAt.toISOString(),
+        lastSyncedAt: null,
+      },
+    };
+  }
+
   async patchUser(
     id: string,
     body: {

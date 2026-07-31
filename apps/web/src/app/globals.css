@@ -266,6 +266,27 @@ a {
   color: var(--ink);
 }
 
+.btn-danger {
+  background-color: var(--danger);
+  color: var(--bg-0);
+  border-color: var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn-ghost-danger {
+  background-color: transparent;
+  color: var(--danger);
+  border-color: transparent;
+  padding-inline: 0.25rem;
+}
+
+.btn-ghost-danger:hover:not(:disabled) {
+  color: var(--ink);
+}
+
 /* Nav active underline drawn as a hatch stroke */
 .nav-hatch {
   position: relative;

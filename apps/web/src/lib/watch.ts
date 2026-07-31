@@ -21,6 +21,11 @@ function prefixWatchPath(path: string): string {
     path.startsWith("/imports") ||
     path.startsWith("/trakt") ||
     path.startsWith("/anilist") ||
+    path.startsWith("/mal") ||
+    path.startsWith("/shikimori") ||
+    path.startsWith("/bangumi") ||
+    path.startsWith("/kitsu") ||
+    path.startsWith("/letterboxd") ||
     path.startsWith("/sync-status") ||
     path.startsWith("/watch/")
   ) {

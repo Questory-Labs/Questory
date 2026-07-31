@@ -82,10 +82,10 @@ export default function AdminEnrichmentPage() {
   });
 
   const trigger = useMutation({
-    mutationFn: (action: "catalog-sync" | "recover-failed-sync") =>
+    mutationFn: () =>
       api("/admin/enrichment/trigger", {
         method: "POST",
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: "recover-failed-sync" }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-enrichment"] });
@@ -105,22 +105,13 @@ export default function AdminEnrichmentPage() {
         title="Enrichment"
         description="MusicBrainz, TMDB, and Steam metadata job queues."
         actions={
-          <>
-            <Button
-              variant="secondary"
-              disabled={trigger.isPending}
-              onClick={() => trigger.mutate("catalog-sync")}
-            >
-              Catalog sync
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={trigger.isPending}
-              onClick={() => trigger.mutate("recover-failed-sync")}
-            >
-              Recover failed
-            </Button>
-          </>
+          <Button
+            variant="secondary"
+            disabled={trigger.isPending}
+            onClick={() => trigger.mutate()}
+          >
+            Recover failed
+          </Button>
         }
       />
 
