@@ -13,12 +13,8 @@ on:
       - "docker-web-*"
   workflow_call:
     inputs:
-      service:
-        description: Service to build and publish
-        required: true
-        type: string
-      version:
-        description: Release version (semver, e.g. 1.2.3)
+      release_tag:
+        description: Full release tag (e.g. docker-api-1.2.3)
         required: true
         type: string
 
@@ -60,10 +56,8 @@ jobs:
       - name: Resolve release tag
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_call" ]; then
-            version="${{ inputs.version }}"
-            version="${version#v}"
-            tag="docker-${{ inputs.service }}-${version}"
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            tag="${{ inputs.release_tag }}"
           else
             tag="${{ github.ref_name }}"
           fi

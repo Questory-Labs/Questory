@@ -33,20 +33,34 @@ permissions:
   packages: write
 
 jobs:
+  meta:
+    name: Resolve release tag
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+    steps:
+      - name: Build release tag
+        id: tag
+        run: |
+          version="${{ inputs.version }}"
+          version="${version#v}"
+          echo "release_tag=${{ inputs.release_type }}-${{ inputs.service }}-${version}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${{ inputs.release_type }}-${{ inputs.service }}-${version}"
+
   docker:
     name: Docker release
+    needs: meta
     if: inputs.release_type == 'docker'
     uses: ./.github/workflows/docker-release.yml
     with:
-      service: ${{ inputs.service }}
-      version: ${{ inputs.version }}
+      release_tag: ${{ needs.meta.outputs.release_tag }}
     secrets: inherit
 
   service:
     name: Service release
+    needs: meta
     if: inputs.release_type == 'service'
     uses: ./.github/workflows/service-release.yml
     with:
-      service: ${{ inputs.service }}
-      version: ${{ inputs.version }}
+      release_tag: ${{ needs.meta.outputs.release_tag }}
     secrets: inherit
