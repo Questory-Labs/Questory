@@ -15,6 +15,7 @@ import {
   currencyFromCountry,
   normalizePriceCountry,
 } from "../lib/currency";
+import { FAMILY_LIBRARY_PAGE_SIZE } from "./family.constants";
 
 type MemberGame = {
   appId: number;
@@ -439,35 +440,16 @@ export class FamilyService {
     const memberLibraries = await this.loadMemberLibraries(group);
 
     const ownership = new Map<number, string[]>();
-    const nameByAppId = new Map<number, string>();
     for (const m of memberLibraries) {
-      for (const [appId, game] of m.games) {
+      for (const [appId] of m.games) {
         const owners = ownership.get(appId) || [];
         owners.push(m.personaName);
         ownership.set(appId, owners);
-        if (!nameByAppId.has(appId)) nameByAppId.set(appId, game.name);
       }
     }
 
     const allConflicts = [...ownership.entries()]
-      .filter(([, owners]) => owners.length > 1)
-      .sort(
-        (a, b) =>
-          b[1].length - a[1].length ||
-          (nameByAppId.get(a[0]) || "").localeCompare(
-            nameByAppId.get(b[0]) || "",
-          ),
-      );
-
-    const conflictSlice = allConflicts.slice(0, 30);
-    const games = await this.prisma.game.findMany({
-      where: { appId: { in: conflictSlice.map(([id]) => id) } },
-    });
-    const gameMap = new Map(
-      games
-        .filter((g): g is typeof g & { appId: number } => g.appId != null)
-        .map((g) => [g.appId, g]),
-    );
+      .filter(([, owners]) => owners.length > 1);
 
     const allUnique = new Set<number>();
     for (const m of memberLibraries) {
@@ -571,14 +553,7 @@ export class FamilyService {
           unusedCount,
         };
       }),
-      conflicts: conflictSlice.map(([appId, owners]) => ({
-        appId,
-        name:
-          gameMap.get(appId)?.name ||
-          nameByAppId.get(appId) ||
-          `App ${appId}`,
-        owners,
-      })),
+      conflicts: [],
     };
   }
 
@@ -589,13 +564,17 @@ export class FamilyService {
       q?: string;
       page?: number;
       pageSize?: number;
-    },
+      overlapOnly?: boolean;
+    } = {},
   ) {
     const group = await this.getOrCreate(userId);
     const viewer = await this.requireViewer(userId);
     const memberLibraries = await this.loadMemberLibraries(group);
     const page = Math.max(1, opts.page || 1);
-    const pageSize = Math.min(96, Math.max(12, opts.pageSize || 48));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, opts.pageSize ?? FAMILY_LIBRARY_PAGE_SIZE),
+    );
     const q = (opts.q || "").trim().toLowerCase();
     const memberFilter = opts.memberSteamId?.trim() || null;
 
@@ -681,8 +660,7 @@ export class FamilyService {
       ]),
     );
 
-    let items = [...byApp.values()]
-      .map((agg) => {
+    let items = [...byApp.values()].map((agg) => {
         const meta = metaMap.get(agg.appId) || null;
         return {
           ...agg,
@@ -696,8 +674,13 @@ export class FamilyService {
               : null,
           ),
         };
-      })
-      .filter((g) => g.isFamilyShareable);
+      });
+
+    if (opts.overlapOnly) {
+      items = items.filter((g) => g.ownerCount > 1);
+    } else {
+      items = items.filter((g) => g.isFamilyShareable);
+    }
 
     items.sort(
       (a, b) =>

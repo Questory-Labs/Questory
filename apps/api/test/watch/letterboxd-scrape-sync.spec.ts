@@ -1,0 +1,111 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LetterboxdScrapeSyncService } from "../../src/watch/letterboxd/letterboxd-scrape-sync.service";
+import { LETTERBOXD_SCRAPER_DEFINITION } from "../../src/scraper/letterboxd-default-config";
+import type { PrismaService } from "../../src/prisma/prisma.service";
+import type { ScraperProvidersService } from "../../src/scraper/scraper-providers.service";
+import type { ScraperEngineService } from "../../src/scraper/scraper-engine.service";
+import type { CatalogService } from "../../src/watch/catalog/catalog.service";
+import type { EnrichmentService } from "../../src/watch/enrichment/enrichment.service";
+import type { LetterboxdConnectService } from "../../src/watch/letterboxd/letterboxd-connect.service";
+
+describe("LetterboxdScrapeSyncService", () => {
+  let prisma: {
+    watchEvent: { findMany: ReturnType<typeof vi.fn> };
+    sourceConnection: { update: ReturnType<typeof vi.fn> };
+  };
+  let connect: { getStatus: ReturnType<typeof vi.fn> };
+  let providers: {
+    getPublishedDefinition: ReturnType<typeof vi.fn>;
+    buildMacroContext: ReturnType<typeof vi.fn>;
+  };
+  let engine: { run: ReturnType<typeof vi.fn> };
+  let catalog: {
+    upsertTitle: ReturnType<typeof vi.fn>;
+    recordWatch: ReturnType<typeof vi.fn>;
+    rebuildWatchHourBuckets: ReturnType<typeof vi.fn>;
+  };
+  let enrichment: { enqueueTitle: ReturnType<typeof vi.fn> };
+  let service: LetterboxdScrapeSyncService;
+
+  beforeEach(() => {
+    prisma = {
+      watchEvent: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            dedupeKey:
+              "letterboxd_csv:watch:fight-club:1999:2024-08-15",
+          },
+        ]),
+      },
+      sourceConnection: {
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+    connect = {
+      getStatus: vi.fn().mockResolvedValue({
+        connected: true,
+        username: "username",
+      }),
+    };
+    providers = {
+      getPublishedDefinition: vi.fn().mockResolvedValue(LETTERBOXD_SCRAPER_DEFINITION),
+      buildMacroContext: vi.fn().mockReturnValue({
+        "user.letterboxdId": "username",
+      }),
+    };
+    engine = {
+      run: vi.fn(async (_config, _macros, opts) => {
+        const action = await opts.onPage(
+          [
+            {
+              title: "Fight Club",
+              year: "1999",
+              date: "2024-08-15",
+              rating: "4",
+              slug: "fight-club",
+            },
+            {
+              title: "The Matrix",
+              year: "1999",
+              date: "2024-08-10",
+              rating: "5",
+              slug: "the-matrix",
+            },
+          ],
+          1,
+          "https://letterboxd.com/username/films/diary/page/1/",
+        );
+        expect(action).toBe("stop");
+      }),
+    };
+    catalog = {
+      upsertTitle: vi.fn().mockResolvedValue({ id: "title-1" }),
+      recordWatch: vi.fn().mockResolvedValue({}),
+      rebuildWatchHourBuckets: vi.fn().mockResolvedValue(undefined),
+    };
+    enrichment = { enqueueTitle: vi.fn() };
+
+    service = new LetterboxdScrapeSyncService(
+      prisma as unknown as PrismaService,
+      connect as unknown as LetterboxdConnectService,
+      providers as unknown as ScraperProvidersService,
+      engine as unknown as ScraperEngineService,
+      catalog as unknown as CatalogService,
+      enrichment as unknown as EnrichmentService,
+    );
+  });
+
+  it("imports new rows and stops when known entry is seen", async () => {
+    const result = await service.syncUser("user-1", "username");
+
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.stoppedEarly).toBe(true);
+    expect(catalog.recordWatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "letterboxd",
+        dedupeKey: "letterboxd_csv:watch:the-matrix:1999:2024-08-10",
+      }),
+    );
+  });
+});

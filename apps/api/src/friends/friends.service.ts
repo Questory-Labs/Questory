@@ -2,9 +2,11 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccountsService } from "../accounts/accounts.service";
 import { parseStringArray } from "../lib/json-arrays";
-
-const LIBRARY_CACHE_LIMIT = 15;
-const GAMES_PER_FRIEND_LIMIT = 200;
+import {
+  FRIENDS_PAGE_SIZE,
+  GAMES_PER_FRIEND_LIMIT,
+  LIBRARY_CACHE_LIMIT,
+} from "./friends.constants";
 
 @Injectable()
 export class FriendsService {
@@ -13,31 +15,47 @@ export class FriendsService {
     private readonly accounts: AccountsService,
   ) {}
 
-  async list(userId: string) {
-    const friends = await this.prisma.friendship.findMany({
-      where: { userId },
-      orderBy: { personaName: "asc" },
-    });
+  async list(
+    userId: string,
+    opts: { page?: number; pageSize?: number } = {},
+  ) {
+    const take = Math.min(Math.max(opts.pageSize ?? FRIENDS_PAGE_SIZE, 1), 100);
+    const safePage = Math.max(opts.page ?? 1, 1);
+    const skip = (safePage - 1) * take;
 
-    const cachedOwners = await this.prisma.friendLibraryCache.groupBy({
-      by: ["ownerSteamId"],
-      where: {
-        ownerSteamId: { in: friends.map((f) => f.friendSteamId) },
-      },
-      _count: { _all: true },
-      _max: { syncedAt: true },
-    });
+    const [total, friends, allSteamIds, friendsSync] = await Promise.all([
+      this.prisma.friendship.count({ where: { userId } }),
+      this.prisma.friendship.findMany({
+        where: { userId },
+        orderBy: { personaName: "asc" },
+        skip,
+        take,
+      }),
+      this.prisma.friendship.findMany({
+        where: { userId },
+        select: { friendSteamId: true },
+      }),
+      this.prisma.syncJob.findFirst({
+        where: { userId, type: "friends-sync", status: "completed" },
+        orderBy: { finishedAt: "desc" },
+      }),
+    ]);
+
+    const steamIds = allSteamIds.map((f) => f.friendSteamId);
+    const cachedOwners = steamIds.length
+      ? await this.prisma.friendLibraryCache.groupBy({
+          by: ["ownerSteamId"],
+          where: { ownerSteamId: { in: steamIds } },
+          _count: { _all: true },
+          _max: { syncedAt: true },
+        })
+      : [];
     const cachedSet = new Set(cachedOwners.map((c) => c.ownerSteamId));
     const lastSyncedAt =
       cachedOwners
         .map((c) => c._max.syncedAt)
         .filter((d): d is Date => Boolean(d))
         .sort((a, b) => b.getTime() - a.getTime())[0] || null;
-
-    const friendsSync = await this.prisma.syncJob.findFirst({
-      where: { userId, type: "friends-sync", status: "completed" },
-      orderBy: { finishedAt: "desc" },
-    });
 
     return {
       friends: friends.map((f) => ({
@@ -47,13 +65,16 @@ export class FriendsService {
         friendUserId: f.friendUserId,
         libraryCached: cachedSet.has(f.friendSteamId),
       })),
+      total,
+      page: safePage,
+      pageSize: take,
       meta: {
-        totalFriends: friends.length,
+        totalFriends: total,
         librariesCached: cachedSet.size,
         libraryCacheLimit: LIBRARY_CACHE_LIMIT,
         gamesPerFriendLimit: GAMES_PER_FRIEND_LIMIT,
         truncated:
-          friends.length > LIBRARY_CACHE_LIMIT ||
+          total > LIBRARY_CACHE_LIMIT ||
           cachedOwners.some((c) => c._count._all >= GAMES_PER_FRIEND_LIMIT),
         lastSyncedAt:
           lastSyncedAt?.toISOString() ??

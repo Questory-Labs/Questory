@@ -4,6 +4,7 @@ import { BangumiModule } from "../bangumi/bangumi.module";
 import { KitsuModule } from "../kitsu/kitsu.module";
 import { MalModule } from "../mal/mal.module";
 import { ShikimoriModule } from "../shikimori/shikimori.module";
+import { LetterboxdModule } from "../letterboxd/letterboxd.module";
 import { TraktModule } from "../trakt/trakt.module";
 import { InternalController } from "./internal.controller";
 
@@ -15,6 +16,7 @@ import { InternalController } from "./internal.controller";
     KitsuModule,
     BangumiModule,
     ShikimoriModule,
+    LetterboxdModule,
   ],
   controllers: [InternalController],
 })

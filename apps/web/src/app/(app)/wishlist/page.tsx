@@ -6,8 +6,9 @@ import { StoreBadge } from "@/components/StoreBadge";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
+import { WISHLIST_PAGE_SIZE } from "@/lib/pagination";
 import type { DealAlert, Store, WishlistItem } from "@questorylabs/shared";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type MeResponse = {
   user: {
@@ -17,6 +18,13 @@ type MeResponse = {
 };
 
 type Recommendation = WishlistItem & { reasons?: string[] };
+
+type WishlistResponse = {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: WishlistItem[];
+};
 
 const DEAL_LABELS: Record<DealAlert["reason"], string> = {
   target: "Target hit",
@@ -34,17 +42,26 @@ const STORE_CHIPS: { id: Store | "all"; label: string }[] = [
 export default function WishlistPage() {
   const qc = useQueryClient();
   const [storeFilter, setStoreFilter] = useState<Store | "all">("all");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [storeFilter]);
+
   const me = useQuery({
     queryKey: ["me"],
     queryFn: () => api<MeResponse>("/auth/me"),
   });
   const listPath = useMemo(() => {
-    if (storeFilter === "all") return "/wishlist";
-    return `/wishlist?store=${storeFilter}`;
-  }, [storeFilter]);
+    const p = new URLSearchParams();
+    if (storeFilter !== "all") p.set("store", storeFilter);
+    p.set("page", String(page));
+    p.set("pageSize", String(WISHLIST_PAGE_SIZE));
+    return `/wishlist?${p.toString()}`;
+  }, [storeFilter, page]);
   const list = useQuery({
-    queryKey: ["wishlist", storeFilter],
-    queryFn: () => api<WishlistItem[]>(listPath),
+    queryKey: ["wishlist", storeFilter, page],
+    queryFn: () => api<WishlistResponse>(listPath),
   });
   const recommendations = useQuery({
     queryKey: ["wishlist-recommendations"],
@@ -86,11 +103,20 @@ export default function WishlistPage() {
     (d) => storeFilter === "all" || d.store === storeFilter,
   );
 
+  const total = list.data?.total ?? 0;
+  const pageSize = list.data?.pageSize ?? WISHLIST_PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const items = list.data?.items ?? [];
+
   return (
     <>
       <PageHeader
         title="Wishlist"
-        description="Should-buy scores, price targets, and deal signals across Steam, Epic, and GOG"
+        description={
+          list.data
+            ? `${total} games · should-buy scores, price targets, and deal signals across Steam, Epic, and GOG`
+            : "Should-buy scores, price targets, and deal signals across Steam, Epic, and GOG"
+        }
       />
 
       <div className="flex flex-wrap gap-2">
@@ -191,7 +217,7 @@ export default function WishlistPage() {
             </tr>
           </thead>
           <tbody>
-            {(list.data || []).map((item) => {
+            {items.map((item) => {
               const editKey = `${item.store}:${item.externalId}`;
               return (
                 <tr key={item.id} className="border-t border-[var(--line)]">
@@ -271,6 +297,30 @@ export default function WishlistPage() {
           </tbody>
         </table>
       </Panel>
+
+      {total > pageSize && (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5"
+          >
+            Previous
+          </Button>
+          <span className="font-mono text-xs text-[var(--muted)]">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-3 py-1.5"
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </>
   );
 }

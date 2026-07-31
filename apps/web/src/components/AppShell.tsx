@@ -6,6 +6,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sanitizeAppHref } from "@questorylabs/shared";
 import { BrandMark } from "@/components/BrandMark";
 import { SyncStatusBar } from "@/components/SyncStatusBar";
+import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
+import {
+  GlobalSearchProvider,
+  useGlobalSearch,
+} from "@/components/search/GlobalSearchProvider";
+import { useGlobalSearchShortcut } from "@/components/search/useGlobalSearchShortcut";
 import { api } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
@@ -324,12 +330,23 @@ function NavLinks({
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <GlobalSearchProvider>
+      <AppShellInner>{children}</AppShellInner>
+      <GlobalSearchDialog />
+    </GlobalSearchProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const qc = useQueryClient();
   const menuId = useId();
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const { setOpen: setSearchOpen } = useGlobalSearch();
+  useGlobalSearchShortcut();
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
   const { showReadNav } = useReadEnabled();
@@ -502,9 +519,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   id="shell-search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search games, genre:rpg, hours:<10"
-                  className="w-full border border-[var(--line)] bg-[var(--bg-1)] py-2 pl-9 pr-3 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--faint)] focus:border-[var(--line-strong)] focus:bg-[var(--bg-2)]"
+                  placeholder='Search games, movie:godfather, within:<7d'
+                  className="w-full border border-[var(--line)] bg-[var(--bg-1)] py-2 pl-9 pr-20 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--faint)] focus:border-[var(--line-strong)] focus:bg-[var(--bg-2)]"
                 />
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 border border-[var(--line)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-[var(--faint)] transition hover:border-[var(--line-strong)] hover:text-[var(--muted)] sm:inline-flex"
+                  aria-label="Open command palette"
+                >
+                  <span>Ctrl</span>
+                  <span>K</span>
+                </button>
               </div>
             </form>
 

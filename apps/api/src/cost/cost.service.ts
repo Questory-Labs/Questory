@@ -1,9 +1,26 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SyncService } from "../sync/sync.service";
-import { parseStringArray } from "../lib/json-arrays";
 import { resolveDisplayCurrency } from "../lib/currency";
-import { isStoreId, StoreId } from "../stores/store.constants";
+import {
+  buildAllRoiRows,
+  buildPaidByGame,
+  computeLibraryMix,
+  computePlaytimeBuckets,
+  computeShelfware,
+  filterRoiRows,
+  paginateRoiRows,
+  round1,
+  round2,
+  sortRoiRows,
+  sumGenrePublisherAmounts,
+  type CostRoiSort,
+  type CostRoiValueFilter,
+} from "./cost-roi";
+import {
+  COST_ROI_PAGE_SIZE,
+  COST_SHELFWARE_LIMIT,
+} from "./cost.constants";
 
 @Injectable()
 export class CostService {
@@ -16,7 +33,7 @@ export class CostService {
     return this.sync.syncLibraryPrices(userId, 120);
   }
 
-  async summary(userId: string) {
+  private async loadLibraryContext(userId: string) {
     const [user, purchases, library] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.purchase.findMany({ where: { userId } }),
@@ -44,21 +61,13 @@ export class CostService {
       library.splice(0, library.length, ...refreshed);
     }
 
-    const paidByGame = new Map<string, number>();
-    for (const p of purchases) {
-      const key =
-        p.gameId ||
-        (p.appId != null
-          ? library.find((e) => e.game.appId === p.appId)?.gameId
-          : null);
-      if (!key) continue;
-      paidByGame.set(key, (paidByGame.get(key) || 0) + p.amount);
-    }
-    for (const e of library) {
-      if (e.pricePaid != null && !paidByGame.has(e.gameId)) {
-        paidByGame.set(e.gameId, e.pricePaid);
-      }
-    }
+    return { user, purchases, library };
+  }
+
+  async summary(userId: string) {
+    const { user, purchases, library } = await this.loadLibraryContext(userId);
+    const roiRows = buildAllRoiRows(library, purchases);
+    const paidByGame = buildPaidByGame(library, purchases);
 
     let lifetimeAtCurrent = 0;
     let lifetimeAtLowest = 0;
@@ -83,7 +92,7 @@ export class CostService {
       const ownedLows = e.ownerships
         .map((o) => o.listing)
         .filter((l): l is NonNullable<typeof l> => l != null)
-        .map((l) => (l.isFree ? 0 : l.lowestPrice ?? l.currentPrice))
+        .map((l) => (l.isFree ? 0 : (l.lowestPrice ?? l.currentPrice)))
         .filter((p): p is number => p != null);
       const lowest =
         ownedLows.length > 0
@@ -113,7 +122,7 @@ export class CostService {
     const lifetimeSpending = hasPaidData ? lifetimePaid : lifetimeAtCurrent;
 
     const totalMinutes = library.reduce((s, e) => s + e.playtimeForever, 0);
-    const totalHours = totalMinutes / 60;
+    const totalHours = round1(totalMinutes / 60);
     const costPerHour =
       totalHours > 0 ? lifetimeSpending / totalHours : lifetimeSpending;
 
@@ -129,6 +138,9 @@ export class CostService {
     const moneyWasted =
       neverPlayed.reduce((s, e) => s + (effectiveByGame.get(e.gameId) || 0), 0) +
       underOneHour.reduce((s, e) => s + (effectiveByGame.get(e.gameId) || 0), 0);
+    const underOneHourValue = round2(
+      underOneHour.reduce((s, e) => s + (effectiveByGame.get(e.gameId) || 0), 0),
+    );
 
     const salePurchases = purchases.filter((p) => (p.discountPct || 0) > 0);
     const averageDiscount =
@@ -137,25 +149,16 @@ export class CostService {
           salePurchases.length
         : 0;
 
-    const byGenreMap = new Map<string, number>();
-    const byPublisherMap = new Map<string, number>();
-    for (const e of library) {
-      const amount = effectiveByGame.get(e.gameId) || 0;
-      if (!amount) continue;
-      const genres = parseStringArray(e.game.genres);
-      const genreList = genres.length ? genres : ["Unknown"];
-      for (const g of genreList) {
-        byGenreMap.set(g, (byGenreMap.get(g) || 0) + amount / genreList.length);
-      }
-      const publishers = parseStringArray(e.game.publishers);
-      const publisherList = publishers.length ? publishers : ["Unknown"];
-      for (const pub of publisherList) {
-        byPublisherMap.set(
-          pub,
-          (byPublisherMap.get(pub) || 0) + amount / publisherList.length,
-        );
-      }
-    }
+    const { byGenreMap, byPublisherMap } = sumGenrePublisherAmounts(
+      library,
+      effectiveByGame,
+    );
+    const libraryMix = computeLibraryMix(roiRows);
+    const playtimeBuckets = computePlaytimeBuckets(roiRows);
+    const { shelfware, unplayedValue } = computeShelfware(
+      roiRows,
+      COST_SHELFWARE_LIMIT,
+    );
 
     const storeCurrency = library.find(
       (e) => e.game.priceCurrency,
@@ -177,8 +180,16 @@ export class CostService {
       moneyWasted: round2(moneyWasted),
       neverPlayedCount: neverPlayed.length,
       underOneHourCount: underOneHour.length,
+      underOneHourValue,
       salePurchaseCount: salePurchases.length,
       averageDiscount: round2(averageDiscount),
+      totalHours,
+      paidGameCount: libraryMix.paid.count,
+      freeGameCount: libraryMix.free.count,
+      unplayedValue,
+      playtimeBuckets,
+      libraryMix,
+      shelfware,
       byGenre: [...byGenreMap.entries()]
         .map(([genre, amount]) => ({ genre, amount: round2(amount) }))
         .sort((a, b) => b.amount - a.amount)
@@ -190,91 +201,24 @@ export class CostService {
     };
   }
 
-  async roi(userId: string) {
-    const library = await this.prisma.libraryEntry.findMany({
-      where: { userId, hidden: false },
-      include: {
-        game: true,
-        ownerships: { include: { listing: true } },
-      },
-    });
-    const purchases = await this.prisma.purchase.findMany({ where: { userId } });
-    const paidByGame = new Map<string, number>();
-    for (const p of purchases) {
-      const key =
-        p.gameId ||
-        (p.appId != null
-          ? library.find((e) => e.game.appId === p.appId)?.gameId
-          : null);
-      if (!key) continue;
-      paidByGame.set(key, (paidByGame.get(key) || 0) + p.amount);
-    }
-    for (const e of library) {
-      if (e.pricePaid != null && !paidByGame.has(e.gameId)) {
-        paidByGame.set(e.gameId, e.pricePaid);
-      }
-    }
+  async roi(
+    userId: string,
+    opts: {
+      page?: number;
+      pageSize?: number;
+      sort?: CostRoiSort;
+      value?: CostRoiValueFilter;
+    } = {},
+  ) {
+    const page = opts.page ?? 1;
+    const pageSize = opts.pageSize ?? COST_ROI_PAGE_SIZE;
+    const sort = opts.sort ?? "best";
+    const value = opts.value ?? "all";
 
-    return library
-      .map((e) => {
-        const paid = paidByGame.get(e.gameId);
-        const ownedListingPrices = e.ownerships
-          .map((o) => o.listing)
-          .filter((l): l is NonNullable<typeof l> => l != null)
-          .map((l) => (l.isFree ? 0 : l.currentPrice))
-          .filter((p): p is number => p != null);
-        const current =
-          ownedListingPrices.length > 0
-            ? Math.min(...ownedListingPrices)
-            : e.game.isFree
-              ? 0
-              : e.game.currentPrice != null
-                ? e.game.currentPrice
-                : null;
-        const ownedLows = e.ownerships
-          .map((o) => o.listing)
-          .filter((l): l is NonNullable<typeof l> => l != null)
-          .map((l) => (l.isFree ? 0 : l.lowestPrice ?? l.currentPrice))
-          .filter((p): p is number => p != null);
-        const lowest =
-          ownedLows.length > 0
-            ? Math.min(...ownedLows)
-            : e.game.isFree
-              ? 0
-              : e.game.lowestPrice != null
-                ? e.game.lowestPrice
-                : current;
-        const amount = paid ?? current;
-        if (amount == null) return null;
-        const hours = e.playtimeForever / 60;
-        const stores = [
-          ...new Set(
-            e.ownerships.map((o) => o.store).filter(isStoreId),
-          ),
-        ] as StoreId[];
-        return {
-          gameId: e.gameId,
-          appId: e.game.appId,
-          name: e.game.name,
-          headerImage: e.game.headerImage,
-          stores,
-          amount: round2(amount),
-          currentPrice: current != null ? round2(current) : null,
-          lowestPrice: lowest != null ? round2(lowest) : null,
-          hours: round2(hours),
-          costPerHour: hours > 0 ? round2(amount / hours) : null,
-          priceSource: paid != null ? ("paid" as const) : ("store" as const),
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row != null)
-      .sort((a, b) => {
-        if (a.costPerHour == null) return 1;
-        if (b.costPerHour == null) return -1;
-        return a.costPerHour - b.costPerHour;
-      });
+    const { purchases, library } = await this.loadLibraryContext(userId);
+    const allRows = buildAllRoiRows(library, purchases);
+    const filtered = filterRoiRows(allRows, value);
+    const sorted = sortRoiRows(filtered, sort);
+    return paginateRoiRows(sorted, page, pageSize);
   }
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
 }

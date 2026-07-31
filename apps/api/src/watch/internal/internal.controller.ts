@@ -11,6 +11,7 @@ import { MalService } from "../mal/mal.service";
 import { KitsuService } from "../kitsu/kitsu.service";
 import { BangumiService } from "../bangumi/bangumi.service";
 import { ShikimoriService } from "../shikimori/shikimori.service";
+import { LetterboxdScrapeSyncService } from "../letterboxd/letterboxd-scrape-sync.service";
 
 function safeStringEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
@@ -28,6 +29,7 @@ export class InternalController {
     private readonly kitsu: KitsuService,
     private readonly bangumi: BangumiService,
     private readonly shikimori: ShikimoriService,
+    private readonly letterboxd: LetterboxdScrapeSyncService,
   ) {}
 
   private assertCron(auth?: string) {
@@ -73,5 +75,11 @@ export class InternalController {
   async shikimoriSync(@Headers("authorization") auth?: string) {
     this.assertCron(auth);
     return this.shikimori.syncList();
+  }
+
+  @Post("letterboxd-scrape")
+  async letterboxdScrape(@Headers("authorization") auth?: string) {
+    this.assertCron(auth);
+    return this.letterboxd.syncAll();
   }
 }

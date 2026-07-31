@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button, EmptyState, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
+import { ADMIN_ENRICHMENT_PAGE_SIZE } from "@/lib/pagination";
 
 type Domain = "music" | "watch" | "game";
 type StatusFilter = "all" | "pending" | "running" | "completed" | "failed";
@@ -56,8 +57,6 @@ const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
   { id: "failed", label: "Failed" },
 ];
 
-const PAGE_SIZE = 25;
-
 export default function AdminEnrichmentPage() {
   const qc = useQueryClient();
   const [domain, setDomain] = useState<Domain>("music");
@@ -74,7 +73,7 @@ export default function AdminEnrichmentPage() {
       const params = new URLSearchParams({
         domain,
         page: String(page),
-        pageSize: String(PAGE_SIZE),
+        pageSize: String(ADMIN_ENRICHMENT_PAGE_SIZE),
         status,
       });
       return api<EnrichmentResponse>(`/admin/enrichment?${params}`);

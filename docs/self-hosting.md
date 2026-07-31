@@ -158,7 +158,7 @@ Locally: `pnpm setup` then `pnpm dev` (watch modules load with the API).
 |--------|-----|
 | **Trakt** | OAuth at `/v1/watch/trakt/authorize` → history + ratings + watchlist sync |
 | **TMDB** | Metadata enrichment (genres, posters, runtime). Attribution required in UI. |
-| **Letterboxd** | Official export zip or CSV (`POST /v1/watch/imports/letterboxd`, optional `include=diary,ratings,watched,watchlist`) — no scraping |
+| **Letterboxd** | CSV/zip import (`POST /v1/watch/imports/letterboxd`) **or** optional scrape sync: connect username at `/v1/watch/letterboxd/connect`, configure selectors in **Admin → Scrapers**, cron runs with `watch-sync` |
 | **AniList** | OAuth + list sync (day/unknown precision) |
 | **MyAnimeList** | OAuth + PKCE at `/v1/watch/mal/authorize` → anime + manga import |
 | **Shikimori** | OAuth at `/v1/watch/shikimori/authorize` → anime + manga import |
@@ -166,7 +166,9 @@ Locally: `pnpm setup` then `pnpm dev` (watch modules load with the API).
 | **Kitsu** | Email/password connect at `POST /v1/watch/kitsu/connect` → library import |
 | **Plex / Jellyfin** | `POST /webhooks/plex` and `POST /webhooks/jellyfin` on the API (unversioned) |
 
-By default the API schedules Trakt, AniList, MAL, Kitsu, Bangumi, and Shikimori sync every 6 hours (`CRON_WATCH_SCHEDULE`; disable with `CRON_ENABLED=false`).
+By default the API schedules Trakt, AniList, MAL, Kitsu, Bangumi, Shikimori, and Letterboxd scrape sync every 6 hours (`CRON_WATCH_SCHEDULE`; disable with `CRON_ENABLED=false`).
+
+**Letterboxd scrape (optional):** admins define CSS selectors and URL macros under **Admin → Scrapers**. Users connect a Letterboxd username in **Watch → Sources**. Scraped entries share dedupe keys with CSV imports. For Playwright engine configs, install browser binaries once: `pnpm --filter @questorylabs/api exec playwright install chromium`.
 
 ### Frontend menus
 

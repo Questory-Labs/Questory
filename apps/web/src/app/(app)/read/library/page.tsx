@@ -6,8 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReadLibraryPage, ReadListStatus } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { readFetch } from "@/lib/read";
+import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
 
-const PAGE_SIZE = 40;
 const STATUSES: { value: "" | ReadListStatus; label: string }[] = [
   { value: "", label: "All" },
   { value: "reading", label: "Reading" },
@@ -39,7 +39,7 @@ export default function ReadLibraryPage() {
     queryFn: () => {
       const params = new URLSearchParams({
         page: String(page),
-        pageSize: String(PAGE_SIZE),
+        pageSize: String(MEDIA_HISTORY_PAGE_SIZE),
       });
       if (status) params.set("status", status);
       if (format) params.set("format", format);

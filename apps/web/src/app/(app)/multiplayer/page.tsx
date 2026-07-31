@@ -5,15 +5,14 @@ import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { GameTile } from "@/components/GameTile";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
+import { fetchAllFriends } from "@/lib/friends";
+import { GAME_GRID_PAGE_SIZE } from "@/lib/pagination";
 import {
   formatPlayerMaxLabel,
-  type FriendsListResponse,
   type MultiplayerPlanResponse,
   type MultiplayerPlanSort,
 } from "@questorylabs/shared";
 import { useEffect, useMemo, useState } from "react";
-
-const PAGE_SIZE = 48;
 
 const GENRES = [
   "Action",
@@ -43,8 +42,8 @@ const SORT_OPTIONS: { value: MultiplayerPlanSort; label: string }[] = [
 
 export default function MultiplayerPage() {
   const friends = useQuery({
-    queryKey: ["friends"],
-    queryFn: () => api<FriendsListResponse>("/friends"),
+    queryKey: ["friends", "all"],
+    queryFn: fetchAllFriends,
   });
   const friendList = friends.data?.friends || [];
 
@@ -132,10 +131,10 @@ export default function MultiplayerPage() {
   }
 
   const games = plan.data?.games || [];
-  const totalPages = Math.max(1, Math.ceil(games.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(games.length / GAME_GRID_PAGE_SIZE));
   const pageGames = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return games.slice(start, start + PAGE_SIZE);
+    const start = (page - 1) * GAME_GRID_PAGE_SIZE;
+    return games.slice(start, start + GAME_GRID_PAGE_SIZE);
   }, [games, page]);
 
   return (
@@ -365,7 +364,7 @@ export default function MultiplayerPage() {
               off strict matching, widen filters, or enable Suggested.
             </p>
           )}
-          {games.length > PAGE_SIZE && (
+          {games.length > GAME_GRID_PAGE_SIZE && (
             <div className="mt-6 flex items-center justify-center gap-3">
               <Button
                 variant="secondary"

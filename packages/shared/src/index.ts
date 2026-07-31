@@ -198,39 +198,22 @@ export const WishlistItemSchema = z.object({
 });
 export type WishlistItem = z.infer<typeof WishlistItemSchema>;
 
-export const CostSummarySchema = z.object({
-  lifetimeSpending: z.number(),
-  lifetimeAtCurrent: z.number(),
-  lifetimeAtLowest: z.number(),
-  pricedGameCount: z.number(),
-  librarySize: z.number(),
-  usingStoreEstimates: z.boolean(),
-  currency: z.string(),
-  costPerHour: z.number(),
-  moneyWasted: z.number(),
-  neverPlayedCount: z.number(),
-  underOneHourCount: z.number(),
-  salePurchaseCount: z.number(),
-  averageDiscount: z.number(),
-  byGenre: z.array(z.object({ genre: z.string(), amount: z.number() })),
-  byPublisher: z.array(z.object({ publisher: z.string(), amount: z.number() })),
-});
-export type CostSummary = z.infer<typeof CostSummarySchema>;
-
-export const CostRoiRowSchema = z.object({
-  gameId: z.string().optional(),
-  appId: z.number().nullable(),
-  name: z.string(),
-  headerImage: z.string().nullable().optional(),
-  stores: z.array(StoreSchema).optional(),
-  amount: z.number(),
-  currentPrice: z.number().nullable(),
-  lowestPrice: z.number().nullable(),
-  hours: z.number(),
-  costPerHour: z.number().nullable(),
-  priceSource: z.enum(["paid", "store"]),
-});
-export type CostRoiRow = z.infer<typeof CostRoiRowSchema>;
+export {
+  CostLibraryMixSchema,
+  CostPlaytimeBucketSchema,
+  CostRoiPageSchema,
+  CostRoiRowSchema,
+  CostRoiSortSchema,
+  CostRoiValueFilterSchema,
+  CostSummarySchema,
+  type CostLibraryMix,
+  type CostPlaytimeBucket,
+  type CostRoiPage,
+  type CostRoiRow,
+  type CostRoiSort,
+  type CostRoiValueFilter,
+  type CostSummary,
+} from "./cost";
 
 export const FriendSchema = z.object({
   steamId: z.string(),
@@ -573,21 +556,37 @@ export const FamilyGameDetailSchema = GameDetailSchema.extend({
 });
 export type FamilyGameDetail = z.infer<typeof FamilyGameDetailSchema>;
 
-export const SearchResultSchema = z.object({
-  games: z.array(
-    z.object({
-      appId: z.number(),
-      name: z.string(),
-      headerImage: z.string().nullable(),
-      source: z.enum(["library", "wishlist", "catalog"]),
-    }),
-  ),
-  friends: z.array(FriendSchema),
-  developers: z.array(z.string()),
-  publishers: z.array(z.string()),
-  collections: z.array(CollectionSchema),
-});
-export type SearchResult = z.infer<typeof SearchResultSchema>;
+export {
+  SearchGameHitSchema,
+  SearchMusicAlbumHitSchema,
+  SearchMusicArtistHitSchema,
+  SearchMusicTrackHitSchema,
+  SearchQuerySchema,
+  SearchReadHitSchema,
+  SearchResultSchema,
+  SearchWatchHitSchema,
+  type SearchGameHit,
+  type SearchMusicAlbumHit,
+  type SearchMusicArtistHit,
+  type SearchMusicTrackHit,
+  type SearchQuery,
+  type SearchReadHit,
+  type SearchResult,
+  type SearchWatchHit,
+} from "./search-schema";
+
+export {
+  SEARCH_SCOPES,
+  formatSearchChips,
+  isDurationFilterValue,
+  parseSearchQuery,
+  parseSinceDate,
+  shouldSearchScope,
+  textForScope,
+  type ParsedSearchQuery,
+  type SearchActivityKind,
+  type SearchScope,
+} from "./search-query";
 
 export const SyncJobSchema = z.object({
   id: z.string(),
@@ -639,6 +638,9 @@ export type DealAlert = z.infer<typeof DealAlertSchema>;
 
 export const FriendsListResponseSchema = z.object({
   friends: z.array(FriendSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
   meta: z.object({
     totalFriends: z.number(),
     librariesCached: z.number(),
@@ -1524,6 +1526,48 @@ export const ReadLibraryPageSchema = z.object({
   items: z.array(ReadLibraryItemSchema),
 });
 export type ReadLibraryPage = z.infer<typeof ReadLibraryPageSchema>;
+
+export {
+  ScraperConfigBodySchema,
+  ScraperConfigRecordSchema,
+  ScraperDefinitionSchema,
+  ScraperEngineSchema,
+  ScraperFieldAttrSchema,
+  ScraperFieldRuleSchema,
+  ScraperFieldTransformSchema,
+  ScraperLimitsSchema,
+  ScraperPaginationSchema,
+  ScraperStopSchema,
+  ScraperIterationBodySchema,
+  ScraperIterationRecordSchema,
+  ScraperIterationStatusSchema,
+  ScraperProviderDetailSchema,
+  ScraperProviderSummarySchema,
+  ScraperTestRequestSchema,
+  ScraperTestResponseSchema,
+  type ScraperIterationBody,
+  type ScraperIterationRecord,
+  type ScraperIterationStatus,
+  type ScraperProviderDetail,
+  type ScraperProviderSummary,
+  type ScraperConfigBody,
+  type ScraperConfigRecord,
+  type ScraperDefinition,
+  type ScraperEngine,
+  type ScraperFieldAttr,
+  type ScraperFieldRule,
+  type ScraperFieldTransform,
+  type ScraperLimits,
+  type ScraperPagination,
+  type ScraperStop,
+  type ScraperTestRequest,
+  type ScraperTestResponse,
+} from "./scraper-schema";
+
+export {
+  renderScraperTemplate,
+  type ScraperMacroContext,
+} from "./scraper-macros";
 
 export { sanitizeAppHref } from "./safe-href";
 

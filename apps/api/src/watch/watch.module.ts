@@ -8,6 +8,8 @@ import { CatalogModule } from "./catalog/catalog.module";
 import { EnrichmentModule } from "./enrichment/enrichment.module";
 import { ImportsModule } from "./imports/imports.module";
 import { InternalModule } from "./internal/internal.module";
+import { LetterboxdModule } from "./letterboxd/letterboxd.module";
+import { LetterboxdScrapeSyncService } from "./letterboxd/letterboxd-scrape-sync.service";
 import { KitsuModule } from "./kitsu/kitsu.module";
 import { KitsuService } from "./kitsu/kitsu.service";
 import { MalModule } from "./mal/mal.module";
@@ -33,6 +35,7 @@ import { WATCH_CRON_SYNC, type WatchCronSync } from "../cron/watch-cron.token";
     KitsuModule,
     BangumiModule,
     ShikimoriModule,
+    LetterboxdModule,
     ImportsModule,
     WebhooksModule,
     AnalyticsModule,
@@ -48,6 +51,7 @@ import { WATCH_CRON_SYNC, type WatchCronSync } from "../cron/watch-cron.token";
         kitsu: KitsuService,
         bangumi: BangumiService,
         shikimori: ShikimoriService,
+        letterboxd: LetterboxdScrapeSyncService,
       ): WatchCronSync => ({
         runTraktSync: () => trakt.syncHistory(),
         runAnilistSync: () => anilist.syncList(),
@@ -55,6 +59,7 @@ import { WATCH_CRON_SYNC, type WatchCronSync } from "../cron/watch-cron.token";
         runKitsuSync: () => kitsu.syncList(),
         runBangumiSync: () => bangumi.syncList(),
         runShikimoriSync: () => shikimori.syncList(),
+        runLetterboxdScrape: () => letterboxd.syncAll(),
       }),
       inject: [
         TraktService,
@@ -63,6 +68,7 @@ import { WATCH_CRON_SYNC, type WatchCronSync } from "../cron/watch-cron.token";
         KitsuService,
         BangumiService,
         ShikimoriService,
+        LetterboxdScrapeSyncService,
       ],
     },
   ],

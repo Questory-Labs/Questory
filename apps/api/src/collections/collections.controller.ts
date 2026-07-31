@@ -7,9 +7,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
+import { parsePageParam, parsePageSizeParam } from "@questorylabs/shared";
 import { z } from "zod";
+import { COLLECTION_GAMES_PAGE_SIZE } from "./collections.constants";
 import { CollectionsService } from "./collections.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -42,8 +45,18 @@ export class CollectionsController {
   getOne(
     @CurrentUser() user: { userId: string },
     @Param("id") id: string,
+    @Query("page") pageRaw?: string,
+    @Query("pageSize") pageSizeRaw?: string,
   ) {
-    return this.collections.getOne(user.userId, id);
+    const page = parsePageParam(pageRaw, 1);
+    const pageSize = parsePageSizeParam(
+      pageSizeRaw,
+      COLLECTION_GAMES_PAGE_SIZE,
+    );
+    if (page == null || pageSize == null) {
+      throw new BadRequestException("Invalid page or pageSize");
+    }
+    return this.collections.getOne(user.userId, id, { page, pageSize });
   }
 
   @Post()

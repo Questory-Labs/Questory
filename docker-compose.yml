@@ -29,6 +29,7 @@ x-api-env-common: &api-env-common
   CRON_DAILY_SCHEDULE: ${CRON_DAILY_SCHEDULE:-0 3 * * *}
   CRON_RECOVERY_SCHEDULE: ${CRON_RECOVERY_SCHEDULE:-*/15 * * * *}
   CRON_WATCH_SCHEDULE: ${CRON_WATCH_SCHEDULE:-0 */6 * * *}
+  CRON_CATALOG_SCHEDULE: ${CRON_CATALOG_SCHEDULE:-0 4 * * *}
 
 services:
   postgres:

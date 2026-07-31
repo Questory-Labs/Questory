@@ -1,28 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
+import { FRIENDS_PAGE_SIZE } from "@/lib/pagination";
 import type { FriendsListResponse } from "@questorylabs/shared";
 import Link from "next/link";
-
-const PAGE_SIZE = 48;
+import { useState } from "react";
 
 export default function FriendsPage() {
   const [page, setPage] = useState(1);
   const friends = useQuery({
-    queryKey: ["friends"],
-    queryFn: () => api<FriendsListResponse>("/friends"),
+    queryKey: ["friends", page],
+    queryFn: () =>
+      api<FriendsListResponse>(
+        `/friends?page=${page}&pageSize=${FRIENDS_PAGE_SIZE}`,
+      ),
   });
 
   const list = friends.data?.friends || [];
   const meta = friends.data?.meta;
-  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const pageItems = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return list.slice(start, start + PAGE_SIZE);
-  }, [list, page]);
+  const total = friends.data?.total ?? 0;
+  const pageSize = friends.data?.pageSize ?? FRIENDS_PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <>
@@ -30,7 +30,11 @@ export default function FriendsPage() {
         title="Friends"
         description={
           <>
-            <p>Compare libraries and find mutual ground</p>
+            <p>
+              {total > 0
+                ? `${total} friends · compare libraries and find mutual ground`
+                : "Compare libraries and find mutual ground"}
+            </p>
             {meta ? (
               <p className="mt-2 font-mono text-[11px] text-[var(--faint)]">
                 {meta.librariesCached}/{meta.totalFriends} libraries cached
@@ -47,7 +51,7 @@ export default function FriendsPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {pageItems.map((f) => (
+        {list.map((f) => (
           <Panel
             key={f.steamId}
             className="cursor-pointer transition hover:border-[var(--accent)]"
@@ -75,14 +79,14 @@ export default function FriendsPage() {
             </Link>
           </Panel>
         ))}
-        {!friends.isLoading && !list.length && (
+        {!friends.isLoading && !total && (
           <p className="text-sm text-[var(--muted)]">
             No friends synced yet. Make sure your Steam friends list is public.
           </p>
         )}
       </div>
 
-      {list.length > PAGE_SIZE && (
+      {total > pageSize && (
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button
             variant="secondary"

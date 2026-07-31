@@ -6,9 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReadRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { formatDateTime } from "@/lib/dates";
+import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
 import { readFetch } from "@/lib/read";
-
-const PAGE_SIZE = 40;
 
 export default function ReadHistoryPage() {
   const [page, setPage] = useState(1);
@@ -16,7 +15,7 @@ export default function ReadHistoryPage() {
     queryKey: ["read-recent", page],
     queryFn: () =>
       readFetch<ReadRecentPage>(
-        `/analytics/recent?page=${page}&pageSize=${PAGE_SIZE}`,
+        `/analytics/recent?page=${page}&pageSize=${MEDIA_HISTORY_PAGE_SIZE}`,
       ),
   });
 

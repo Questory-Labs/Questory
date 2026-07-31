@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -43,10 +44,15 @@ const TriggerEnrichmentSchema = z.object({
 const EnrichmentQuerySchema = z.object({
   domain: z.enum(["music", "watch", "game"]).default("music"),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  pageSize: z.coerce.number().int().min(1).max(100).default(15),
   status: z
     .enum(["all", "pending", "running", "completed", "failed"])
     .default("all"),
+});
+
+const CronRunsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
 const OpsUserSchema = z.object({
@@ -105,8 +111,12 @@ export class AdminController {
   }
 
   @Get("cron/runs")
-  cronRuns(@Query("take") take?: string) {
-    return this.admin.listCronRuns(take ? Number(take) : 50);
+  cronRuns(@Query("page") page?: string, @Query("pageSize") pageSize?: string) {
+    const parsed = CronRunsQuerySchema.safeParse({ page, pageSize });
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.admin.listCronRuns(parsed.data);
   }
 
   @Get("cron/status")

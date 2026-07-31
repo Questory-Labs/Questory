@@ -36,7 +36,7 @@ Most Nest tests boot focused modules with mocked Prisma/services — no Redis re
 - Watch session binding + OAuth state HMAC (IDOR)
 - Music ingest: `Authorization: Token` only (no `?token=`)
 - Webhooks require a per-user `watch_webhook` ApiKey outside `local` (header `x-watch-webhook-secret`)
-- Global Steam catalog sync is cron-only (`POST /v1/internal/cron/catalog-sync`)
+- Global Steam catalog sync runs on the in-process scheduler (`catalog-sync`, default `0 4 * * *`; override with `CRON_CATALOG_SCHEDULE`) or via `POST /v1/internal/cron/catalog-sync`
 - UI `AuthGate` on `/music/*` and `/watch/*`; notification `href` allowlist
 
 ### Sole-user fallback (watch)

@@ -8,6 +8,7 @@ import {
 } from "@/components/sources/ListProviderCard";
 import { SourcesSectionHeading } from "@/components/sources/SourcesSectionHeading";
 import { AnimeListSourcesSection } from "@/components/watch/AnimeListSourcesSection";
+import { LetterboxdConnectCard } from "@/components/watch/LetterboxdConnectCard";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { getWatchUrl, watchFetch, watchUrl } from "@/lib/watch";
@@ -438,7 +439,7 @@ export default function WatchSettingsPage() {
       <PageHeader
         eyebrow="Watch"
         title="Sources"
-        description="Connect a live source to keep Watch up to date. Enrich with a Letterboxd history export below."
+        description="Connect a live source to keep Watch up to date. Letterboxd scrape sync uses admin-configured rules. Enrich with a CSV export below."
       />
 
       <section className="mb-10">
@@ -581,6 +582,8 @@ export default function WatchSettingsPage() {
                 />
               </SourceCard>
             ) : null}
+
+            <LetterboxdConnectCard />
           </div>
         ) : null}
       </section>
@@ -597,7 +600,7 @@ export default function WatchSettingsPage() {
           <SourceCard
             label="Import"
             title="Letterboxd"
-            blurb="Drop the official Letterboxd export zip (or a single CSV). Pick which files to import — no scraping."
+            blurb="Drop the official Letterboxd export zip (or a single CSV). Pick which files to import — or use scrape sync above."
             status={
               importOk ? (
                 <StatusPill tone="ok">Done</StatusPill>

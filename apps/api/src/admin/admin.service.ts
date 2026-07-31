@@ -296,12 +296,23 @@ export class AdminService {
     return { ok: true };
   }
 
-  async listCronRuns(take = 50) {
-    const runs = await this.prisma.cronRun.findMany({
-      orderBy: { startedAt: "desc" },
-      take: Math.min(100, Math.max(1, take)),
-    });
-    return { runs: runs.map(serializeCronRun) };
+  async listCronRuns(opts: { page: number; pageSize: number }) {
+    const { page, pageSize } = opts;
+    const skip = (page - 1) * pageSize;
+    const [total, runs] = await Promise.all([
+      this.prisma.cronRun.count(),
+      this.prisma.cronRun.findMany({
+        orderBy: { startedAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      page,
+      pageSize,
+      total,
+      runs: runs.map(serializeCronRun),
+    };
   }
 
   async cronStatus() {
@@ -334,7 +345,8 @@ export class AdminService {
       if (
         name === "daily-refresh" ||
         name === "recover-failed-sync" ||
-        name === "watch-sync"
+        name === "watch-sync" ||
+        name === "catalog-sync"
       ) {
         schedule = getCronSchedule(name as ScheduledCronJobName);
       } else if (

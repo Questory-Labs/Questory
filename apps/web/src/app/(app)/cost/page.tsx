@@ -1,20 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart } from "@/components/charts/LineChart";
 import { SketchDonut } from "@/components/charts/SketchDonut";
 import { StatCard } from "@/components/StatCard";
-import { PageHeader, Panel } from "@/components/ui";
+import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
-import type { CostRoiRow, CostSummary } from "@questorylabs/shared";
+import { COST_ROI_PAGE_SIZE } from "@/lib/pagination";
+import type {
+  CostRoiPage,
+  CostRoiRow,
+  CostRoiValueFilter,
+  CostSummary,
+} from "@questorylabs/shared";
 
 type ValueTab = "paid" | "free";
-
-function matchesValueTab(row: CostRoiRow, tab: ValueTab) {
-  return tab === "paid" ? row.amount > 0 : row.amount === 0;
-}
 
 function ValueTabs({
   value,
@@ -82,76 +84,116 @@ function SpendChart({
   );
 }
 
+function RoiPagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mt-4 flex items-center justify-center gap-3">
+      <Button
+        variant="secondary"
+        disabled={page <= 1}
+        onClick={() => onPageChange(Math.max(1, page - 1))}
+        className="px-3 py-1.5"
+      >
+        Previous
+      </Button>
+      <span className="font-mono text-xs text-[var(--muted)]">
+        {page} / {totalPages}
+      </span>
+      <Button
+        variant="secondary"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        className="px-3 py-1.5"
+      >
+        Next
+      </Button>
+    </div>
+  );
+}
+
+function RoiList({
+  rows,
+  currency,
+  emptyMessage,
+}: {
+  rows: CostRoiRow[];
+  currency: string;
+  emptyMessage: string;
+}) {
+  const money = (n: number | null | undefined) => formatMoney(n, currency);
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-[var(--muted)]">{emptyMessage}</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row) => (
+        <Panel
+          key={row.appId}
+          className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+        >
+          <span className="min-w-0 truncate">{row.name}</span>
+          <span className="shrink-0 text-right text-[var(--muted)]">
+            <span className="text-[var(--ink)]">{money(row.costPerHour)}/h</span>
+            {" · "}
+            {row.hours}h · {money(row.amount)}
+            {row.lowestPrice != null && (
+              <span className="block text-xs text-[var(--faint)]">
+                Now {money(row.currentPrice)} · Low {money(row.lowestPrice)}
+              </span>
+            )}
+          </span>
+        </Panel>
+      ))}
+    </div>
+  );
+}
+
 export default function CostPage() {
   const [bestTab, setBestTab] = useState<ValueTab>("paid");
   const [worstTab, setWorstTab] = useState<ValueTab>("paid");
+  const [bestPage, setBestPage] = useState(1);
+  const [worstPage, setWorstPage] = useState(1);
+
+  useEffect(() => {
+    setBestPage(1);
+  }, [bestTab]);
+
+  useEffect(() => {
+    setWorstPage(1);
+  }, [worstTab]);
+
   const summary = useQuery({
     queryKey: ["cost-summary"],
     queryFn: () => api<CostSummary>("/cost/summary"),
   });
-  const roi = useQuery({
-    queryKey: ["cost-roi"],
-    queryFn: () => api<CostRoiRow[]>("/cost/roi"),
+  const bestRoi = useQuery({
+    queryKey: ["cost-roi", "best", bestTab, bestPage],
+    queryFn: () =>
+      api<CostRoiPage>(
+        `/cost/roi?sort=best&value=${bestTab}&page=${bestPage}&pageSize=${COST_ROI_PAGE_SIZE}`,
+      ),
   });
+  const worstRoi = useQuery({
+    queryKey: ["cost-roi", "worst", worstTab, worstPage],
+    queryFn: () =>
+      api<CostRoiPage>(
+        `/cost/roi?sort=worst&value=${worstTab}&page=${worstPage}&pageSize=${COST_ROI_PAGE_SIZE}`,
+      ),
+  });
+
   const s = summary.data;
-  const rows = roi.data || [];
-
-  const analytics = useMemo(() => {
-    const ranked = rows.filter((r) => r.costPerHour != null);
-    const paid = rows.filter((r) => r.amount > 0);
-    const free = rows.filter((r) => r.amount === 0);
-    const totalHours = round1(rows.reduce((sum, r) => sum + r.hours, 0));
-    const unplayed = paid
-      .filter((r) => r.hours === 0)
-      .sort((a, b) => b.amount - a.amount);
-    const unplayedValue = round2(unplayed.reduce((sum, r) => sum + r.amount, 0));
-    const underOneHour = paid.filter((r) => r.hours > 0 && r.hours < 1);
-    const underOneHourValue = round2(
-      underOneHour.reduce((sum, r) => sum + r.amount, 0),
-    );
-
-    const buckets = [
-      { name: "Unplayed", amount: unplayedValue, count: unplayed.length },
-      {
-        name: "< 1h",
-        amount: underOneHourValue,
-        count: underOneHour.length,
-      },
-      bucket(paid, "1–10h", (h) => h >= 1 && h < 10),
-      bucket(paid, "10–50h", (h) => h >= 10 && h < 50),
-      bucket(paid, "50h+", (h) => h >= 50),
-    ].filter((b) => b.amount > 0 || b.count > 0);
-
-    const freeVsPaid = [
-      {
-        name: "Paid",
-        value: paid.length,
-        amount: round2(paid.reduce((sum, r) => sum + r.amount, 0)),
-      },
-      { name: "Free", value: free.length, amount: 0 },
-    ].filter((d) => d.value > 0);
-
-    return {
-      ranked,
-      totalHours,
-      unplayed: unplayed.slice(0, 10),
-      unplayedValue,
-      underOneHourCount: underOneHour.length,
-      underOneHourValue,
-      buckets,
-      freeVsPaid,
-      paidCount: paid.length,
-      freeCount: free.length,
-    };
-  }, [rows]);
-
-  const bestValue = analytics.ranked
-    .filter((r) => matchesValueTab(r, bestTab))
-    .slice(0, 20);
-  const worstValue = [...analytics.ranked]
-    .filter((r) => matchesValueTab(r, worstTab))
-    .reverse()
-    .slice(0, 10);
+  const currency = s?.currency || "USD";
+  const money = (n: number | null | undefined) => formatMoney(n, currency);
 
   const genreChart = (s?.byGenre || [])
     .slice(0, 10)
@@ -159,13 +201,31 @@ export default function CostPage() {
   const publisherChart = (s?.byPublisher || [])
     .slice(0, 10)
     .map((row) => ({ name: row.publisher, amount: row.amount }));
-  const currency = s?.currency || "USD";
-  const money = (n: number | null | undefined) => formatMoney(n, currency);
 
-  const bucketChartData = analytics.buckets.map((b) => ({
+  const bucketChartData = (s?.playtimeBuckets || []).map((b) => ({
     label: b.name,
     value: b.amount,
   }));
+
+  const freeVsPaid = s
+    ? [
+        {
+          name: "Paid",
+          value: s.libraryMix.paid.count,
+          amount: s.libraryMix.paid.amount,
+        },
+        { name: "Free", value: s.libraryMix.free.count, amount: 0 },
+      ].filter((d) => d.value > 0)
+    : [];
+
+  const bestTotalPages = Math.max(
+    1,
+    Math.ceil((bestRoi.data?.total ?? 0) / (bestRoi.data?.pageSize ?? COST_ROI_PAGE_SIZE)),
+  );
+  const worstTotalPages = Math.max(
+    1,
+    Math.ceil((worstRoi.data?.total ?? 0) / (worstRoi.data?.pageSize ?? COST_ROI_PAGE_SIZE)),
+  );
 
   return (
     <>
@@ -188,8 +248,8 @@ export default function CostPage() {
           label="Cost / hour"
           value={s ? money(s.costPerHour) : "—"}
           hint={
-            analytics.totalHours > 0
-              ? `${analytics.totalHours.toLocaleString()}h played`
+            s && s.totalHours > 0
+              ? `${s.totalHours.toLocaleString()}h played`
               : "Based on current store prices"
           }
         />
@@ -204,11 +264,7 @@ export default function CostPage() {
         />
         <StatCard
           label="Library mix"
-          value={
-            rows.length
-              ? `${analytics.paidCount} / ${analytics.freeCount}`
-              : "—"
-          }
+          value={s ? `${s.paidGameCount} / ${s.freeGameCount}` : "—"}
           hint="Paid · free (priced games)"
         />
       </div>
@@ -224,7 +280,7 @@ export default function CostPage() {
         </section>
       )}
 
-      {(analytics.buckets.length > 0 || analytics.freeVsPaid.length > 0) && (
+      {s && (s.playtimeBuckets.length > 0 || freeVsPaid.length > 0) && (
         <section className="mt-10 grid gap-8 lg:grid-cols-2">
           <Panel className="p-4">
             <h2 className="mb-1 text-sm uppercase tracking-[0.14em] text-[var(--muted)]">
@@ -233,7 +289,7 @@ export default function CostPage() {
             <p className="mb-4 text-xs text-[var(--faint)]">
               Where paid-library value sits by hours played
             </p>
-            {analytics.buckets.length === 0 ? (
+            {s.playtimeBuckets.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">No priced games yet.</p>
             ) : (
               <LineChart
@@ -255,12 +311,12 @@ export default function CostPage() {
             <p className="mb-4 text-xs text-[var(--faint)]">
               Count of priced games in your library
             </p>
-            {analytics.freeVsPaid.length === 0 ? (
+            {freeVsPaid.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">No priced games yet.</p>
             ) : (
               <div className="flex h-72 flex-col items-center justify-center gap-4 sm:flex-row">
                 <SketchDonut
-                  data={analytics.freeVsPaid.map((entry, i) => ({
+                  data={freeVsPaid.map((entry, i) => ({
                     name: entry.name,
                     value: entry.value,
                     color: i === 0 ? "#7dd3c0" : "#8a7f9a",
@@ -269,7 +325,7 @@ export default function CostPage() {
                   formatValue={(n) => `${n} games`}
                 />
                 <div className="space-y-3 text-sm">
-                  {analytics.freeVsPaid.map((entry, i) => (
+                  {freeVsPaid.map((entry, i) => (
                     <div key={entry.name} className="flex items-center gap-3">
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-sm"
@@ -296,17 +352,17 @@ export default function CostPage() {
         </section>
       )}
 
-      {analytics.unplayed.length > 0 && (
+      {s && s.shelfware.length > 0 && (
         <section className="mt-10">
           <h2 className="mb-1 font-display text-2xl font-bold tracking-tight">
             Shelfware
           </h2>
           <p className="mb-4 text-sm text-[var(--muted)]">
             Highest-value paid games with zero playtime ·{" "}
-            {money(analytics.unplayedValue)} tied up
+            {money(s.unplayedValue)} tied up
           </p>
           <div className="space-y-2">
-            {analytics.unplayed.map((row) => (
+            {s.shelfware.map((row) => (
               <Panel
                 key={row.appId}
                 className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
@@ -328,33 +384,22 @@ export default function CostPage() {
           </h2>
           <ValueTabs value={bestTab} onChange={setBestTab} />
         </div>
-        <div className="space-y-2">
-          {bestValue.length === 0 && (
-            <p className="text-sm text-[var(--muted)]">
-              {analytics.ranked.length === 0
+        <RoiList
+          rows={bestRoi.data?.items ?? []}
+          currency={currency}
+          emptyMessage={
+            bestRoi.isLoading
+              ? "Loading rankings…"
+              : (bestRoi.data?.total ?? 0) === 0
                 ? "Price data will appear after the next store sync."
-                : `No ${bestTab} games with playtime to rank.`}
-            </p>
-          )}
-          {bestValue.map((row) => (
-            <Panel
-              key={row.appId}
-              className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
-            >
-              <span className="min-w-0 truncate">{row.name}</span>
-              <span className="shrink-0 text-right text-[var(--muted)]">
-                <span className="text-[var(--ink)]">{money(row.costPerHour)}/h</span>
-                {" · "}
-                {row.hours}h · {money(row.amount)}
-                {row.lowestPrice != null && (
-                  <span className="block text-xs text-[var(--faint)]">
-                    Now {money(row.currentPrice)} · Low {money(row.lowestPrice)}
-                  </span>
-                )}
-              </span>
-            </Panel>
-          ))}
-        </div>
+                : `No ${bestTab} games with playtime to rank.`
+          }
+        />
+        <RoiPagination
+          page={bestPage}
+          totalPages={bestTotalPages}
+          onPageChange={setBestPage}
+        />
       </section>
 
       <section className="mt-10">
@@ -364,52 +409,23 @@ export default function CostPage() {
           </h2>
           <ValueTabs value={worstTab} onChange={setWorstTab} />
         </div>
-        <div className="space-y-2">
-          {worstValue.length === 0 && (
-            <p className="text-sm text-[var(--muted)]">
-              {analytics.ranked.length === 0
+        <RoiList
+          rows={worstRoi.data?.items ?? []}
+          currency={currency}
+          emptyMessage={
+            worstRoi.isLoading
+              ? "Loading rankings…"
+              : (worstRoi.data?.total ?? 0) === 0
                 ? "Price data will appear after the next store sync."
-                : `No ${worstTab} games with playtime to rank.`}
-            </p>
-          )}
-          {worstValue.map((row) => (
-            <Panel
-              key={row.appId}
-              className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
-            >
-              <span className="min-w-0 truncate">{row.name}</span>
-              <span className="shrink-0 text-right text-[var(--muted)]">
-                <span className="text-[var(--ink)]">
-                  {money(row.costPerHour)}/h
-                </span>
-                {" · "}
-                {row.hours}h · {money(row.amount)}
-              </span>
-            </Panel>
-          ))}
-        </div>
+                : `No ${worstTab} games with playtime to rank.`
+          }
+        />
+        <RoiPagination
+          page={worstPage}
+          totalPages={worstTotalPages}
+          onPageChange={setWorstPage}
+        />
       </section>
     </>
   );
-}
-
-function bucket(
-  rows: CostRoiRow[],
-  name: string,
-  pred: (hours: number) => boolean,
-) {
-  const matched = rows.filter((r) => pred(r.hours));
-  return {
-    name,
-    amount: round2(matched.reduce((sum, r) => sum + r.amount, 0)),
-    count: matched.length,
-  };
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
-}
-
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
 }

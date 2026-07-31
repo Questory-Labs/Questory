@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { SearchQuerySchema } from "@questorylabs/shared";
 import { SearchService } from "./search.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -11,8 +18,12 @@ export class SearchController {
   @Get()
   query(
     @CurrentUser() user: { userId: string },
-    @Query("q") q = "",
+    @Query() query: unknown,
   ) {
-    return this.search.search(user.userId, q);
+    const parsed = SearchQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.search.search(user.userId, parsed.data.q, parsed.data.limit);
   }
 }

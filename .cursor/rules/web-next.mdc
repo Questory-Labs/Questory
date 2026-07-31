@@ -24,6 +24,14 @@ Soft-gated routes (`/music/*`, `/watch/*`, `/read/*`, `/recommendations`, `/admi
 - A `page.tsx` wires queries to components — keep it well under 400 lines. The 650–750 line music/watch settings pages are the anti-pattern; extract sections into components instead.
 - Before building a music/watch/read variant of an existing component (pickers, insights charts, detail pages), generalize the existing one and parameterize the domain — do not add another near-identical copy.
 
+## Destructive actions require confirmation
+
+Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the mutation fires. Use the shared `Dialog` from `components/ui` with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `mutation.mutate(...)`, and do not use `window.confirm` for new code.
+
+## Shared constants, not inline literals
+
+Tunable constants (page sizes, limits, polling intervals, thresholds) live in a shared `src/lib` module and are imported where needed — `lib/pagination.ts` is the reference pattern for page sizes. Do not declare `const PAGE_SIZE = 25` (or similar) inside a page/component/hook; add it to the appropriate shared file (or create one per concern) and import it. One shared definition means one place to tune the value app-wide.
+
 ## Styling
 
 Tailwind v4 utility classes plus the CSS variables defined in `globals.css` (`--ink`, `--accent`, fonts). No new CSS modules (the only existing ones are legacy under `components/enterprise/`), no inline style objects for things Tailwind covers.

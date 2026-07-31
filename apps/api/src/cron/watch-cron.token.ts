@@ -8,4 +8,5 @@ export type WatchCronSync = {
   runKitsuSync: () => Promise<unknown>;
   runBangumiSync: () => Promise<unknown>;
   runShikimoriSync: () => Promise<unknown>;
+  runLetterboxdScrape: () => Promise<unknown>;
 };

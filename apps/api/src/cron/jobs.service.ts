@@ -54,9 +54,12 @@ export class JobsService implements OnModuleInit {
     this.addJob("watch-sync", schedules["watch-sync"], () =>
       this.runWatchSync(),
     );
+    this.addJob("catalog-sync", schedules["catalog-sync"], () =>
+      this.runCatalogSync(),
+    );
 
     this.logger.log(
-      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]})`,
+      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]})`,
     );
   }
 
@@ -91,6 +94,16 @@ export class JobsService implements OnModuleInit {
     this.logger.log(`recover-failed-sync done: ${JSON.stringify(result)}`);
   }
 
+  async runCatalogSync() {
+    this.logger.log("Starting catalog-sync");
+    const { result } = await this.cronRunner.run(
+      "catalog-sync",
+      "system",
+      () => this.internalCron.syncCatalog({}),
+    );
+    this.logger.log(`catalog-sync done: ${JSON.stringify(result)}`);
+  }
+
   async runWatchSync() {
     if (!this.watchCron) {
       this.logger.debug("watch-sync skipped (watch module not available)");
@@ -104,6 +117,10 @@ export class JobsService implements OnModuleInit {
       { name: "kitsu-sync", run: () => this.watchCron!.runKitsuSync() },
       { name: "bangumi-sync", run: () => this.watchCron!.runBangumiSync() },
       { name: "shikimori-sync", run: () => this.watchCron!.runShikimoriSync() },
+      {
+        name: "letterboxd-scrape",
+        run: () => this.watchCron!.runLetterboxdScrape(),
+      },
     ];
 
     for (const job of providerJobs) {

@@ -2,6 +2,7 @@ import { Module, forwardRef } from "@nestjs/common";
 import { AdminController } from "./admin.controller";
 import { AdminService } from "./admin.service";
 import { MigrationsService } from "./migrations/migrations.service";
+import { ScraperAdminController } from "../scraper/scraper-admin.controller";
 import { AuthModule } from "../auth/auth.module";
 import { CronModule } from "../cron/cron.module";
 import { SyncModule } from "../sync/sync.module";
@@ -10,6 +11,7 @@ import { AccountsModule } from "../accounts/accounts.module";
 import { SteamModule } from "../steam/steam.module";
 import { WatchModule } from "../watch/watch.module";
 import { ImportsModule } from "../watch/imports/imports.module";
+import { ScraperModule } from "../scraper/scraper.module";
 
 @Module({
   imports: [
@@ -21,8 +23,9 @@ import { ImportsModule } from "../watch/imports/imports.module";
     CostModule,
     forwardRef(() => WatchModule),
     ImportsModule,
+    ScraperModule,
   ],
-  controllers: [AdminController],
+  controllers: [AdminController, ScraperAdminController],
   providers: [AdminService, MigrationsService],
   exports: [AdminService],
 })

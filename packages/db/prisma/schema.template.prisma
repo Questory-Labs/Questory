@@ -63,6 +63,39 @@ model AppConfig {
   updatedAt DateTime @updatedAt
 }
 
+/** One scraper integration (letterboxd, …). Sync uses the published iteration. */
+model ScraperProvider {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  iterations ScraperIteration[]
+}
+
+/** Versioned scraper config: draft → validated → published (current). */
+model ScraperIteration {
+  id          String    @id @default(cuid())
+  providerId  String
+  version     Int
+  /** draft | validated | published | archived */
+  status      String    @default("draft")
+  label       String?
+  configJson  String
+  validatedAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  provider ScraperProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, version])
+  @@index([providerId, status])
+}
+
 /** Cron / admin-triggered job run history. */
 model CronRun {
   id                 String    @id @default(cuid())

@@ -21,8 +21,8 @@ import {
   type OtelUsage,
   type OtelUsageBucket,
 } from "@/lib/enterprise-api";
+import { TELEMETRY_PAGE_SIZE } from "@/lib/pagination";
 
-const PAGE_SIZE = 20;
 const TIME_RANGES = ["1h", "6h", "24h", "7d", "30d"] as const;
 type TimeRange = (typeof TIME_RANGES)[number];
 const COLOR_REQUESTS = "#7dd3c0";
@@ -202,8 +202,8 @@ export function TelemetryDashboard() {
     queryFn: () =>
       fetchOtelTraces({
         since: range,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
+        limit: TELEMETRY_PAGE_SIZE,
+        offset: page * TELEMETRY_PAGE_SIZE,
       }),
     refetchInterval: 60_000,
     retry: false,
@@ -227,7 +227,7 @@ export function TelemetryDashboard() {
   const tracePage = traces.data;
   const traceList = tracePage?.traces ?? [];
   const totalTraces = tracePage?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalTraces / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalTraces / TELEMETRY_PAGE_SIZE));
 
   const inputTokens = usageNumber(u, [
     "input_tokens",
@@ -818,7 +818,7 @@ export function TelemetryDashboard() {
           </div>
         )}
 
-        {totalTraces > PAGE_SIZE ? (
+        {totalTraces > TELEMETRY_PAGE_SIZE ? (
           <div className="mt-4 flex justify-end">
             <Pagination
               page={page}

@@ -2,22 +2,38 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { parseStringArray } from "../lib/json-arrays";
 import { isStoreId, StoreId } from "../stores/store.constants";
+import { WISHLIST_PAGE_SIZE } from "./wishlist.constants";
 
 @Injectable()
 export class WishlistService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(userId: string, store?: string) {
+  private where(userId: string, store?: string) {
     const storeFilter =
       store && isStoreId(store) ? (store as StoreId) : undefined;
-    const items = await this.prisma.wishlistItem.findMany({
-      where: {
-        userId,
-        ...(storeFilter ? { store: storeFilter } : {}),
-      },
-      orderBy: [{ shouldBuyScore: "desc" }, { priority: "asc" }],
-    });
-    return items.map((w) => ({
+    return {
+      userId,
+      ...(storeFilter ? { store: storeFilter } : {}),
+    };
+  }
+
+  private mapItem(w: {
+    id: string;
+    store: string;
+    externalId: string;
+    appId: number | null;
+    gameId: string | null;
+    name: string | null;
+    headerImage: string | null;
+    priority: number;
+    dateAdded: Date | null;
+    targetPrice: number | null;
+    currentPrice: number | null;
+    lowestPrice: number | null;
+    shouldBuyScore: number | null;
+    genres: string;
+  }) {
+    return {
       id: w.id,
       store: (isStoreId(w.store) ? w.store : "steam") as StoreId,
       externalId: w.externalId,
@@ -32,7 +48,43 @@ export class WishlistService {
       lowestPrice: w.lowestPrice,
       shouldBuyScore: w.shouldBuyScore,
       genres: parseStringArray(w.genres),
-    }));
+    };
+  }
+
+  async list(
+    userId: string,
+    store?: string,
+    opts: { page?: number; pageSize?: number } = {},
+  ) {
+    const where = this.where(userId, store);
+    const take = Math.min(Math.max(opts.pageSize ?? WISHLIST_PAGE_SIZE, 1), 100);
+    const safePage = Math.max(opts.page ?? 1, 1);
+    const skip = (safePage - 1) * take;
+
+    const [total, rows] = await Promise.all([
+      this.prisma.wishlistItem.count({ where }),
+      this.prisma.wishlistItem.findMany({
+        where,
+        orderBy: [{ shouldBuyScore: "desc" }, { priority: "asc" }],
+        skip,
+        take,
+      }),
+    ]);
+
+    return {
+      total,
+      page: safePage,
+      pageSize: take,
+      items: rows.map((w) => this.mapItem(w)),
+    };
+  }
+
+  private async listAll(userId: string, store?: string) {
+    const rows = await this.prisma.wishlistItem.findMany({
+      where: this.where(userId, store),
+      orderBy: [{ shouldBuyScore: "desc" }, { priority: "asc" }],
+    });
+    return rows.map((w) => this.mapItem(w));
   }
 
   async setTargetPrice(
@@ -60,7 +112,7 @@ export class WishlistService {
   }
 
   async recommendations(userId: string) {
-    const items = await this.list(userId);
+    const items = await this.listAll(userId);
     return items
       .filter((i) => (i.shouldBuyScore || 0) >= 50)
       .slice(0, 12)
@@ -71,7 +123,7 @@ export class WishlistService {
   }
 
   async dealAlerts(userId: string) {
-    const items = await this.list(userId);
+    const items = await this.listAll(userId);
     const alerts: {
       store: StoreId;
       externalId: string;

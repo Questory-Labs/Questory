@@ -12,6 +12,7 @@ const BASE_NAV = [
   { href: "/admin/cron", label: "Cron" },
   { href: "/admin/migrations", label: "Migrations" },
   { href: "/admin/enrichment", label: "Enrichment" },
+  { href: "/admin/scrapers", label: "Scrapers" },
   { href: "/admin/settings", label: "Settings" },
 ] as const;
 

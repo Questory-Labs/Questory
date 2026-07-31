@@ -17,6 +17,7 @@ import {
 import { FamilyService } from "./family.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { FAMILY_LIBRARY_PAGE_SIZE } from "./family.constants";
 
 const AddMemberSchema = z.object({
   steamId: SteamId64Schema,
@@ -75,17 +76,19 @@ export class FamilyController {
     @CurrentUser() user: { userId: string },
     @Query("memberSteamId") memberSteamId?: string,
     @Query("q") q?: string,
+    @Query("overlapOnly") overlapOnly?: string,
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
   ) {
-    const pageN = parsePageParam(page);
-    const pageSizeN = parsePageSizeParam(pageSize);
+    const pageN = parsePageParam(page, 1);
+    const pageSizeN = parsePageSizeParam(pageSize, FAMILY_LIBRARY_PAGE_SIZE);
     if (pageN == null || pageSizeN == null) {
       throw new BadRequestException("Invalid page or pageSize");
     }
     return this.family.library(user.userId, {
       memberSteamId,
       q,
+      overlapOnly: overlapOnly === "true",
       page: pageN,
       pageSize: pageSizeN,
     });

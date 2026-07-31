@@ -6,11 +6,12 @@ import { GameTile } from "@/components/GameTile";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
+import { fetchAllFriends } from "@/lib/friends";
 import { formatMoney } from "@/lib/money";
+import { FAMILY_LIBRARY_PAGE_SIZE } from "@/lib/pagination";
 import type {
   FamilyInsights,
   FamilyLibrary,
-  FriendsListResponse,
 } from "@questorylabs/shared";
 import { useMemo, useState } from "react";
 
@@ -48,6 +49,7 @@ export default function FamilyPage() {
   const [gameSearch, setGameSearch] = useState("");
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  const [conflictsPage, setConflictsPage] = useState(1);
 
   const insights = useQuery({
     queryKey: ["family-insights"],
@@ -59,7 +61,7 @@ export default function FamilyPage() {
     if (activeMember !== "all") p.set("memberSteamId", activeMember);
     if (gameSearch.trim()) p.set("q", gameSearch.trim());
     p.set("page", String(page));
-    p.set("pageSize", "48");
+    p.set("pageSize", String(FAMILY_LIBRARY_PAGE_SIZE));
     return p.toString();
   }, [activeMember, gameSearch, page]);
 
@@ -68,9 +70,22 @@ export default function FamilyPage() {
     queryFn: () => api<FamilyLibrary>(`/family/library?${libraryParams}`),
   });
 
+  const conflictsParams = useMemo(() => {
+    const p = new URLSearchParams();
+    p.set("overlapOnly", "true");
+    p.set("page", String(conflictsPage));
+    p.set("pageSize", String(FAMILY_LIBRARY_PAGE_SIZE));
+    return p.toString();
+  }, [conflictsPage]);
+
+  const conflicts = useQuery({
+    queryKey: ["family-library-conflicts", conflictsParams],
+    queryFn: () => api<FamilyLibrary>(`/family/library?${conflictsParams}`),
+  });
+
   const friends = useQuery({
-    queryKey: ["friends"],
-    queryFn: () => api<FriendsListResponse>("/friends"),
+    queryKey: ["friends", "all"],
+    queryFn: fetchAllFriends,
     enabled: showImport,
   });
 
@@ -156,6 +171,13 @@ export default function FamilyPage() {
   const totalPages = library.data
     ? Math.max(1, Math.ceil(library.data.total / library.data.pageSize))
     : 1;
+  const conflictsTotal = conflicts.data?.total ?? 0;
+  const conflictsPageSize =
+    conflicts.data?.pageSize ?? FAMILY_LIBRARY_PAGE_SIZE;
+  const conflictsTotalPages = Math.max(
+    1,
+    Math.ceil(conflictsTotal / conflictsPageSize),
+  );
 
   return (
     <>
@@ -538,10 +560,12 @@ export default function FamilyPage() {
           License conflicts
         </h2>
         <p className="mb-3 text-sm text-[var(--muted)]">
-          Games owned by more than one family member
+          {conflicts.isLoading
+            ? "Loading overlapping games…"
+            : `${conflictsTotal} games owned by more than one family member`}
         </p>
         <div className="space-y-2">
-          {(d?.conflicts || []).map((c) => (
+          {(conflicts.data?.items || []).map((c) => (
             <button
               key={c.appId}
               type="button"
@@ -550,16 +574,42 @@ export default function FamilyPage() {
             >
               <span>{c.name}</span>
               <span className="text-[var(--muted)]">
-                {c.owners.join(", ")}
+                {c.owners.map((o) => o.personaName).join(", ")}
               </span>
             </button>
           ))}
-          {!insights.isLoading && d && !(d.conflicts || []).length && (
+          {!conflicts.isLoading && conflictsTotal === 0 && (
             <p className="text-sm text-[var(--muted)]">
               No overlapping games between members yet.
             </p>
           )}
         </div>
+
+        {conflictsTotal > conflictsPageSize && (
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Button
+              variant="secondary"
+              disabled={conflictsPage <= 1}
+              onClick={() => setConflictsPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1.5"
+            >
+              Previous
+            </Button>
+            <span className="font-mono text-xs text-[var(--muted)]">
+              {conflictsPage} / {conflictsTotalPages}
+            </span>
+            <Button
+              variant="secondary"
+              disabled={conflictsPage >= conflictsTotalPages}
+              onClick={() =>
+                setConflictsPage((p) => Math.min(conflictsTotalPages, p + 1))
+              }
+              className="px-3 py-1.5"
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </section>
 
       <FamilyGameSidebar

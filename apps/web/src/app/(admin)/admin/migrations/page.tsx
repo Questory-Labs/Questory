@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, PageHeader, Panel } from "@/components/ui";
+import { useState } from "react";
+import { Button, Dialog, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 
 type MigrationItem = {
@@ -48,6 +49,7 @@ function parseResult(raw: string | null): Record<string, unknown> | null {
 
 export default function AdminMigrationsPage() {
   const qc = useQueryClient();
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const migrations = useQuery({
     queryKey: ["admin-migrations"],
     queryFn: () => api<MigrationsResponse>("/admin/migrations"),
@@ -63,6 +65,16 @@ export default function AdminMigrationsPage() {
       qc.invalidateQueries({ queryKey: ["admin-migrations"] });
     },
   });
+
+  const pendingMigration = migrations.data?.migrations.find(
+    (m) => m.key === confirmKey,
+  );
+
+  function handleConfirmRun() {
+    if (!confirmKey) return;
+    run.mutate(confirmKey);
+    setConfirmKey(null);
+  }
 
   return (
     <>
@@ -105,7 +117,7 @@ export default function AdminMigrationsPage() {
                 <Button
                   variant="secondary"
                   disabled={!migration.canRun || run.isPending}
-                  onClick={() => run.mutate(migration.key)}
+                  onClick={() => setConfirmKey(migration.key)}
                 >
                   {run.isPending && run.variables === migration.key
                     ? "Running…"
@@ -158,6 +170,36 @@ export default function AdminMigrationsPage() {
           </p>
         ) : null}
       </div>
+
+      <Dialog
+        open={confirmKey != null}
+        onClose={() => setConfirmKey(null)}
+        title={pendingMigration?.hasRun ? "Retry migration?" : "Run migration?"}
+      >
+        <p className="text-sm text-[var(--muted)]">
+          {pendingMigration?.hasRun
+            ? "This will re-run the data repair. Only retry if the previous attempt failed or you need to apply fixes again."
+            : "This will modify existing imported data. Run once after deploy, or when recovering from a failed migration."}
+        </p>
+        {pendingMigration ? (
+          <div className="mt-3 rounded border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2">
+            <p className="font-medium text-[var(--ink)]">
+              {pendingMigration.name}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {pendingMigration.description}
+            </p>
+          </div>
+        ) : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setConfirmKey(null)}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmRun} disabled={run.isPending}>
+            {pendingMigration?.hasRun ? "Retry" : "Run"}
+          </Button>
+        </div>
+      </Dialog>
     </>
   );
 }

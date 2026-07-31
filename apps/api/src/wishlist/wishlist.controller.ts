@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,9 +8,11 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { parsePageParam, parsePageSizeParam } from "@questorylabs/shared";
 import { WishlistService } from "./wishlist.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { WISHLIST_PAGE_SIZE } from "./wishlist.constants";
 
 @Controller("wishlist")
 @UseGuards(SteamAuthGuard)
@@ -20,8 +23,15 @@ export class WishlistController {
   list(
     @CurrentUser() user: { userId: string },
     @Query("store") store?: string,
+    @Query("page") pageRaw?: string,
+    @Query("pageSize") pageSizeRaw?: string,
   ) {
-    return this.wishlist.list(user.userId, store);
+    const page = parsePageParam(pageRaw, 1);
+    const pageSize = parsePageSizeParam(pageSizeRaw, WISHLIST_PAGE_SIZE);
+    if (page == null || pageSize == null) {
+      throw new BadRequestException("Invalid page or pageSize");
+    }
+    return this.wishlist.list(user.userId, store, { page, pageSize });
   }
 
   @Get("recommendations")

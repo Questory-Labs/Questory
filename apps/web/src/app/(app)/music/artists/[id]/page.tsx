@@ -12,8 +12,6 @@ import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { OverflowMarquee, PageHeader, StateMessage } from "@/components/ui";
 import { formatListenDate, musicFetch } from "@/lib/music";
 
-const LIST_LIMIT = 10;
-
 function displayLabel(
   userDisplayName: string | null | undefined,
   name: string,
@@ -226,9 +224,6 @@ function TopList({
     imageUrl?: string | null;
   }>;
 }) {
-  const visibleItems = items.slice(0, LIST_LIMIT);
-  const hasMore = items.length > LIST_LIMIT;
-
   return (
     <section>
       <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
@@ -237,7 +232,7 @@ function TopList({
       {items.length > 0 ? (
         <>
           <ol className="mt-3 space-y-2">
-            {visibleItems.map((t, i) => (
+            {items.map((t, i) => (
               <li key={t.key}>
                 <Link
                   href={t.href}
@@ -261,7 +256,7 @@ function TopList({
             ))}
           </ol>
 
-          {hasMore && moreHref ? (
+          {moreHref ? (
             <p className="mt-3 text-sm">
               <Link
                 href={moreHref}

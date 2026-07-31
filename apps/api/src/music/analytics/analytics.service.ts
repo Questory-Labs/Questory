@@ -14,6 +14,11 @@ import {
   resolveMusicService,
   resolveMusicServiceLabel,
 } from "../lib/music-service";
+import {
+  ALBUM_TOP_TRACKS_LIMIT,
+  ARTIST_TOP_ITEMS_LIMIT,
+  TOP_MOODS_LIMIT,
+} from "./analytics.constants";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type TopsKind = "artists" | "albums" | "tracks" | "genres" | "moods";
@@ -1253,9 +1258,11 @@ export class AnalyticsService {
       listenCount,
       firstListenAt: first?.listenedAt.toISOString() ?? null,
       latestListenAt: latest?.listenedAt.toISOString() ?? null,
-      topTracks: [...artistTracks.values()].sort((a, b) => b.count - a.count),
-      topAlbums,
-      topMoods: this.aggregateMoodsFromListens(artistListens),
+      topTracks: [...artistTracks.values()]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, ARTIST_TOP_ITEMS_LIMIT),
+      topAlbums: topAlbums.slice(0, ARTIST_TOP_ITEMS_LIMIT),
+      topMoods: this.aggregateMoodsFromListens(artistListens, TOP_MOODS_LIMIT),
     };
   }
 
@@ -1512,8 +1519,8 @@ export class AnalyticsService {
       peakDow: patterns.peakDow,
       topTracks: [...trackCounts.values()]
         .sort((a, b) => b.count - a.count)
-        .slice(0, 25),
-      topMoods: this.aggregateMoodsFromListens(listens, 10),
+        .slice(0, ALBUM_TOP_TRACKS_LIMIT),
+      topMoods: this.aggregateMoodsFromListens(listens, TOP_MOODS_LIMIT),
     };
   }
 

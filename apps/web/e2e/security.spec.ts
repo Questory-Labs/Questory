@@ -57,7 +57,16 @@ test("search query with script markup is escaped in UI", async ({ page }) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ games: [], friends: [], collections: [] }),
+        body: JSON.stringify({
+          games: [],
+          friends: [],
+          collections: [],
+          developers: [],
+          publishers: [],
+          music: { artists: [], albums: [], tracks: [] },
+          watch: { movies: [], shows: [] },
+          read: { titles: [] },
+        }),
       });
       return;
     }

@@ -53,3 +53,9 @@ Sole-user fallback decisions must go through `allowsSoleUserFallback()` (watch/l
 ## Module layout
 
 Feature = `x.module.ts` + `x.controller.ts` + `x.service.ts` in its own folder, wired in `app.module.ts` (or the music/watch/read aggregator module). Split services that approach 400 lines into focused collaborators registered in the same module.
+
+## Heavy work and list limits belong in the backend
+
+Complex data manipulation (aggregation, sorting, chunking, filtering, top-N selection) happens in the service layer, not the client. Never return an unbounded list from Prisma/an aggregation and let the frontend `.slice()`/paginate it client-side — that ships the full dataset over the wire for no reason (the `artistDetail` `topTracks`/`topAlbums` returning every track/album instead of the top 10 was the bug, not the pattern). Cap query results and in-memory aggregations with `.slice(0, LIMIT)` / Prisma `take` before returning.
+
+Magic numbers for these caps (`take: 25`, `.slice(0, 10)`, batch/chunk sizes) go in a module-local `x.constants.ts` (e.g. `analytics.constants.ts`) and get imported — never inlined ad hoc across a service.

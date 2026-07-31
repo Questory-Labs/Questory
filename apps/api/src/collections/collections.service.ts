@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { parseStringArray } from "../lib/json-arrays";
+import { COLLECTION_GAMES_PAGE_SIZE } from "./collections.constants";
 
 const AUTO_RULES: {
   key: string;
@@ -190,21 +191,46 @@ export class CollectionsService {
     if (count === 0) await this.rebuildAutoCollections(userId);
   }
 
-  async getOne(userId: string, id: string) {
+  async getOne(
+    userId: string,
+    id: string,
+    opts: { page?: number; pageSize?: number } = {},
+  ) {
     const collection = await this.prisma.collection.findFirst({
       where: { id, userId },
-      include: {
-        items: { include: { game: true }, take: 100 },
-      },
     });
     if (!collection) throw new NotFoundException();
+
+    const take = Math.min(
+      Math.max(opts.pageSize ?? COLLECTION_GAMES_PAGE_SIZE, 1),
+      100,
+    );
+    const safePage = Math.max(opts.page ?? 1, 1);
+    const skip = (safePage - 1) * take;
+
+    const [total, items] = await Promise.all([
+      this.prisma.collectionItem.count({
+        where: { collectionId: collection.id },
+      }),
+      this.prisma.collectionItem.findMany({
+        where: { collectionId: collection.id },
+        include: { game: true },
+        orderBy: { game: { name: "asc" } },
+        skip,
+        take,
+      }),
+    ]);
+
     return {
       id: collection.id,
       name: collection.name,
       type: collection.type,
       ruleKey: collection.ruleKey,
       description: collection.description,
-      games: collection.items.map((i) => ({
+      total,
+      page: safePage,
+      pageSize: take,
+      games: items.map((i) => ({
         appId: i.game.appId,
         name: i.game.name,
         headerImage: i.game.headerImage,

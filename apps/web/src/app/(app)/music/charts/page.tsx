@@ -13,10 +13,9 @@ import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { Button, OverflowMarquee, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { formatShare, musicFetch } from "@/lib/music";
+import { MUSIC_CHARTS_PAGE_SIZE } from "@/lib/pagination";
 
 type TopsKind = "artists" | "albums" | "tracks" | "genres" | "moods";
-
-const PAGE_SIZE = 25;
 
 const KINDS: { value: TopsKind; label: string }[] = [
   { value: "artists", label: "Artists" },
@@ -61,7 +60,7 @@ function MusicChartsInner() {
     queryKey: ["music-tops", kind, range, page],
     queryFn: () =>
       musicFetch<MusicTopsResponse>(
-        `/analytics/tops/${kind}?range=${range}&page=${page}&pageSize=${PAGE_SIZE}`,
+        `/analytics/tops/${kind}?range=${range}&page=${page}&pageSize=${MUSIC_CHARTS_PAGE_SIZE}`,
       ),
   });
 
@@ -84,7 +83,7 @@ function MusicChartsInner() {
   const periodListens = tops.data?.periodListens ?? 0;
   const items = tops.data?.items ?? [];
   const total = tops.data?.total ?? 0;
-  const pageSize = tops.data?.pageSize ?? PAGE_SIZE;
+  const pageSize = tops.data?.pageSize ?? MUSIC_CHARTS_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const rankOffset = (page - 1) * pageSize;
 

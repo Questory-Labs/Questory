@@ -20,8 +20,7 @@ import {
   groupListensByDay,
   musicFetch,
 } from "@/lib/music";
-
-const PAGE_SIZE = 50;
+import { MUSIC_LISTENING_PAGE_SIZE } from "@/lib/pagination";
 
 export default function MusicListeningPage() {
   const [page, setPage] = useState(1);
@@ -29,13 +28,13 @@ export default function MusicListeningPage() {
     queryKey: ["music-recent", page],
     queryFn: () =>
       musicFetch<MusicRecentPage>(
-        `/analytics/recent?page=${page}&pageSize=${PAGE_SIZE}`,
+        `/analytics/recent?page=${page}&pageSize=${MUSIC_LISTENING_PAGE_SIZE}`,
       ),
   });
   const playing = useMusicPlayingNow();
 
   const total = recent.data?.total ?? 0;
-  const pageSize = recent.data?.pageSize ?? PAGE_SIZE;
+  const pageSize = recent.data?.pageSize ?? MUSIC_LISTENING_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const items = recent.data?.items ?? [];
   const dayGroups = groupListensByDay(items);

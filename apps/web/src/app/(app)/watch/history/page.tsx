@@ -6,9 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { WatchRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { formatDateTime } from "@/lib/dates";
+import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
 import { formatYourWatchRating, watchFetch } from "@/lib/watch";
-
-const PAGE_SIZE = 40;
 
 export default function WatchHistoryPage() {
   const [page, setPage] = useState(1);
@@ -16,7 +15,7 @@ export default function WatchHistoryPage() {
     queryKey: ["watch-recent", page],
     queryFn: () =>
       watchFetch<WatchRecentPage>(
-        `/analytics/recent?page=${page}&pageSize=${PAGE_SIZE}`,
+        `/analytics/recent?page=${page}&pageSize=${MEDIA_HISTORY_PAGE_SIZE}`,
       ),
   });
 

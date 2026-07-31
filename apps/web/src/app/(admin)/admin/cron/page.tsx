@@ -1,8 +1,10 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
+import { ADMIN_CRON_PAGE_SIZE } from "@/lib/pagination";
 
 const JOBS = [
   "daily-refresh",
@@ -37,18 +39,36 @@ type CronStatus = {
   jobs: CronJobStatus[];
 };
 
+type CronRunsResponse = {
+  page: number;
+  pageSize: number;
+  total: number;
+  runs: CronRun[];
+};
+
 export default function AdminCronPage() {
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
   const status = useQuery({
     queryKey: ["admin-cron-status"],
     queryFn: () => api<CronStatus>("/admin/cron/status"),
     refetchInterval: 10_000,
   });
   const runs = useQuery({
-    queryKey: ["admin-cron-runs"],
-    queryFn: () => api<{ runs: CronRun[] }>("/admin/cron/runs"),
+    queryKey: ["admin-cron-runs", page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(ADMIN_CRON_PAGE_SIZE),
+      });
+      return api<CronRunsResponse>(`/admin/cron/runs?${params}`);
+    },
     refetchInterval: 10_000,
   });
+
+  const totalPages = runs.data
+    ? Math.max(1, Math.ceil(runs.data.total / runs.data.pageSize))
+    : 1;
 
   const trigger = useMutation({
     mutationFn: (jobName: string) =>
@@ -170,10 +190,34 @@ export default function AdminCronPage() {
             ) : null}
           </Panel>
         ))}
-        {!runs.data?.runs?.length ? (
+        {!runs.isLoading && !runs.data?.runs?.length ? (
           <p className="text-sm text-[var(--muted)]">No cron runs recorded.</p>
         ) : null}
       </div>
+
+      {runs.data && runs.data.total > runs.data.pageSize ? (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5"
+          >
+            Previous
+          </Button>
+          <span className="font-mono text-xs text-[var(--muted)]">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="px-3 py-1.5"
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 }

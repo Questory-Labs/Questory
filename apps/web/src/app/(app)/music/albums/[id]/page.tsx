@@ -24,8 +24,7 @@ import {
 } from "@/components/ui";
 import { withTz } from "@/lib/dates";
 import { formatListenDateTime, formatMinutes, musicFetch } from "@/lib/music";
-
-const PAGE_SIZE = 20;
+import { MUSIC_DETAIL_LISTENS_PAGE_SIZE } from "@/lib/pagination";
 
 function displayLabel(
   userDisplayName: string | null | undefined,
@@ -54,7 +53,7 @@ export default function MusicAlbumPage() {
     queryKey: ["music-album-listens", id, range, page],
     queryFn: () =>
       musicFetch<MusicAlbumListenPage>(
-        `/analytics/albums/${id}/listens?range=${range}&page=${page}&pageSize=${PAGE_SIZE}`,
+        `/analytics/albums/${id}/listens?range=${range}&page=${page}&pageSize=${MUSIC_DETAIL_LISTENS_PAGE_SIZE}`,
       ),
     enabled: Boolean(id),
   });
@@ -118,7 +117,7 @@ export default function MusicAlbumPage() {
   );
 
   const total = listens.data?.total ?? 0;
-  const pageSize = listens.data?.pageSize ?? PAGE_SIZE;
+  const pageSize = listens.data?.pageSize ?? MUSIC_DETAIL_LISTENS_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const listenItems = listens.data?.items ?? [];
 
