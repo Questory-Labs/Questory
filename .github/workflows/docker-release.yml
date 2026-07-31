@@ -5,28 +5,25 @@ name: Docker Release
 #
 # Triggers:
 #   - Push tag: docker-api-1.0.0, docker-web-1.2.3
-#   - Manual: Actions → Docker Release → Run workflow (service + version)
+#   - Manual: Actions → Manual Release → Run workflow
 on:
   push:
     tags:
       - "docker-api-*"
       - "docker-web-*"
-  workflow_dispatch:
+  workflow_call:
     inputs:
       service:
         description: Service to build and publish
         required: true
-        type: choice
-        options:
-          - api
-          - web
+        type: string
       version:
         description: Release version (semver, e.g. 1.2.3)
         required: true
         type: string
 
 concurrency:
-  group: docker-release-${{ github.event_name == 'workflow_dispatch' && format('docker-{0}-{1}', github.event.inputs.service, github.event.inputs.version) || github.ref }}
+  group: docker-release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -63,10 +60,10 @@ jobs:
       - name: Resolve release tag
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ github.event.inputs.version }}"
+          if [ "${{ github.event_name }}" = "workflow_call" ]; then
+            version="${{ inputs.version }}"
             version="${version#v}"
-            tag="docker-${{ github.event.inputs.service }}-${version}"
+            tag="docker-${{ inputs.service }}-${version}"
           else
             tag="${{ github.ref_name }}"
           fi

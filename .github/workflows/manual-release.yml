@@ -1,0 +1,52 @@
+name: Manual Release
+
+# Single entry point for manual releases from the Actions UI.
+# Actions → Manual Release → Run workflow
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release pipeline
+        required: true
+        type: choice
+        options:
+          - docker
+          - service
+      service:
+        description: Service to release
+        required: true
+        type: choice
+        options:
+          - api
+          - web
+      version:
+        description: Version (semver, e.g. 1.2.3)
+        required: true
+        type: string
+
+concurrency:
+  group: manual-release-${{ inputs.release_type }}-${{ inputs.service }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  docker:
+    name: Docker release
+    if: inputs.release_type == 'docker'
+    uses: ./.github/workflows/docker-release.yml
+    with:
+      service: ${{ inputs.service }}
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  service:
+    name: Service release
+    if: inputs.release_type == 'service'
+    uses: ./.github/workflows/service-release.yml
+    with:
+      service: ${{ inputs.service }}
+      version: ${{ inputs.version }}
+    secrets: inherit

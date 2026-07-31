@@ -4,28 +4,25 @@ name: Service Release
 #
 # Triggers:
 #   - Push tag: service-api-1.0.0, service-web-1.2.3 (version must match a prior docker-* release)
-#   - Manual: Actions → Service Release → Run workflow (service + version)
+#   - Manual: Actions → Manual Release → Run workflow
 on:
   push:
     tags:
       - "service-api-*"
       - "service-web-*"
-  workflow_dispatch:
+  workflow_call:
     inputs:
       service:
         description: Service to release (Docker image must already exist)
         required: true
-        type: choice
-        options:
-          - api
-          - web
+        type: string
       version:
         description: Release version (semver, e.g. 1.2.3)
         required: true
         type: string
 
 concurrency:
-  group: service-release-${{ github.event_name == 'workflow_dispatch' && format('service-{0}-{1}', github.event.inputs.service, github.event.inputs.version) || github.ref }}
+  group: service-release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -52,10 +49,10 @@ jobs:
       - name: Resolve release tag
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ github.event.inputs.version }}"
+          if [ "${{ github.event_name }}" = "workflow_call" ]; then
+            version="${{ inputs.version }}"
             version="${version#v}"
-            tag="service-${{ github.event.inputs.service }}-${version}"
+            tag="service-${{ inputs.service }}-${version}"
           else
             tag="${{ github.ref_name }}"
           fi
@@ -135,10 +132,10 @@ jobs:
       - name: Resolve release tag
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ github.event.inputs.version }}"
+          if [ "${{ github.event_name }}" = "workflow_call" ]; then
+            version="${{ inputs.version }}"
             version="${version#v}"
-            tag="service-${{ github.event.inputs.service }}-${version}"
+            tag="service-${{ inputs.service }}-${version}"
           else
             tag="${{ github.ref_name }}"
           fi

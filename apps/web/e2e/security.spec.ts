@@ -1,7 +1,5 @@
 import { test, expect } from "@playwright/test";
-
-/** Match both localhost and 127.0.0.1 (CI sets NEXT_PUBLIC_API_URL to the latter). */
-const API = /https?:\/\/(?:localhost|127\.0\.0\.1):4000\//;
+import { mockAuthedApi } from "./helpers";
 
 test("httpOnly session cookie is not readable from JS", async ({ page }) => {
   await page.context().addCookies([
@@ -20,67 +18,17 @@ test("httpOnly session cookie is not readable from JS", async ({ page }) => {
 });
 
 test("search query with script markup is escaped in UI", async ({ page }) => {
-  await page.route(API, async (route) => {
-    const url = route.request().url();
-    if (url.includes("/auth/me")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          user: {
-            id: "u1",
-            steamId: "76561198000000000",
-            personaName: "Alice",
-            avatarUrl: null,
-          },
-        }),
-      });
-      return;
-    }
-    if (url.includes("/sync/jobs")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ jobs: [] }),
-      });
-      return;
-    }
-    if (url.includes("/notifications/unread-count")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ count: 0 }),
-      });
-      return;
-    }
-    if (url.includes("/search")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          games: [],
-          friends: [],
-          collections: [],
-          developers: [],
-          publishers: [],
-          music: { artists: [], albums: [], tracks: [] },
-          watch: { movies: [], shows: [] },
-          read: { titles: [] },
-        }),
-      });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: "{}",
-    });
-  });
+  await mockAuthedApi(page);
   const q = "<img onerror=alert(1)>";
   await page.goto(`/search?q=${encodeURIComponent(q)}`);
-  await expect(page.getByText(`Results for “${q}”`)).toBeVisible({
-    timeout: 15_000,
+
+  const searchHeader = page.locator("header", {
+    has: page.getByRole("heading", { name: "Search", level: 1 }),
   });
+  await expect(searchHeader).toBeVisible({ timeout: 15_000 });
+  await expect(searchHeader).toContainText("Results for");
+  await expect(searchHeader).toContainText(q);
+
   // Must not create an executable img-onerror node from the query string
-  await expect(page.locator('img[onerror]')).toHaveCount(0);
+  await expect(page.locator("img[onerror]")).toHaveCount(0);
 });
