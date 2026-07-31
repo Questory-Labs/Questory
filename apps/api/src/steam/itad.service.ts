@@ -1,8 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CacheService } from "../cache/cache.service";
+import { normalizeMajorPrice } from "../lib/store-price";
 import { ITAD_SHOP_IDS, StoreId } from "../stores/store.constants";
 
 const CHUNK = 150;
+const LOOKUP_CHUNK = 200;
 const MAX_429_RETRIES = 3;
 const DEFAULT_RETRY_AFTER_MS = 5_000;
 const MAX_RETRY_AFTER_MS = 300_000;
@@ -12,7 +14,17 @@ export type ItadPriceHistoryPoint = {
   price: number;
 };
 
-export type ItadPrice = { current: number | null; lowest: number | null };
+export type ItadPrice = {
+  current: number | null;
+  lowest: number | null;
+  currency?: string | null;
+};
+
+type ItadMoney = {
+  amount?: number;
+  amountInt?: number;
+  currency?: string;
+};
 
 @Injectable()
 export class ItadService {
@@ -78,61 +90,8 @@ export class ItadService {
     externalId: string,
   ): Promise<string | null> {
     if (!this.apiKey || !externalId) return null;
-    const cacheKey = `itad:lookup:shop:${store}:${externalId}`;
-    const cached = await this.cache.getJson<{ id: string | null }>(cacheKey);
-    if (cached) return cached.id;
-
-    try {
-      if (store === "steam" && /^\d+$/.test(externalId)) {
-        const url = `https://api.isthereanydeal.com/games/lookup/v1?key=${this.apiKey}&appid=${externalId}`;
-        const res = await this.fetchItad(url);
-        if (!res.ok) {
-          this.logger.warn(
-            `ITAD lookup failed for steam/${externalId}: ${res.status}`,
-          );
-          // Do not cache transient failures (429/5xx) as "not found".
-          return null;
-        }
-        const data = (await res.json()) as {
-          found?: boolean;
-          game?: { id?: string };
-          id?: string;
-        };
-        const id =
-          (data.found !== false && data.game?.id) || data.id || null;
-        await this.cache.setJson(cacheKey, { id }, id ? 86400 : 3600);
-        return id;
-      }
-
-      const shopId = ITAD_SHOP_IDS[store];
-      const url = `https://api.isthereanydeal.com/lookup/id/shop/${shopId}/v1?key=${this.apiKey}`;
-      const res = await this.fetchItad(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([externalId]),
-      });
-      if (!res.ok) {
-        this.logger.warn(
-          `ITAD shop lookup failed for ${store}/${externalId}: ${res.status}`,
-        );
-        return null;
-      }
-      const data = (await res.json()) as Record<string, string | null> | Array<{
-        shopId?: string;
-        id?: string;
-      }>;
-      let id: string | null = null;
-      if (Array.isArray(data)) {
-        id = data.find((r) => r.shopId === externalId || r.id)?.id ?? null;
-      } else if (data && typeof data === "object") {
-        id = data[externalId] ?? null;
-      }
-      await this.cache.setJson(cacheKey, { id }, id ? 86400 : 3600);
-      return id;
-    } catch (err) {
-      this.logger.warn(`ITAD lookup error for ${store}/${externalId}: ${err}`);
-      return null;
-    }
+    const map = await this.resolveItadIds(store, [externalId]);
+    return map.get(externalId) ?? null;
   }
 
   async getPriceHistory(
@@ -218,21 +177,75 @@ export class ItadService {
     return this.getPriceHistory("steam", String(appId), countryCode);
   }
 
-  private overviewBodyId(store: StoreId, externalId: string): string {
+  private shopLookupBodyId(store: StoreId, externalId: string): string {
     if (store === "steam") return `app/${externalId}`;
     return externalId;
   }
 
-  private parseOverviewId(
+  private parseItadPrice(price?: ItadMoney | null): {
+    amount: number | null;
+    currency: string | null;
+  } {
+    if (!price) return { amount: null, currency: null };
+    return {
+      amount: normalizeMajorPrice(price.amount, price.amountInt),
+      currency: price.currency?.trim().toUpperCase() || null,
+    };
+  }
+
+  /** Batch-resolve shop listing ids to ITAD game UUIDs. */
+  private async resolveItadIds(
     store: StoreId,
-    rowId: string | undefined,
-  ): string | null {
-    if (!rowId) return null;
-    if (store === "steam") {
-      const match = rowId.match(/app\/(\d+)/);
-      return match?.[1] ?? null;
+    externalIds: string[],
+  ): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    if (!this.apiKey || !externalIds.length) return map;
+
+    const missing: string[] = [];
+    for (const extId of externalIds) {
+      const cacheKey = `itad:lookup:shop:${store}:${extId}`;
+      const cached = await this.cache.getJson<{ id: string | null }>(cacheKey);
+      if (cached?.id) {
+        map.set(extId, cached.id);
+      } else if (!cached) {
+        missing.push(extId);
+      }
     }
-    return rowId;
+
+    if (!missing.length) return map;
+
+    const shopId = ITAD_SHOP_IDS[store];
+    for (let i = 0; i < missing.length; i += LOOKUP_CHUNK) {
+      const chunk = missing.slice(i, i + LOOKUP_CHUNK);
+      const bodyIds = chunk.map((id) => this.shopLookupBodyId(store, id));
+
+      try {
+        const url = `https://api.isthereanydeal.com/lookup/id/shop/${shopId}/v1?key=${this.apiKey}`;
+        const res = await this.fetchItad(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bodyIds),
+        });
+        if (!res.ok) {
+          this.logger.warn(
+            `ITAD batch shop lookup failed (${store}): ${res.status}`,
+          );
+          continue;
+        }
+        const data = (await res.json()) as Record<string, string | null>;
+        for (const extId of chunk) {
+          const key = this.shopLookupBodyId(store, extId);
+          const id = data[key] ?? null;
+          const cacheKey = `itad:lookup:shop:${store}:${extId}`;
+          await this.cache.setJson(cacheKey, { id }, id ? 86400 : 3600);
+          if (id) map.set(extId, id);
+        }
+      } catch (err) {
+        this.logger.warn(`ITAD batch lookup error (${store}): ${err}`);
+      }
+    }
+
+    return map;
   }
 
   private async fetchOverviewChunk(
@@ -244,8 +257,16 @@ export class ItadService {
   ) {
     const result = { ...fallback };
     try {
-      const sortedKey = [...externalIds].sort().join(",");
-      const cacheKey = `itad:prices:v4:${store}:${country}:${sortedKey}`;
+      const idMap = await this.resolveItadIds(store, externalIds);
+      const uuidToExt = new Map<string, string>();
+      for (const [extId, uuid] of idMap.entries()) {
+        uuidToExt.set(uuid, extId);
+      }
+      const uuids = [...idMap.values()];
+      if (!uuids.length) return result;
+
+      const sortedKey = [...uuids].sort().join(",");
+      const cacheKey = `itad:prices:v5:${store}:${country}:${sortedKey}`;
       const cached = await this.cache.getJson<typeof result>(cacheKey);
       if (cached) return cached;
 
@@ -253,9 +274,7 @@ export class ItadService {
       const res = await this.fetchItad(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          externalIds.map((id) => this.overviewBodyId(store, id)),
-        ),
+        body: JSON.stringify(uuids),
       });
       if (!res.ok) {
         this.logger.warn(`ITAD overview failed (${store}): ${res.status}`);
@@ -264,16 +283,19 @@ export class ItadService {
       const data = (await res.json()) as {
         prices?: {
           id?: string;
-          current?: { price?: { amount?: number } };
-          lowest?: { price?: { amount?: number } };
+          current?: { price?: ItadMoney };
+          lowest?: { price?: ItadMoney };
         }[];
       };
       for (const row of data.prices || []) {
-        const extId = this.parseOverviewId(store, row.id);
+        const extId = row.id ? uuidToExt.get(row.id) : null;
         if (!extId) continue;
+        const currentParsed = this.parseItadPrice(row.current?.price);
+        const lowestParsed = this.parseItadPrice(row.lowest?.price);
         result[extId] = {
-          current: row.current?.price?.amount ?? null,
-          lowest: row.lowest?.price?.amount ?? null,
+          current: currentParsed.amount,
+          lowest: lowestParsed.amount,
+          currency: currentParsed.currency ?? lowestParsed.currency ?? null,
         };
       }
       await this.cache.setJson(cacheKey, result, 1800);
@@ -309,7 +331,6 @@ export class ItadService {
             : " (giving up)"),
       );
       if (attempt >= MAX_429_RETRIES) return res;
-      // Next loop iteration blocks in waitForRateLimit until cooldown ends.
     }
     return new Response(null, { status: 429 });
   }

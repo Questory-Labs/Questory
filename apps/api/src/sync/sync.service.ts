@@ -22,6 +22,7 @@ import {
   stringifyStringArray,
 } from "../lib/json-arrays";
 import { currencyFromCountry, normalizePriceCountry } from "../lib/currency";
+import { isSuspiciousPrice } from "../lib/store-price";
 import { resolveSyncMode } from "../lib/runtime-config";
 import { parseSteamReleaseDate } from "../lib/steam-dates";
 import { truncateToUtcHour } from "./play-activity";
@@ -434,7 +435,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     if (!entries.length) return { priced: 0 };
 
     const countryCode = normalizePriceCountry(user?.countryCode);
-    const currency = currencyFromCountry(countryCode);
+    const fallbackCurrency = currencyFromCountry(countryCode);
     const steamAppIds = entries
       .map((e) => e.game.appId)
       .filter((id): id is number => id != null);
@@ -450,11 +451,31 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       if (appId == null) continue;
       const itad = itadPrices[appId];
       if (itad?.current == null && itad?.lowest == null) continue;
-      const current = itad.current;
-      const lowest =
+
+      const currency = itad.currency ?? fallbackCurrency;
+      let current = itad.current;
+      let lowest =
         itad.lowest != null && current != null
           ? Math.min(itad.lowest, current)
           : (itad.lowest ?? current);
+
+      if (current != null && isSuspiciousPrice(current, currency, null)) {
+        const steamMajor = await this.steamMajorPrice(appId, countryCode);
+        if (isSuspiciousPrice(current, currency, steamMajor)) {
+          this.logger.warn(
+            `ITAD price rejected for app ${appId}: ${current} ${currency}`,
+          );
+          continue;
+        }
+        if (
+          lowest != null &&
+          steamMajor != null &&
+          isSuspiciousPrice(lowest, currency, steamMajor)
+        ) {
+          lowest = steamMajor;
+        }
+      }
+
       await this.applyGamePrices(appId, {
         current,
         lowest,
@@ -474,10 +495,14 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
         if (e.game.appId == null || pricedByItad.has(e.game.appId)) return false;
         const g = e.game;
         if (g.isFree) return g.currentPrice == null;
+        const priceCurrency = g.priceCurrency || fallbackCurrency;
+        const suspicious =
+          g.currentPrice != null &&
+          isSuspiciousPrice(g.currentPrice, priceCurrency, null);
         const stale =
           !g.priceSyncedAt ||
           Date.now() - g.priceSyncedAt.getTime() > 1000 * 60 * 60 * 24 * 7;
-        return g.currentPrice == null || stale;
+        return g.currentPrice == null || stale || suspicious;
       })
       .slice(0, steamLimit);
 
@@ -506,6 +531,18 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     });
 
     return { priced };
+  }
+
+  private async steamMajorPrice(
+    appId: number,
+    countryCode?: string | null,
+  ): Promise<number | null> {
+    const details = await this.steam.getAppDetails(appId, countryCode);
+    if (details?.is_free) return 0;
+    if (details?.price_overview?.final != null) {
+      return details.price_overview.final / 100;
+    }
+    return null;
   }
 
   private async applyGamePrices(

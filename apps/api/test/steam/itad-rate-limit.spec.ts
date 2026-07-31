@@ -39,7 +39,7 @@ describe("ItadService 429 handling", () => {
         }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ found: true, game: { id: "uuid-1" } }), {
+        new Response(JSON.stringify({ "app/123": "uuid-1" }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),

@@ -189,12 +189,13 @@ export class StoresService implements OnModuleInit {
         p.lowest != null && current != null
           ? Math.min(p.lowest, current)
           : (p.lowest ?? current);
+      const listingCurrency = p.currency ?? currency;
       await this.prisma.gameStoreListing.update({
         where: { id: o.listing.id },
         data: {
           currentPrice: current,
           lowestPrice: lowest,
-          priceCurrency: currency,
+          priceCurrency: listingCurrency,
           priceSyncedAt: new Date(),
           isFree: current === 0,
         },
