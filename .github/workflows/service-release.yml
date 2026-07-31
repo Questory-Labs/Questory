@@ -1,14 +1,32 @@
 name: Service Release
 
 # Deploys / releases a service using an already-published Docker image.
-# Tag examples (version should match a prior docker-* release):
-#   service-api-1.0.0
-#   service-web-1.2.3
+#
+# Triggers:
+#   - Push tag: service-api-1.0.0, service-web-1.2.3 (version must match a prior docker-* release)
+#   - Manual: Actions → Service Release → Run workflow (service + version)
 on:
   push:
     tags:
       - "service-api-*"
       - "service-web-*"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to release (Docker image must already exist)
+        required: true
+        type: choice
+        options:
+          - api
+          - web
+      version:
+        description: Release version (semver, e.g. 1.2.3)
+        required: true
+        type: string
+
+concurrency:
+  group: service-release-${{ github.event_name == 'workflow_dispatch' && format('service-{0}-{1}', github.event.inputs.service, github.event.inputs.version) || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -31,9 +49,22 @@ jobs:
         with:
           install: "false"
 
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+            version="${version#v}"
+            tag="service-${{ github.event.inputs.service }}-${version}"
+          else
+            tag="${{ github.ref_name }}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${tag}"
+
       - name: Parse tag
         id: meta
-        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+        run: node scripts/ci-parse-tag.mjs "${{ steps.tag.outputs.tag }}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -56,7 +87,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.tag }}
           name: Service ${{ steps.meta.outputs.service }} ${{ steps.meta.outputs.version }}
           generate_release_notes: true
           body: |
@@ -101,9 +132,21 @@ jobs:
         with:
           install: "false"
 
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+            version="${version#v}"
+            tag="service-${{ github.event.inputs.service }}-${version}"
+          else
+            tag="${{ github.ref_name }}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
       - name: Parse tag
         id: meta
-        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+        run: node scripts/ci-parse-tag.mjs "${{ steps.tag.outputs.tag }}"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.5

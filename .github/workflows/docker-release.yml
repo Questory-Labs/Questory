@@ -3,14 +3,31 @@ name: Docker Release
 # Community images only (api / web). QEngine is released from the private
 # Questory-Labs/QEngine repo (tag docker-qengine-*); binary-only, no source in image.
 #
-# Tag examples:
-#   docker-api-1.0.0
-#   docker-web-1.2.3
+# Triggers:
+#   - Push tag: docker-api-1.0.0, docker-web-1.2.3
+#   - Manual: Actions → Docker Release → Run workflow (service + version)
 on:
   push:
     tags:
       - "docker-api-*"
       - "docker-web-*"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to build and publish
+        required: true
+        type: choice
+        options:
+          - api
+          - web
+      version:
+        description: Release version (semver, e.g. 1.2.3)
+        required: true
+        type: string
+
+concurrency:
+  group: docker-release-${{ github.event_name == 'workflow_dispatch' && format('docker-{0}-{1}', github.event.inputs.service, github.event.inputs.version) || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -26,6 +43,7 @@ jobs:
     name: Parse tag
     runs-on: self-hosted
     outputs:
+      tag: ${{ steps.tag.outputs.tag }}
       service: ${{ steps.meta.outputs.service }}
       version: ${{ steps.meta.outputs.version }}
       package: ${{ steps.meta.outputs.package }}
@@ -42,9 +60,22 @@ jobs:
         with:
           install: "false"
 
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+            version="${version#v}"
+            tag="docker-${{ github.event.inputs.service }}-${version}"
+          else
+            tag="${{ github.ref_name }}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${tag}"
+
       - name: Parse tag
         id: meta
-        run: node scripts/ci-parse-tag.mjs "${{ github.ref_name }}"
+        run: node scripts/ci-parse-tag.mjs "${{ steps.tag.outputs.tag }}"
 
   test-shared:
     name: Test shared
@@ -209,7 +240,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.meta.outputs.tag }}
           name: Docker ${{ needs.meta.outputs.service }} ${{ needs.meta.outputs.version }}
           generate_release_notes: true
           body: |
