@@ -6,9 +6,12 @@ import { ScraperEngineService } from "../../scraper/scraper-engine.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
 import {
+  letterboxdEquivKeyFromDedupeKey,
   letterboxdWatchDedupeKey,
+  letterboxdWatchEquivKey,
   watchedAtDayUtc,
 } from "../imports/letterboxd-keys";
+import { LetterboxdService } from "../imports/letterboxd.service";
 import { LetterboxdConnectService } from "./letterboxd-connect.service";
 import { normalizeLetterboxdScrapeRows } from "./letterboxd-row-parse";
 
@@ -20,6 +23,11 @@ type ParsedRow = {
   year: number | null;
   dateStr: string;
   rating: number | null;
+};
+
+type KnownWatchKeys = {
+  exactKeys: Set<string>;
+  equivKeys: Set<string>;
 };
 
 @Injectable()
@@ -34,6 +42,7 @@ export class LetterboxdScrapeSyncService {
     private readonly engine: ScraperEngineService,
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
+    private readonly letterboxd: LetterboxdService,
   ) {}
 
   async syncAll(): Promise<{
@@ -103,7 +112,7 @@ export class LetterboxdScrapeSyncService {
       });
       macros["user.letterboxdId"] = letterboxdId;
 
-      const knownKeys = await this.loadKnownDedupeKeys(userId);
+      const knownWatchKeys = await this.loadKnownWatchKeys(userId);
       let imported = 0;
       let skipped = 0;
       let stoppedEarly = false;
@@ -127,8 +136,15 @@ export class LetterboxdScrapeSyncService {
               parsed.year,
               parsed.dateStr,
             );
+            const equivKey = letterboxdWatchEquivKey(
+              parsed.title,
+              parsed.dateStr,
+            );
 
-            if (knownKeys.has(dedupeKey)) {
+            if (
+              knownWatchKeys.exactKeys.has(dedupeKey) ||
+              knownWatchKeys.equivKeys.has(equivKey)
+            ) {
               foundKnown = true;
               skipped += 1;
               continue;
@@ -158,7 +174,8 @@ export class LetterboxdScrapeSyncService {
               rawPayload: JSON.stringify(row),
             });
 
-            knownKeys.add(dedupeKey);
+            knownWatchKeys.exactKeys.add(dedupeKey);
+            knownWatchKeys.equivKeys.add(equivKey);
             importedTitleIds.push(title.id);
             imported += 1;
             if (!latestDate || parsed.dateStr > latestDate) {
@@ -191,13 +208,15 @@ export class LetterboxdScrapeSyncService {
         },
       });
 
+      await this.letterboxd.repairLetterboxdDuplicates(userId);
+
       return { imported, skipped, stoppedEarly };
     } finally {
       this.syncingUsers.delete(userId);
     }
   }
 
-  private async loadKnownDedupeKeys(userId: string): Promise<Set<string>> {
+  private async loadKnownWatchKeys(userId: string): Promise<KnownWatchKeys> {
     const events = await this.prisma.watchEvent.findMany({
       where: {
         userId,
@@ -207,9 +226,26 @@ export class LetterboxdScrapeSyncService {
           { dedupeKey: { startsWith: "letterboxd_csv:" } },
         ],
       },
-      select: { dedupeKey: true },
+      select: {
+        dedupeKey: true,
+        watchedAt: true,
+        title: { select: { name: true } },
+      },
     });
-    return new Set(events.map((e) => e.dedupeKey));
+
+    const exactKeys = new Set<string>();
+    const equivKeys = new Set<string>();
+    for (const event of events) {
+      exactKeys.add(event.dedupeKey);
+      equivKeys.add(
+        letterboxdEquivKeyFromDedupeKey(
+          event.dedupeKey,
+          event.title.name,
+          event.watchedAt,
+        ),
+      );
+    }
+    return { exactKeys, equivKeys };
   }
 
   private parseRow(row: Record<string, string | null>): ParsedRow | null {

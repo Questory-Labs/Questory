@@ -224,7 +224,10 @@ export class LetterboxdService {
   async repairLetterboxdDuplicates(userId?: string) {
     const events = await this.prisma.watchEvent.findMany({
       where: {
-        source: "letterboxd_csv",
+        OR: [
+          { source: { in: ["letterboxd", "letterboxd_csv"] } },
+          { dedupeKey: { startsWith: "letterboxd_csv:" } },
+        ],
         ...(userId ? { userId } : {}),
       },
       include: {

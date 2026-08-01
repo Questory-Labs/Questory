@@ -8,6 +8,13 @@ export const metadata: Metadata = {
   title: "Questory",
   description:
     "Steam-first library and media intelligence — games, music, movies/TV, and reading",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "48x48" },
@@ -27,14 +34,14 @@ export const metadata: Metadata = {
     url: "https://questorylabs.com",
     siteName: "Questory",
     type: "website",
-    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512 }],
+    images: [{ url: "/og.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Questory",
     description:
       "Steam-first library and media intelligence — games, music, movies/TV, and reading",
-    images: ["/web-app-manifest-512x512.png"],
+    images: ["/og.png"],
   },
 };
 

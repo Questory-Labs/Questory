@@ -7,6 +7,8 @@ import type { ScraperEngineService } from "../../src/scraper/scraper-engine.serv
 import type { CatalogService } from "../../src/watch/catalog/catalog.service";
 import type { EnrichmentService } from "../../src/watch/enrichment/enrichment.service";
 import type { LetterboxdConnectService } from "../../src/watch/letterboxd/letterboxd-connect.service";
+import type { LetterboxdService } from "../../src/watch/imports/letterboxd.service";
+import { watchedAtDayUtc } from "../../src/watch/imports/letterboxd-keys";
 
 describe("LetterboxdScrapeSyncService", () => {
   let prisma: {
@@ -25,6 +27,7 @@ describe("LetterboxdScrapeSyncService", () => {
     rebuildWatchHourBuckets: ReturnType<typeof vi.fn>;
   };
   let enrichment: { enqueueTitle: ReturnType<typeof vi.fn> };
+  let letterboxd: { repairLetterboxdDuplicates: ReturnType<typeof vi.fn> };
   let service: LetterboxdScrapeSyncService;
 
   beforeEach(() => {
@@ -32,8 +35,9 @@ describe("LetterboxdScrapeSyncService", () => {
       watchEvent: {
         findMany: vi.fn().mockResolvedValue([
           {
-            dedupeKey:
-              "letterboxd_csv:watch:fight-club:1999:2024-08-15",
+            dedupeKey: "letterboxd_csv:watch:fight-club:1999:2024-08-15",
+            watchedAt: watchedAtDayUtc("2024-08-15"),
+            title: { name: "Fight Club" },
           },
         ]),
       },
@@ -84,6 +88,14 @@ describe("LetterboxdScrapeSyncService", () => {
       rebuildWatchHourBuckets: vi.fn().mockResolvedValue(undefined),
     };
     enrichment = { enqueueTitle: vi.fn() };
+    letterboxd = {
+      repairLetterboxdDuplicates: vi.fn().mockResolvedValue({
+        scanned: 0,
+        groups: 0,
+        merged: 0,
+        migrated: 0,
+      }),
+    };
 
     service = new LetterboxdScrapeSyncService(
       prisma as unknown as PrismaService,
@@ -92,6 +104,7 @@ describe("LetterboxdScrapeSyncService", () => {
       engine as unknown as ScraperEngineService,
       catalog as unknown as CatalogService,
       enrichment as unknown as EnrichmentService,
+      letterboxd as unknown as LetterboxdService,
     );
   });
 
@@ -106,6 +119,45 @@ describe("LetterboxdScrapeSyncService", () => {
         source: "letterboxd",
         dedupeKey: "letterboxd_csv:watch:the-matrix:1999:2024-08-10",
       }),
+    );
+    expect(letterboxd.repairLetterboxdDuplicates).toHaveBeenCalledWith(
+      "user-1",
+    );
+  });
+
+  it("skips scrape rows that match CSV imports via equiv key when year differs", async () => {
+    prisma.watchEvent.findMany.mockResolvedValue([
+      {
+        dedupeKey: "letterboxd_csv:watch:midsommar:2019:2024-07-22",
+        watchedAt: watchedAtDayUtc("2024-07-22"),
+        title: { name: "Midsommar" },
+      },
+    ]);
+
+    engine.run.mockImplementation(async (_config, _macros, opts) => {
+      const action = await opts.onPage(
+        [
+          {
+            title: "Midsommar",
+            date: "2024-07-22",
+            rating: "4",
+            slug: "midsommar",
+          },
+        ],
+        1,
+        "https://letterboxd.com/username/films/diary/page/1/",
+      );
+      expect(action).toBe("stop");
+    });
+
+    const result = await service.syncUser("user-1", "username");
+
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(result.stoppedEarly).toBe(true);
+    expect(catalog.recordWatch).not.toHaveBeenCalled();
+    expect(letterboxd.repairLetterboxdDuplicates).toHaveBeenCalledWith(
+      "user-1",
     );
   });
 });

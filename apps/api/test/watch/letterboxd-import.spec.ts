@@ -416,4 +416,45 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
       },
     });
   });
+
+  it("merges scrape and CSV events with different year segments in dedupe key", async () => {
+    const watchedAt = watchedAtDayUtc("2024-07-22")!;
+    watchEventFindMany.mockResolvedValue([
+      {
+        id: "e-scrape",
+        userId: "u1",
+        titleId: "t-scrape",
+        watchedAt,
+        dedupeKey: "letterboxd_csv:watch:midsommar::2024-07-22",
+        rating: 4,
+        createdAt: new Date("2024-07-23"),
+        title: { name: "Midsommar", year: null },
+      },
+      {
+        id: "e-csv",
+        userId: "u1",
+        titleId: "t-csv",
+        watchedAt,
+        dedupeKey: "letterboxd_csv:watch:midsommar:2019:2024-07-22",
+        rating: 4,
+        createdAt: new Date("2024-07-24"),
+        title: { name: "Midsommar", year: 2019 },
+      },
+    ]);
+
+    const result = await service.repairLetterboxdDuplicates("u1");
+
+    expect(result.merged).toBe(1);
+    expect(watchEventDeleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["e-csv"] } },
+    });
+    expect(watchEventUpdate).toHaveBeenCalledWith({
+      where: { id: "e-scrape" },
+      data: {
+        dedupeKey: "letterboxd_csv:watch:midsommar:2019:2024-07-22",
+        rating: 4,
+        watchedAt,
+      },
+    });
+  });
 });

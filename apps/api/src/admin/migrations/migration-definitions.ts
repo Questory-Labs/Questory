@@ -12,7 +12,7 @@ export const MIGRATION_DEFINITIONS: MigrationDefinition[] = [
     key: LETTERBOXD_WATCH_DEDUPE_MIGRATION_KEY,
     name: "Letterboxd watch dedupe",
     description:
-      "Merge duplicate Letterboxd diary/watched events and normalize dedupe keys for existing imports.",
+      "Merge duplicate Letterboxd diary/watched/scrape events and normalize dedupe keys across CSV imports and scrape sync.",
   },
 ];
 

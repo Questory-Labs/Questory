@@ -29,6 +29,11 @@ export function letterboxdWatchDedupeKeyFromTitle(
   return letterboxdWatchDedupeKey(name, year, watchedAtDateStr(watchedAt));
 }
 
+/** Year-agnostic match key: normalized title + watched date. */
+export function letterboxdWatchEquivKey(name: string, dateStr: string): string {
+  return `${normalizeLetterboxdName(name)}:${dateStr}`;
+}
+
 export type LegacyLetterboxdDedupe = {
   kind: "diary" | "watched";
   nameNorm: string;
@@ -67,21 +72,36 @@ function parseWatchDedupeKey(dedupeKey: string): ParsedWatchDedupe | null {
   };
 }
 
-export function letterboxdRepairGroupKey(
-  userId: string,
+export function letterboxdEquivKeyFromDedupeKey(
   dedupeKey: string,
   name: string,
   watchedAt: Date,
 ): string {
   const legacy = parseLegacyLetterboxdDedupeKey(dedupeKey);
   if (legacy) {
-    return `${userId}:repair:${legacy.nameNorm}:${legacy.dateStr}`;
+    return `${legacy.nameNorm}:${legacy.dateStr}`;
   }
 
   const watch = parseWatchDedupeKey(dedupeKey);
   if (watch) {
-    return `${userId}:repair:${watch.nameNorm}:${watch.dateStr}`;
+    return `${watch.nameNorm}:${watch.dateStr}`;
   }
 
-  return `${userId}:fallback:${normalizeLetterboxdName(name)}:${watchedAtDateStr(watchedAt)}`;
+  return letterboxdWatchEquivKey(name, watchedAtDateStr(watchedAt));
+}
+
+export function letterboxdRepairGroupKey(
+  userId: string,
+  dedupeKey: string,
+  name: string,
+  watchedAt: Date,
+): string {
+  const equivKey = letterboxdEquivKeyFromDedupeKey(dedupeKey, name, watchedAt);
+  const legacy = parseLegacyLetterboxdDedupeKey(dedupeKey);
+  const watch = parseWatchDedupeKey(dedupeKey);
+  if (legacy || watch) {
+    return `${userId}:repair:${equivKey}`;
+  }
+
+  return `${userId}:fallback:${equivKey}`;
 }

@@ -1,0 +1,23 @@
+# Questory (application)
+
+> Sign-in host for Questory — Steam-first library and media intelligence. Authenticated dashboards for games, optional music, watch, and read modules.
+
+This site is the **web application** (login, library sync, analytics). For the public marketing site and feature overview, use the GitHub Pages site below.
+
+## Application
+
+- [Home / sign in](https://questorylabs.com/): Landing page with sign-in and registration
+- [Login](https://questorylabs.com/login): Account sign-in
+- [Register](https://questorylabs.com/register): Create an account (when signup is open)
+
+## Marketing & docs
+
+- [Marketing site](https://questory-labs.github.io/): Product overview, screenshots, and on-site self-hosting guide
+- [Questory on GitHub](https://github.com/Questory-Labs/Questory): Source code and issues
+- [Self-hosting (canonical)](https://github.com/Questory-Labs/Questory/blob/main/docs/self-hosting.md): Docker Compose profiles and environment setup
+- [License](https://github.com/Questory-Labs/Questory/blob/main/LICENSE): PolyForm Noncommercial 1.0.0
+
+## Optional
+
+- [README](https://github.com/Questory-Labs/Questory/blob/main/README.md): Project overview
+- [Testing guide](https://github.com/Questory-Labs/Questory/blob/main/docs/testing.md): Test and CI conventions
