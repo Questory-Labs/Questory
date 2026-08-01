@@ -105,7 +105,7 @@ export default function MusicArtistPage() {
       />
 
       {detail.isLoading && (
-        <StateMessage variant="loading">Loading artist…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {detail.isError && (
         <StateMessage variant="error">Artist not found.</StateMessage>

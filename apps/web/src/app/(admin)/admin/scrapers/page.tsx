@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, PageHeader, Panel } from "@/components/ui";
+import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { ScraperIterationList } from "@/components/admin/scrapers/ScraperIterationList";
 import { ScraperIterationWorkflow } from "@/components/admin/scrapers/ScraperIterationWorkflow";
 import { ScraperTestPanel } from "@/components/admin/scrapers/ScraperTestPanel";
@@ -165,7 +165,9 @@ export default function AdminScrapersPage() {
               />
             </>
           ) : detail.isLoading ? (
-            <Panel className="p-5 text-sm text-[var(--muted)]">Loading…</Panel>
+            <Panel className="p-5">
+              <StateMessage variant="loading" className="mt-0" />
+            </Panel>
           ) : (
             <Panel className="p-5 text-sm text-[var(--muted)]">
               Select a provider.

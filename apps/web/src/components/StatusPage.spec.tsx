@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { StatusPage } from "./StatusPage";
+import { taglinePool } from "@/lib/status-taglines";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -44,6 +45,22 @@ describe("StatusPage", () => {
       "href",
       "/dashboard",
     );
+  });
+
+  it("renders a random tagline when taglineContext is set without description", () => {
+    render(
+      <StatusPage
+        layout="embedded"
+        code="404"
+        eyebrow="Achievement unlocked"
+        title="This page isn’t in your library"
+        taglineContext="notFound"
+        primary={{ label: "Back to dashboard", href: "/dashboard" }}
+      />,
+    );
+
+    const sources = taglinePool("notFound").map((t) => `— ${t.source}`);
+    expect(sources.some((s) => screen.queryByText(s) !== null)).toBe(true);
   });
 
   it("calls reset when the primary action is a button", async () => {

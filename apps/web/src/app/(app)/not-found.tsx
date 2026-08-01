@@ -8,7 +8,7 @@ export default function AppNotFound() {
       code="404"
       eyebrow="Side quest expired"
       title="No save file at this URL"
-      description="The main story continues elsewhere. This bookmark might be outdated, or you wandered off the map."
+      taglineContext="notFound"
       logLine="quest log › app_route — result: null · hint: check the address bar"
       tone="mint"
       primary={{ label: "Open library", href: "/library" }}

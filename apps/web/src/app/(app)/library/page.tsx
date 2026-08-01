@@ -252,7 +252,7 @@ export default function LibraryPage() {
   return (
     <>
       <Suspense
-        fallback={<StateMessage variant="loading">Loading…</StateMessage>}
+        fallback={<StateMessage variant="loading" />}
       >
         <LibraryContent />
       </Suspense>

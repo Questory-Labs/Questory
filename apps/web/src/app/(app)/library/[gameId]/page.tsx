@@ -81,7 +81,7 @@ export default function LibraryGamePage() {
       </p>
 
       {(entry.isLoading || (appId && detail.isLoading)) && (
-        <StateMessage variant="loading">Loading game…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {entry.isError && (
         <StateMessage variant="error">Could not load this game.</StateMessage>

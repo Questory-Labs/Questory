@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StoreBadge } from "@/components/StoreBadge";
 import { SteamSyncStatus } from "@/components/SteamSyncStatus";
-import { Button, PageHeader, Panel } from "@/components/ui";
+import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 import { steamLinkUrl } from "@/lib/auth-api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
@@ -199,7 +199,7 @@ function ConnectionsContent() {
 
 export default function ConnectionsPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense fallback={<StateMessage variant="loading" className="mt-0" />}>
       <ConnectionsContent />
     </Suspense>
   );

@@ -128,7 +128,7 @@ export function WatchHomeView() {
       />
 
       {insights.isLoading && (
-        <StateMessage variant="loading">Loading analytics…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {insights.isError && (
         <StateMessage variant="error">Could not load watch analytics.</StateMessage>

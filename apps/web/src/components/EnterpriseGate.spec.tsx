@@ -62,7 +62,9 @@ describe("EnterpriseGate", () => {
       </EnterpriseGate>,
     );
 
-    expect(container.textContent).toContain("Checking recommendations");
+    // Loading state now shows a rotating iconic quote: “…” — Source
+    expect(container.textContent).toMatch(/^“.+” — .+$/);
+    expect(container.textContent).not.toContain("recs");
     expect(replace).not.toHaveBeenCalled();
   });
 });

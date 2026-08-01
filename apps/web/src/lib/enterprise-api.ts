@@ -113,6 +113,13 @@ export async function fetchDossier(): Promise<DossierView> {
   return request<DossierView>("/v1/enterprise/dossier");
 }
 
+/** Force a synchronous dossier regeneration; resolves with the fresh view. */
+export async function refreshDossier(): Promise<DossierView> {
+  return request<DossierView>("/v1/enterprise/dossier/refresh", {
+    method: "POST",
+  });
+}
+
 export async function fetchSettings(): Promise<UserSettings> {
   return request<UserSettings>("/v1/enterprise/settings");
 }

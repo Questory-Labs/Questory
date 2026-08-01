@@ -75,7 +75,7 @@ export default function MusicListeningPage() {
       ) : null}
 
       {recent.isLoading && (
-        <StateMessage variant="loading">Loading…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {!recent.isLoading && items.length === 0 && (
         <EmptyState

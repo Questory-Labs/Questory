@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { StoreBadge } from "@/components/StoreBadge";
-import { PageHeader, Panel } from "@/components/ui";
+import { PageHeader, Panel, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Store, StoreAccountStatus } from "@questorylabs/shared";
 
@@ -101,7 +101,7 @@ function StoresContent() {
 export default function StoresSettingsPage() {
   return (
     <>
-      <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+      <Suspense fallback={<StateMessage variant="loading" className="mt-0" />}>
         <StoresContent />
       </Suspense>
     </>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sanitizeAppHref } from "@questorylabs/shared";
 import { BrandMark } from "@/components/BrandMark";
+import { LoadingPage } from "@/components/LoadingPage";
 import { SyncStatusBar } from "@/components/SyncStatusBar";
 import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
 import {
@@ -441,10 +442,18 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   // Soft gate: never paint app pages until /auth/me confirms a session.
   if (!authReady || !user) {
+    if (me.isError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
+          Redirecting to sign in…
+        </div>
+      );
+    }
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
-        {me.isError ? "Redirecting to sign in…" : "Checking session…"}
-      </div>
+      <LoadingPage
+        title="Checking session"
+        logLine="quest log › auth_me — status: in_progress"
+      />
     );
   }
 

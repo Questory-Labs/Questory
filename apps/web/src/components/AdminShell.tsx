@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { LoadingPage } from "@/components/LoadingPage";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { api } from "@/lib/api";
 
@@ -49,9 +50,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!authReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
-        Checking admin session…
-      </div>
+      <LoadingPage
+        title="Checking admin session"
+        logLine="quest log › auth_me — status: in_progress · clearance: admin"
+      />
     );
   }
 

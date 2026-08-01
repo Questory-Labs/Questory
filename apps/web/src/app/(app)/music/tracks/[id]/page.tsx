@@ -230,7 +230,7 @@ export default function MusicTrackPage() {
       />
 
       {detail.isLoading && (
-        <StateMessage variant="loading">Loading track…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {detail.isError && (
         <StateMessage variant="error">Track not found.</StateMessage>
@@ -323,7 +323,7 @@ export default function MusicTrackPage() {
                 ))}
               </ul>
               {listens.isLoading && listenItems.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--muted)]">Loading…</p>
+                <StateMessage variant="loading" className="mt-3" />
               ) : null}
               {!listens.isLoading && listenItems.length === 0 ? (
                 <p className="mt-3 text-sm text-[var(--muted)]">

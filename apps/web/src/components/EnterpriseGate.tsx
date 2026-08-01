@@ -19,9 +19,7 @@ export function EnterpriseGate({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="py-8">
-        <StateMessage variant="loading" className="mt-0">
-          Checking recommendations…
-        </StateMessage>
+        <StateMessage variant="loading" className="mt-0" />
       </div>
     );
   }

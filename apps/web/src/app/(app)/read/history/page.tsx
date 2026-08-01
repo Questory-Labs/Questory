@@ -31,7 +31,7 @@ export default function ReadHistoryPage() {
       />
 
       {recent.isLoading && (
-        <StateMessage variant="loading">Loading…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {!recent.isLoading && (recent.data?.items.length ?? 0) === 0 && (
         <EmptyState

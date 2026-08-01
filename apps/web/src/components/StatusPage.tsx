@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { HatchShadow } from "@/components/HatchShadow";
 import { LandingBackground } from "@/components/LandingBackground";
+import { RotatingTagline } from "@/components/RotatingTagline";
 import { Button } from "@/components/ui/Button";
 
 export type StatusPageTone = "mint" | "warm" | "danger";
@@ -20,7 +21,10 @@ export type StatusPageProps = {
   code: string;
   eyebrow: string;
   title: string;
-  description: string;
+  /** Fixed copy; omit with `taglineContext` set for a random iconic quote. */
+  description?: string;
+  /** Show a random quote from this pool when no `description` is given. */
+  taglineContext?: "notFound" | "serverError";
   /** Mono quest-log line shown under the panel. */
   logLine?: string;
   tone?: StatusPageTone;
@@ -133,6 +137,7 @@ function StatusContent({
   eyebrow,
   title,
   description,
+  taglineContext,
   logLine,
   tone = "mint",
   primary,
@@ -163,7 +168,15 @@ function StatusContent({
         >
           {title}
         </h1>
-        <p className="mt-3 text-[var(--muted)]">{description}</p>
+        {description ? (
+          <p className="mt-3 text-[var(--muted)]">{description}</p>
+        ) : taglineContext ? (
+          <RotatingTagline
+            context={taglineContext}
+            rotate={false}
+            className="mt-3"
+          />
+        ) : null}
         {children}
       </HatchShadow>
 

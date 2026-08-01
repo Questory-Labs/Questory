@@ -24,9 +24,7 @@ export function MusicGate({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="py-8">
-        <StateMessage variant="loading" className="mt-0">
-          Checking music service…
-        </StateMessage>
+        <StateMessage variant="loading" className="mt-0" />
       </div>
     );
   }

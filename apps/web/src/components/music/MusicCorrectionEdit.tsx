@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { MusicCorrectionForm, MusicEntityRef } from "@questorylabs/shared";
-import { Button, Dialog } from "@/components/ui";
+import { Button, Dialog, StateMessage } from "@/components/ui";
 import { EntityTagInput, type EntityTag } from "@/components/music/EntityTagInput";
 import { musicFetch } from "@/lib/music";
 
@@ -163,7 +163,7 @@ export function MusicCorrectionEdit({
 
       <Dialog open={open} onClose={handleClose} title="Metadata">
         {form.isLoading ? (
-          <p className="text-sm text-[var(--muted)]">Loading…</p>
+          <StateMessage variant="loading" className="mt-0" />
         ) : (
           <>
             {original ? (

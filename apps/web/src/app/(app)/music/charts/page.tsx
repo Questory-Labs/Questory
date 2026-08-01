@@ -137,7 +137,7 @@ function MusicChartsInner() {
       </div>
 
       {tops.isLoading && (
-        <StateMessage variant="loading">Loading charts…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {tops.isError && (
         <StateMessage variant="error">Could not load charts.</StateMessage>
@@ -227,9 +227,7 @@ function MusicChartsInner() {
             Release years
           </h2>
           {years.isLoading ? (
-            <StateMessage variant="loading" className="mt-3">
-              Loading…
-            </StateMessage>
+            <StateMessage variant="loading" className="mt-3" />
           ) : (
             <ul className="mt-3 space-y-1.5">
               {(years.data?.items || []).map((item) => (
@@ -258,9 +256,7 @@ function MusicChartsInner() {
             Sources
           </h2>
           {services.isLoading ? (
-            <StateMessage variant="loading" className="mt-3">
-              Loading…
-            </StateMessage>
+            <StateMessage variant="loading" className="mt-3" />
           ) : (
             <ul className="mt-3 space-y-1.5">
               {(services.data?.items || []).map((item) => (
@@ -293,7 +289,7 @@ function MusicChartsInner() {
 export default function MusicChartsPage() {
   return (
     <Suspense
-      fallback={<StateMessage variant="loading">Loading charts…</StateMessage>}
+      fallback={<StateMessage variant="loading" />}
     >
       <MusicChartsInner />
     </Suspense>

@@ -4,16 +4,18 @@ import { useEffect } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { HatchShadow } from "@/components/HatchShadow";
 import { LandingBackground } from "@/components/LandingBackground";
+import { RotatingTagline } from "@/components/RotatingTagline";
 
 export function LoadingPage({
   eyebrow = "Please hold",
   title = "Syncing your quest log",
-  description = "Pulling saves from the shelf, the cloud, and that one external drive you forgot about.",
+  description,
   logLine = "quest log › hydrate — status: in_progress",
   layout = "full",
 }: {
   eyebrow?: string;
   title?: string;
+  /** Fixed copy override; omit to show a rotating iconic quote instead. */
   description?: string;
   logLine?: string;
   layout?: "full" | "embedded";
@@ -52,7 +54,11 @@ export function LoadingPage({
         <h1 className="mt-5 font-display text-3xl tracking-tight text-[var(--ink)] sm:text-4xl">
           {title}
         </h1>
-        <p className="mt-3 text-[var(--muted)]">{description}</p>
+        {description ? (
+          <p className="mt-3 text-[var(--muted)]">{description}</p>
+        ) : (
+          <RotatingTagline context="loading" className="mt-3" />
+        )}
       </HatchShadow>
 
       {logLine ? (

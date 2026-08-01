@@ -23,9 +23,7 @@ export function WatchGate({ children }: { children: React.ReactNode }) {
   if (!flag || health.isLoading) {
     return (
       <div className="py-8">
-        <StateMessage variant="loading" className="mt-0">
-          Loading watch…
-        </StateMessage>
+        <StateMessage variant="loading" className="mt-0" />
       </div>
     );
   }

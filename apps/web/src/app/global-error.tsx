@@ -2,6 +2,8 @@
 
 import "./globals.css";
 
+import { RotatingTagline } from "@/components/RotatingTagline";
+
 export default function GlobalError({
   error,
   reset,
@@ -40,10 +42,11 @@ export default function GlobalError({
             <h1 className="mt-4 font-display text-3xl tracking-tight sm:text-4xl">
               The whole app face-planted
             </h1>
-            <p className="mt-3 text-[var(--muted)]">
-              Even the root layout tripped. Nothing fancy here — just a hard
-              reset and a sincere apology from the hatch-shadow department.
-            </p>
+            <RotatingTagline
+              context="serverError"
+              rotate={false}
+              className="mt-3"
+            />
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <button
                 type="button"

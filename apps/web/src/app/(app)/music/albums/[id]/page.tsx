@@ -166,7 +166,7 @@ export default function MusicAlbumPage() {
       />
 
       {detail.isLoading && (
-        <StateMessage variant="loading">Loading album…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {detail.isError && (
         <StateMessage variant="error">Album not found.</StateMessage>
@@ -308,7 +308,7 @@ export default function MusicAlbumPage() {
                 ))}
               </ul>
               {listens.isLoading && listenItems.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--muted)]">Loading…</p>
+                <StateMessage variant="loading" className="mt-3" />
               ) : null}
               {!listens.isLoading && listenItems.length === 0 ? (
                 <p className="mt-3 text-sm text-[var(--muted)]">

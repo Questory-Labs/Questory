@@ -1,18 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchDossier } from "@/lib/enterprise-api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 
 /** Collapsible "Your taste fingerprint" card from the dossier endpoint. */
 export function DossierCard() {
   const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
   const dossier = useQuery({
     queryKey: ["enterprise-dossier"],
     queryFn: fetchDossier,
     staleTime: 5 * 60_000,
     retry: 1,
+  });
+  const refresh = useMutation({
+    mutationFn: refreshDossier,
+    onSuccess: (view) => {
+      queryClient.setQueryData(["enterprise-dossier"], view);
+    },
   });
 
   const d = dossier.data?.dossier;
@@ -20,15 +27,29 @@ export function DossierCard() {
 
   return (
     <section className={styles.dossier}>
-      <button
-        type="button"
-        className={styles.dossierToggle}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        Your taste fingerprint
-        <span aria-hidden>{open ? "−" : "+"}</span>
-      </button>
+      <div className={styles.dossierHeader}>
+        <button
+          type="button"
+          className={styles.dossierToggle}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          Your taste fingerprint
+          <span aria-hidden>{open ? "−" : "+"}</span>
+        </button>
+        <button
+          type="button"
+          className={styles.dossierRefresh}
+          onClick={() => refresh.mutate()}
+          disabled={refresh.isPending}
+          aria-label="Refresh taste fingerprint"
+          title="Regenerate from your latest activity"
+        >
+          <span aria-hidden className={refresh.isPending ? styles.dossierRefreshSpin : undefined}>
+            ↻
+          </span>
+        </button>
+      </div>
       {open && (
         <div className={styles.dossierBody}>
           <p className={styles.dossierIdentity}>{d.identity}</p>

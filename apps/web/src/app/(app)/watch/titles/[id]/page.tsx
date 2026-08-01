@@ -87,7 +87,7 @@ export default function WatchTitlePage() {
       />
 
       {detail.isLoading && (
-        <StateMessage variant="loading">Loading title…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {detail.isError && (
         <StateMessage variant="error">Title not found.</StateMessage>

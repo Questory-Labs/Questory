@@ -102,7 +102,7 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
       {afterHeader}
 
       {insights.isLoading && (
-        <StateMessage variant="loading">Loading analytics…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {insights.isError && (
         <StateMessage variant="error">Could not load music analytics.</StateMessage>

@@ -16,7 +16,7 @@ export default function Error({
       code="500"
       eyebrow="Sync interrupted"
       title="The quest log glitched"
-      description="Something went sideways behind the curtain. Your library data should be fine — this is our bug, not yours. Give it another try?"
+      taglineContext="serverError"
       logLine={`quest log › unhandled_exception — status: 500${digest}`}
       tone="warm"
       primary={{ label: "Try again", onClick: reset, variant: "primary" }}

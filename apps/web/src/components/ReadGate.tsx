@@ -23,9 +23,7 @@ export function ReadGate({ children }: { children: React.ReactNode }) {
   if (!flag || health.isLoading) {
     return (
       <div className="py-8">
-        <StateMessage variant="loading" className="mt-0">
-          Loading read…
-        </StateMessage>
+        <StateMessage variant="loading" className="mt-0" />
       </div>
     );
   }

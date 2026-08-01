@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { LoadingPage } from "@/components/LoadingPage";
 import { api } from "@/lib/api";
 
 type MeResponse = {
@@ -32,10 +33,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [authReady, user, router]);
 
   if (!authReady || !user) {
+    if (me.isError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
+          Redirecting to sign in…
+        </div>
+      );
+    }
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
-        {me.isError ? "Redirecting to sign in…" : "Checking session…"}
-      </div>
+      <LoadingPage
+        title="Checking session"
+        logLine="quest log › auth_me — status: in_progress"
+      />
     );
   }
 

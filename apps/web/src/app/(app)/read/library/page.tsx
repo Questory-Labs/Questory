@@ -109,7 +109,7 @@ export default function ReadLibraryPage() {
       </div>
 
       {library.isLoading && (
-        <StateMessage variant="loading">Loading library…</StateMessage>
+        <StateMessage variant="loading" />
       )}
       {!library.isLoading && (library.data?.items.length ?? 0) === 0 && (
         <EmptyState

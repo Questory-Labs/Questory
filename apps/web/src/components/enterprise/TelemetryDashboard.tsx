@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { LineChart } from "@/components/charts/LineChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { StatCard } from "@/components/StatCard";
-import { Button, Panel } from "@/components/ui";
+import { Button, Panel, StateMessage } from "@/components/ui";
 import {
   fetchOtelHealth,
   fetchOtelPricing,
@@ -580,7 +580,7 @@ export function TelemetryDashboard() {
       <section className="grid gap-4 xl:grid-cols-2">
         <TitledPanel title={`Tokens over time (${u.timeseries_granularity || "bucket"})`}>
           {usage.isLoading ? (
-            <p className="text-sm text-[var(--muted)]">Loading…</p>
+            <StateMessage variant="loading" className="mt-0" />
           ) : series.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No token samples yet.</p>
           ) : (
@@ -609,7 +609,7 @@ export function TelemetryDashboard() {
 
         <TitledPanel title="Requests & cost over time">
           {usage.isLoading ? (
-            <p className="text-sm text-[var(--muted)]">Loading…</p>
+            <StateMessage variant="loading" className="mt-0" />
           ) : series.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No request samples yet.</p>
           ) : (
