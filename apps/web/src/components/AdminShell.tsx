@@ -29,7 +29,8 @@ type MeResponse = {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { enabled: enterpriseEnabled } = useEnterpriseEnabled();
+  const { enabled: enterpriseEnabled, isLoading: enterpriseLoading } =
+    useEnterpriseEnabled();
 
   const me = useQuery({
     queryKey: ["me"],
@@ -40,10 +41,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const user = me.data?.user ?? null;
   const authReady = me.isSuccess || me.isError;
 
+  const showEnterpriseNav = enterpriseEnabled && !enterpriseLoading;
+
   const nav = [
     ...BASE_NAV.slice(0, 5),
-    ...(enterpriseEnabled
-      ? [{ href: "/admin/telemetry", label: "Telemetry" }]
+    ...(showEnterpriseNav
+      ? [
+          { href: "/admin/telemetry", label: "Telemetry" },
+          { href: "/admin/guardrails", label: "Guardrails" },
+        ]
       : []),
     BASE_NAV[5],
   ];

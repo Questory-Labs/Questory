@@ -135,6 +135,35 @@ export async function saveSettings(update: {
   });
 }
 
+/* ── admin guardrails ── */
+
+export type GuardrailAction = "allow" | "mask" | "rewrite" | "block";
+
+export type GuardrailRegexRule = {
+  pattern: string;
+  action: GuardrailAction;
+};
+
+export type GuardrailSettings = {
+  categories: Record<string, GuardrailAction>;
+  blocklist: string[];
+  blocklistAction: GuardrailAction;
+  regexRules: GuardrailRegexRule[];
+};
+
+export async function fetchGuardrailSettings(): Promise<GuardrailSettings> {
+  return request<GuardrailSettings>("/v1/enterprise/guardrails");
+}
+
+export async function saveGuardrailSettings(
+  settings: GuardrailSettings,
+): Promise<GuardrailSettings> {
+  return request<GuardrailSettings>("/v1/enterprise/guardrails", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
+}
+
 /* ── admin OTEL ── */
 
 export type OtelHealth = {
