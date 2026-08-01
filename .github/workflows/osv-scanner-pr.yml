@@ -19,8 +19,54 @@ permissions:
 
 jobs:
   scan-pr:
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
-    with:
-      upload-sarif: false
-      scan-args: |-
-        --lockfile=pnpm-lock.yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Checkout target branch
+        run: |
+          git checkout $GITHUB_BASE_REF
+          git submodule update --recursive
+
+      - name: Run scanner on existing code
+        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        with:
+          scan-args: |-
+            --format=json
+            --output=old-results.json
+            --lockfile=pnpm-lock.yaml
+        continue-on-error: true
+
+      - name: Checkout current branch
+        run: |
+          git checkout -f $GITHUB_SHA
+          git submodule update --recursive
+
+      - name: Run scanner on new code
+        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        with:
+          scan-args: |-
+            --format=json
+            --output=new-results.json
+            --lockfile=pnpm-lock.yaml
+        continue-on-error: true
+
+      - name: Run osv-scanner-reporter
+        uses: google/osv-scanner-action/osv-reporter-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        with:
+          scan-args: |-
+            --output=results.sarif
+            --old=old-results.json
+            --new=new-results.json
+            --gh-annotations=true
+            --fail-on-vuln=true
+
+      - name: Upload artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: OSV Scanner SARIF file
+          path: results.sarif
+          retention-days: 5
