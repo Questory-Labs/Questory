@@ -5,6 +5,7 @@ import { SteamAuthGuard } from '../../auth/auth.guard';
 import { RewindInsightResponse, RewindStatsResponse } from '@questorylabs/shared';
 import { AnalyticsService } from './analytics.service';
 import { callRewindGenerate } from '../../lib/rewind-ai-client';
+import { assertRewindAiPeriodAllowed } from '../../lib/rewind-period';
 
 @Controller('watch/analytics/rewind')
 @UseGuards(SteamAuthGuard)
@@ -40,6 +41,7 @@ export class RewindController {
     }
     const forceRedo = forceRedoStr === 'true';
     const timeZone = tz || "UTC";
+    assertRewindAiPeriodAllowed(period);
 
     if (!forceRedo) {
       const cached = await this.prisma.aiInsightCache.findUnique({

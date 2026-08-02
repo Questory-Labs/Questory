@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader, Panel, StateMessage, Button } from "@/components/ui";
 import { musicFetch } from "@/lib/music";
 import { watchFetch } from "@/lib/watch";
 import { readFetch } from "@/lib/read";
 import type { RewindInsightResponse, RewindStatsResponse, RewindTopItem } from "@questorylabs/shared";
+import {
+  completedRewindMonths,
+  defaultRewindMonthForYear,
+  getRewindAiPeriodError,
+  isRewindAiGenerationAllowed,
+  latestCompletedRewindMonth,
+} from "@questorylabs/shared";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { generateCardTheme } from "@/lib/rewind-card-engine";
 import { expandInsightChunks, parseInsightChunk, splitInsightContent } from "@/lib/rewind-ai-parser";
 import { RewindInsightCard } from "@/components/rewind/RewindInsightCard";
 
 const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
 
 function StatCard({ title, value, subtitle }: { title: string; value: string | number; subtitle?: string }) {
   return (
@@ -67,7 +73,7 @@ function formatAiCards(content: string, domain: "music" | "watch" | "read") {
 
 export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
   const [year, setYear] = useState(currentYear);
-  const [month, setMonth] = useState<number | "all">("all");
+  const [month, setMonth] = useState<number | "all">(() => defaultRewindMonthForYear(currentYear));
   const [forceRedo, setForceRedo] = useState(false);
   const { enabled: enterpriseEnabled } = useEnterpriseEnabled();
 
@@ -75,6 +81,8 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
     domain === "music" ? musicFetch : domain === "watch" ? watchFetch : readFetch;
 
   const period = month === "all" ? `${year}` : `${year}-${month.toString().padStart(2, "0")}`;
+  const aiGenerationAllowed = isRewindAiGenerationAllowed(period);
+  const aiPeriodError = getRewindAiPeriodError(period);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -96,10 +104,21 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
       }
       return result;
     },
-    enabled: enterpriseEnabled,
+    enabled: enterpriseEnabled && aiGenerationAllowed,
   });
 
   const years = Array.from({ length: currentYear - 2010 + 1 }, (_, i) => 2010 + i).reverse();
+  const availableMonths = completedRewindMonths(year);
+  const hasCompletedMonths = availableMonths.length > 0;
+
+  useEffect(() => {
+    if (year < currentYear) return;
+    const latest = latestCompletedRewindMonth(year);
+    if (!latest) return;
+    if (month === "all" || (typeof month === "number" && !availableMonths.includes(month))) {
+      setMonth(latest);
+    }
+  }, [year, month, availableMonths]);
   const months = [
     { value: 1, label: "January" },
     { value: 2, label: "February" },
@@ -117,9 +136,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
 
   const handleYearChange = (y: number) => {
     setYear(y);
-    if (y === currentYear) {
-      setMonth("all");
-    }
+    setMonth(defaultRewindMonthForYear(y));
   };
 
   const handleRedo = () => {
@@ -152,17 +169,15 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
               onChange={(e) =>
                 setMonth(e.target.value === "all" ? "all" : parseInt(e.target.value, 10))
               }
-              disabled={year === currentYear}
+              disabled={year === currentYear && !hasCompletedMonths}
               className="bg-[var(--bg-1)] border border-[var(--line)] rounded px-2 py-1 text-sm text-[var(--ink)] disabled:opacity-50"
             >
-              <option value="all">All Year</option>
-              {months
-                .filter((m) => year < currentYear || m.value < currentMonth)
-                .map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
+              {year < currentYear ? <option value="all">All Year</option> : null}
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  {months[m - 1]?.label ?? m}
+                </option>
+              ))}
             </select>
           </div>
         }
@@ -187,14 +202,22 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
                 <Button variant="ghost" onClick={() => document.getElementById('ai-carousel')?.scrollBy({ left: window.innerWidth * 0.8, behavior: 'smooth' })} className="hidden md:flex p-2 !px-3 border border-[var(--line-strong)] rounded-lg hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)] transition-colors mr-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </Button>
-                <Button onClick={handleRedo} disabled={aiQuery.isFetching || forceRedo} className="bg-[var(--surface-2)] hover:bg-[var(--bg-3)] border-[var(--line-strong)] hover:border-[var(--muted)] transition-all shadow-sm">
+                <Button onClick={handleRedo} disabled={!aiGenerationAllowed || aiQuery.isFetching || forceRedo} className="bg-[var(--surface-2)] hover:bg-[var(--bg-3)] border-[var(--line-strong)] hover:border-[var(--muted)] transition-all shadow-sm">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                   Regenerate
                 </Button>
               </div>
             </div>
             
-            {aiQuery.isPending && !aiQuery.data ? (
+            {!hasCompletedMonths && year === currentYear ? (
+              <p className="text-sm text-[var(--muted)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-6 py-8">
+                No completed months yet for {year}. Monthly AI rewind will be available after the first month ends.
+              </p>
+            ) : !aiGenerationAllowed ? (
+              <p className="text-sm text-[var(--muted)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-6 py-8">
+                {aiPeriodError ?? "AI rewind is not available for this period."}
+              </p>
+            ) : aiQuery.isPending && !aiQuery.data ? (
               <div className="h-48 flex items-center justify-center rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                  <div className="flex flex-col items-center gap-4">
                    <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin"></div>
