@@ -31,6 +31,39 @@ cp .env.selfhosted.example .env          # or .env.selfhosted-full.example / .en
 
 Build from this repo with `--build`. Prebuilt images are optional if you configure image names/tags in `.env`.
 
+### Release channels
+
+Published images use three rolling channels. `:latest` always tracks **stable** (same as `:stable`).
+
+| Channel | Tag | When it moves |
+|---------|-----|----------------|
+| stable | `stable`, `latest` | `docker-api-X.Y.Z` / `docker-web-X.Y.Z` (release semver) |
+| rc | `rc` | `docker-*-X.Y.Z-rc.N` release candidates |
+| canary | `canary` | merges to `main`, daily schedule, or `docker-*-canary` tags |
+
+Pin an exact version or follow a channel via `IMAGE_TAG` in `.env`:
+
+```bash
+# stable (default)
+IMAGE_TAG=latest
+# IMAGE_TAG=stable
+
+# release candidate or canary
+# IMAGE_TAG=rc
+# IMAGE_TAG=canary
+
+# pinned semver
+# IMAGE_TAG=1.2.3
+```
+
+Pull examples:
+
+```bash
+docker pull santoshpanna/questorylabs-api:stable
+docker pull ghcr.io/questory-labs/questorylabs-api:rc
+docker pull ghcr.io/questory-labs/questorylabs-web:canary
+```
+
 **Lite (SQLite):**
 
 ```bash
@@ -222,6 +255,13 @@ Recommended for private `selfhosted` / `selfhosted-full` deployments.
 Prefer a **same-origin** setup (e.g. `https://games.example.com` for the UI and `https://games.example.com/api` proxied to the API). That avoids cross-site cookie issues. If you use separate hosts (`app.` + `api.`), set HTTPS everywhere, `COOKIE_DOMAIN=.example.com`, and matching CORS `WEB_ORIGIN`.
 
 See also [testing.md](./testing.md) for the security test suite.
+
+## QEngine security
+
+- The browser should **not** call QEngine for product features. All recommendations, dossier, settings, guardrails, and telemetry admin routes go through the Nest API (`/v1/recommendations`, `/v1/enterprise/*`), which validates the session and proxies with a short-lived internal bearer token.
+- Direct browser access to QEngine is limited to **`GET /health`** (ops probe). Feature gating uses **`GET /v1/enterprise/status`** on the API (public proxy).
+- Set **`ENTERPRISE_INTERNAL_SECRET`** to the same long random value in the API and QEngine containers. QEngine rejects browser session cookies on protected routes.
+- Keep QEngine on the **internal Docker network** (`ENTERPRISE_URL=http://enterprise:4030` from the API). Do not publish OTEL ports `:4040` / `:4318` to the host — they bind localhost inside the QEngine process only.
 
 Example Caddy sketch (same host, path split):
 

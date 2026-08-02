@@ -7,31 +7,19 @@ import type {
   RecommendationResponse,
   UserSettings,
 } from "@/lib/enterprise-types";
+import { api } from "@/lib/api";
 import { getEnterpriseUrl } from "@/lib/runtime-env";
 
+/** Direct QEngine base URL — only for unauthenticated `/health` probes. */
 export function enterpriseBaseUrl(): string {
   return getEnterpriseUrl();
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${getEnterpriseUrl()}${path}`, {
-    credentials: "include",
-    cache: "no-store",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    const err = new Error(text || `Request failed: ${res.status}`) as Error & {
-      status?: number;
-    };
-    err.status = res.status;
-    throw err;
-  }
-  return res.json() as Promise<T>;
+async function enterpriseRequest<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  return api<T>(path, init);
 }
 
 function clientContext(mood?: string): Record<string, unknown> {
@@ -48,7 +36,7 @@ export async function fetchRecommendations(options: {
   limit?: number;
   domains?: RecommendationDomain[];
 }): Promise<RecommendationResponse> {
-  return request<RecommendationResponse>("/v1/recommendations", {
+  return enterpriseRequest<RecommendationResponse>("/recommendations", {
     method: "POST",
     body: JSON.stringify({
       limit: options.limit,
@@ -64,7 +52,7 @@ export async function peekCurateCache(options: {
   domains?: RecommendationDomain[];
   mood?: string;
 }): Promise<CurateCacheView> {
-  return request<CurateCacheView>("/v1/recommendations/curate/cache", {
+  return enterpriseRequest<CurateCacheView>("/recommendations/curate/cache", {
     method: "POST",
     body: JSON.stringify({
       limit: options.limit,
@@ -82,7 +70,7 @@ export async function startCurationJob(options: {
   /** Clear curated cache and re-run the agentic pipeline. */
   force?: boolean;
 }): Promise<CurationJob> {
-  return request<CurationJob>("/v1/recommendations/curate", {
+  return enterpriseRequest<CurationJob>("/recommendations/curate", {
     method: "POST",
     body: JSON.stringify({
       limit: options.limit,
@@ -94,8 +82,8 @@ export async function startCurationJob(options: {
 }
 
 export async function getCurationJob(jobId: string): Promise<CurationJob> {
-  return request<CurationJob>(
-    `/v1/recommendations/curate/${encodeURIComponent(jobId)}`,
+  return enterpriseRequest<CurationJob>(
+    `/recommendations/curate/${encodeURIComponent(jobId)}`,
   );
 }
 
@@ -103,25 +91,25 @@ export async function sendFeedback(
   itemKey: string,
   action: FeedbackAction,
 ): Promise<{ ok: boolean }> {
-  return request<{ ok: boolean }>("/v1/recommendations/feedback", {
+  return enterpriseRequest<{ ok: boolean }>("/recommendations/feedback", {
     method: "POST",
     body: JSON.stringify({ itemKey, action }),
   });
 }
 
 export async function fetchDossier(): Promise<DossierView> {
-  return request<DossierView>("/v1/enterprise/dossier");
+  return enterpriseRequest<DossierView>("/enterprise/dossier");
 }
 
 /** Force a synchronous dossier regeneration; resolves with the fresh view. */
 export async function refreshDossier(): Promise<DossierView> {
-  return request<DossierView>("/v1/enterprise/dossier/refresh", {
+  return enterpriseRequest<DossierView>("/enterprise/dossier/refresh", {
     method: "POST",
   });
 }
 
 export async function fetchSettings(): Promise<UserSettings> {
-  return request<UserSettings>("/v1/enterprise/settings");
+  return enterpriseRequest<UserSettings>("/enterprise/settings");
 }
 
 export async function saveSettings(update: {
@@ -129,7 +117,7 @@ export async function saveSettings(update: {
   state?: string;
   city?: string;
 }): Promise<UserSettings> {
-  return request<UserSettings>("/v1/enterprise/settings", {
+  return enterpriseRequest<UserSettings>("/enterprise/settings", {
     method: "PUT",
     body: JSON.stringify(update),
   });
@@ -152,13 +140,13 @@ export type GuardrailSettings = {
 };
 
 export async function fetchGuardrailSettings(): Promise<GuardrailSettings> {
-  return request<GuardrailSettings>("/v1/enterprise/guardrails");
+  return enterpriseRequest<GuardrailSettings>("/enterprise/guardrails");
 }
 
 export async function saveGuardrailSettings(
   settings: GuardrailSettings,
 ): Promise<GuardrailSettings> {
-  return request<GuardrailSettings>("/v1/enterprise/guardrails", {
+  return enterpriseRequest<GuardrailSettings>("/enterprise/guardrails", {
     method: "PUT",
     body: JSON.stringify(settings),
   });
@@ -273,30 +261,40 @@ export type OtelTraceDetail = {
   spans?: OtelSpan[];
 };
 
+/** Feature gate — proxied through the community API. */
 export async function fetchEnterpriseStatus(): Promise<{
   available: boolean;
   service?: { ok: boolean; ready?: boolean; model?: string };
 }> {
-  return request("/v1/enterprise/status");
+  return enterpriseRequest("/enterprise/status");
+}
+
+/** Direct QEngine health probe (unauthenticated; ops/monitoring only). */
+export async function fetchEnterpriseHealth(): Promise<unknown> {
+  const res = await fetch(`${getEnterpriseUrl()}/health`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Enterprise health check failed: ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function fetchOtelHealth(): Promise<OtelHealth> {
-  return request<OtelHealth>("/v1/enterprise/otel/health");
+  return enterpriseRequest<OtelHealth>("/enterprise/otel/health");
 }
 
 export async function fetchOtelUsage(since: string): Promise<OtelUsage> {
   const qs = new URLSearchParams({ since });
-  return request<OtelUsage>(`/v1/enterprise/otel/usage?${qs}`);
+  return enterpriseRequest<OtelUsage>(`/enterprise/otel/usage?${qs}`);
 }
 
 export async function fetchOtelPricing(): Promise<OtelPricing> {
-  return request<OtelPricing>("/v1/enterprise/otel/pricing");
+  return enterpriseRequest<OtelPricing>("/enterprise/otel/pricing");
 }
 
 export async function saveOtelPricing(
   models: OtelModelPricing[],
 ): Promise<OtelPricing> {
-  return request<OtelPricing>("/v1/enterprise/otel/pricing", {
+  return enterpriseRequest<OtelPricing>("/enterprise/otel/pricing", {
     method: "PUT",
     body: JSON.stringify({ models }),
   });
@@ -312,7 +310,9 @@ export async function fetchOtelTraces(options: {
   if (options.limit != null) qs.set("limit", String(options.limit));
   if (options.offset != null) qs.set("offset", String(options.offset));
   const suffix = qs.toString() ? `?${qs}` : "";
-  const data = await request<unknown>(`/v1/enterprise/otel/traces${suffix}`);
+  const data = await enterpriseRequest<unknown>(
+    `/enterprise/otel/traces${suffix}`,
+  );
   if (Array.isArray(data)) {
     return {
       traces: data as OtelTraceSummary[],
@@ -353,7 +353,7 @@ export async function fetchOtelTraces(options: {
 export async function fetchOtelTrace(
   traceId: string,
 ): Promise<OtelTraceDetail> {
-  return request<OtelTraceDetail>(
-    `/v1/enterprise/otel/traces/${encodeURIComponent(traceId)}`,
+  return enterpriseRequest<OtelTraceDetail>(
+    `/enterprise/otel/traces/${encodeURIComponent(traceId)}`,
   );
 }

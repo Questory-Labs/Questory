@@ -60,7 +60,7 @@ export class RewindController {
     const stats = await this.analytics.rewindStats(userId, period, timeZone);
     let content: string;
     try {
-      content = await callRewindGenerate(req, 'watch', period, stats);
+      content = await callRewindGenerate(userId, 'watch', period, stats);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown error';
       throw new BadRequestException(message);

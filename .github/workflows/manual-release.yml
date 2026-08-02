@@ -19,13 +19,22 @@ on:
         options:
           - api
           - web
+      channel:
+        description: Release channel (auto infers from semver)
+        required: true
+        type: choice
+        options:
+          - auto
+          - stable
+          - rc
+          - canary
       version:
-        description: Version (semver, e.g. 1.2.3)
+        description: Version (semver, e.g. 1.2.3 or 1.3.0-rc.1). Use "canary" for manual canary builds.
         required: true
         type: string
 
 concurrency:
-  group: manual-release-${{ inputs.release_type }}-${{ inputs.service }}-${{ inputs.version }}
+  group: manual-release-${{ inputs.release_type }}-${{ inputs.service }}-${{ inputs.version }}-${{ inputs.channel }}
   cancel-in-progress: false
 
 permissions:
@@ -38,14 +47,28 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.tag.outputs.release_tag }}
+      channel_override: ${{ steps.tag.outputs.channel_override }}
     steps:
       - name: Build release tag
         id: tag
         run: |
+          set -euo pipefail
           version="${{ inputs.version }}"
           version="${version#v}"
-          echo "release_tag=${{ inputs.release_type }}-${{ inputs.service }}-${version}" >> "$GITHUB_OUTPUT"
-          echo "Release tag: ${{ inputs.release_type }}-${{ inputs.service }}-${version}"
+          channel="${{ inputs.channel }}"
+
+          if [ "$channel" = "canary" ] && { [ -z "$version" ] || [ "$version" = "canary" ]; }; then
+            echo "release_tag=${{ inputs.release_type }}-${{ inputs.service }}-canary" >> "$GITHUB_OUTPUT"
+          else
+            if [ -z "$version" ] || [ "$version" = "canary" ]; then
+              echo "version is required unless channel=canary"
+              exit 1
+            fi
+            echo "release_tag=${{ inputs.release_type }}-${{ inputs.service }}-${version}" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "channel_override=${channel}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $(grep release_tag "$GITHUB_OUTPUT" | cut -d= -f2-)"
 
   docker:
     name: Docker release
@@ -54,6 +77,7 @@ jobs:
     uses: ./.github/workflows/docker-release.yml
     with:
       release_tag: ${{ needs.meta.outputs.release_tag }}
+      channel_override: ${{ needs.meta.outputs.channel_override }}
     secrets: inherit
 
   service:
@@ -63,4 +87,5 @@ jobs:
     uses: ./.github/workflows/service-release.yml
     with:
       release_tag: ${{ needs.meta.outputs.release_tag }}
+      channel_override: ${{ needs.meta.outputs.channel_override }}
     secrets: inherit

@@ -16,6 +16,11 @@ on:
         description: Full release tag (e.g. service-api-1.2.3)
         required: true
         type: string
+      channel_override:
+        description: Channel override (auto, stable, rc, canary)
+        required: false
+        type: string
+        default: auto
 
 concurrency:
   group: service-release-${{ github.ref }}
@@ -55,7 +60,16 @@ jobs:
 
       - name: Parse tag
         id: meta
-        run: node scripts/ci-parse-tag.mjs "${{ steps.tag.outputs.tag }}"
+        env:
+          CHANNEL_OVERRIDE: ${{ inputs.channel_override || 'auto' }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.tag.outputs.tag }}"
+          if [[ "$tag" =~ -(api|web)-canary$ ]]; then
+            export CANARY_VERSION="0.0.0-canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
+            echo "Generated CANARY_VERSION=${CANARY_VERSION}"
+          fi
+          node scripts/ci-parse-tag.mjs "${tag}"
 
       - name: Docker Buildx cache
         uses: ./.github/actions/docker-buildx-cache
@@ -71,8 +85,13 @@ jobs:
           set -euo pipefail
           echo "Pulling ${{ steps.meta.outputs.image_tag }}"
           docker pull "${{ steps.meta.outputs.image_tag }}"
-          echo "Also available as latest:"
-          docker pull "${{ steps.meta.outputs.image_latest }}" || true
+          if [ -n "${{ steps.meta.outputs.image_latest }}" ]; then
+            echo "Also available as latest:"
+            docker pull "${{ steps.meta.outputs.image_latest }}" || true
+          elif [ -n "${{ steps.meta.outputs.channel }}" ]; then
+            echo "Also available on channel tag:"
+            docker pull "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.channel }}" || true
+          fi
           docker image inspect "${{ steps.meta.outputs.image_tag }}" --format '{{.Id}} {{.RepoTags}}'
 
       - name: Create GitHub Release
@@ -89,13 +108,22 @@ jobs:
             | | |
             |---|---|
             | Service | `${{ steps.meta.outputs.service }}` |
+            | Channel | `${{ steps.meta.outputs.channel }}` |
             | Version | `${{ steps.meta.outputs.version }}` |
             | Image | `${{ steps.meta.outputs.image_tag }}` |
 
             ### Compose deploy
 
+            Pin a version:
             ```bash
             export IMAGE_TAG=${{ steps.meta.outputs.version }}
+            docker compose --profile selfhosted-full pull ${{ steps.meta.outputs.service }}
+            docker compose --profile selfhosted-full up -d ${{ steps.meta.outputs.service }}
+            ```
+
+            Follow a channel (`stable`, `rc`, or `canary`):
+            ```bash
+            export IMAGE_TAG=${{ steps.meta.outputs.channel }}
             docker compose --profile selfhosted-full pull ${{ steps.meta.outputs.service }}
             docker compose --profile selfhosted-full up -d ${{ steps.meta.outputs.service }}
             ```
@@ -135,7 +163,15 @@ jobs:
 
       - name: Parse tag
         id: meta
-        run: node scripts/ci-parse-tag.mjs "${{ steps.tag.outputs.tag }}"
+        env:
+          CHANNEL_OVERRIDE: ${{ inputs.channel_override || 'auto' }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.tag.outputs.tag }}"
+          if [[ "$tag" =~ -(api|web)-canary$ ]]; then
+            export CANARY_VERSION="0.0.0-canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
+          fi
+          node scripts/ci-parse-tag.mjs "${tag}"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.5

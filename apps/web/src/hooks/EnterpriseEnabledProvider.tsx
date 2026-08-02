@@ -61,8 +61,8 @@ export function EnterpriseEnabledProvider({ children }: { children: ReactNode })
 }
 
 /**
- * QEngine gate: requires ENTERPRISE=true, then GET
- * `{NEXT_PUBLIC_ENTERPRISE_URL}/v1/enterprise/status`.
+ * QEngine gate: requires ENTERPRISE=true, then GET `/v1/enterprise/status`
+ * via the community API (proxied to QEngine).
  */
 export function useEnterpriseEnabled() {
   const ctx = useContext(EnterpriseEnabledContext);

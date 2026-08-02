@@ -22,10 +22,14 @@
     "docker:down": "docker compose --profile selfhosted --profile selfhosted-full --profile production --profile infra down",
     "docker:publish": "node scripts/docker-publish.mjs",
     "docker:build": "node scripts/docker-publish.mjs --no-push",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm run test:scripts && pnpm -r --if-present test",
+    "test:scripts": "vitest run --config vitest.scripts.config.mjs"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   },
   "pnpm": {
     "overrides": {

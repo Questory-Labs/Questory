@@ -17,12 +17,17 @@
     "./oauth-state": {
       "types": "./dist/oauth-state.d.ts",
       "default": "./dist/oauth-state.js"
+    },
+    "./enterprise-internal-token": {
+      "types": "./dist/enterprise-internal-token.d.ts",
+      "default": "./dist/enterprise-internal-token.js"
     }
   },
   "typesVersions": {
     "*": {
       "session": ["./dist/session.d.ts"],
-      "oauth-state": ["./dist/oauth-state.d.ts"]
+      "oauth-state": ["./dist/oauth-state.d.ts"],
+      "enterprise-internal-token": ["./dist/enterprise-internal-token.d.ts"]
     }
   },
   "scripts": {

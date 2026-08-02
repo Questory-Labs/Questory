@@ -47,17 +47,24 @@ export function splitInsightContent(content: string): string[] {
   return chunks;
 }
 
+function parseTaggedChunk(chunk: string, tagSlug: string, text: string): ParsedInsightChunk {
+  const title = titleCaseTag(tagSlug).replace(/\b\w/g, (c) => c.toUpperCase());
+  return { title, text: text.trim(), tagSlug: tagSlug.toLowerCase() };
+}
+
 export function parseInsightChunk(chunk: string): ParsedInsightChunk {
-  const match = chunk.match(/<([a-z]+)>([\s\S]*?)<\/\1>/i);
-  if (!match) {
-    return { title: "", text: chunk.trim(), tagSlug: "" };
+  const closed = chunk.match(/<([a-z]+)>([\s\S]*?)<\/\1>/i);
+  if (closed) {
+    return parseTaggedChunk(chunk, closed[1], closed[2]);
   }
 
-  const tagSlug = match[1].toLowerCase();
-  const text = match[2].trim();
-  const title = titleCaseTag(tagSlug).replace(/\b\w/g, (c) => c.toUpperCase());
+  // Cached / legacy SLM output often had an opening tag with no close tag.
+  const unclosed = chunk.match(/^\s*<([a-z]+)>([\s\S]*)$/i);
+  if (unclosed) {
+    return parseTaggedChunk(chunk, unclosed[1], unclosed[2]);
+  }
 
-  return { title, text, tagSlug };
+  return { title: "", text: chunk.trim(), tagSlug: "" };
 }
 
 /** Split content and duplicate chunks for an infinite-carousel feel. */
@@ -66,14 +73,24 @@ export function expandInsightChunks(chunks: string[], repeat = 4): string[] {
   return Array.from({ length: repeat }, () => chunks).flat();
 }
 
-export function parseBoldSegments(text: string): { bold: boolean; value: string }[] {
-  const parts = text.split(/(\*\*.*?\*\*)/g);
+export interface EmphasisSegment {
+  bold: boolean;
+  italic: boolean;
+  value: string;
+}
+
+/** Parses `**bold**` and `*italic*` markdown emphasis out of AI-generated text. */
+export function parseBoldSegments(text: string): EmphasisSegment[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts
     .filter((part) => part.length > 0)
     .map((part) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return { bold: true, value: part.slice(2, -2) };
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 3) {
+        return { bold: true, italic: false, value: part.slice(2, -2) };
       }
-      return { bold: false, value: part };
+      if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
+        return { bold: false, italic: true, value: part.slice(1, -1) };
+      }
+      return { bold: false, italic: false, value: part };
     });
 }

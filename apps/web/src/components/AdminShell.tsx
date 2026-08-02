@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { api } from "@/lib/api";
@@ -54,6 +55,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     BASE_NAV[5],
   ];
 
+  useEffect(() => {
+    if (!authReady) return;
+    if (!user) {
+      router.replace("/login");
+    } else if (!user.isAdmin) {
+      router.replace("/dashboard");
+    }
+  }, [authReady, user, router]);
+
   if (!authReady) {
     return (
       <LoadingPage
@@ -64,7 +74,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    if (typeof window !== "undefined") router.replace("/login");
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
         Redirecting to sign in…
@@ -73,7 +82,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!user.isAdmin) {
-    if (typeof window !== "undefined") router.replace("/dashboard");
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
         Admin access required…

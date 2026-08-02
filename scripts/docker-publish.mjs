@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
  *   # optional GHCR: echo $GITHUB_TOKEN | docker login ghcr.io -u USER --password-stdin
  *   pnpm docker:publish
  *   IMAGE_TAG=0.1.0 pnpm docker:publish
+ *   IMAGE_TAG=1.3.0-rc.1 IMAGE_EXTRA_TAGS=rc pnpm docker:publish
  *   DOCKERHUB_NAMESPACE=myuser pnpm docker:publish
  *   GHCR_NAMESPACE=questory-labs pnpm docker:publish  # also tag/push ghcr.io/...
  *   pnpm docker:publish -- --no-push          # build + tag only
@@ -18,6 +19,10 @@ const dockerhubNamespace = process.env.DOCKERHUB_NAMESPACE || "santoshpanna";
 const ghcrNamespace = (process.env.GHCR_NAMESPACE || "").toLowerCase();
 const prefix = process.env.DOCKER_IMAGE_PREFIX || "questorylabs";
 const tag = process.env.IMAGE_TAG || "latest";
+const extraTags = (process.env.IMAGE_EXTRA_TAGS || "")
+  .split(",")
+  .map((t) => t.trim())
+  .filter(Boolean);
 const sourceRepo = process.env.DOCKER_IMAGE_SOURCE || "";
 const nextPublicApiUrl =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -115,10 +120,8 @@ function buildImage(name, dockerfile, buildArgs, tags) {
 
 for (const name of names) {
   const { dockerfile, buildArgs } = allImages[name];
-  const tags = allRefs(name);
-  if (tag !== "latest") {
-    tags.push(...allRefs(name, "latest"));
-  }
+  const imageTags = [tag, ...extraTags.filter((t) => t !== tag)];
+  const tags = imageTags.flatMap((imageTag) => allRefs(name, imageTag));
 
   buildImage(name, dockerfile, buildArgs, tags);
 
@@ -129,7 +132,11 @@ for (const name of names) {
   }
 }
 
-const published = names.flatMap((n) => allRefs(n));
+const published = names.flatMap((n) =>
+  [tag, ...extraTags.filter((t) => t !== tag)].flatMap((imageTag) =>
+    allRefs(n, imageTag),
+  ),
+);
 console.log(`\nDone. Images: ${published.join(", ")}`);
 if (noPush) {
   console.log("Skipped push (--no-push).");

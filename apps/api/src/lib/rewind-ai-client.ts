@@ -1,24 +1,35 @@
-import type { Request } from "express";
+import { encodeEnterpriseInternalToken } from "@questorylabs/shared/enterprise-internal-token";
 
 const QENGINE_REWIND_URL = "http://127.0.0.1:4030/v1/enterprise/rewind/generate";
 
 export const REWIND_AI_FALLBACK =
   "Wow! You've had quite a journey. We couldn't load your AI insights right now, but your stats speak for themselves!";
 
+function enterpriseBaseUrl(): string {
+  return (process.env.ENTERPRISE_URL || "http://127.0.0.1:4030").replace(
+    /\/$/,
+    "",
+  );
+}
+
 export async function callRewindGenerate(
-  req: Request,
+  userId: string,
   domain: "music" | "watch" | "read",
   period: string,
   stats: unknown,
 ): Promise<string> {
-  const response = await fetch(QENGINE_REWIND_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Cookie: req.headers.cookie || "",
+  const token = encodeEnterpriseInternalToken({ userId, isAdmin: false });
+  const response = await fetch(
+    `${enterpriseBaseUrl()}/v1/enterprise/rewind/generate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ domain, period, stats }),
     },
-    body: JSON.stringify({ domain, period, stats }),
-  });
+  );
 
   if (!response.ok) {
     const err = await response.text().catch(() => "unknown error");

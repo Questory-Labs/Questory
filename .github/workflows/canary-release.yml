@@ -1,0 +1,97 @@
+name: Canary Release
+
+# Builds rolling :canary images for api and web from main.
+# Does not create git tags or GitHub Releases (workflow summary only).
+#
+# Triggers:
+#   - Push to main (cancels in-progress runs)
+#   - Daily schedule (06:00 UTC)
+#   - Manual: Actions → Canary Release → Run workflow
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: canary-release
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  meta:
+    name: Resolve canary version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_tag_api: ${{ steps.version.outputs.release_tag_api }}
+      release_tag_web: ${{ steps.version.outputs.release_tag_web }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build canary version
+        id: version
+        run: |
+          set -euo pipefail
+          version="0.0.0-canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "release_tag_api=docker-api-${version}" >> "$GITHUB_OUTPUT"
+          echo "release_tag_web=docker-web-${version}" >> "$GITHUB_OUTPUT"
+          echo "Canary version: ${version}"
+
+  release-api:
+    name: Canary api
+    needs: meta
+    uses: ./.github/workflows/docker-release.yml
+    with:
+      release_tag: ${{ needs.meta.outputs.release_tag_api }}
+      channel_override: canary
+      skip_github_release: true
+    secrets: inherit
+
+  release-web:
+    name: Canary web
+    needs: meta
+    uses: ./.github/workflows/docker-release.yml
+    with:
+      release_tag: ${{ needs.meta.outputs.release_tag_web }}
+      channel_override: canary
+      skip_github_release: true
+    secrets: inherit
+
+  summary:
+    name: Canary summary
+    needs: [meta, release-api, release-web]
+    runs-on: ubuntu-latest
+    if: always() && needs.meta.result == 'success'
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Canary release"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`${{ needs.meta.outputs.version }}\` |"
+            echo "| API job | ${{ needs.release-api.result }} |"
+            echo "| Web job | ${{ needs.release-web.result }} |"
+            echo ""
+            echo "Pull channel tags:"
+            echo ""
+            echo '```bash'
+            echo "docker pull santoshpanna/questorylabs-api:canary"
+            echo "docker pull santoshpanna/questorylabs-web:canary"
+            echo "docker pull ghcr.io/questory-labs/questorylabs-api:canary"
+            echo "docker pull ghcr.io/questory-labs/questorylabs-web:canary"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when a release job failed
+        if: needs.release-api.result != 'success' || needs.release-web.result != 'success'
+        run: exit 1

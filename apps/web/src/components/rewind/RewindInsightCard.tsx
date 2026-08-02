@@ -151,17 +151,27 @@ export function RewindInsightCard({
         <div className="relative flex-1 min-h-0">
           <div className="h-full overflow-y-auto pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.3)_transparent]">
             <p className={`text-base md:text-xl lg:text-2xl ${theme.text} whitespace-pre-wrap drop-shadow-md`}>
-              {segments.map((seg, i) =>
-                seg.bold ? (
-                  <strong key={i} className={theme.highlight}>
-                    {seg.value}
-                  </strong>
-                ) : (
+              {segments.map((seg, i) => {
+                if (seg.bold) {
+                  return (
+                    <strong key={i} className={theme.highlight}>
+                      {seg.value}
+                    </strong>
+                  );
+                }
+                if (seg.italic) {
+                  return (
+                    <em key={i} className="italic opacity-100">
+                      {seg.value}
+                    </em>
+                  );
+                }
+                return (
                   <span key={i} className="opacity-90">
                     {seg.value}
                   </span>
-                ),
-              )}
+                );
+              })}
             </p>
           </div>
           <div
