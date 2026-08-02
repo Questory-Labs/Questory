@@ -10,9 +10,9 @@ export const CHART_HEIGHT: Record<ChartSize, number> = {
 };
 
 export const CHART_PAD: Record<ChartSize, ChartPadding> = {
-  sm: { top: 12, right: 20, bottom: 28, left: 36 },
-  md: { top: 16, right: 28, bottom: 36, left: 40 },
-  lg: { top: 20, right: 36, bottom: 38, left: 44 },
+  sm: { top: 12, right: 20, bottom: 40, left: 44 },
+  md: { top: 16, right: 28, bottom: 48, left: 52 },
+  lg: { top: 20, right: 36, bottom: 56, left: 60 },
 };
 
 export function niceTicks(max: number, count = 4): number[] {
@@ -97,6 +97,7 @@ export function buildLineLayout(
     xMode?: "index" | "time";
     pad?: ChartPadding;
     height?: number;
+    type?: "line" | "bar";
   } = {},
 ): LineLayout {
   const size = options.size ?? "lg";
@@ -117,9 +118,15 @@ export function buildLineLayout(
       (t) => pad.left + ((t - t0) / tSpan) * plotW,
     );
   } else {
-    xPositions = data.map(
-      (_, i) => pad.left + (i / Math.max(data.length - 1, 1)) * plotW,
-    );
+    if (options.type === "bar") {
+      xPositions = data.map(
+        (_, i) => pad.left + ((i + 0.5) / Math.max(data.length, 1)) * plotW,
+      );
+    } else {
+      xPositions = data.map(
+        (_, i) => pad.left + (i / Math.max(data.length - 1, 1)) * plotW,
+      );
+    }
   }
 
   const points: LinePoint[] = data.map((d, i) => ({

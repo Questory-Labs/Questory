@@ -7,17 +7,20 @@ vi.mock("@/lib/enterprise-api", () => ({
 }));
 
 import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
+import {
+  EnterpriseEnabledProvider,
+  useEnterpriseEnabled,
+} from "./useEnterpriseEnabled";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
-
-async function loadHook() {
-  vi.resetModules();
-  return import("./useEnterpriseEnabled");
+  return (
+    <QueryClientProvider client={qc}>
+      <EnterpriseEnabledProvider>{children}</EnterpriseEnabledProvider>
+    </QueryClientProvider>
+  );
 }
 
 describe("useEnterpriseEnabled", () => {
@@ -32,9 +35,8 @@ describe("useEnterpriseEnabled", () => {
     vi.mocked(fetchEnterpriseStatus).mockReset();
   });
 
-  it("is disabled when ENTERPRISE is not set (skips status fetch)", async () => {
+  it("is disabled when ENTERPRISE is not set (skips status fetch)", () => {
     delete process.env.ENTERPRISE;
-    const { useEnterpriseEnabled } = await loadHook();
 
     const { result } = renderHook(() => useEnterpriseEnabled(), { wrapper });
 
@@ -46,7 +48,6 @@ describe("useEnterpriseEnabled", () => {
 
   it("is enabled when ENTERPRISE=true and status answers", async () => {
     process.env.ENTERPRISE = "true";
-    const { useEnterpriseEnabled } = await loadHook();
     vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
       available: true,
       service: { ok: true, ready: true },
@@ -56,12 +57,11 @@ describe("useEnterpriseEnabled", () => {
 
     await waitFor(() => expect(result.current.enabled).toBe(true));
     expect(result.current.serviceOk).toBe(true);
-    expect(vi.mocked(fetchEnterpriseStatus)).toHaveBeenCalled();
+    expect(vi.mocked(fetchEnterpriseStatus)).toHaveBeenCalledTimes(1);
   });
 
   it("is disabled when the endpoint is unreachable", async () => {
     process.env.ENTERPRISE = "TRUE";
-    const { useEnterpriseEnabled } = await loadHook();
     const err = new Error("Not found") as Error & { status?: number };
     err.status = 404;
     vi.mocked(fetchEnterpriseStatus).mockRejectedValue(err);
@@ -75,7 +75,6 @@ describe("useEnterpriseEnabled", () => {
 
   it("reports serviceOk=false when available but service.ok is false", async () => {
     process.env.ENTERPRISE = "on";
-    const { useEnterpriseEnabled } = await loadHook();
     vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
       available: true,
       service: { ok: false },
@@ -85,5 +84,32 @@ describe("useEnterpriseEnabled", () => {
 
     await waitFor(() => expect(result.current.enabled).toBe(true));
     expect(result.current.serviceOk).toBe(false);
+  });
+
+  it("throws when used outside EnterpriseEnabledProvider", () => {
+    expect(() => renderHook(() => useEnterpriseEnabled())).toThrow(
+      "useEnterpriseEnabled must be used within EnterpriseEnabledProvider",
+    );
+  });
+
+  it("fetches status once for multiple consumers in the same provider", async () => {
+    process.env.ENTERPRISE = "true";
+    vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
+      available: true,
+      service: { ok: true },
+    });
+
+    const { result } = renderHook(
+      () => ({
+        first: useEnterpriseEnabled(),
+        second: useEnterpriseEnabled(),
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.first.enabled).toBe(true));
+    expect(result.current.second.enabled).toBe(true);
+    expect(result.current.first).toBe(result.current.second);
+    expect(vi.mocked(fetchEnterpriseStatus)).toHaveBeenCalledTimes(1);
   });
 });

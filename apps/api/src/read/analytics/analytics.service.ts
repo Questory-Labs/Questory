@@ -626,4 +626,108 @@ export class ReadAnalyticsService {
       timeZone,
     );
   }
+
+  async rewindStats(userId: string, period: string, timeZone = "UTC") {
+    const user = await this.resolveUser(userId);
+    let start: Date;
+    let end: Date;
+
+    if (period.length === 4) {
+      const year = parseInt(period, 10);
+      start = new Date(`${year}-01-01T00:00:00.000Z`);
+      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+    } else if (period.length === 7) {
+      const [yearStr, monthStr] = period.split("-");
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
+      const nextYear = month === 12 ? year + 1 : year;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
+    } else {
+      throw new Error("Invalid period format");
+    }
+
+    const events = await this.prisma.readEvent.findMany({
+      where: {
+        userId: user.id,
+        readAt: { gte: start, lt: end },
+      },
+      select: {
+        readTitleId: true,
+        readAt: true,
+        chaptersRead: true,
+        readTitle: {
+          select: {
+            name: true,
+            format: true,
+            coverUrl: true,
+            genres: {
+              select: { genre: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    const totalEvents = events.length;
+    let chaptersLogged = 0;
+    const hourBuckets = Array.from({ length: 24 }, () => 0);
+    const dowBuckets = Array.from({ length: 7 }, () => 0);
+    
+    const titleCounts = new Map<string, { count: number; name: string; format: string; coverUrl: string | null }>();
+    const genreCounts = new Map<string, { name: string; count: number }>();
+    const formatCounts = new Map<string, number>();
+
+    for (const e of events) {
+      if (e.chaptersRead) chaptersLogged += e.chaptersRead;
+      
+      hourBuckets[zonedHour(e.readAt, timeZone)] += 1;
+      dowBuckets[zonedWeekday(e.readAt, timeZone)] += 1;
+
+      const tc = titleCounts.get(e.readTitleId) || { count: 0, name: e.readTitle.name, format: e.readTitle.format || "other", coverUrl: e.readTitle.coverUrl || null };
+      tc.count += 1;
+      titleCounts.set(e.readTitleId, tc);
+
+      const fmt = e.readTitle.format || "other";
+      formatCounts.set(fmt, (formatCounts.get(fmt) || 0) + 1);
+
+      for (const tg of e.readTitle.genres) {
+        const g = tg.genre;
+        const gc = genreCounts.get(g.id) || { name: g.name, count: 0 };
+        gc.count += 1;
+        genreCounts.set(g.id, gc);
+      }
+    }
+
+    const peakHourIdx = hourBuckets.indexOf(Math.max(...hourBuckets, 0));
+    const peakDowIdx = dowBuckets.indexOf(Math.max(...dowBuckets, 0));
+    const peakHour = totalEvents > 0 && hourBuckets[peakHourIdx] > 0
+      ? { index: peakHourIdx, label: hourLabel(peakHourIdx), count: hourBuckets[peakHourIdx] }
+      : null;
+    const peakDow = totalEvents > 0 && dowBuckets[peakDowIdx] > 0
+      ? { index: peakDowIdx, label: DOW_LABELS[peakDowIdx], count: dowBuckets[peakDowIdx] }
+      : null;
+
+    return {
+      domain: "read" as const,
+      period,
+      totalEvents,
+      chaptersLogged,
+      uniqueTitles: titleCounts.size,
+      topTitles: [...titleCounts.entries()]
+        .map(([id, t]) => ({ id, name: t.name, subtitle: t.format, count: t.count, imageUrl: t.coverUrl }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      topGenres: [...genreCounts.entries()]
+        .map(([id, g]) => ({ id, name: g.name, count: g.count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      formatBreakdown: [...formatCounts.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count),
+      peakHour,
+      peakDow,
+    };
+  }
 }

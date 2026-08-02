@@ -133,7 +133,7 @@ export function LineChart({
   const H = layout.height;
   const { pad } = layout;
   const active = hover != null ? layout.points[hover] : null;
-  const xLabelY = xLabelAngle !== 0 ? H - 6 : H - 10;
+  const xLabelY = layout.baseline + (xLabelAngle !== 0 ? 12 : 16);
 
   return (
     <div ref={rootRef} className="relative w-full" data-sketch-chart>

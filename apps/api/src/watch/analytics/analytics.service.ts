@@ -671,4 +671,123 @@ export class AnalyticsService {
       timeZone,
     );
   }
+
+  async rewindStats(userId: string, period: string, timeZone = "UTC") {
+    const user = await this.resolveUser(userId);
+    let start: Date;
+    let end: Date;
+
+    if (period.length === 4) {
+      const year = parseInt(period, 10);
+      start = new Date(`${year}-01-01T00:00:00.000Z`);
+      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+    } else if (period.length === 7) {
+      const [yearStr, monthStr] = period.split("-");
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
+      const nextYear = month === 12 ? year + 1 : year;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
+    } else {
+      throw new Error("Invalid period format");
+    }
+
+    const events = await this.prisma.watchEvent.findMany({
+      where: {
+        userId: user.id,
+        watchedAt: { gte: start, lt: end },
+      },
+      select: {
+        titleId: true,
+        watchedAt: true,
+        runtimeMinutes: true,
+        title: {
+          select: {
+            name: true,
+            type: true,
+            posterUrl: true,
+            runtimeMinutes: true,
+            genres: {
+              select: { genre: { select: { id: true, name: true } } },
+            },
+          },
+        },
+        episode: {
+          select: { runtimeMinutes: true },
+        },
+      },
+    });
+
+    const totalWatches = events.length;
+    let watchingMinutes = 0;
+    const hourBuckets = Array.from({ length: 24 }, () => 0);
+    const dowBuckets = Array.from({ length: 7 }, () => 0);
+    
+    const titleCounts = new Map<string, { count: number; name: string; type: string; posterUrl: string | null }>();
+    const genreCounts = new Map<string, { name: string; count: number }>();
+    
+    let movieWatches = 0;
+    let showWatches = 0;
+    const movieTitleIds = new Set<string>();
+    const showTitleIds = new Set<string>();
+
+    for (const e of events) {
+      const runtime = e.runtimeMinutes ?? e.episode?.runtimeMinutes ?? e.title.runtimeMinutes ?? 0;
+      if (runtime > 0) watchingMinutes += runtime;
+      
+      hourBuckets[zonedHour(e.watchedAt, timeZone)] += 1;
+      dowBuckets[zonedWeekday(e.watchedAt, timeZone)] += 1;
+
+      const tc = titleCounts.get(e.titleId) || { count: 0, name: e.title.name, type: e.title.type, posterUrl: e.title.posterUrl || null };
+      tc.count += 1;
+      titleCounts.set(e.titleId, tc);
+
+      if (e.title.type === "movie") {
+        movieWatches += 1;
+        movieTitleIds.add(e.titleId);
+      } else if (e.title.type === "show") {
+        showWatches += 1;
+        showTitleIds.add(e.titleId);
+      }
+
+      for (const tg of e.title.genres) {
+        const g = tg.genre;
+        const gc = genreCounts.get(g.id) || { name: g.name, count: 0 };
+        gc.count += 1;
+        genreCounts.set(g.id, gc);
+      }
+    }
+
+    const peakHourIdx = hourBuckets.indexOf(Math.max(...hourBuckets, 0));
+    const peakDowIdx = dowBuckets.indexOf(Math.max(...dowBuckets, 0));
+    const peakHour = totalWatches > 0 && hourBuckets[peakHourIdx] > 0
+      ? { index: peakHourIdx, label: hourLabel(peakHourIdx), count: hourBuckets[peakHourIdx] }
+      : null;
+    const peakDow = totalWatches > 0 && dowBuckets[peakDowIdx] > 0
+      ? { index: peakDowIdx, label: DOW_LABELS[peakDowIdx], count: dowBuckets[peakDowIdx] }
+      : null;
+
+    return {
+      domain: "watch" as const,
+      period,
+      totalWatches,
+      watchingMinutes,
+      uniqueTitles: titleCounts.size,
+      uniqueMovies: movieTitleIds.size,
+      uniqueShows: showTitleIds.size,
+      movieWatches,
+      showWatches,
+      topTitles: [...titleCounts.entries()]
+        .map(([id, t]) => ({ id, name: t.name, subtitle: t.type, count: t.count, imageUrl: t.posterUrl }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      topGenres: [...genreCounts.entries()]
+        .map(([id, g]) => ({ id, name: g.name, count: g.count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      peakHour,
+      peakDow,
+    };
+  }
 }

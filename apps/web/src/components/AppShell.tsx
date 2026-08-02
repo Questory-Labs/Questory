@@ -67,6 +67,7 @@ const MUSIC_NAV_GROUP = {
     { href: "/music", label: "Music" },
     { href: "/music/listening", label: "Listening" },
     { href: "/music/charts", label: "Top charts" },
+    { href: "/music/rewind", label: "Rewind" },
     { href: "/music/settings", label: "Sources" },
   ],
 };
@@ -76,6 +77,7 @@ const WATCH_NAV_GROUP = {
   items: [
     { href: "/watch", label: "Watch" },
     { href: "/watch/history", label: "History" },
+    { href: "/watch/rewind", label: "Rewind" },
     { href: "/watch/settings", label: "Sources" },
   ],
 };
@@ -86,6 +88,7 @@ const READ_NAV_GROUP = {
     { href: "/read", label: "Read" },
     { href: "/read/library", label: "Library" },
     { href: "/read/history", label: "History" },
+    { href: "/read/rewind", label: "Rewind" },
     { href: "/read/settings", label: "Sources" },
   ],
 };

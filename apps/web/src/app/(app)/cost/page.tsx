@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart } from "@/components/charts/LineChart";
+import { BarChart } from "@/components/charts/BarChart";
 import { SketchDonut } from "@/components/charts/SketchDonut";
 import { StatCard } from "@/components/StatCard";
 import { Button, PageHeader, Panel } from "@/components/ui";
@@ -32,11 +33,10 @@ function ValueTabs({
           key={tab}
           type="button"
           onClick={() => onChange(tab)}
-          className={`rounded px-3 py-1 font-semibold capitalize transition ${
-            value === tab
+          className={`rounded px-3 py-1 font-semibold capitalize transition ${value === tab
               ? "bg-[var(--bg-2)] text-[var(--ink)]"
               : "text-[var(--muted)] hover:text-[var(--ink)]"
-          }`}
+            }`}
         >
           {tab}
         </button>
@@ -70,14 +70,13 @@ function SpendChart({
       {chartData.length === 0 ? (
         <p className="text-sm text-[var(--muted)]">No data yet.</p>
       ) : (
-        <LineChart
+        <BarChart
           data={chartData}
           ariaLabel={title}
           valueLabel="value"
           size="lg"
-          formatXLabel={(l) => (l.length > 14 ? `${l.slice(0, 13)}…` : l)}
           formatValue={(n) => formatMoney(n, currency)}
-          formatYTick={(n) => formatMoney(n, currency)}
+          formatYTick={(n) => formatMoney(n, currency, { compact: true })}
         />
       )}
     </Panel>
@@ -209,13 +208,13 @@ export default function CostPage() {
 
   const freeVsPaid = s
     ? [
-        {
-          name: "Paid",
-          value: s.libraryMix.paid.count,
-          amount: s.libraryMix.paid.amount,
-        },
-        { name: "Free", value: s.libraryMix.free.count, amount: 0 },
-      ].filter((d) => d.value > 0)
+      {
+        name: "Paid",
+        value: s.libraryMix.paid.count,
+        amount: s.libraryMix.paid.amount,
+      },
+      { name: "Free", value: s.libraryMix.free.count, amount: 0 },
+    ].filter((d) => d.value > 0)
     : [];
 
   const bestTotalPages = Math.max(
@@ -299,7 +298,7 @@ export default function CostPage() {
                 size="lg"
                 formatXLabel={(l) => l}
                 formatValue={(n) => money(n)}
-                formatYTick={(n) => money(n)}
+                formatYTick={(n) => formatMoney(n, currency, { compact: true })}
               />
             )}
           </Panel>

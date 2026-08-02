@@ -54,6 +54,7 @@ model User {
   readListStates         ReadListState[]
   musicRules             UserMusicRule[]
   musicLabels            UserMusicLabel[]
+  aiInsightCaches        AiInsightCache[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -1142,4 +1143,23 @@ model ReadListState {
 
   @@unique([userId, readTitleId, source])
   @@index([userId, listStatus])
+}
+
+/* ─── AI / Insights ─── */
+
+model AiInsightCache {
+  id        String   @id @default(cuid())
+  userId    String
+  /** music | watch | read */
+  domain    String
+  /** 2026 | 2026-08 */
+  period    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, domain, period])
+  @@index([userId, domain])
 }

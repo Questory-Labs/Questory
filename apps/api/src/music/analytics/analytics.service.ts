@@ -1539,4 +1539,141 @@ export class AnalyticsService {
       timeZone,
     );
   }
+
+  async rewindStats(userId: string, period: string, timeZone = "UTC") {
+    const user = await this.resolveUser(userId);
+    let start: Date;
+    let end: Date;
+
+    if (period.length === 4) {
+      const year = parseInt(period, 10);
+      start = new Date(`${year}-01-01T00:00:00.000Z`);
+      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+    } else if (period.length === 7) {
+      const [yearStr, monthStr] = period.split("-");
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
+      const nextYear = month === 12 ? year + 1 : year;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
+    } else {
+      throw new Error("Invalid period format");
+    }
+
+    const listens = await this.prisma.listen.findMany({
+      where: {
+        userId: user.id,
+        listenedAt: { gte: start, lt: end },
+      },
+      select: {
+        trackId: true,
+        listenedAt: true,
+        track: {
+          select: {
+            artistId: true,
+            title: true,
+            durationMs: true,
+            artist: { select: { name: true, imageUrl: true } },
+            release: { select: { imageUrl: true } },
+            genres: {
+              select: { genre: { select: { id: true, name: true, kind: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    const totalPlays = listens.length;
+    let listeningMs = 0;
+    const hourBuckets = Array.from({ length: 24 }, () => 0);
+    const dowBuckets = Array.from({ length: 7 }, () => 0);
+    
+    const trackCounts = new Map<string, { count: number; title: string; artistName: string; imageUrl: string | null }>();
+    const artistCounts = new Map<string, { count: number; name: string; imageUrl: string | null }>();
+    const genreCounts = new Map<string, { name: string; count: number }>();
+
+    for (const l of listens) {
+      if (l.track.durationMs) listeningMs += l.track.durationMs;
+      
+      hourBuckets[zonedHour(l.listenedAt, timeZone)] += 1;
+      dowBuckets[zonedWeekday(l.listenedAt, timeZone)] += 1;
+
+      const tc = trackCounts.get(l.trackId) || { count: 0, title: l.track.title, artistName: l.track.artist.name, imageUrl: l.track.release?.imageUrl || null };
+      tc.count += 1;
+      trackCounts.set(l.trackId, tc);
+
+      const ac = artistCounts.get(l.track.artistId) || { count: 0, name: l.track.artist.name, imageUrl: l.track.artist.imageUrl || null };
+      ac.count += 1;
+      artistCounts.set(l.track.artistId, ac);
+
+      for (const tg of l.track.genres) {
+        const g = tg.genre;
+        if (g.kind === "mood") continue;
+        const gc = genreCounts.get(g.id) || { name: g.name, count: 0 };
+        gc.count += 1;
+        genreCounts.set(g.id, gc);
+      }
+    }
+
+    const peakHourIdx = hourBuckets.indexOf(Math.max(...hourBuckets, 0));
+    const peakDowIdx = dowBuckets.indexOf(Math.max(...dowBuckets, 0));
+    const peakHour = totalPlays > 0 && hourBuckets[peakHourIdx] > 0
+      ? { index: peakHourIdx, label: hourLabel(peakHourIdx), count: hourBuckets[peakHourIdx] }
+      : null;
+    const peakDow = totalPlays > 0 && dowBuckets[peakDowIdx] > 0
+      ? { index: peakDowIdx, label: DOW_LABELS[peakDowIdx], count: dowBuckets[peakDowIdx] }
+      : null;
+
+    const uniqueTrackIds = [...trackCounts.keys()];
+    const uniqueArtistIds = [...artistCounts.keys()];
+
+    // To properly calculate new tracks/artists, we need their first listen dates
+    let newTracks = 0;
+    let newArtists = 0;
+    if (uniqueTrackIds.length > 0) {
+      const earliestTracks = await this.prisma.listen.groupBy({
+        by: ["trackId"],
+        where: { userId: user.id, trackId: { in: uniqueTrackIds } },
+        _min: { listenedAt: true },
+      });
+      newTracks = earliestTracks.filter((r) => r._min.listenedAt && r._min.listenedAt >= start).length;
+
+      const artistFirsts = await Promise.all(
+        uniqueArtistIds.map((artistId) =>
+          this.prisma.listen.findFirst({
+            where: { userId: user.id, track: { artistId } },
+            orderBy: { listenedAt: "asc" },
+            select: { listenedAt: true },
+          }),
+        ),
+      );
+      newArtists = artistFirsts.filter((r) => r?.listenedAt != null && r.listenedAt >= start).length;
+    }
+
+    return {
+      domain: "music" as const,
+      period,
+      totalPlays,
+      listeningMinutes: Math.round(listeningMs / 60000),
+      uniqueTracks: trackCounts.size,
+      uniqueArtists: artistCounts.size,
+      newTracks,
+      newArtists,
+      topArtists: [...artistCounts.entries()]
+        .map(([id, a]) => ({ id, name: a.name, count: a.count, imageUrl: a.imageUrl }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      topTracks: [...trackCounts.entries()]
+        .map(([id, t]) => ({ id, name: t.title, subtitle: t.artistName, count: t.count, imageUrl: t.imageUrl }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      topGenres: [...genreCounts.entries()]
+        .map(([id, g]) => ({ id, name: g.name, count: g.count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      peakHour,
+      peakDow,
+    };
+  }
 }
