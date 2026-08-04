@@ -38,9 +38,14 @@ const TriggerCronSchema = z.object({
   jobName: z.enum([
     "daily-refresh",
     "recover-failed-sync",
+    "watch-sync",
     "catalog-sync",
     "trakt-sync",
     "anilist-sync",
+    "mal-sync",
+    "kitsu-sync",
+    "bangumi-sync",
+    "shikimori-sync",
   ]),
 });
 

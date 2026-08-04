@@ -23,6 +23,6 @@ import { JobsService } from "./jobs.service";
     CronSecretGuard,
     JobsService,
   ],
-  exports: [InternalCronService, CronRunnerService],
+  exports: [InternalCronService, CronRunnerService, JobsService],
 })
 export class CronModule {}

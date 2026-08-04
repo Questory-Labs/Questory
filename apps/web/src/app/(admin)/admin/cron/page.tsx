@@ -6,13 +6,18 @@ import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { ADMIN_CRON_PAGE_SIZE } from "@/lib/pagination";
 
-const JOBS = [
+const TRIGGERABLE_JOBS = new Set([
   "daily-refresh",
   "recover-failed-sync",
+  "watch-sync",
   "catalog-sync",
   "trakt-sync",
   "anilist-sync",
-] as const;
+  "mal-sync",
+  "kitsu-sync",
+  "bangumi-sync",
+  "shikimori-sync",
+]);
 
 type CronRun = {
   id: string;
@@ -115,24 +120,31 @@ export default function AdminCronPage() {
           {(status.data?.jobs || []).map((job) => (
             <div
               key={job.name}
-              className="flex flex-wrap items-baseline justify-between gap-2 border-t border-[var(--line)] pt-2 first:border-t-0 first:pt-0"
+              className="flex flex-wrap items-start justify-between gap-3 border-t border-[var(--line)] pt-2 first:border-t-0 first:pt-0"
             >
-              <div>
-                <span className="font-medium">{job.name}</span>
-                <span className="text-[var(--muted)]">
-                  {" "}
-                  · {job.registered ? "registered" : "not registered"}
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">{job.name}</div>
+                <div className="font-mono text-xs text-[var(--muted)]">
+                  {job.registered ? "registered" : "not registered"}
                   {job.running ? " · running" : ""}
-                </span>
-                {job.schedule ? (
-                  <span className="ml-2 font-mono text-[10px] text-[var(--faint)]">
-                    {job.schedule}
-                  </span>
-                ) : (
-                  <span className="ml-2 text-[10px] text-[var(--faint)]">
-                    trigger-only
-                  </span>
-                )}
+                  {job.schedule ? (
+                    <span> · {job.schedule}</span>
+                  ) : (
+                    <span> · trigger-only</span>
+                  )}
+                </div>
+                {TRIGGERABLE_JOBS.has(job.name) ? (
+                  <div className="mt-2 font-mono text-xs">
+                    <button
+                      type="button"
+                      className="cursor-pointer text-[var(--accent)] hover:text-[var(--ink)] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={trigger.isPending}
+                      onClick={() => trigger.mutate(job.name)}
+                    >
+                      Run
+                    </button>
+                  </div>
+                ) : null}
               </div>
               <div className="text-right text-xs text-[var(--muted)]">
                 {job.nextDate ? (
@@ -150,19 +162,6 @@ export default function AdminCronPage() {
             </div>
           ))}
         </div>
-      </Panel>
-
-      <Panel className="mb-6 flex flex-wrap gap-2 p-4">
-        {JOBS.map((job) => (
-          <Button
-            key={job}
-            variant="secondary"
-            disabled={trigger.isPending}
-            onClick={() => trigger.mutate(job)}
-          >
-            Run {job}
-          </Button>
-        ))}
       </Panel>
 
       {trigger.isError ? (

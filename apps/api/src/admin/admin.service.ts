@@ -19,6 +19,7 @@ import {
   type ScheduledCronJobName,
 } from "../cron/cron-schedules";
 import { InternalCronService } from "../cron/internal-cron.service";
+import { JobsService } from "../cron/jobs.service";
 import {
   WATCH_CRON_SYNC,
   type WatchCronSync,
@@ -44,6 +45,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly abuse: AuthAbuseService,
     private readonly cron: InternalCronService,
+    private readonly cronJobs: JobsService,
     private readonly cronRunner: CronRunnerService,
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly sync: SyncService,
@@ -454,6 +456,12 @@ export class AdminService {
             return this.cron.dailyRefresh();
           case "recover-failed-sync":
             return this.cron.recoverFailedSync();
+          case "watch-sync":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            await this.cronJobs.runWatchSync();
+            return { ok: true };
           case "catalog-sync":
             return this.cron.syncCatalog({});
           case "trakt-sync":

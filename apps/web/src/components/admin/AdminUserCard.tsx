@@ -235,7 +235,7 @@ export function AdminUserCard({
                   ) : null}
                   <button
                     type="button"
-                    className="text-[var(--accent)] hover:text-[var(--ink)] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    className="text-[var(--accent)] hover:text-[var(--ink)] hover:underline disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                     disabled={
                       pending || (target === "catalog" && !user.steamId)
                     }

@@ -4,7 +4,7 @@ import type { ScraperDefinition } from "@questorylabs/shared";
 export const LETTERBOXD_SCRAPER_DEFINITION: ScraperDefinition = {
   engine: "cheerio",
   startUrl:
-    "https://letterboxd.com/{{user.letterboxdId}}/diary/films/by/date/page/{{page}}/",
+    "https://letterboxd.com/{{user.letterboxdId}}/diary/",
   userAgent:
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   limits: {
@@ -85,21 +85,7 @@ export const LETTERBOXD_SCRAPER_DEFINITION: ScraperDefinition = {
   pagination: {
     type: "urlTemplate",
     urlTemplate:
-      "https://letterboxd.com/{{user.letterboxdId}}/diary/films/by/date/page/{{page}}/",
+      "https://letterboxd.com/{{user.letterboxdId}}/diary/page/{{page}}/",
   },
   stop: { onKnownEntry: true },
 };
-
-export const LETTERBOXD_SCRAPER_TEMPLATE = {
-  name: "Letterboxd diary",
-  sourceKey: "letterboxd",
-  enabled: true,
-  config: LETTERBOXD_SCRAPER_DEFINITION,
-};
-
-export function isStaleLetterboxdScraperConfig(configJson: string): boolean {
-  return (
-    configJson.includes("/films/diary/") ||
-    !configJson.includes("/diary/films/")
-  );
-}
