@@ -6,7 +6,10 @@ import {
   type ScraperDefinition,
   type ScraperMacroContext,
 } from "@questorylabs/shared";
-import { ensureScraperCrawleeConfig } from "./scraper-crawlee-config";
+import {
+  ensureScraperCrawleeConfig,
+  withIsolatedRequestQueue,
+} from "./scraper-crawlee-config";
 import { extractPageItems, type ScraperDom } from "./scraper-extract";
 
 export type ScraperPageAction = "continue" | "stop";
@@ -76,67 +79,72 @@ export class ScraperEngineService {
     const headers = this.buildHeaders(definition);
     const delayMs = definition.limits.requestDelayMs;
 
-    const crawler = new CheerioCrawler({
-      maxRequestsPerMinute: definition.limits.maxRequestsPerMinute,
-      maxRequestRetries: definition.limits.maxRetries,
-      minConcurrency: 1,
-      maxConcurrency: 1,
-      requestHandlerTimeoutSecs: 120,
-      preNavigationHooks: [
-        async ({ request }) => {
-          request.headers = { ...request.headers, ...headers };
-        },
-      ],
-      async requestHandler({ $, request }) {
-        if (shouldStop) return;
-        const userData = request.userData as RequestUserData;
-        const page = userData.page;
-        const rows = extractPageItems(
-          $ as unknown as ScraperDom,
-          definition.itemSelector,
-          definition.fields,
-        );
-        const action = await onPage(rows, page, request.url);
-        if (action === "stop") {
-          shouldStop = true;
-          return;
-        }
-
-        if (page >= maxPages || shouldStop) return;
-
-        if (definition.pagination.type === "nextLink") {
-          const href = $(definition.pagination.nextSelector).first().attr("href");
-          if (!href) return;
-          const nextUrl = new URL(href, request.url).href;
-          await crawler.addRequests([
-            {
-              url: nextUrl,
-              userData: { page: page + 1 } satisfies RequestUserData,
-            },
-          ]);
-          return;
-        }
-
-        if (definition.pagination.type === "urlTemplate") {
-          const nextPage = page + 1;
-          const nextUrl = renderScraperTemplate(
-            definition.pagination.urlTemplate,
-            { ...macros, page: nextPage },
+    await withIsolatedRequestQueue(async (requestQueue) => {
+      const crawler = new CheerioCrawler({
+        requestQueue,
+        maxRequestsPerMinute: definition.limits.maxRequestsPerMinute,
+        maxRequestRetries: definition.limits.maxRetries,
+        minConcurrency: 1,
+        maxConcurrency: 1,
+        requestHandlerTimeoutSecs: 120,
+        preNavigationHooks: [
+          async ({ request }) => {
+            request.headers = { ...request.headers, ...headers };
+          },
+        ],
+        async requestHandler({ $, request }) {
+          if (shouldStop) return;
+          const userData = request.userData as RequestUserData;
+          const page = userData.page;
+          const rows = extractPageItems(
+            $ as unknown as ScraperDom,
+            definition.itemSelector,
+            definition.fields,
           );
-          await crawler.addRequests([
-            {
-              url: nextUrl,
-              userData: { page: nextPage } satisfies RequestUserData,
-            },
-          ]);
-        }
-      },
-    });
+          const action = await onPage(rows, page, request.url);
+          if (action === "stop") {
+            shouldStop = true;
+            return;
+          }
 
-    const startUrl = this.pageUrl(definition, macros, 1);
-    await crawler.run([
-      { url: startUrl, userData: { page: 1 } satisfies RequestUserData },
-    ]);
+          if (page >= maxPages || shouldStop) return;
+
+          if (definition.pagination.type === "nextLink") {
+            const href = $(definition.pagination.nextSelector)
+              .first()
+              .attr("href");
+            if (!href) return;
+            const nextUrl = new URL(href, request.url).href;
+            await crawler.addRequests([
+              {
+                url: nextUrl,
+                userData: { page: page + 1 } satisfies RequestUserData,
+              },
+            ]);
+            return;
+          }
+
+          if (definition.pagination.type === "urlTemplate") {
+            const nextPage = page + 1;
+            const nextUrl = renderScraperTemplate(
+              definition.pagination.urlTemplate,
+              { ...macros, page: nextPage },
+            );
+            await crawler.addRequests([
+              {
+                url: nextUrl,
+                userData: { page: nextPage } satisfies RequestUserData,
+              },
+            ]);
+          }
+        },
+      });
+
+      const startUrl = this.pageUrl(definition, macros, 1);
+      await crawler.run([
+        { url: startUrl, userData: { page: 1 } satisfies RequestUserData },
+      ]);
+    });
 
     if (delayMs > 0) {
       this.logger.debug(`Cheerio crawl finished (delay config ${delayMs}ms)`);
@@ -152,96 +160,99 @@ export class ScraperEngineService {
     let shouldStop = false;
     const headers = this.buildHeaders(definition);
 
-    const crawler = new PlaywrightCrawler({
-      maxRequestsPerMinute: definition.limits.maxRequestsPerMinute,
-      maxRequestRetries: definition.limits.maxRetries,
-      minConcurrency: 1,
-      maxConcurrency: 1,
-      requestHandlerTimeoutSecs: 120,
-      launchContext: {
-        launchOptions: {
-          headless: true,
+    await withIsolatedRequestQueue(async (requestQueue) => {
+      const crawler = new PlaywrightCrawler({
+        requestQueue,
+        maxRequestsPerMinute: definition.limits.maxRequestsPerMinute,
+        maxRequestRetries: definition.limits.maxRetries,
+        minConcurrency: 1,
+        maxConcurrency: 1,
+        requestHandlerTimeoutSecs: 120,
+        launchContext: {
+          launchOptions: {
+            headless: true,
+          },
         },
-      },
-      preNavigationHooks: [
-        async ({ page, request }) => {
-          if (definition.userAgent) {
-            await page.setExtraHTTPHeaders({
-              ...headers,
-              "User-Agent": definition.userAgent,
-            });
-          } else if (Object.keys(headers).length) {
-            await page.setExtraHTTPHeaders(headers);
+        preNavigationHooks: [
+          async ({ page, request }) => {
+            if (definition.userAgent) {
+              await page.setExtraHTTPHeaders({
+                ...headers,
+                "User-Agent": definition.userAgent,
+              });
+            } else if (Object.keys(headers).length) {
+              await page.setExtraHTTPHeaders(headers);
+            }
+            request.headers = { ...request.headers, ...headers };
+          },
+        ],
+        async requestHandler({ page, request, parseWithCheerio }) {
+          if (shouldStop) return;
+          const userData = request.userData as RequestUserData;
+          const pageNum = userData.page;
+          const $ = await parseWithCheerio();
+          const rows = extractPageItems(
+            $ as unknown as ScraperDom,
+            definition.itemSelector,
+            definition.fields,
+          );
+          const action = await onPage(rows, pageNum, request.url);
+          if (action === "stop") {
+            shouldStop = true;
+            return;
           }
-          request.headers = { ...request.headers, ...headers };
+
+          if (pageNum >= maxPages || shouldStop) return;
+
+          if (definition.pagination.type === "nextLink") {
+            const href = await page
+              .locator(definition.pagination.nextSelector)
+              .first()
+              .getAttribute("href");
+            if (!href) return;
+            const nextUrl = new URL(href, request.url).href;
+            await crawler.addRequests([
+              {
+                url: nextUrl,
+                userData: { page: pageNum + 1 } satisfies RequestUserData,
+              },
+            ]);
+            return;
+          }
+
+          if (definition.pagination.type === "urlTemplate") {
+            const nextPage = pageNum + 1;
+            const nextUrl = renderScraperTemplate(
+              definition.pagination.urlTemplate,
+              { ...macros, page: nextPage },
+            );
+            await crawler.addRequests([
+              {
+                url: nextUrl,
+                userData: { page: nextPage } satisfies RequestUserData,
+              },
+            ]);
+          }
         },
-      ],
-      async requestHandler({ page, request, parseWithCheerio }) {
-        if (shouldStop) return;
-        const userData = request.userData as RequestUserData;
-        const pageNum = userData.page;
-        const $ = await parseWithCheerio();
-        const rows = extractPageItems(
-          $ as unknown as ScraperDom,
-          definition.itemSelector,
-          definition.fields,
-        );
-        const action = await onPage(rows, pageNum, request.url);
-        if (action === "stop") {
-          shouldStop = true;
-          return;
-        }
+        failedRequestHandler({ request, error }) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (
+            message.includes("Executable doesn't exist") ||
+            message.includes("browserType.launch")
+          ) {
+            throw new Error(
+              "Playwright browser not installed. Run: pnpm --filter @questorylabs/api exec playwright install chromium",
+            );
+          }
+          throw error;
+        },
+      });
 
-        if (pageNum >= maxPages || shouldStop) return;
-
-        if (definition.pagination.type === "nextLink") {
-          const href = await page
-            .locator(definition.pagination.nextSelector)
-            .first()
-            .getAttribute("href");
-          if (!href) return;
-          const nextUrl = new URL(href, request.url).href;
-          await crawler.addRequests([
-            {
-              url: nextUrl,
-              userData: { page: pageNum + 1 } satisfies RequestUserData,
-            },
-          ]);
-          return;
-        }
-
-        if (definition.pagination.type === "urlTemplate") {
-          const nextPage = pageNum + 1;
-          const nextUrl = renderScraperTemplate(
-            definition.pagination.urlTemplate,
-            { ...macros, page: nextPage },
-          );
-          await crawler.addRequests([
-            {
-              url: nextUrl,
-              userData: { page: nextPage } satisfies RequestUserData,
-            },
-          ]);
-        }
-      },
-      failedRequestHandler({ request, error }) {
-        const message =
-          error instanceof Error ? error.message : String(error);
-        if (
-          message.includes("Executable doesn't exist") ||
-          message.includes("browserType.launch")
-        ) {
-          throw new Error(
-            "Playwright browser not installed. Run: pnpm --filter @questorylabs/api exec playwright install chromium",
-          );
-        }
-        throw error;
-      },
+      const startUrl = this.pageUrl(definition, macros, 1);
+      await crawler.run([
+        { url: startUrl, userData: { page: 1 } satisfies RequestUserData },
+      ]);
     });
-
-    const startUrl = this.pageUrl(definition, macros, 1);
-    await crawler.run([
-      { url: startUrl, userData: { page: 1 } satisfies RequestUserData },
-    ]);
   }
 }

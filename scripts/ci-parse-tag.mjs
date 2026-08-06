@@ -4,7 +4,7 @@ import { appendFileSync } from "node:fs";
  * Parse release tags:
  *   docker-api-1.2.3           → kind=docker  service=api  version=1.2.3  channel=stable
  *   docker-api-1.3.0-rc.1      → channel=rc
- *   docker-api-0.0.0-canary.*  → channel=canary
+ *   docker-api-canary.*        → channel=canary
  *   docker-api-canary          → channel=canary (requires CANARY_VERSION env)
  *   service-web-0.1.0          → kind=service service=web  version=0.1.0
  *
@@ -14,8 +14,11 @@ import { appendFileSync } from "node:fs";
  * (used by Manual Release). Use "auto" or omit to accept the detected channel.
  */
 
-const TAG_PATTERN =
-  /^(docker|service)-(api|web)-v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?)$/;
+const VERSION_PATTERN =
+  "(?:\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.+-]+)?|canary\\.[0-9A-Za-z.+-]+)";
+const TAG_PATTERN = new RegExp(
+  `^(docker|service)-(api|web)-v?(${VERSION_PATTERN})$`,
+);
 const CANARY_TAG_PATTERN = /^(docker|service)-(api|web)-canary$/;
 
 /**
@@ -23,6 +26,9 @@ const CANARY_TAG_PATTERN = /^(docker|service)-(api|web)-canary$/;
  * @returns {"stable" | "rc" | "canary"}
  */
 export function detectChannel(version) {
+  if (version.startsWith("canary.")) {
+    return "canary";
+  }
   const prerelease = version.match(/^\d+\.\d+\.\d+-([0-9A-Za-z.+-]+)$/)?.[1];
   if (!prerelease) {
     return "stable";
@@ -71,7 +77,7 @@ export function parseReleaseTag(tag, options = {}) {
     [, kind, service] = canaryMatch;
     if (!canaryVersion) {
       throw new Error(
-        `Tag "${normalized}" requires CANARY_VERSION (e.g. 0.0.0-canary.20250802.abc1234)`,
+        `Tag "${normalized}" requires CANARY_VERSION (e.g. canary.20250802.abc1234)`,
       );
     }
     version = canaryVersion;

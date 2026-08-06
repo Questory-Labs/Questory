@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { zipSync, strToU8 } from "fflate";
 import { LetterboxdService } from "../../src/watch/imports/letterboxd.service";
 import {
+  letterboxdAdjacentDateStrs,
+  letterboxdAdjacentScrapeCsvPair,
+  letterboxdDatesOneDayApart,
   letterboxdRepairGroupKey,
   letterboxdWatchDedupeKey,
   letterboxdWatchDedupeKeyFromTitle,
@@ -85,6 +88,37 @@ describe("letterboxd keys", () => {
       at,
     );
     expect(legacy).toBe(canonical);
+  });
+
+  it("detects adjacent calendar dates", () => {
+    expect(letterboxdDatesOneDayApart("2026-07-21", "2026-07-22")).toBe(true);
+    expect(letterboxdDatesOneDayApart("2026-07-22", "2026-07-22")).toBe(false);
+    expect(letterboxdAdjacentDateStrs("2026-08-03")).toEqual([
+      "2026-08-03",
+      "2026-08-02",
+      "2026-08-04",
+    ]);
+  });
+
+  it("detects scrape/csv pairs one day apart", () => {
+    const scrape = {
+      id: "scrape",
+      userId: "u1",
+      dedupeKey: "letterboxd_csv:watch:midsommar:2019:2026-07-21",
+      watchedAt: watchedAtDayUtc("2026-07-21")!,
+      source: "letterboxd",
+      title: { name: "Midsommar" },
+    };
+    const csv = {
+      id: "csv",
+      userId: "u1",
+      dedupeKey: "letterboxd_csv:watch:midsommar:2019:2026-07-22",
+      watchedAt: watchedAtDayUtc("2026-07-22")!,
+      source: "letterboxd_csv",
+      title: { name: "Midsommar" },
+    };
+    expect(letterboxdAdjacentScrapeCsvPair(scrape, csv)).toBe(true);
+    expect(letterboxdAdjacentScrapeCsvPair(csv, scrape)).toBe(true);
   });
 });
 
@@ -343,6 +377,7 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
         watchedAt,
         dedupeKey: "letterboxd_csv:diary:test-film:2024-01-01",
         rating: 4,
+        source: "letterboxd_csv",
         createdAt: new Date("2024-01-03"),
         title: { name: "Test Film", year: 2020 },
       },
@@ -353,6 +388,7 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
         watchedAt,
         dedupeKey: "letterboxd_csv:watched:test-film:2024-01-01",
         rating: null,
+        source: "letterboxd_csv",
         createdAt: new Date("2024-01-04"),
         title: { name: "Test Film", year: 2020 },
       },
@@ -386,6 +422,7 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
         watchedAt,
         dedupeKey: "letterboxd_csv:diary:test-film:2024-01-01",
         rating: 4,
+        source: "letterboxd_csv",
         createdAt: new Date("2024-01-03"),
         title: { name: "Test Film", year: null },
       },
@@ -396,6 +433,7 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
         watchedAt,
         dedupeKey: "letterboxd_csv:watch:test-film:2020:2024-01-01",
         rating: null,
+        source: "letterboxd_csv",
         createdAt: new Date("2024-01-04"),
         title: { name: "Test Film", year: 2020 },
       },
@@ -427,6 +465,7 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
         watchedAt,
         dedupeKey: "letterboxd_csv:watch:midsommar::2024-07-22",
         rating: 4,
+        source: "letterboxd",
         createdAt: new Date("2024-07-23"),
         title: { name: "Midsommar", year: null },
       },
@@ -437,6 +476,7 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
         watchedAt,
         dedupeKey: "letterboxd_csv:watch:midsommar:2019:2024-07-22",
         rating: 4,
+        source: "letterboxd_csv",
         createdAt: new Date("2024-07-24"),
         title: { name: "Midsommar", year: 2019 },
       },
@@ -446,15 +486,43 @@ describe("LetterboxdService.repairLetterboxdDuplicates", () => {
 
     expect(result.merged).toBe(1);
     expect(watchEventDeleteMany).toHaveBeenCalledWith({
-      where: { id: { in: ["e-csv"] } },
+      where: { id: { in: ["e-scrape"] } },
     });
-    expect(watchEventUpdate).toHaveBeenCalledWith({
-      where: { id: "e-scrape" },
-      data: {
-        dedupeKey: "letterboxd_csv:watch:midsommar:2019:2024-07-22",
+    expect(watchEventUpdate).not.toHaveBeenCalled();
+  });
+
+  it("merges scrape and CSV events one day apart from timezone bug", async () => {
+    watchEventFindMany.mockResolvedValue([
+      {
+        id: "e-scrape",
+        userId: "u1",
+        titleId: "t-scrape",
+        watchedAt: watchedAtDayUtc("2026-07-21")!,
+        dedupeKey: "letterboxd_csv:watch:midsommar:2019:2026-07-21",
         rating: 4,
-        watchedAt,
+        source: "letterboxd",
+        createdAt: new Date("2026-07-23"),
+        title: { name: "Midsommar", year: 2019 },
       },
+      {
+        id: "e-csv",
+        userId: "u1",
+        titleId: "t-csv",
+        watchedAt: watchedAtDayUtc("2026-07-22")!,
+        dedupeKey: "letterboxd_csv:watch:midsommar:2019:2026-07-22",
+        rating: 4,
+        source: "letterboxd_csv",
+        createdAt: new Date("2026-07-24"),
+        title: { name: "Midsommar", year: 2019 },
+      },
+    ]);
+
+    const result = await service.repairLetterboxdDuplicates("u1");
+
+    expect(result.merged).toBe(1);
+    expect(watchEventDeleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["e-scrape"] } },
     });
+    expect(watchEventUpdate).not.toHaveBeenCalled();
   });
 });

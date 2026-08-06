@@ -53,16 +53,19 @@ export function applyFieldTransform(
     case "date": {
       const iso = trimmed.match(/(\d{4}-\d{2}-\d{2})/);
       if (iso) return iso[1];
-      const slash = trimmed.match(/(\d{4})\/([a-z]{3})\/(\d{1,2})/i);
-      if (slash) {
-        const month = MONTHS[slash[2].toLowerCase()];
+      const slashText = trimmed.match(/(\d{4})\/([a-z]{3})\/(\d{1,2})/i);
+      if (slashText) {
+        const month = MONTHS[slashText[2].toLowerCase()];
         if (!month) return null;
-        const day = slash[3].padStart(2, "0");
-        return `${slash[1]}-${month}-${day}`;
+        const day = slashText[3].padStart(2, "0");
+        return `${slashText[1]}-${month}-${day}`;
       }
-      const parsed = new Date(trimmed);
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString().slice(0, 10);
+      const slashNum = trimmed.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+      if (slashNum) {
+        const month = slashNum[2].padStart(2, "0");
+        const day = slashNum[3].padStart(2, "0");
+        if (Number(month) < 1 || Number(month) > 12) return null;
+        return `${slashNum[1]}-${month}-${day}`;
       }
       return null;
     }

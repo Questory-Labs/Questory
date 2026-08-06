@@ -39,4 +39,27 @@ describe("letterboxd row parse", () => {
     expect(rows[0].date).toBe("2024-08-15");
     expect(rows[1].date).toBe("2024-08-10");
   });
+
+  it("prefers month/day parts over a timezone-shifted href date", () => {
+    const rows = normalizeLetterboxdScrapeRows([
+      {
+        title: "Interstellar",
+        month: "Aug",
+        yearHeader: "2026",
+        day: "04",
+        date: "2026-08-03",
+        filmHref: "/film/interstellar/",
+      },
+      {
+        title: "Spider-Man: Brand New Day",
+        month: null,
+        yearHeader: null,
+        day: "03",
+        date: "2026-08-02",
+        filmHref: "/film/spider-man-brand-new-day/",
+      },
+    ]);
+
+    expect(rows[1].date).toBe("2026-08-03");
+  });
 });

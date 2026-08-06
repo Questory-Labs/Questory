@@ -66,7 +66,7 @@ jobs:
           set -euo pipefail
           tag="${{ steps.tag.outputs.tag }}"
           if [[ "$tag" =~ -(api|web)-canary$ ]]; then
-            export CANARY_VERSION="0.0.0-canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
+            export CANARY_VERSION="canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
             echo "Generated CANARY_VERSION=${CANARY_VERSION}"
           fi
           node scripts/ci-parse-tag.mjs "${tag}"
@@ -169,11 +169,11 @@ jobs:
           set -euo pipefail
           tag="${{ steps.tag.outputs.tag }}"
           if [[ "$tag" =~ -(api|web)-canary$ ]]; then
-            export CANARY_VERSION="0.0.0-canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
+            export CANARY_VERSION="canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
           fi
           node scripts/ci-parse-tag.mjs "${tag}"
 
-      - name: Deploy over SSH
+      - name: Deploy over SSH 
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}

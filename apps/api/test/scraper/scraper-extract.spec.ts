@@ -29,6 +29,18 @@ describe("scraper transforms", () => {
         "/username/films/diary/for/2024/aug/15/",
       ),
     ).toBe("2024-08-15");
+    expect(
+      applyFieldTransform(
+        "letterboxdDateHref",
+        "/santoshpanna/diary/films/for/2026/08/03/",
+      ),
+    ).toBe("2026-08-03");
+    expect(
+      applyFieldTransform(
+        "letterboxdDateHref",
+        "/santoshpanna/diary/films/for/2026/07/22/",
+      ),
+    ).toBe("2026-07-22");
   });
 
   it("extracts slug from film href", () => {

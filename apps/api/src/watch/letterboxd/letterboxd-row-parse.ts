@@ -59,8 +59,9 @@ export function normalizeLetterboxdScrapeRows(
           : null;
 
     const date =
+      letterboxdDateFromParts(currentMonth, row.day, currentYear) ||
       row.date?.trim() ||
-      letterboxdDateFromParts(currentMonth, row.day, currentYear);
+      null;
 
     const rating = row.rating?.trim() || row.ratingClass?.trim() || null;
 

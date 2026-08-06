@@ -105,3 +105,65 @@ export function letterboxdRepairGroupKey(
 
   return `${userId}:fallback:${equivKey}`;
 }
+
+export function letterboxdDateStrFromDedupeKey(
+  dedupeKey: string,
+  watchedAt: Date,
+): string {
+  const legacy = parseLegacyLetterboxdDedupeKey(dedupeKey);
+  if (legacy) return legacy.dateStr;
+  const watch = parseWatchDedupeKey(dedupeKey);
+  if (watch) return watch.dateStr;
+  return watchedAtDateStr(watchedAt);
+}
+
+export function shiftLetterboxdDateStr(
+  dateStr: string,
+  deltaDays: number,
+): string | null {
+  const at = watchedAtDayUtc(dateStr);
+  if (!at) return null;
+  const shifted = new Date(at.getTime() + deltaDays * 24 * 60 * 60 * 1000);
+  return watchedAtDateStr(shifted);
+}
+
+/** Calendar date and ±1 day — for matching scrape timezone off-by-one bugs. */
+export function letterboxdAdjacentDateStrs(dateStr: string): string[] {
+  const prev = shiftLetterboxdDateStr(dateStr, -1);
+  const next = shiftLetterboxdDateStr(dateStr, 1);
+  return [dateStr, prev, next].filter((d): d is string => d != null);
+}
+
+export function letterboxdDatesOneDayApart(a: string, b: string): boolean {
+  if (a === b) return false;
+  const at = watchedAtDayUtc(a);
+  const bt = watchedAtDayUtc(b);
+  if (!at || !bt) return false;
+  return Math.abs(at.getTime() - bt.getTime()) === 24 * 60 * 60 * 1000;
+}
+
+export type LetterboxdRepairEvent = {
+  id: string;
+  userId: string;
+  dedupeKey: string;
+  watchedAt: Date;
+  source: string;
+  title: { name: string };
+};
+
+export function letterboxdAdjacentScrapeCsvPair(
+  a: LetterboxdRepairEvent,
+  b: LetterboxdRepairEvent,
+): boolean {
+  const scrape = a.source === "letterboxd" ? a : b.source === "letterboxd" ? b : null;
+  const csv =
+    a.source === "letterboxd_csv"
+      ? a
+      : b.source === "letterboxd_csv"
+        ? b
+        : null;
+  if (!scrape || !csv) return false;
+  const dateA = letterboxdDateStrFromDedupeKey(a.dedupeKey, a.watchedAt);
+  const dateB = letterboxdDateStrFromDedupeKey(b.dedupeKey, b.watchedAt);
+  return letterboxdDatesOneDayApart(dateA, dateB);
+}

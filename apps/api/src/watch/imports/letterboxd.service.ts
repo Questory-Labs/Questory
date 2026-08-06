@@ -10,6 +10,7 @@ import { EnrichmentService } from "../enrichment/enrichment.service";
 import { TmdbService } from "../tmdb/tmdb.service";
 import { UsersService } from "../users/users.service";
 import {
+  letterboxdAdjacentScrapeCsvPair,
   letterboxdRepairGroupKey,
   letterboxdWatchDedupeKey,
   normalizeLetterboxdName,
@@ -120,6 +121,7 @@ type LetterboxdWatchEvent = {
   watchedAt: Date;
   dedupeKey: string;
   rating: number | null;
+  source: string;
   createdAt: Date;
   title: { name: string; year: number | null };
 };
@@ -141,6 +143,9 @@ function pickSurvivor(group: LetterboxdWatchEvent[]): LetterboxdWatchEvent {
     const aRating = a.rating != null ? 1 : 0;
     const bRating = b.rating != null ? 1 : 0;
     if (bRating !== aRating) return bRating - aRating;
+    const aCsv = a.source === "letterboxd_csv" ? 1 : 0;
+    const bCsv = b.source === "letterboxd_csv" ? 1 : 0;
+    if (bCsv !== aCsv) return bCsv - aCsv;
     const aDiary = a.dedupeKey.includes(":diary:") ? 1 : 0;
     const bDiary = b.dedupeKey.includes(":diary:") ? 1 : 0;
     if (bDiary !== aDiary) return bDiary - aDiary;
@@ -239,12 +244,40 @@ export class LetterboxdService {
     let legacyKeys = 0;
     let alreadyCanonical = 0;
     const groups = new Map<string, LetterboxdWatchEvent[]>();
+    const assigned = new Set<string>();
+
+    const byUserTitle = new Map<string, LetterboxdWatchEvent[]>();
+    for (const event of events) {
+      const bucket = `${event.userId}:${normalizeLetterboxdName(event.title.name)}`;
+      const list = byUserTitle.get(bucket) ?? [];
+      list.push(event);
+      byUserTitle.set(bucket, list);
+    }
+
+    for (const [bucket, bucketEvents] of byUserTitle) {
+      for (let i = 0; i < bucketEvents.length; i++) {
+        const a = bucketEvents[i];
+        if (assigned.has(a.id)) continue;
+        for (let j = i + 1; j < bucketEvents.length; j++) {
+          const b = bucketEvents[j];
+          if (assigned.has(b.id)) continue;
+          if (!letterboxdAdjacentScrapeCsvPair(a, b)) continue;
+          groups.set(`${bucket}:adjacent`, [a, b]);
+          assigned.add(a.id);
+          assigned.add(b.id);
+          break;
+        }
+      }
+    }
+
     for (const event of events) {
       if (parseLegacyLetterboxdDedupeKey(event.dedupeKey)) {
         legacyKeys += 1;
       } else if (event.dedupeKey.startsWith("letterboxd_csv:watch:")) {
         alreadyCanonical += 1;
       }
+
+      if (assigned.has(event.id)) continue;
 
       const key = letterboxdRepairGroupKey(
         event.userId,

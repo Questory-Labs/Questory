@@ -15,7 +15,7 @@ describe("detectChannel", () => {
   });
 
   it("returns canary for canary prerelease", () => {
-    expect(detectChannel("0.0.0-canary.20250802.abc1234")).toBe("canary");
+    expect(detectChannel("canary.20250802.abc1234")).toBe("canary");
   });
 
   it("returns rc for other prerelease identifiers", () => {
@@ -58,7 +58,7 @@ describe("parseReleaseTag", () => {
   });
 
   it("parses canary semver tag", () => {
-    const result = parseReleaseTag("docker-api-0.0.0-canary.20250802.abc1234");
+    const result = parseReleaseTag("docker-api-canary.20250802.abc1234");
     expect(result.channel).toBe("canary");
     expect(result.image_extra_tags).toBe("canary");
     expect(result.image_latest).toBe("");
@@ -66,10 +66,10 @@ describe("parseReleaseTag", () => {
 
   it("parses docker-api-canary with CANARY_VERSION", () => {
     const result = parseReleaseTag("docker-api-canary", {
-      canaryVersion: "0.0.0-canary.20250802.abc1234",
+      canaryVersion: "canary.20250802.abc1234",
     });
     expect(result.channel).toBe("canary");
-    expect(result.version).toBe("0.0.0-canary.20250802.abc1234");
+    expect(result.version).toBe("canary.20250802.abc1234");
     expect(result.kind).toBe("docker");
     expect(result.service).toBe("api");
   });

@@ -36,7 +36,7 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          version="0.0.0-canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
+          version="canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "release_tag_api=docker-api-${version}" >> "$GITHUB_OUTPUT"
           echo "release_tag_web=docker-web-${version}" >> "$GITHUB_OUTPUT"
