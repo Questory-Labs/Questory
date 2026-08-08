@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { PageHeader, Panel, StateMessage, Button } from "@/components/ui";
 import { musicFetch } from "@/lib/music";
 import { watchFetch } from "@/lib/watch";

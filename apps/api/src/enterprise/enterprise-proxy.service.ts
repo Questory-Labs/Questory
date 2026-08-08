@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { encodeEnterpriseInternalToken } from "@questorylabs/shared/enterprise-internal-token";
+import { providerFetch } from "../lib/qhttp-outbound";
 
 export type EnterpriseForwardOptions = {
   userId: string;
@@ -53,7 +54,7 @@ export class EnterpriseProxyService {
 
     let res: Response;
     try {
-      res = await fetch(url.toString(), init);
+      res = await providerFetch(url.toString(), init);
     } catch {
       throw new ServiceUnavailableException("Enterprise service unavailable");
     }
@@ -78,7 +79,7 @@ export class EnterpriseProxyService {
     );
     let res: Response;
     try {
-      res = await fetch(url.toString(), { cache: "no-store" });
+      res = await providerFetch(url.toString(), { cache: "no-store" });
     } catch {
       throw new ServiceUnavailableException("Enterprise service unavailable");
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import type { SyncJob } from "@questorylabs/shared";
 

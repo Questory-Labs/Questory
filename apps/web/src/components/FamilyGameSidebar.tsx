@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import type { FamilyGameDetail, GameDetail } from "@questorylabs/shared";
 import { useEffect } from "react";

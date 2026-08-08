@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 import { describe, expect, it, vi } from "vitest";
 import { GuardrailsSettings } from "./GuardrailsSettings";
 
@@ -14,11 +14,11 @@ vi.mock("@/lib/enterprise-api", () => ({
 }));
 
 function wrap(ui: React.ReactNode) {
-  const client = new QueryClient({
+  const client = new QueryCache({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+    <QHttpQueryProvider client={client}>{ui}</QHttpQueryProvider>,
   );
 }
 

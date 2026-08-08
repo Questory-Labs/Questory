@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { ScraperIterationList } from "@/components/admin/scrapers/ScraperIterationList";
 import { ScraperIterationWorkflow } from "@/components/admin/scrapers/ScraperIterationWorkflow";

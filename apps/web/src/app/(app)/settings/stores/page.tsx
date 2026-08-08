@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { Suspense } from "react";
 import { StoreBadge } from "@/components/StoreBadge";
 import { PageHeader, Panel, StateMessage } from "@/components/ui";

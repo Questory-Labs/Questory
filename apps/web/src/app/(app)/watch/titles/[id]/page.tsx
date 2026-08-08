@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import type { WatchRange, WatchTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
 import { WatchRangePicker } from "@/components/watch/WatchRangePicker";
-import { PageHeader, StateMessage } from "@/components/ui";
+import { PageHeader, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatYourWatchRating, watchFetch } from "@/lib/watch";
 
@@ -86,9 +86,7 @@ export default function WatchTitlePage() {
         }
       />
 
-      {detail.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
       {detail.isError && (
         <StateMessage variant="error">Title not found.</StateMessage>
       )}

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminAddUserDialog } from "./AdminAddUserDialog";
@@ -12,18 +12,18 @@ afterEach(() => {
 });
 
 function renderDialog(open = true) {
-  const qc = new QueryClient({
+  const qc = new QueryCache({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
   return render(
-    <QueryClientProvider client={qc}>
+    <QHttpQueryProvider client={qc}>
       <AdminAddUserDialog
         open={open}
         onClose={vi.fn()}
         onMessage={vi.fn()}
       />
-    </QueryClientProvider>,
+    </QHttpQueryProvider>,
   );
 }
 

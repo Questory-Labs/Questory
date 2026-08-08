@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { GameTile } from "@/components/GameTile";
 import { Button, PageHeader, Panel } from "@/components/ui";

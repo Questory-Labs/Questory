@@ -64,6 +64,9 @@ importers:
       '@questorylabs/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@questorylabs/qhttp':
+        specifier: ^0.1.1
+        version: 0.1.1(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)
       '@questorylabs/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -161,12 +164,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@questorylabs/qhttp':
+        specifier: ^0.1.1
+        version: 0.1.1(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)
       '@questorylabs/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@tanstack/react-query':
-        specifier: ^5.69.0
-        version: 5.101.2(react@19.2.7)
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1361,6 +1364,21 @@ packages:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
 
+  '@questorylabs/qhttp@0.1.1':
+    resolution: {integrity: sha512-LkgMOkR3BDjXcLdPo6lJnEkHEWt/3NhYujzzPa3qcdy4a5cFeWyGofN1Pk1+pTYnpgyQm8hqYid8EJFuSupNeA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      http-cache-semantics: ^4.0.0
+      react: '>=18.0.0'
+      ws: ^8.0.0
+    peerDependenciesMeta:
+      http-cache-semantics:
+        optional: true
+      react:
+        optional: true
+      ws:
+        optional: true
+
   '@radix-ui/primitive@1.1.3':
     resolution: {integrity: sha512-JTF99U/6XIjCBo0wqkU5sK10glYe27MRRsfwoiq5zzOEZLHU3A3KCMa5X/azekYRCJ0HlwI0crAXS/5dEHTzDg==}
 
@@ -1960,14 +1978,6 @@ packages:
 
   '@tailwindcss/postcss@4.3.3':
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
-
-  '@tanstack/query-core@5.101.2':
-    resolution: {integrity: sha512-hH5MLoJhF7KaIGd7q3xTXGXvslI+GYlM1Z/35aSHHWaCJWB7XvTSHYuV3eM7tw+aE0mT/xMro4M4Q9rCGHT0lw==}
-
-  '@tanstack/react-query@5.101.2':
-    resolution: {integrity: sha512-seDkr6kzGzX1okaaTtZPtgA688CDPlXUz1C6xSg0ESqn04Vuc8tlrYms1s3de+znBqhPVxFRfpAfUf+6XvfPWg==}
-    peerDependencies:
-      react: ^18 || ^19
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -5932,6 +5942,12 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react-dom'
 
+  '@questorylabs/qhttp@0.1.1(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)':
+    optionalDependencies:
+      http-cache-semantics: 4.2.0
+      react: 19.2.7
+      ws: 8.21.1
+
   '@radix-ui/primitive@1.1.3': {}
 
   '@radix-ui/primitive@1.1.7': {}
@@ -6359,13 +6375,6 @@ snapshots:
       '@tailwindcss/oxide': 4.3.3
       postcss: 8.5.25
       tailwindcss: 4.3.3
-
-  '@tanstack/query-core@5.101.2': {}
-
-  '@tanstack/react-query@5.101.2(react@19.2.7)':
-    dependencies:
-      '@tanstack/query-core': 5.101.2
-      react: 19.2.7
 
   '@testing-library/dom@10.4.1':
     dependencies:

@@ -7,7 +7,10 @@ type SharedConnection = {
   subscribers: Set<(data: string) => void>;
   abortController: AbortController;
   running: boolean;
+  releaseTimer?: ReturnType<typeof setTimeout>;
 };
+
+const RELEASE_GRACE_MS = 300;
 
 const sharedConnections = new Map<string, SharedConnection>();
 
@@ -139,6 +142,10 @@ function acquireSharedConnection(
   signal: AbortSignal,
 ) {
   const conn = ensureSharedConnection(url);
+  if (conn.releaseTimer) {
+    clearTimeout(conn.releaseTimer);
+    conn.releaseTimer = undefined;
+  }
   conn.subscribers.add(onMessage);
   startSharedConnection(url, conn);
 
@@ -146,10 +153,15 @@ function acquireSharedConnection(
     const current = sharedConnections.get(url);
     if (!current) return;
     current.subscribers.delete(onMessage);
-    if (current.subscribers.size === 0) {
-      current.abortController.abort();
+    if (current.subscribers.size > 0) return;
+    if (current.releaseTimer) clearTimeout(current.releaseTimer);
+    current.releaseTimer = setTimeout(() => {
+      const live = sharedConnections.get(url);
+      if (!live || live.subscribers.size > 0) return;
+      live.releaseTimer = undefined;
+      live.abortController.abort();
       sharedConnections.delete(url);
-    }
+    }, RELEASE_GRACE_MS);
   };
 
   if (signal.aborted) {
@@ -179,6 +191,7 @@ export async function subscribeSse(
 /** @internal test helper */
 export function resetSharedSseConnectionsForTests() {
   for (const conn of sharedConnections.values()) {
+    if (conn.releaseTimer) clearTimeout(conn.releaseTimer);
     conn.abortController.abort();
   }
   sharedConnections.clear();

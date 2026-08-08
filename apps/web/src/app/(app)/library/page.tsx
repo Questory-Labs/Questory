@@ -1,11 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GameTile } from "@/components/GameTile";
 import { StoreBadgeRow } from "@/components/StoreBadge";
-import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
+import { Button, EmptyState, PageHeader, SkeletonTileGrid } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useSyncJobs } from "@/hooks/useSyncJobs";
 import { useMemo, useState, Suspense } from "react";
@@ -78,7 +78,7 @@ function LibraryContent() {
   const library = useQuery({
     queryKey: ["library", params],
     queryFn: () => api<LibraryResponse>(`/library?${params}`),
-    refetchInterval: () => (sync.active ? 3_000 : false),
+    refetchInterval: sync.active ? 3_000 : false,
   });
 
   const totalPages = library.data
@@ -174,7 +174,9 @@ function LibraryContent() {
         </label>
       </div>
 
-      {(library.data?.items || []).length === 0 && !library.isLoading ? (
+      {library.isLoading && !library.data ? (
+        <SkeletonTileGrid count={12} className="mb-6" />
+      ) : (library.data?.items || []).length === 0 ? (
         <EmptyState
           title={
             sync.active
@@ -252,7 +254,7 @@ export default function LibraryPage() {
   return (
     <>
       <Suspense
-        fallback={<StateMessage variant="loading" />}
+        fallback={<SkeletonTileGrid count={8} />}
       >
         <LibraryContent />
       </Suspense>

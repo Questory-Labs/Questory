@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CacheService } from "../cache/cache.service";
+import { outboundJson } from "../lib/qhttp-outbound";
 
 export type SteamOwnedGame = {
   appid: number;
@@ -169,15 +170,7 @@ export class SteamApiService {
       const cached = await this.cache.getJson<T>(cacheKey);
       if (cached) return cached;
     }
-    const res = await fetch(url, init);
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(`Steam API ${res.status}: ${text.slice(0, 200)}`);
-    }
-    if (text.trimStart().startsWith("<")) {
-      throw new Error("Steam returned HTML instead of JSON");
-    }
-    const data = JSON.parse(text) as T;
+    const data = await outboundJson<T>(url, init, { rejectHtml: true });
     if (cacheKey) await this.cache.setJson(cacheKey, data, ttl);
     return data;
   }

@@ -75,4 +75,41 @@ describe("subscribeSse", () => {
     ac1.abort();
     ac2.abort();
   });
+
+  it("keeps the shared connection during a brief resubscribe gap", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async () => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"ok":true}\n\n'));
+        },
+      });
+      return { ok: true, body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ac1 = new AbortController();
+    const ac2 = new AbortController();
+    void subscribeSse(
+      "http://localhost:4000/v1/grace/stream",
+      { onMessage: () => {} },
+      ac1.signal,
+    );
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    ac1.abort();
+    void subscribeSse(
+      "http://localhost:4000/v1/grace/stream",
+      { onMessage: () => {} },
+      ac2.signal,
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    ac2.abort();
+  });
 });

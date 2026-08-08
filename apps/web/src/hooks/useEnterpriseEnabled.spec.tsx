@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor, cleanup } from "@testing-library/react";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 
 vi.mock("@/lib/enterprise-api", () => ({
   fetchEnterpriseStatus: vi.fn(),
@@ -13,13 +13,13 @@ import {
 } from "./useEnterpriseEnabled";
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  const qc = new QueryClient({
+  const qc = new QueryCache({
     defaultOptions: { queries: { retry: false } },
   });
   return (
-    <QueryClientProvider client={qc}>
+    <QHttpQueryProvider client={qc}>
       <EnterpriseEnabledProvider>{children}</EnterpriseEnabledProvider>
-    </QueryClientProvider>
+    </QHttpQueryProvider>
   );
 }
 
@@ -27,6 +27,7 @@ describe("useEnterpriseEnabled", () => {
   const prev = process.env.ENTERPRISE;
 
   afterEach(() => {
+    cleanup();
     if (prev === undefined) delete process.env.ENTERPRISE;
     else process.env.ENTERPRISE = prev;
   });
@@ -62,9 +63,10 @@ describe("useEnterpriseEnabled", () => {
 
   it("is disabled when the endpoint is unreachable", async () => {
     process.env.ENTERPRISE = "TRUE";
-    const err = new Error("Not found") as Error & { status?: number };
-    err.status = 404;
-    vi.mocked(fetchEnterpriseStatus).mockRejectedValue(err);
+    vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
+      available: false,
+      service: { ok: false },
+    });
 
     const { result } = renderHook(() => useEnterpriseEnabled(), { wrapper });
 

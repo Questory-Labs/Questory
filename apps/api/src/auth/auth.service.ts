@@ -12,6 +12,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SteamApiService } from "../steam/steam-api.service";
 import { SyncService } from "../sync/sync.service";
 import { AccountsService } from "../accounts/accounts.service";
+import { providerFetch } from "../lib/qhttp-outbound";
 import { ACCOUNT_PROVIDER } from "../accounts/account.constants";
 import { extractSteamId } from "./openid-query";
 import { isAdminEmail, isEffectiveAdmin } from "./admin-emails";
@@ -70,7 +71,7 @@ export class AuthService {
     }
     params.set("openid.mode", "check_authentication");
 
-    const res = await fetch("https://steamcommunity.com/openid/login", {
+    const res = await providerFetch("https://steamcommunity.com/openid/login", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params.toString(),

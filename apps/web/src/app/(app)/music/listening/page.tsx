@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type { MusicRecentPage } from "@questorylabs/shared";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCover } from "@/components/music/MusicCover";

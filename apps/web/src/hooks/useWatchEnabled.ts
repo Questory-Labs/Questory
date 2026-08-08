@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { fetchWatchHealth, isWatchFlagEnabled } from "@/lib/watch";
 
 /** Watch menus/routes: feature flag ON and watch /health ok. */

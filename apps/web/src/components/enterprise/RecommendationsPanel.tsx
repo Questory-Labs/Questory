@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import {
   fetchRecommendations,
   fetchSettings,

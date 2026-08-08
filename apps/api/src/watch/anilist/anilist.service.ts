@@ -19,6 +19,7 @@ import {
   resolveAniListClientSecret,
   resolveAniListRedirectUri,
 } from "../lib/runtime-config";
+import { providerFetch } from "../../lib/qhttp-outbound";
 
 @Injectable()
 export class AnilistService {
@@ -59,7 +60,7 @@ export class AnilistService {
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
 
-    const res = await fetch("https://anilist.co/api/v2/oauth/token", {
+    const res = await providerFetch("https://anilist.co/api/v2/oauth/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -171,7 +172,7 @@ export class AnilistService {
     `;
 
     // First get Viewer id
-    const viewerRes = await fetch(this.gql, {
+    const viewerRes = await providerFetch(this.gql, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -188,7 +189,7 @@ export class AnilistService {
     const viewerId = viewerJson.data?.Viewer?.id;
     if (!viewerId) throw new BadRequestException("AniList Viewer missing");
 
-    const listRes = await fetch(this.gql, {
+    const listRes = await providerFetch(this.gql, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -351,7 +352,7 @@ export class AnilistService {
       }
     `;
 
-    const listRes = await fetch(this.gql, {
+    const listRes = await providerFetch(this.gql, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

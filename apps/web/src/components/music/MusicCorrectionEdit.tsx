@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type { MusicCorrectionForm, MusicEntityRef } from "@questorylabs/shared";
 import { Button, Dialog, StateMessage } from "@/components/ui";
 import { EntityTagInput, type EntityTag } from "@/components/music/EntityTagInput";

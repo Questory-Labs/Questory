@@ -1,6 +1,6 @@
 import { withApiVersion, type WatchHealth } from "@questorylabs/shared";
 import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
-import { jsonRequestHeaders } from "@/lib/json-fetch";
+import { probeJsonSafe, requestJson } from "@/lib/qhttp-client";
 
 /** Watch APIs live on the Steam API origin under `/v1/watch/*` (webhooks stay `/webhooks/*`). */
 export function getWatchUrl(): string {
@@ -48,17 +48,7 @@ export async function watchFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(watchUrl(path), {
-    ...init,
-    credentials: "include",
-    headers: jsonRequestHeaders(init),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Watch request failed: ${res.status}`);
-  }
-  return res.json() as Promise<T>;
+  return requestJson<T>(watchUrl(path), init);
 }
 
 export function formatShare(count: number, total: number): string {
@@ -81,30 +71,18 @@ export function formatMinutes(minutes: number): string {
 }
 
 export async function fetchWatchHealth(): Promise<WatchHealth> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 2500);
-  try {
-    const res = await fetch(`${getWatchUrl()}/health`, {
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return { ok: false, service: "questorylabs-watch" };
-    }
-    const body = (await res.json()) as {
-      ok?: boolean;
-      watch?: { enabled?: boolean };
-    };
-    const watchOk = body.ok === true && body.watch?.enabled !== false;
-    return {
-      ok: watchOk,
-      service: "questorylabs-watch",
-    };
-  } catch {
+  const body = await probeJsonSafe<{
+    ok?: boolean;
+    watch?: { enabled?: boolean };
+  }>(`${getWatchUrl()}/health`);
+  if (!body) {
     return { ok: false, service: "questorylabs-watch" };
-  } finally {
-    clearTimeout(timer);
   }
+  const watchOk = body.ok === true && body.watch?.enabled !== false;
+  return {
+    ok: watchOk,
+    service: "questorylabs-watch",
+  };
 }
 
 export function formatWatchRating(

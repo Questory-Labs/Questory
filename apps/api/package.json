@@ -30,6 +30,7 @@
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@questorylabs/db": "workspace:*",
+    "@questorylabs/qhttp": "^0.1.1",
     "@questorylabs/shared": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "bullmq": "^5.44.0",

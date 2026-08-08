@@ -8,7 +8,9 @@ alwaysApply: false
 
 ## Data fetching
 
-All API calls go through the existing wrappers in `src/lib` (`api()` in `lib/api.ts`, or the domain wrappers `musicFetch`/`watchFetch`/`readFetch`, `authApi`, `enterprise-api`) wrapped in TanStack React Query (`useQuery`/`useMutation`). Never call raw `fetch()` inside a component or page. For live data use the existing SSE hooks (`useSseBackedQuery`, etc.), not polling loops.
+All API calls go through `@questorylabs/qhttp` (`lib/qhttp-client.ts`, domain wrappers `api`/`musicFetch`/`watchFetch`/`readFetch`, `auth-api`, `enterprise-api`) with `@questorylabs/qhttp/react` (`useQuery`/`useMutation`). Never call raw `fetch()` in components. For live data use SSE hooks (`useSseBackedQuery`), not polling loops.
+
+**Loading UX:** full-page gates use `LoadingPage` + quotes; in-page first-load uses `Skeleton*` from `components/ui`; errors use `StateMessage variant="error"` or `EmptyState`.
 
 ## Types come from shared
 

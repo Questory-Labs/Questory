@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminUserCard, type AdminUser } from "./AdminUserCard";
@@ -22,19 +22,19 @@ const user: AdminUser = {
 };
 
 function renderCard(overrides?: Partial<Parameters<typeof AdminUserCard>[0]>) {
-  const qc = new QueryClient({
+  const qc = new QueryCache({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
   return render(
-    <QueryClientProvider client={qc}>
+    <QHttpQueryProvider client={qc}>
       <AdminUserCard
         user={user}
         startFreshEnabled
         onMessage={vi.fn()}
         {...overrides}
       />
-    </QueryClientProvider>,
+    </QHttpQueryProvider>,
   );
 }
 

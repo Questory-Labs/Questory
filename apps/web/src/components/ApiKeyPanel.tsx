@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, Panel } from "@/components/ui";
 import { api } from "@/lib/api";

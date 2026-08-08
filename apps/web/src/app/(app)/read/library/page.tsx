@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type { ReadLibraryPage, ReadListStatus } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { readFetch } from "@/lib/read";

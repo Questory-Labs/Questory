@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
 import { PageHeader } from "@/components/ui";

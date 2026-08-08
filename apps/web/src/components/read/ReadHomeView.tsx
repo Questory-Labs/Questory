@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type {
   ReadBreakdownResponse,
   ReadInsights,
@@ -11,7 +11,7 @@ import type {
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
 import { ReadRangePicker } from "@/components/read/ReadRangePicker";
 import { StatCard } from "@/components/StatCard";
-import { PageHeader, Panel, StateMessage } from "@/components/ui";
+import { PageHeader, Panel, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
 import { formatDeltaPct, formatShare, readFetch } from "@/lib/read";
 import { withTz } from "@/lib/dates";
 
@@ -85,9 +85,12 @@ export function ReadHomeView() {
         actions={<ReadRangePicker value={range} onChange={setRange} />}
       />
 
-      {insights.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {insights.isLoading && !insights.data ? (
+        <>
+          <SkeletonStatGrid count={6} />
+          <SkeletonTileGrid count={4} className="mt-6" />
+        </>
+      ) : null}
       {insights.isError && (
         <StateMessage variant="error">Could not load read analytics.</StateMessage>
       )}

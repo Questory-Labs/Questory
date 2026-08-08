@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { AdminAddUserDialog } from "@/components/admin/AdminAddUserDialog";
 import { AdminUserCard } from "@/components/admin/AdminUserCard";

@@ -6,7 +6,7 @@ import {
   waitFor,
   cleanup,
 } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 import { RecommendationsPanel } from "./RecommendationsPanel";
 
 const heuristicResponse = {
@@ -38,7 +38,10 @@ function installFetch() {
     vi.fn(async (url: string, init?: RequestInit) => {
       calls.push({ url, init });
       const respond = (body: unknown) =>
-        new Response(JSON.stringify(body), { status: 200 });
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
 
       if (url.includes("/v1/recommendations/curate/cache")) {
         return respond({ cached: false });
@@ -73,13 +76,13 @@ function installFetch() {
 }
 
 function renderPanel() {
-  const client = new QueryClient({
+  const client = new QueryCache({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
+    <QHttpQueryProvider client={client}>
       <RecommendationsPanel />
-    </QueryClientProvider>,
+    </QHttpQueryProvider>,
   );
 }
 

@@ -10,6 +10,7 @@ import {
   pickBestRelease,
   yearFromRelease,
 } from "./mb-metadata";
+import { providerFetch } from "../../lib/qhttp-outbound";
 
 @Injectable()
 export class EnrichmentService implements OnModuleInit {
@@ -334,7 +335,7 @@ export class EnrichmentService implements OnModuleInit {
   }
 
   private async fetchMbJson(url: string): Promise<any | null> {
-    const res = await fetch(url, {
+    const res = await providerFetch(url, {
       headers: {
         Accept: "application/json",
         "User-Agent": this.userAgent(),
@@ -349,7 +350,7 @@ export class EnrichmentService implements OnModuleInit {
 
   private async fetchCoverArt(releaseMbid: string): Promise<string | null> {
     try {
-      const res = await fetch(
+      const res = await providerFetch(
         `https://coverartarchive.org/release/${releaseMbid}`,
         {
           headers: { "User-Agent": this.userAgent() },

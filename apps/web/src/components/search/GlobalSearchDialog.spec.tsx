@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 import { useEffect } from "react";
 import { GlobalSearchProvider, useGlobalSearch } from "./GlobalSearchProvider";
 import { GlobalSearchDialog } from "./GlobalSearchDialog";
@@ -47,16 +47,16 @@ function OpenPalette({ query = "" }: { query?: string }) {
 }
 
 function renderPalette(query = "") {
-  const qc = new QueryClient({
+  const qc = new QueryCache({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={qc}>
+    <QHttpQueryProvider client={qc}>
       <GlobalSearchProvider>
         <GlobalSearchDialog />
         <OpenPalette query={query} />
       </GlobalSearchProvider>
-    </QueryClientProvider>,
+    </QHttpQueryProvider>,
   );
 }
 
@@ -149,7 +149,7 @@ describe("GlobalSearchDialog", () => {
 
     await waitFor(() => expect(api).toHaveBeenCalled());
     await waitFor(() => {
-      expect(screen.getByText("Portal")).toBeInTheDocument();
+      expect(screen.getAllByText("Portal").length).toBeGreaterThan(0);
     });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { fetchMusicHealth, isMusicFlagEnabled } from "@/lib/music";
 
 /** Music menus/routes: feature flag ON and music /health ok. */

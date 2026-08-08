@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@questorylabs/qhttp/react";
 import { Button, Panel } from "@/components/ui";
 import { ScraperConfigEditor } from "@/components/admin/scrapers/ScraperConfigEditor";
 import { ScraperTestPanel } from "@/components/admin/scrapers/ScraperTestPanel";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";

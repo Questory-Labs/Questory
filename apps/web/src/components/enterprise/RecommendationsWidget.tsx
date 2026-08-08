@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { fetchRecommendations } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@questorylabs/qhttp/react";
 import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
 import { isEnterpriseFlagEnabled } from "@/lib/enterprise";
 
@@ -50,7 +50,7 @@ function useEnterpriseEnabledState(): EnterpriseEnabledValue {
   );
 }
 
-/** Mount once under QueryClientProvider; consumers use useEnterpriseEnabled(). */
+/** Mount once under QHttpQueryProvider; consumers use useEnterpriseEnabled(). */
 export function EnterpriseEnabledProvider({ children }: { children: ReactNode }) {
   const value = useEnterpriseEnabledState();
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { PageHeader } from "@/components/ui";
 import { SearchResults, isSearchEmpty } from "@/components/search/SearchResults";
 import { SearchTips } from "@/components/search/SearchTips";

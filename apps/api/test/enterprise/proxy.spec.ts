@@ -96,8 +96,7 @@ describe("Enterprise proxy", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://127.0.0.1:4030/v1/recommendations");
-    expect(init.headers).toMatchObject({
-      Authorization: expect.stringMatching(/^Bearer /),
-    });
+    const headers = init.headers as Record<string, string>;
+    expect(headers.authorization ?? headers.Authorization).toMatch(/^Bearer /);
   });
 });

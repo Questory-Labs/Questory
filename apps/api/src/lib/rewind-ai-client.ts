@@ -1,4 +1,5 @@
 import { encodeEnterpriseInternalToken } from "@questorylabs/shared/enterprise-internal-token";
+import { providerFetch } from "../lib/qhttp-outbound";
 
 const QENGINE_REWIND_URL = "http://127.0.0.1:4030/v1/enterprise/rewind/generate";
 
@@ -19,7 +20,7 @@ export async function callRewindGenerate(
   stats: unknown,
 ): Promise<string> {
   const token = encodeEnterpriseInternalToken({ userId, isAdmin: false });
-  const response = await fetch(
+  const response = await providerFetch(
     `${enterpriseBaseUrl()}/v1/enterprise/rewind/generate`,
     {
       method: "POST",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 
