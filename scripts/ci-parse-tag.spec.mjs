@@ -8,14 +8,17 @@ import {
 describe("detectChannel", () => {
   it("returns stable for release semver", () => {
     expect(detectChannel("1.2.3")).toBe("stable");
+    expect(detectChannel("v1.2.3")).toBe("stable");
   });
 
   it("returns rc for rc prerelease", () => {
     expect(detectChannel("1.3.0-rc.1")).toBe("rc");
+    expect(detectChannel("v1.3.0-rc.1")).toBe("rc");
   });
 
   it("returns canary for canary prerelease", () => {
-    expect(detectChannel("canary.20250802.abc1234")).toBe("canary");
+    expect(detectChannel("1.3.0-canary.5")).toBe("canary");
+    expect(detectChannel("v1.3.0-canary.5")).toBe("canary");
   });
 
   it("returns rc for other prerelease identifiers", () => {
@@ -38,45 +41,45 @@ describe("channelExtraTags", () => {
 });
 
 describe("parseReleaseTag", () => {
-  it("parses stable docker-api tag", () => {
+  it("parses stable docker-api tag with v-prefixed docker version", () => {
     const result = parseReleaseTag("docker-api-1.2.3");
     expect(result.channel).toBe("stable");
-    expect(result.version).toBe("1.2.3");
+    expect(result.version).toBe("v1.2.3");
     expect(result.image_extra_tags).toBe("stable,latest");
     expect(result.image_latest).toBe("santoshpanna/questorylabs-api:latest");
     expect(result.ghcr_image_latest).toBe(
       "ghcr.io/questory-labs/questorylabs-api:latest",
     );
+    expect(result.image_tags).toContain("santoshpanna/questorylabs-api:v1.2.3");
   });
 
   it("parses rc docker-web tag without latest", () => {
     const result = parseReleaseTag("docker-web-1.3.0-rc.1");
     expect(result.channel).toBe("rc");
+    expect(result.version).toBe("v1.3.0-rc.1");
     expect(result.image_extra_tags).toBe("rc");
     expect(result.image_latest).toBe("");
     expect(result.image_tags).toContain("santoshpanna/questorylabs-web:rc");
+    expect(result.image_tags).toContain(
+      "santoshpanna/questorylabs-web:v1.3.0-rc.1",
+    );
   });
 
   it("parses canary semver tag", () => {
-    const result = parseReleaseTag("docker-api-canary.20250802.abc1234");
+    const result = parseReleaseTag("docker-api-v1.3.0-canary.2");
     expect(result.channel).toBe("canary");
+    expect(result.version).toBe("v1.3.0-canary.2");
     expect(result.image_extra_tags).toBe("canary");
     expect(result.image_latest).toBe("");
+    expect(result.image_tags).toContain("santoshpanna/questorylabs-api:canary");
+    expect(result.image_tags).toContain(
+      "santoshpanna/questorylabs-api:v1.3.0-canary.2",
+    );
   });
 
-  it("parses docker-api-canary with CANARY_VERSION", () => {
-    const result = parseReleaseTag("docker-api-canary", {
-      canaryVersion: "canary.20250802.abc1234",
-    });
-    expect(result.channel).toBe("canary");
-    expect(result.version).toBe("canary.20250802.abc1234");
-    expect(result.kind).toBe("docker");
-    expect(result.service).toBe("api");
-  });
-
-  it("strips leading v from version", () => {
+  it("strips leading v from git tag version", () => {
     const result = parseReleaseTag("docker-api-v1.0.0");
-    expect(result.version).toBe("1.0.0");
+    expect(result.version).toBe("v1.0.0");
     expect(result.channel).toBe("stable");
   });
 
@@ -85,6 +88,7 @@ describe("parseReleaseTag", () => {
     expect(result.kind).toBe("service");
     expect(result.service).toBe("web");
     expect(result.channel).toBe("stable");
+    expect(result.version).toBe("v0.1.0");
   });
 
   it("rejects channel override mismatch", () => {
@@ -101,7 +105,7 @@ describe("parseReleaseTag", () => {
   });
 
   it("rejects invalid tags", () => {
-    expect(() => parseReleaseTag("docker-api-canary")).toThrow(/CANARY_VERSION/);
+    expect(() => parseReleaseTag("docker-api-canary")).toThrow(/Invalid tag/);
     expect(() => parseReleaseTag("bad-tag")).toThrow(/Invalid tag/);
   });
 });

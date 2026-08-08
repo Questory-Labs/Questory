@@ -113,7 +113,7 @@ services:
   api:
     image: ${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}
     build: *api-build
-    pull_policy: ${PULL_POLICY:-missing}
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -137,7 +137,7 @@ services:
         NEXT_PUBLIC_ENABLE_READ: ${NEXT_PUBLIC_ENABLE_READ:-true}
         ENTERPRISE: ${ENTERPRISE:-true}
         NEXT_PUBLIC_ENTERPRISE_URL: ${NEXT_PUBLIC_ENTERPRISE_URL:-http://localhost:4030}
-    pull_policy: ${PULL_POLICY:-missing}
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     depends_on:
       - api

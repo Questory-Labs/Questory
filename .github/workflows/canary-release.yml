@@ -1,7 +1,7 @@
 name: Canary Release
 
 # Builds rolling :canary images for api and web from main.
-# Does not create git tags or GitHub Releases (workflow summary only).
+# Pushes lightweight git tags for semver canary numbering (no GitHub Release).
 #
 # Triggers:
 #   - Push to main (cancels in-progress runs)
@@ -26,45 +26,67 @@ jobs:
     runs-on: self-hosted
     outputs:
       version: ${{ steps.version.outputs.version }}
-      release_tag_api: ${{ steps.version.outputs.release_tag_api }}
-      release_tag_web: ${{ steps.version.outputs.release_tag_web }}
+      docker_tag_api: ${{ steps.version.outputs.docker_tag_api }}
+      docker_tag_web: ${{ steps.version.outputs.docker_tag_web }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Build canary version
+      - name: Setup Node
+        uses: ./.github/actions/setup
+        with:
+          install: "false"
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Resolve canary version
         id: version
-        run: |
-          set -euo pipefail
-          version="canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "release_tag_api=docker-api-${version}" >> "$GITHUB_OUTPUT"
-          echo "release_tag_web=docker-web-${version}" >> "$GITHUB_OUTPUT"
-          echo "Canary version: ${version}"
+        run: node scripts/release-version.mjs canary --github-output
 
-  release-api:
+  docker-api:
     name: Canary api
     needs: meta
     uses: ./.github/workflows/docker-release.yml
     with:
-      release_tag: ${{ needs.meta.outputs.release_tag_api }}
+      release_tag: ${{ needs.meta.outputs.docker_tag_api }}
       channel_override: canary
       skip_github_release: true
     secrets: inherit
 
-  release-web:
+  docker-web:
     name: Canary web
     needs: meta
     uses: ./.github/workflows/docker-release.yml
     with:
-      release_tag: ${{ needs.meta.outputs.release_tag_web }}
+      release_tag: ${{ needs.meta.outputs.docker_tag_web }}
       channel_override: canary
       skip_github_release: true
     secrets: inherit
 
+  tag:
+    name: Push canary git tags
+    needs: [meta, docker-api, docker-web]
+    runs-on: self-hosted
+    if: needs.docker-api.result == 'success' && needs.docker-web.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Create and push git tags
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ needs.meta.outputs.docker_tag_api }}"
+          git tag "${{ needs.meta.outputs.docker_tag_web }}"
+          git push origin "${{ needs.meta.outputs.docker_tag_api }}" "${{ needs.meta.outputs.docker_tag_web }}"
+
   summary:
     name: Canary summary
-    needs: [meta, release-api, release-web]
+    needs: [meta, docker-api, docker-web, tag]
     runs-on: self-hosted
     if: always() && needs.meta.result == 'success'
     steps:
@@ -76,8 +98,9 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| Version | \`${{ needs.meta.outputs.version }}\` |"
-            echo "| API job | ${{ needs.release-api.result }} |"
-            echo "| Web job | ${{ needs.release-web.result }} |"
+            echo "| API job | ${{ needs.docker-api.result }} |"
+            echo "| Web job | ${{ needs.docker-web.result }} |"
+            echo "| Git tags | ${{ needs.tag.result }} |"
             echo ""
             echo "Pull channel tags:"
             echo ""
@@ -87,8 +110,15 @@ jobs:
             echo "docker pull ghcr.io/questory-labs/questorylabs-api:canary"
             echo "docker pull ghcr.io/questory-labs/questorylabs-web:canary"
             echo '```'
+            echo ""
+            echo "Pin this build:"
+            echo ""
+            echo '```bash'
+            echo "docker pull santoshpanna/questorylabs-api:${{ needs.meta.outputs.version }}"
+            echo "docker pull santoshpanna/questorylabs-web:${{ needs.meta.outputs.version }}"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail when a release job failed
-        if: needs.release-api.result != 'success' || needs.release-web.result != 'success'
+        if: needs.docker-api.result != 'success' || needs.docker-web.result != 'success' || needs.tag.result == 'failure'
         run: exit 1

@@ -4,7 +4,7 @@ name: Docker Release
 # Questory-Labs/QEngine repo (tag docker-qengine-*); binary-only, no source in image.
 #
 # Triggers:
-#   - Push tag: docker-api-1.0.0 (stable), docker-web-1.3.0-rc.1 (rc), docker-api-canary
+#   - Push tag: docker-api-1.0.0 (stable), docker-web-1.3.0-rc.1 (rc), docker-api-v1.3.0-canary.5 (canary)
 #   - Manual: Actions → Manual Release → Run workflow
 on:
   push:
@@ -88,10 +88,6 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.tag.outputs.tag }}"
-          if [[ "$tag" =~ -(api|web)-canary$ ]]; then
-            export CANARY_VERSION="canary.$(date -u +%Y%m%d).${GITHUB_SHA:0:7}"
-            echo "Generated CANARY_VERSION=${CANARY_VERSION}"
-          fi
           node scripts/ci-parse-tag.mjs "${tag}"
 
   test-shared:

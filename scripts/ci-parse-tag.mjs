@@ -1,35 +1,31 @@
 import { appendFileSync } from "node:fs";
+import { formatDockerVersion } from "./release-version.mjs";
 
 /**
  * Parse release tags:
- *   docker-api-1.2.3           → kind=docker  service=api  version=1.2.3  channel=stable
+ *   docker-api-1.2.3           → kind=docker  service=api  version=v1.2.3  channel=stable
  *   docker-api-1.3.0-rc.1      → channel=rc
- *   docker-api-canary.*        → channel=canary
- *   docker-api-canary          → channel=canary (requires CANARY_VERSION env)
- *   service-web-0.1.0          → kind=service service=web  version=0.1.0
+ *   docker-api-v1.3.0-canary.5 → channel=canary
+ *   service-web-0.1.0          → kind=service service=web  version=v0.1.0
  *
- * Optional leading v on the version is stripped (docker-api-v1.0.0 → 1.0.0).
+ * Optional leading v on the version is accepted in git tags.
  *
  * Set CHANNEL_OVERRIDE to stable|rc|canary to validate against the parsed channel
  * (used by Manual Release). Use "auto" or omit to accept the detected channel.
  */
 
-const VERSION_PATTERN =
-  "(?:\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.+-]+)?|canary\\.[0-9A-Za-z.+-]+)";
+const VERSION_PATTERN = "v?\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.+-]+)?";
 const TAG_PATTERN = new RegExp(
-  `^(docker|service)-(api|web)-v?(${VERSION_PATTERN})$`,
+  `^(docker|service)-(api|web)-(${VERSION_PATTERN})$`,
 );
-const CANARY_TAG_PATTERN = /^(docker|service)-(api|web)-canary$/;
 
 /**
  * @param {string} version
  * @returns {"stable" | "rc" | "canary"}
  */
 export function detectChannel(version) {
-  if (version.startsWith("canary.")) {
-    return "canary";
-  }
-  const prerelease = version.match(/^\d+\.\d+\.\d+-([0-9A-Za-z.+-]+)$/)?.[1];
+  const normalized = version.replace(/^v/i, "");
+  const prerelease = normalized.match(/^\d+\.\d+\.\d+-([0-9A-Za-z.+-]+)$/)?.[1];
   if (!prerelease) {
     return "stable";
   }
@@ -61,36 +57,19 @@ export function channelExtraTags(channel) {
 
 /**
  * @param {string} tag
- * @param {{ canaryVersion?: string, channelOverride?: string }} [options]
+ * @param {{ channelOverride?: string }} [options]
  */
 export function parseReleaseTag(tag, options = {}) {
   const normalized = (tag || "").replace(/^refs\/tags\//, "");
-  const canaryVersion =
-    options.canaryVersion ?? process.env.CANARY_VERSION ?? "";
-
-  let kind;
-  let service;
-  let version;
-
-  const canaryMatch = normalized.match(CANARY_TAG_PATTERN);
-  if (canaryMatch) {
-    [, kind, service] = canaryMatch;
-    if (!canaryVersion) {
-      throw new Error(
-        `Tag "${normalized}" requires CANARY_VERSION (e.g. canary.20250802.abc1234)`,
-      );
-    }
-    version = canaryVersion;
-  } else {
-    const match = normalized.match(TAG_PATTERN);
-    if (!match) {
-      throw new Error(
-        `Invalid tag "${normalized}". Expected docker|service-<api|web>-<semver> or docker|service-<api|web>-canary`,
-      );
-    }
-    [, kind, service, version] = match;
+  const match = normalized.match(TAG_PATTERN);
+  if (!match) {
+    throw new Error(
+      `Invalid tag "${normalized}". Expected docker|service-<api|web>-<semver>`,
+    );
   }
 
+  const [, kind, service, rawVersion] = match;
+  const version = formatDockerVersion(rawVersion.replace(/^v/i, ""));
   const detectedChannel = detectChannel(version);
   const override = (
     options.channelOverride ??

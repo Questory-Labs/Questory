@@ -35,11 +35,13 @@ Build from this repo with `--build`. Prebuilt images are optional if you configu
 
 Published images use three rolling channels. `:latest` always tracks **stable** (same as `:stable`).
 
-| Channel | Tag | When it moves |
-|---------|-----|----------------|
-| stable | `stable`, `latest` | `docker-api-X.Y.Z` / `docker-web-X.Y.Z` (release semver) |
-| rc | `rc` | `docker-*-X.Y.Z-rc.N` release candidates |
-| canary | `canary` | merges to `main`, daily schedule, or `docker-*-canary` tags |
+| Channel | Rolling tag | Version tag (pin exact build) |
+|---------|-------------|----------------------------------|
+| stable | `stable`, `latest` | `vX.Y.Z` |
+| rc | `rc` | `vX.Y.Z-rc.N` |
+| canary | `canary` | `vX.Y.Z-canary.N` |
+
+Canary and RC version tags are semver pre-releases derived from git release tags. Canary builds on `main` auto-increment `N` for the active release line.
 
 Pin an exact version or follow a channel via `IMAGE_TAG` in `.env`:
 
@@ -48,13 +50,17 @@ Pin an exact version or follow a channel via `IMAGE_TAG` in `.env`:
 IMAGE_TAG=latest
 # IMAGE_TAG=stable
 
-# release candidate or canary
+# release candidate or canary (rolling channel tags)
 # IMAGE_TAG=rc
 # IMAGE_TAG=canary
 
 # pinned semver
-# IMAGE_TAG=1.2.3
+# IMAGE_TAG=v1.2.3
+# IMAGE_TAG=v1.3.0-rc.1
+# IMAGE_TAG=v1.3.0-canary.5
 ```
+
+Compose defaults to `PULL_POLICY=always`, so rolling channel tags (`rc`, `canary`, `stable`, `latest`) update on `docker compose up`. Set `PULL_POLICY=missing` in `.env` to skip registry checks when you pin an exact version and want faster startups.
 
 Pull examples:
 
