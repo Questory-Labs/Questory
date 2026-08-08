@@ -8,6 +8,7 @@ Steam-first library and media intelligence — games dashboard, wishlist and cos
 - **API**: NestJS, Prisma, BullMQ (when Redis is configured); optional Music + Watch modules and in-process cron
 - **Music** (optional): ListenBrainz ingest + analytics inside the API (`/v1/music/`*, `/1/`*); **shared DB**; collection via [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler)
 - **Watch** (optional): movie/TV ingest + analytics inside the API (`/v1/watch/`*, `/webhooks/`*); **shared DB**
+- **Read** (optional): manga/manhwa/novel ingest + analytics inside the API (`/v1/read/*`); **shared DB**
 - **Data**: SQLite **or** PostgreSQL (env-selected)
 - **Cache / queues**: in-memory **or** Redis (env-selected)
 - **Deploy**: Docker Compose profiles (lite / full / production)
@@ -59,6 +60,7 @@ pnpm dev
 - API: [http://localhost:4000](http://localhost:4000) — Steam, optional Music/Watch modules, optional in-process cron  
 - Music menus: set `NEXT_PUBLIC_ENABLE_MUSIC=true` (nav when API `/health` reports `music.enabled`)  
 - Watch menus: set `NEXT_PUBLIC_ENABLE_WATCH=true` (nav when API `/health` reports `watch.enabled`)
+- Read menus: set `NEXT_PUBLIC_ENABLE_READ=true` (nav when API `/health` reports `read.enabled`)
 
 Optional: run Postgres/Redis in Docker while developing against Node locally:
 
@@ -128,6 +130,7 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 | `NEXT_PUBLIC_API_URL`              | API URL for the web client (applied at web container start)                             |
 | `NEXT_PUBLIC_ENABLE_MUSIC`         | Show Music UI when API `/health` reports music enabled                                 |
 | `NEXT_PUBLIC_ENABLE_WATCH`         | Show Watch UI when API `/health` reports watch enabled                                 |
+| `NEXT_PUBLIC_ENABLE_READ`          | Show Read UI when API `/health` reports read enabled                                   |
 | `COOKIE_DOMAIN`                    | Optional shared cookie domain (prod split hosts)                                       |
 | `ALLOWED_STEAM_IDS`                | Optional SteamIDs allowed to **link**; empty = any                                     |
 | `CRON_ENABLED`                     | In-process cron inside the API (default on); set `false` / `FALSE` / `0` to disable    |
@@ -140,9 +143,9 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 
 Prisma cannot take `provider` from env at runtime, so `pnpm db:schema` (and pre-dev/pre-build hooks) generate `schema.prisma` from `schema.template.prisma`.
 
-`GET /health` reports mode, database provider, Redis/sync mode, whether the allowlist is enabled, and `music` / `watch` enabled flags.
+`GET /health` reports mode, database provider, Redis/sync mode, whether the allowlist is enabled, and `music` / `watch` / `read` enabled flags.
 
-API resource routes are versioned under `/v1` (e.g. `/v1/library`). Unversioned: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks stay at `/webhooks/*`. Music/watch session APIs: `/v1/music/*`, `/v1/watch/*`.
+API resource routes are versioned under `/v1` (e.g. `/v1/library`). Unversioned: `/auth/*`, `/health`. Music ListenBrainz stays at `/1/*`; watch webhooks stay at `/webhooks/*`. Music/watch/read session APIs: `/v1/music/*`, `/v1/watch/*`, `/v1/read/*`.
 
 ### Steam OpenID (local)
 
