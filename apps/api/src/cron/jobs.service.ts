@@ -57,9 +57,12 @@ export class JobsService implements OnModuleInit {
     this.addJob("catalog-sync", schedules["catalog-sync"], () =>
       this.runCatalogSync(),
     );
+    this.addJob("price-sync", schedules["price-sync"], () =>
+      this.runPriceSync(),
+    );
 
     this.logger.log(
-      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]})`,
+      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]}), price-sync (${schedules["price-sync"]})`,
     );
   }
 
@@ -102,6 +105,16 @@ export class JobsService implements OnModuleInit {
       () => this.internalCron.syncCatalog({}),
     );
     this.logger.log(`catalog-sync done: ${JSON.stringify(result)}`);
+  }
+
+  async runPriceSync() {
+    this.logger.log("Starting price-sync");
+    const { result } = await this.cronRunner.run(
+      "price-sync",
+      "system",
+      () => this.internalCron.syncPricesDaily(),
+    );
+    this.logger.log(`price-sync done: ${JSON.stringify(result)}`);
   }
 
   async runWatchSync() {

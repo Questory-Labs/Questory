@@ -26,6 +26,10 @@ import { isSuspiciousPrice } from "../lib/store-price";
 import { resolveSyncMode } from "../lib/runtime-config";
 import { parseSteamReleaseDate } from "../lib/steam-dates";
 import { truncateToUtcHour } from "./play-activity";
+import {
+  GAMES_PER_FRIEND_LIMIT,
+  LIBRARY_CACHE_LIMIT,
+} from "../friends/friends.constants";
 
 type SyncJobType =
   | "library-sync"
@@ -125,7 +129,6 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     const results = await Promise.all([
       this.enqueue(userId, steamId, "library-sync", opts),
       this.enqueue(userId, steamId, "wishlist-sync", opts),
-      this.enqueue(userId, steamId, "friends-sync", opts),
       this.enqueue(userId, steamId, "metadata-refresh", opts),
     ]);
     return {
@@ -134,12 +137,20 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /** Daily cron: prices + library stats / metadata (not friends/wishlist). */
+  /** Daily cron: owned + friends libraries (gamelist, playtime). */
+  async enqueueDailyLibrarySync(userId: string, steamId: string) {
+    await this.enqueue(userId, steamId, "library-sync");
+  }
+
+  /** Daily cron: prices + metadata for owned and friend-cached games. */
+  async enqueueDailyPriceSync(userId: string, steamId: string) {
+    await this.enqueue(userId, steamId, "metadata-refresh");
+  }
+
+  /** @deprecated Use enqueueDailyLibrarySync + enqueueDailyPriceSync. */
   async enqueueDailyPriceStats(userId: string, steamId: string) {
-    await Promise.all([
-      this.enqueue(userId, steamId, "library-sync"),
-      this.enqueue(userId, steamId, "metadata-refresh"),
-    ]);
+    await this.enqueueDailyLibrarySync(userId, steamId);
+    await this.enqueueDailyPriceSync(userId, steamId);
   }
 
   async enqueue(
@@ -204,7 +215,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       if (type === "wishlist-sync") await this.syncWishlist(userId, steamId);
       if (type === "friends-sync") await this.syncFriends(userId, steamId);
       if (type === "metadata-refresh") {
-        await this.refreshMetadata(userId, { force });
+        await this.refreshMetadata(userId, steamId, { force });
       }
       await this.prisma.syncJob.update({
         where: { id: syncJobId },
@@ -327,55 +338,9 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    const countryCode = normalizePriceCountry(user?.countryCode);
-
-    // Prefer games needing metadata; skip Steam enrich when already fresh.
-    const sample = await this.pickEnrichSample(games, 40, opts?.force);
-    const sampleIds = sample.map((g) => g.appid);
-    const storeItems =
-      sampleIds.length > 0
-        ? await this.steam.getStoreItems(sampleIds, countryCode || "US")
-        : new Map();
-    for (const g of sample) {
-      await this.enrichGame(g.appid, countryCode, storeItems.get(g.appid), {
-        force: opts?.force,
-      });
-      await new Promise((r) => setTimeout(r, 180));
-    }
-
     await this.syncAchievements(userId, steamId, games);
-    await this.syncLibraryPrices(userId);
     await this.collections.rebuildAutoCollections(userId);
-  }
-
-  /** Pick up to `limit` apps, preferring stale/missing metadata (unless force). */
-  private async pickEnrichSample(
-    games: { appid: number; playtime_forever: number }[],
-    limit: number,
-    force?: boolean,
-  ) {
-    const appIds = games.map((g) => g.appid);
-    const existing =
-      appIds.length > 0
-        ? await this.prisma.game.findMany({
-            where: { appId: { in: appIds } },
-            select: { appId: true, metadataSyncedAt: true },
-          })
-        : [];
-    const metaByApp = new Map(
-      existing.map((g) => [g.appId as number, g.metadataSyncedAt]),
-    );
-
-    const candidates = force
-      ? [...games]
-      : games.filter((g) => !isMetadataFresh(metaByApp.get(g.appid) ?? null));
-
-    return candidates
-      .sort(
-        (a, b) => (b.playtime_forever || 0) - (a.playtime_forever || 0),
-      )
-      .slice(0, limit);
+    await this.syncFriends(userId, steamId);
   }
 
   /** Sample achievements for top / recently active games (rate-limit friendly). */
@@ -961,10 +926,10 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Cache libraries + recent plays for a limited set of friends
-    for (const friend of friends.slice(0, 15)) {
+    for (const friend of friends.slice(0, LIBRARY_CACHE_LIMIT)) {
       try {
         const owned = await this.steam.getOwnedGames(friend.steamid);
-        for (const g of owned.slice(0, 200)) {
+        for (const g of owned.slice(0, GAMES_PER_FRIEND_LIMIT)) {
           await this.prisma.friendLibraryCache.upsert({
             where: {
               ownerSteamId_gameAppId: {
@@ -1082,42 +1047,120 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async refreshMetadata(userId: string, opts?: SyncEnqueueOpts) {
-    const entries = await this.prisma.libraryEntry.findMany({
-      where: { userId },
-      include: { game: true },
-      orderBy: { playtimeForever: "desc" },
-    });
-    // Prefer stale/missing metadata, then missing deck status, then playtime.
-    const ranked = [...entries]
-      .filter((e) => e.game.appId != null)
-      .filter(
-        (e) => opts?.force || !isMetadataFresh(e.game.metadataSyncedAt),
-      )
+  private async refreshMetadata(
+    userId: string,
+    _steamId: string,
+    opts?: SyncEnqueueOpts,
+  ) {
+    const [entries, friendships] = await Promise.all([
+      this.prisma.libraryEntry.findMany({
+        where: { userId },
+        include: { game: true },
+        orderBy: { playtimeForever: "desc" },
+      }),
+      this.prisma.friendship.findMany({
+        where: { userId },
+        select: { friendSteamId: true },
+        take: LIBRARY_CACHE_LIMIT,
+      }),
+    ]);
+
+    const friendSteamIds = friendships.map((f) => f.friendSteamId);
+    const friendCache =
+      friendSteamIds.length > 0
+        ? await this.prisma.friendLibraryCache.findMany({
+            where: { ownerSteamId: { in: friendSteamIds } },
+            select: {
+              gameAppId: true,
+              gameName: true,
+              headerImage: true,
+              playtimeForever: true,
+            },
+          })
+        : [];
+
+    type PriceCandidate = {
+      appId: number;
+      playtimeForever: number;
+      game: (typeof entries)[number]["game"] | null;
+      cache: (typeof friendCache)[number] | null;
+    };
+
+    const byAppId = new Map<number, PriceCandidate>();
+
+    for (const entry of entries) {
+      if (entry.game.appId == null) continue;
+      byAppId.set(entry.game.appId, {
+        appId: entry.game.appId,
+        playtimeForever: entry.playtimeForever || 0,
+        game: entry.game,
+        cache: null,
+      });
+    }
+
+    for (const row of friendCache) {
+      const existing = byAppId.get(row.gameAppId);
+      if (existing) continue;
+      byAppId.set(row.gameAppId, {
+        appId: row.gameAppId,
+        playtimeForever: row.playtimeForever || 0,
+        game: null,
+        cache: row,
+      });
+    }
+
+    const ranked = [...byAppId.values()]
+      .filter((c) => {
+        if (opts?.force) return true;
+        if (!c.game) return true;
+        return !isMetadataFresh(c.game.metadataSyncedAt);
+      })
       .sort((a, b) => {
-        const aMissing = a.game.deckStatus ? 1 : 0;
-        const bMissing = b.game.deckStatus ? 1 : 0;
+        const aMissing = a.game?.deckStatus ? 1 : 0;
+        const bMissing = b.game?.deckStatus ? 1 : 0;
         if (aMissing !== bMissing) return aMissing - bMissing;
         return (b.playtimeForever || 0) - (a.playtimeForever || 0);
       })
       .slice(0, 40);
-    const refreshIds = ranked
-      .map((e) => e.game.appId)
-      .filter((id): id is number => id != null);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { countryCode: true },
+    });
+    const countryCode = normalizePriceCountry(user?.countryCode);
+    const refreshIds = ranked.map((c) => c.appId);
     const browseBatch =
       refreshIds.length > 0
-        ? await this.steam.getStoreItems(refreshIds)
+        ? await this.steam.getStoreItems(refreshIds, countryCode || "US")
         : new Map();
-    for (const entry of ranked) {
-      if (entry.game.appId == null) continue;
-      await this.enrichGame(
-        entry.game.appId,
-        undefined,
-        browseBatch.get(entry.game.appId),
-        { force: opts?.force },
-      );
+
+    for (const candidate of ranked) {
+      try {
+        if (!candidate.game) {
+          const cached = candidate.cache;
+          await this.merge.upsertListing({
+            store: "steam",
+            externalId: String(candidate.appId),
+            steamAppId: candidate.appId,
+            name: cached?.gameName || `App ${candidate.appId}`,
+            headerImage: cached?.headerImage ?? null,
+            userId,
+          });
+        }
+        await this.enrichGame(
+          candidate.appId,
+          countryCode,
+          browseBatch.get(candidate.appId),
+          { force: opts?.force },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Price/metadata skip ${candidate.appId}: ${err}`,
+        );
+      }
       await new Promise((r) => setTimeout(r, 180));
     }
+
     await this.syncLibraryPrices(userId, 60);
     // Advance Steam catalog a page or two in the background (non-fatal).
     void this.catalog.syncIncremental({ maxPages: 2, maxResults: 5000 }).catch(

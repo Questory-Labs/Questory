@@ -23,7 +23,7 @@ export class FriendsService {
     const safePage = Math.max(opts.page ?? 1, 1);
     const skip = (safePage - 1) * take;
 
-    const [total, friends, allSteamIds, friendsSync] = await Promise.all([
+    const [total, friends, allSteamIds, librarySync] = await Promise.all([
       this.prisma.friendship.count({ where: { userId } }),
       this.prisma.friendship.findMany({
         where: { userId },
@@ -36,7 +36,7 @@ export class FriendsService {
         select: { friendSteamId: true },
       }),
       this.prisma.syncJob.findFirst({
-        where: { userId, type: "friends-sync", status: "completed" },
+        where: { userId, type: "library-sync", status: "completed" },
         orderBy: { finishedAt: "desc" },
       }),
     ]);
@@ -78,7 +78,7 @@ export class FriendsService {
           cachedOwners.some((c) => c._count._all >= GAMES_PER_FRIEND_LIMIT),
         lastSyncedAt:
           lastSyncedAt?.toISOString() ??
-          friendsSync?.finishedAt?.toISOString() ??
+          librarySync?.finishedAt?.toISOString() ??
           null,
       },
     };

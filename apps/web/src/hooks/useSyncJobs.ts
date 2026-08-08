@@ -9,7 +9,7 @@ export const SYNC_STAGES = [
   {
     type: "library-sync",
     label: "Library",
-    detail: "Owned games and playtime",
+    detail: "Your games, friends, and playtime",
   },
   {
     type: "wishlist-sync",
@@ -17,14 +17,9 @@ export const SYNC_STAGES = [
     detail: "Saved titles and deal signals",
   },
   {
-    type: "friends-sync",
-    label: "Friends",
-    detail: "Friend list and shared games",
-  },
-  {
     type: "metadata-refresh",
-    label: "Details",
-    detail: "Tags, prices, and Deck fit",
+    label: "Prices",
+    detail: "Store prices and game details",
   },
 ] as const;
 

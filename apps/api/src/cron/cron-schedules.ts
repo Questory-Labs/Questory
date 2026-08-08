@@ -3,6 +3,7 @@ export const CRON_JOB_NAMES = [
   "recover-failed-sync",
   "watch-sync",
   "catalog-sync",
+  "price-sync",
 ] as const;
 
 export type CronJobName = (typeof CRON_JOB_NAMES)[number];
@@ -13,6 +14,7 @@ export const SCHEDULED_CRON_JOBS = [
   "recover-failed-sync",
   "watch-sync",
   "catalog-sync",
+  "price-sync",
 ] as const;
 
 export type ScheduledCronJobName = (typeof SCHEDULED_CRON_JOBS)[number];
@@ -22,6 +24,7 @@ const DEFAULT_SCHEDULES: Record<ScheduledCronJobName, string> = {
   "recover-failed-sync": "*/15 * * * *",
   "watch-sync": "0 */6 * * *",
   "catalog-sync": "0 4 * * *",
+  "price-sync": "0 5 * * *",
 };
 
 export function getCronSchedule(name: ScheduledCronJobName): string {
@@ -34,6 +37,12 @@ export function getCronSchedule(name: ScheduledCronJobName): string {
       return process.env.CRON_WATCH_SCHEDULE || DEFAULT_SCHEDULES[name];
     case "catalog-sync":
       return process.env.CRON_CATALOG_SCHEDULE || DEFAULT_SCHEDULES[name];
+    case "price-sync":
+      return (
+        process.env.CRON_PRICE_SCHEDULE ||
+        process.env.CRON_FRIENDS_SCHEDULE ||
+        DEFAULT_SCHEDULES[name]
+      );
   }
 }
 
@@ -46,5 +55,6 @@ export function getConfiguredSchedules(): Record<
     "recover-failed-sync": getCronSchedule("recover-failed-sync"),
     "watch-sync": getCronSchedule("watch-sync"),
     "catalog-sync": getCronSchedule("catalog-sync"),
+    "price-sync": getCronSchedule("price-sync"),
   };
 }

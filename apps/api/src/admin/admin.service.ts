@@ -393,7 +393,8 @@ export class AdminService {
         name === "daily-refresh" ||
         name === "recover-failed-sync" ||
         name === "watch-sync" ||
-        name === "catalog-sync"
+        name === "catalog-sync" ||
+        name === "price-sync"
       ) {
         schedule = getCronSchedule(name as ScheduledCronJobName);
       } else if (
@@ -464,6 +465,8 @@ export class AdminService {
             return { ok: true };
           case "catalog-sync":
             return this.cron.syncCatalog({});
+          case "price-sync":
+            return this.cron.syncPricesDaily();
           case "trakt-sync":
             if (!this.watchCron) {
               throw new BadRequestException("Watch module unavailable");

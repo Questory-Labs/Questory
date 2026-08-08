@@ -32,7 +32,7 @@ export class InternalCronService {
     let failed = 0;
     for (const account of steamAccounts) {
       try {
-        await this.sync.enqueueDailyPriceStats(
+        await this.sync.enqueueDailyLibrarySync(
           account.userId,
           account.providerAccountId,
         );
@@ -41,13 +41,43 @@ export class InternalCronService {
         failed += 1;
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(
-          `Daily refresh enqueue failed for user ${account.userId}: ${message}`,
+          `Daily library sync enqueue failed for user ${account.userId}: ${message}`,
         );
       }
     }
 
     this.logger.log(
-      `Daily refresh: users=${steamAccounts.length} enqueued=${enqueued} failed=${failed}`,
+      `Daily library sync: users=${steamAccounts.length} enqueued=${enqueued} failed=${failed}`,
+    );
+    return { users: steamAccounts.length, enqueued, failed };
+  }
+
+  async syncPricesDaily() {
+    const steamAccounts = await this.prisma.account.findMany({
+      where: { provider: "steam" },
+      select: { userId: true, providerAccountId: true },
+    });
+
+    let enqueued = 0;
+    let failed = 0;
+    for (const account of steamAccounts) {
+      try {
+        await this.sync.enqueueDailyPriceSync(
+          account.userId,
+          account.providerAccountId,
+        );
+        enqueued += 1;
+      } catch (err) {
+        failed += 1;
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `Daily price sync enqueue failed for user ${account.userId}: ${message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Daily price sync: users=${steamAccounts.length} enqueued=${enqueued} failed=${failed}`,
     );
     return { users: steamAccounts.length, enqueued, failed };
   }

@@ -132,9 +132,10 @@ Production boot fails if secrets are placeholders or Steam/Web URLs are still lo
 | `ALLOWED_STEAM_IDS`                | Optional SteamIDs allowed to **link**; empty = any                                     |
 | `CRON_ENABLED`                     | In-process cron inside the API (default on); set `false` / `FALSE` / `0` to disable    |
 | `CRON_SECRET`                      | Shared secret for `/v1/internal/cron/*` (HTTP only; not required for in-process ticks) |
-| `CRON_DAILY_SCHEDULE`              | Cron expr for daily price/stats refresh (default `0 3 * * *`)                          |
+| `CRON_DAILY_SCHEDULE`              | Cron expr for daily library sync — user + friends (default `0 3 * * *`)                          |
 | `CRON_RECOVERY_SCHEDULE`           | Cron expr for stuck-sync recovery (default `*/15 * * * *`)                             |
 | `CRON_WATCH_SCHEDULE`              | Cron expr for watch Trakt/AniList sync (default `0 */6 * * *`)                         |
+| `CRON_PRICE_SCHEDULE`              | Cron expr for daily price/metadata sync (default `0 5 * * *`; legacy alias: `CRON_FRIENDS_SCHEDULE`) |
 
 
 Prisma cannot take `provider` from env at runtime, so `pnpm db:schema` (and pre-dev/pre-build hooks) generate `schema.prisma` from `schema.template.prisma`.

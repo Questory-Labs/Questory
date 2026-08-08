@@ -40,6 +40,7 @@ const TriggerCronSchema = z.object({
     "recover-failed-sync",
     "watch-sync",
     "catalog-sync",
+    "price-sync",
     "trakt-sync",
     "anilist-sync",
     "mal-sync",

@@ -39,4 +39,11 @@ export class InternalCronController {
       )
       .then(({ result }) => result);
   }
+
+  @Post("price-sync")
+  priceSync() {
+    return this.cronRunner
+      .run("price-sync", "cron", () => this.cron.syncPricesDaily())
+      .then(({ result }) => result);
+  }
 }

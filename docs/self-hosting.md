@@ -301,7 +301,8 @@ Browser path `/api/v1/library` becomes Nest `/v1/library` after `strip_prefix /a
 
 Cron runs **in-process** inside the API by default (opt out with `CRON_ENABLED=false`). It schedules the same work as the internal cron HTTP routes:
 
-- Daily refresh — enqueue `library-sync` + `metadata-refresh` for every logged-in user
+- Daily library sync — enqueue `library-sync` for every Steam-linked user (owned games + friends)
+- Daily price sync — enqueue `metadata-refresh` for every Steam-linked user (prices for owned + friend-cached games)
 - Recover failed sync — clear stuck `SyncJob` rows and catalog lock/failed state
 - Watch Trakt/AniList sync on `CRON_WATCH_SCHEDULE` (when watch is in use)
 
