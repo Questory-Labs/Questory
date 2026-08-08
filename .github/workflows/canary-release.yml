@@ -25,7 +25,8 @@ jobs:
     name: Resolve canary version
     runs-on: self-hosted
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version_api: ${{ steps.version.outputs.version_api }}
+      version_web: ${{ steps.version.outputs.version_web }}
       docker_tag_api: ${{ steps.version.outputs.docker_tag_api }}
       docker_tag_web: ${{ steps.version.outputs.docker_tag_web }}
     steps:
@@ -97,7 +98,8 @@ jobs:
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Version | \`${{ needs.meta.outputs.version }}\` |"
+            echo "| API version | \`${{ needs.meta.outputs.version_api }}\` |"
+            echo "| Web version | \`${{ needs.meta.outputs.version_web }}\` |"
             echo "| API job | ${{ needs.docker-api.result }} |"
             echo "| Web job | ${{ needs.docker-web.result }} |"
             echo "| Git tags | ${{ needs.tag.result }} |"
@@ -114,8 +116,8 @@ jobs:
             echo "Pin this build:"
             echo ""
             echo '```bash'
-            echo "docker pull santoshpanna/questorylabs-api:${{ needs.meta.outputs.version }}"
-            echo "docker pull santoshpanna/questorylabs-web:${{ needs.meta.outputs.version }}"
+            echo "docker pull santoshpanna/questorylabs-api:${{ needs.meta.outputs.version_api }}"
+            echo "docker pull santoshpanna/questorylabs-web:${{ needs.meta.outputs.version_web }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

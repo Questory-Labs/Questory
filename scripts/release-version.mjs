@@ -1,5 +1,5 @@
 import { appendFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const DOCKER_RELEASE_TAG_PATTERN =
   /^docker-(api|web)-v?(\d+\.\d+\.\d+)(?:-(rc|canary)\.(\d+))?$/;
@@ -57,7 +57,7 @@ export function incPatch(version) {
 
 /**
  * @param {string} tag
- * @returns {{ base: string, channel?: "rc" | "canary", number?: number } | null}
+ * @returns {{ service: "api" | "web", base: string, channel?: "rc" | "canary", number?: number } | null}
  */
 export function parseReleaseTagVersion(tag) {
   const normalized = (tag || "").replace(/^refs\/tags\//, "");
@@ -65,11 +65,68 @@ export function parseReleaseTagVersion(tag) {
   if (!match) {
     return null;
   }
-  const [, , base, channel, number] = match;
+  const [, service, base, channel, number] = match;
   if (!channel) {
-    return { base };
+    return { service, base };
   }
-  return { base, channel, number: Number(number) };
+  return { service, base, channel, number: Number(number) };
+}
+
+/**
+ * @param {"api" | "web"} service
+ * @returns {string}
+ */
+export function stableTagPattern(service) {
+  return `refs/tags/docker-${service}-[0-9]*.[0-9]*.[0-9]*`;
+}
+
+/**
+ * @param {"api" | "web"} service
+ * @returns {string}
+ */
+export function rcTagPattern(service) {
+  return `refs/tags/docker-${service}-*-rc.*`;
+}
+
+/**
+ * @param {"api" | "web"} service
+ * @param {string} base
+ * @returns {string[]}
+ */
+export function canaryTagPatterns(service, base) {
+  return [
+    `refs/tags/docker-${service}-v${base}-canary.*`,
+    `refs/tags/docker-${service}-${base}-canary.*`,
+  ];
+}
+
+/**
+ * Return the highest version-sorted tag for one or more refs/tags patterns.
+ * Uses `git for-each-ref --count=1` so git never materializes the full tag list.
+ *
+ * @param {string[]} patterns
+ * @returns {string}
+ */
+export function gitHighestTag(patterns) {
+  if (patterns.length === 0) {
+    return "";
+  }
+  try {
+    const output = execFileSync(
+      "git",
+      [
+        "for-each-ref",
+        "--count=1",
+        "--sort=-v:refname",
+        "--format=%(refname:short)",
+        ...patterns,
+      ],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    return output.split(/\r?\n/).find(Boolean) ?? "";
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -81,6 +138,24 @@ export function latestStableVersion(tags) {
   for (const tag of tags) {
     const parsed = parseReleaseTagVersion(tag);
     if (!parsed || parsed.channel) {
+      continue;
+    }
+    if (!latest || compareSemver(parsed.base, latest) > 0) {
+      latest = parsed.base;
+    }
+  }
+  return latest;
+}
+
+/**
+ * @param {string[]} tags
+ * @returns {string}
+ */
+export function activeRcBase(tags) {
+  let latest = "";
+  for (const tag of tags) {
+    const parsed = parseReleaseTagVersion(tag);
+    if (!parsed || parsed.channel !== "rc") {
       continue;
     }
     if (!latest || compareSemver(parsed.base, latest) > 0) {
@@ -126,6 +201,97 @@ export function nextCanaryNumber(tags, base) {
 }
 
 /**
+ * @param {string[]} tags
+ * @param {"api" | "web"} service
+ */
+export function aggregateServiceReleaseState(tags, service) {
+  let latestStable = "";
+  let rcBase = "";
+  /** @type {Map<string, number>} */
+  const canaryMaxByBase = new Map();
+
+  for (const tag of tags) {
+    const parsed = parseReleaseTagVersion(tag);
+    if (!parsed || parsed.service !== service) {
+      continue;
+    }
+
+    if (!parsed.channel) {
+      if (!latestStable || compareSemver(parsed.base, latestStable) > 0) {
+        latestStable = parsed.base;
+      }
+      continue;
+    }
+
+    if (parsed.channel === "rc") {
+      if (!rcBase || compareSemver(parsed.base, rcBase) > 0) {
+        rcBase = parsed.base;
+      }
+      continue;
+    }
+
+    const current = canaryMaxByBase.get(parsed.base) ?? 0;
+    canaryMaxByBase.set(parsed.base, Math.max(current, parsed.number ?? 0));
+  }
+
+  return { latestStable, rcBase, canaryMaxByBase };
+}
+
+/**
+ * @param {string} latestStable
+ * @param {string} rcBase
+ * @returns {string}
+ */
+export function resolveCanaryBase(latestStable, rcBase) {
+  let base;
+  if (latestStable) {
+    base = incPatch(latestStable);
+  } else {
+    base = DEFAULT_SEED;
+  }
+
+  if (rcBase && compareSemver(rcBase, base) > 0) {
+    base = rcBase;
+  }
+
+  return base;
+}
+
+/**
+ * @param {"api" | "web"} service
+ * @returns {string}
+ */
+export function readLatestStableFromGit(service) {
+  const tag = gitHighestTag([stableTagPattern(service)]);
+  const parsed = parseReleaseTagVersion(tag);
+  return parsed?.service === service && !parsed.channel ? parsed.base : "";
+}
+
+/**
+ * @param {"api" | "web"} service
+ * @returns {string}
+ */
+export function readRcBaseFromGit(service) {
+  const tag = gitHighestTag([rcTagPattern(service)]);
+  const parsed = parseReleaseTagVersion(tag);
+  return parsed?.service === service && parsed.channel === "rc" ? parsed.base : "";
+}
+
+/**
+ * @param {"api" | "web"} service
+ * @param {string} base
+ * @returns {number}
+ */
+export function readHighestCanaryNumberFromGit(service, base) {
+  const tag = gitHighestTag(canaryTagPatterns(service, base));
+  const parsed = parseReleaseTagVersion(tag);
+  if (parsed?.service !== service || parsed.channel !== "canary" || parsed.base !== base) {
+    return 0;
+  }
+  return parsed.number ?? 0;
+}
+
+/**
  * @param {string} version
  * @returns {string}
  */
@@ -138,63 +304,68 @@ export function formatDockerVersion(version) {
 }
 
 /**
+ * @param {"api" | "web"} service
  * @param {{ tags?: string[], runFallback?: number }} [options]
  */
-export function resolveCanaryVersion(options = {}) {
-  const tags = options.tags ?? listGitTags();
-  const latestStable = latestStableVersion(tags);
-  const activeBase = activePrereleaseBase(tags);
+export function resolveServiceCanaryVersion(service, options = {}) {
+  const { tags, runFallback } = options;
 
-  let base;
-  if (activeBase && (!latestStable || compareSemver(activeBase, latestStable) > 0)) {
-    base = activeBase;
-  } else if (latestStable) {
-    base = incPatch(latestStable);
+  let latestStable;
+  let rcBase;
+  /** @type {Map<string, number> | null} */
+  let canaryMaxByBase = null;
+
+  if (tags) {
+    const state = aggregateServiceReleaseState(tags, service);
+    latestStable = state.latestStable;
+    rcBase = state.rcBase;
+    canaryMaxByBase = state.canaryMaxByBase;
   } else {
-    base = DEFAULT_SEED;
+    latestStable = readLatestStableFromGit(service);
+    rcBase = readRcBaseFromGit(service);
   }
 
-  let number = nextCanaryNumber(tags, base);
-  if (number === 1 && options.runFallback && options.runFallback > 1) {
-    number = options.runFallback;
+  const base = resolveCanaryBase(latestStable, rcBase);
+  let number = canaryMaxByBase
+    ? (canaryMaxByBase.get(base) ?? 0) + 1
+    : readHighestCanaryNumberFromGit(service, base) + 1;
+
+  if (number === 1 && runFallback && runFallback > 1) {
+    number = runFallback;
   }
 
   const version = formatDockerVersion(`${base}-canary.${number}`);
   const releaseSuffix = version.replace(/^v/, "");
 
   return {
+    service,
     base,
     number,
     version,
-    dockerTagApi: `docker-api-v${releaseSuffix}`,
-    dockerTagWeb: `docker-web-v${releaseSuffix}`,
+    dockerTag: `docker-${service}-v${releaseSuffix}`,
   };
 }
 
 /**
- * @returns {string[]}
+ * @param {{ tags?: string[], runFallback?: number }} [options]
  */
-export function listDockerReleaseTags() {
-  try {
-    const output = execSync('git tag -l "docker-api-*" "docker-web-*"', {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      shell: true,
-    });
-    return output
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
+export function resolveCanaryVersion(options = {}) {
+  const runFallback =
+    options.runFallback ??
+    (Number(process.env.GITHUB_RUN_NUMBER || 0) || undefined);
 
-/**
- * @returns {string[]}
- */
-export function listGitTags() {
-  return listDockerReleaseTags();
+  const serviceOptions = { tags: options.tags, runFallback };
+  const api = resolveServiceCanaryVersion("api", serviceOptions);
+  const web = resolveServiceCanaryVersion("web", serviceOptions);
+
+  return {
+    api,
+    web,
+    versionApi: api.version,
+    versionWeb: web.version,
+    dockerTagApi: api.dockerTag,
+    dockerTagWeb: web.dockerTag,
+  };
 }
 
 function writeGithubOutput(outputs) {
@@ -217,23 +388,28 @@ function main() {
     process.exit(1);
   }
 
-  const runFallback = Number(process.env.GITHUB_RUN_NUMBER || 0) || undefined;
-  const resolved = resolveCanaryVersion({ runFallback });
+  const resolved = resolveCanaryVersion();
 
   if (useGithubOutput) {
     writeGithubOutput({
-      version: resolved.version,
-      base: resolved.base,
-      number: String(resolved.number),
+      version_api: resolved.versionApi,
+      version_web: resolved.versionWeb,
+      base_api: resolved.api.base,
+      base_web: resolved.web.base,
+      number_api: String(resolved.api.number),
+      number_web: String(resolved.web.number),
       docker_tag_api: resolved.dockerTagApi,
       docker_tag_web: resolved.dockerTagWeb,
     });
   }
 
   for (const [key, value] of Object.entries({
-    version: resolved.version,
-    base: resolved.base,
-    number: resolved.number,
+    version_api: resolved.versionApi,
+    version_web: resolved.versionWeb,
+    base_api: resolved.api.base,
+    base_web: resolved.web.base,
+    number_api: resolved.api.number,
+    number_web: resolved.web.number,
     docker_tag_api: resolved.dockerTagApi,
     docker_tag_web: resolved.dockerTagWeb,
   })) {
