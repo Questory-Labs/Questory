@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
+import { providerFetch } from "../lib/qhttp-outbound";
 
 export type OnlinePlayersPoint = { date: string; players: number };
 
@@ -234,7 +235,7 @@ export class ConcurrentPlayersService {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(url, {
+      const res = await providerFetch(url, {
         signal: controller.signal,
         headers: {
           Accept: "application/json",

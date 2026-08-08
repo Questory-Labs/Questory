@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type {
   MusicBreakdownResponse,
   MusicInsights,
@@ -11,7 +11,7 @@ import type {
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { StatCard } from "@/components/StatCard";
-import { PageHeader, Panel, StateMessage } from "@/components/ui";
+import { PageHeader, Panel, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
 import {
   formatDeltaPct,
   formatMinutes,
@@ -101,9 +101,12 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
 
       {afterHeader}
 
-      {insights.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {insights.isLoading && !insights.data ? (
+        <>
+          <SkeletonStatGrid count={6} className="mb-6 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" />
+          <SkeletonTileGrid count={4} />
+        </>
+      ) : null}
       {insights.isError && (
         <StateMessage variant="error">Could not load music analytics.</StateMessage>
       )}

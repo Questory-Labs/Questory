@@ -1,11 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
-import { EmptyState, PageHeader } from "@/components/ui";
+import {
+  EmptyState,
+  PageHeader,
+  SkeletonStatGrid,
+  SkeletonTileGrid,
+} from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import { useSyncJobs } from "@/hooks/useSyncJobs";
@@ -29,7 +34,7 @@ export default function DashboardPage() {
   const stats = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api<DashboardStats>("/dashboard/stats"),
-    refetchInterval: () => (sync.active ? 2500 : false),
+    refetchInterval: sync.active ? 2500 : false,
   });
 
   const playNext = useQuery({
@@ -92,71 +97,80 @@ export default function DashboardPage() {
             </span>
           ) : null}
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Library"
-            value={d?.librarySize ?? "—"}
-            href="/library"
-            delay={0}
-          />
-          <StatCard
-            label="Playtime"
-            value={d ? `${d.totalPlaytimeHours}h` : "—"}
-            href="/library"
-            delay={0.04}
-          />
-          <StatCard
-            label="Unplayed"
-            value={d?.unplayedCount ?? "—"}
-            hint="Still waiting in the queue"
-            href="/library"
-            delay={0.08}
-          />
-          <StatCard
-            label="Wishlist"
-            value={d?.wishlistCount ?? "—"}
-            href="/wishlist"
-            delay={0.12}
-          />
-        </div>
-      </section>
+        {stats.isLoading && !stats.data ? (
+          <>
+            <SkeletonStatGrid count={4} />
+            <SkeletonStatGrid count={4} className="mt-6" />
+          </>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label="Library"
+                value={d?.librarySize ?? "—"}
+                href="/library"
+                delay={0}
+              />
+              <StatCard
+                label="Playtime"
+                value={d ? `${d.totalPlaytimeHours}h` : "—"}
+                href="/library"
+                delay={0.04}
+              />
+              <StatCard
+                label="Unplayed"
+                value={d?.unplayedCount ?? "—"}
+                hint="Still waiting in the queue"
+                href="/library"
+                delay={0.08}
+              />
+              <StatCard
+                label="Wishlist"
+                value={d?.wishlistCount ?? "—"}
+                href="/wishlist"
+                delay={0.12}
+              />
+            </div>
 
-      <section className="mt-6" aria-label="More stats">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Friends"
-            value={d?.activeFriends ?? "—"}
-            href="/friends"
-            delay={0.16}
-          />
-          <StatCard
-            label="Cost / hour"
-            value={
-              d?.costPerHour != null
-                ? formatMoney(d.costPerHour, d.currency || "USD")
-                : "—"
-            }
-            hint={
-              d?.lifetimeAtCurrent
-                ? `Library ~${formatMoney(d.lifetimeAtCurrent, d.currency || "USD")}`
-                : "See Cost for library value"
-            }
-            href="/cost"
-            delay={0.2}
-          />
-          <StatCard
-            label="Near completion"
-            value={d?.nearCompletionCount ?? 0}
-            hint="≥80% achievements (sampled)"
-            delay={0.24}
-          />
-          <StatCard
-            label="Deal signals"
-            value={d?.currentSalesCount ?? 0}
-            href="/wishlist"
-            delay={0.28}
-          />
-        </div>
+            <section className="mt-6" aria-label="More stats">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                  label="Friends"
+                  value={d?.activeFriends ?? "—"}
+                  href="/friends"
+                  delay={0.16}
+                />
+                <StatCard
+                  label="Cost / hour"
+                  value={
+                    d?.costPerHour != null
+                      ? formatMoney(d.costPerHour, d.currency || "USD")
+                      : "—"
+                  }
+                  hint={
+                    d?.lifetimeAtCurrent
+                      ? `Library ~${formatMoney(d.lifetimeAtCurrent, d.currency || "USD")}`
+                      : "See Cost for library value"
+                  }
+                  href="/cost"
+                  delay={0.2}
+                />
+                <StatCard
+                  label="Near completion"
+                  value={d?.nearCompletionCount ?? 0}
+                  hint="≥80% achievements (sampled)"
+                  delay={0.24}
+                />
+                <StatCard
+                  label="Deal signals"
+                  value={d?.currentSalesCount ?? 0}
+                  href="/wishlist"
+                  delay={0.28}
+                />
+              </div>
+            </section>
+          </>
+        )}
       </section>
 
       <section className="mt-12">
@@ -176,7 +190,9 @@ export default function DashboardPage() {
             Full library →
           </Link>
         </div>
-        {nextUp.length ? (
+        {playNext.isLoading && !playNext.data ? (
+          <SkeletonTileGrid count={4} />
+        ) : nextUp.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {nextUp.slice(0, 8).map((g, i) => (
               <Link key={g.appId} href={`/library/${g.appId}`}>
@@ -230,15 +246,8 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {stats.isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="aspect-[460/215] border border-[var(--line)] bg-[var(--bg-1)] hatch-fill"
-              />
-            ))}
-          </div>
+        {stats.isLoading && !stats.data ? (
+          <SkeletonTileGrid count={4} />
         ) : recent.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {recent.map((g, i) => (

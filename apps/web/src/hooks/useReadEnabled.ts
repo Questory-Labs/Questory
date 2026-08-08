@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { fetchReadHealth, isReadFlagEnabled } from "@/lib/read";
 
 /** Read menus/routes: feature flag ON and API /health read.enabled. */

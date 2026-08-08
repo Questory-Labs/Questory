@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";

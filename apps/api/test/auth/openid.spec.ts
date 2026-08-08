@@ -16,9 +16,11 @@ describe("AuthService OpenID verify", () => {
   it("rejects callback without is_valid:true", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        text: async () => "ns:http://specs.openid.net/auth/2.0\nis_valid:false\n",
-      }),
+      vi.fn().mockResolvedValue(
+        new Response(
+          "ns:http://specs.openid.net/auth/2.0\nis_valid:false\n",
+        ),
+      ),
     );
     await expect(
       service.verifySteamOpenId({
@@ -40,9 +42,11 @@ describe("AuthService OpenID verify", () => {
   it("returns steamId when Steam confirms", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        text: async () => "ns:http://specs.openid.net/auth/2.0\nis_valid:true\n",
-      }),
+      vi.fn().mockResolvedValue(
+        new Response(
+          "ns:http://specs.openid.net/auth/2.0\nis_valid:true\n",
+        ),
+      ),
     );
     const id = await service.verifySteamOpenId({
       "openid.claimed_id":

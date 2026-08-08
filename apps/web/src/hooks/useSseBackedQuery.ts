@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
   type QueryKey,
-} from "@tanstack/react-query";
+} from "@questorylabs/qhttp/react";
 import { subscribeSse } from "@/lib/sse-client";
 
 type UseSseBackedQueryOpts<T> = {
@@ -44,9 +44,9 @@ export function useSseBackedQuery<T>({
     queryFn,
     enabled,
     staleTime,
-    refetchInterval: pollFallback ?
-      (q) => pollIntervalRef.current(q.state.data as T | undefined)
-    : false,
+    refetchInterval: pollFallback
+      ? (ctx) => pollIntervalRef.current(ctx.data as T | undefined)
+      : false,
     refetchOnWindowFocus: pollFallback,
   });
 

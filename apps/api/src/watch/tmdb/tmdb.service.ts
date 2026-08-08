@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { providerFetch } from "../../lib/qhttp-outbound";
 import { resolveTmdbApiKey } from "../lib/runtime-config";
 
 export type TmdbMovie = {
@@ -46,7 +47,7 @@ export class TmdbService {
     if (!useBearer) url.searchParams.set("api_key", key);
 
     try {
-      const res = await fetch(url, {
+      const res = await providerFetch(url, {
         headers: useBearer
           ? this.headers()
           : { Accept: "application/json" },

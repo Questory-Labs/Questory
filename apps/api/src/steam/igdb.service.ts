@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CacheService } from "../cache/cache.service";
+import { providerFetch } from "../lib/qhttp-outbound";
 import {
   deriveFromIgdbModes,
   type IgdbMultiplayerMode,
@@ -68,7 +69,7 @@ export class IgdbService {
     url.searchParams.set("grant_type", "client_credentials");
 
     try {
-      const res = await fetch(url.toString(), { method: "POST" });
+      const res = await providerFetch(url.toString(), { method: "POST" });
       const text = await res.text();
       if (!res.ok) {
         this.logger.warn(`IGDB token failed ${res.status}: ${text.slice(0, 200)}`);
@@ -101,7 +102,7 @@ export class IgdbService {
 
     await this.throttle();
     try {
-      const res = await fetch(`https://api.igdb.com/v4/${endpoint}`, {
+      const res = await providerFetch(`https://api.igdb.com/v4/${endpoint}`, {
         method: "POST",
         headers: {
           "Client-ID": this.clientId,

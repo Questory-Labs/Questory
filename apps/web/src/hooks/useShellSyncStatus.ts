@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@questorylabs/qhttp/react";
 import { withApiVersion } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { getApiUrl } from "@/lib/runtime-env";

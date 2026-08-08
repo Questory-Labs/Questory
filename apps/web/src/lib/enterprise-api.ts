@@ -8,6 +8,7 @@ import type {
   UserSettings,
 } from "@/lib/enterprise-types";
 import { api } from "@/lib/api";
+import { probeJsonSafe } from "@/lib/qhttp-client";
 import { getEnterpriseUrl } from "@/lib/runtime-env";
 
 /** Direct QEngine base URL — only for unauthenticated `/health` probes. */
@@ -271,11 +272,11 @@ export async function fetchEnterpriseStatus(): Promise<{
 
 /** Direct QEngine health probe (unauthenticated; ops/monitoring only). */
 export async function fetchEnterpriseHealth(): Promise<unknown> {
-  const res = await fetch(`${getEnterpriseUrl()}/health`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Enterprise health check failed: ${res.status}`);
+  const data = await probeJsonSafe(`${getEnterpriseUrl()}/health`);
+  if (!data) {
+    throw new Error("Enterprise health check failed");
   }
-  return res.json();
+  return data;
 }
 
 export async function fetchOtelHealth(): Promise<OtelHealth> {

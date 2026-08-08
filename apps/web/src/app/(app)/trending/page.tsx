@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";

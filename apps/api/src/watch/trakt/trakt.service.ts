@@ -13,6 +13,7 @@ import {
   resolveTraktClientSecret,
   resolveTraktRedirectUri,
 } from "../lib/runtime-config";
+import { providerFetch } from "../../lib/qhttp-outbound";
 
 type TraktIds = {
   trakt?: number;
@@ -88,7 +89,7 @@ export class TraktService {
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user to attach Trakt to");
 
-    const res = await fetch(`${this.api}/oauth/token`, {
+    const res = await providerFetch(`${this.api}/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -187,7 +188,7 @@ export class TraktService {
     if (!expired) return conn.accessToken;
     if (!conn.refreshToken) return conn.accessToken;
 
-    const res = await fetch(`${this.api}/oauth/token`, {
+    const res = await providerFetch(`${this.api}/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -230,7 +231,7 @@ export class TraktService {
     const url = new URL(`${this.api}${path}`);
     for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
 
-    const res = await fetch(url, {
+    const res = await providerFetch(url, {
       headers: {
         "Content-Type": "application/json",
         "trakt-api-version": "2",

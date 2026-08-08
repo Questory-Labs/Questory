@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import type { ReadRange, ReadTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
 import { ReadRangePicker } from "@/components/read/ReadRangePicker";
-import { PageHeader, StateMessage } from "@/components/ui";
+import { PageHeader, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { readFetch } from "@/lib/read";
 
@@ -77,9 +77,7 @@ export default function ReadTitlePage() {
         }
       />
 
-      {detail.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
       {detail.isError && (
         <StateMessage variant="error">Title not found.</StateMessage>
       )}

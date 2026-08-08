@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { GameTile } from "@/components/GameTile";
 import { StoreBadge } from "@/components/StoreBadge";
 import { Button, PageHeader, Panel } from "@/components/ui";

@@ -9,7 +9,7 @@ import {
   localDayKey,
 } from "@/lib/dates";
 import { getApiUrl, runtimeEnv } from "@/lib/runtime-env";
-import { jsonRequestHeaders } from "@/lib/json-fetch";
+import { probeJsonSafe, requestJson } from "@/lib/qhttp-client";
 
 /** Music APIs live on the Steam API origin under `/v1/music/*` (ListenBrainz stays `/1/*`). */
 export function getMusicUrl(): string {
@@ -50,44 +50,22 @@ export async function musicFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(musicUrl(path), {
-    ...init,
-    credentials: "include",
-    headers: jsonRequestHeaders(init),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Music request failed: ${res.status}`);
-  }
-  return res.json() as Promise<T>;
+  return requestJson<T>(musicUrl(path), init);
 }
 
 export async function fetchMusicHealth(): Promise<MusicHealth> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 2500);
-  try {
-    const res = await fetch(`${getMusicUrl()}/health`, {
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return { ok: false, service: "questorylabs-music" };
-    }
-    const body = (await res.json()) as {
-      ok?: boolean;
-      music?: { enabled?: boolean };
-    };
-    const musicOk = body.ok === true && body.music?.enabled !== false;
-    return {
-      ok: musicOk,
-      service: "questorylabs-music",
-    };
-  } catch {
+  const body = await probeJsonSafe<{
+    ok?: boolean;
+    music?: { enabled?: boolean };
+  }>(`${getMusicUrl()}/health`);
+  if (!body) {
     return { ok: false, service: "questorylabs-music" };
-  } finally {
-    clearTimeout(timer);
   }
+  const musicOk = body.ok === true && body.music?.enabled !== false;
+  return {
+    ok: musicOk,
+    service: "questorylabs-music",
+  };
 }
 
 export function formatListenDate(iso: string | null | undefined): string {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -8,7 +8,7 @@ import {
   SectionTitle,
 } from "@/components/GameDetailStats";
 import { StoreBadge, StoreBadgeRow } from "@/components/StoreBadge";
-import { Panel, StateMessage } from "@/components/ui";
+import { Panel, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import type { GameDetail, Store } from "@questorylabs/shared";
@@ -80,8 +80,8 @@ export default function LibraryGamePage() {
         {name}
       </p>
 
-      {(entry.isLoading || (appId && detail.isLoading)) && (
-        <StateMessage variant="loading" />
+      {(entry.isLoading || (appId && detail.isLoading)) && !entry.data && (
+        <SkeletonDetailHeader />
       )}
       {entry.isError && (
         <StateMessage variant="error">Could not load this game.</StateMessage>

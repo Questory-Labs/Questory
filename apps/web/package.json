@@ -11,8 +11,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@questorylabs/qhttp": "file:../../../qHttp",
     "@questorylabs/shared": "workspace:*",
-    "@tanstack/react-query": "^5.69.0",
     "cmdk": "^1.1.1",
     "framer-motion": "^12.5.0",
     "next": "16.2.12",

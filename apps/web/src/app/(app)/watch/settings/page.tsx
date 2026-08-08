@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import {
   ListProviderCard,

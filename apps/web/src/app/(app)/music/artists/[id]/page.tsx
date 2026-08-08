@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { useMemo, useState } from "react";
 import type { MusicArtistDetail, MusicRange } from "@questorylabs/shared";
 import { MusicCorrectionEdit } from "@/components/music/MusicCorrectionEdit";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
-import { OverflowMarquee, PageHeader, StateMessage } from "@/components/ui";
+import { OverflowMarquee, PageHeader, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { formatListenDate, musicFetch } from "@/lib/music";
 
 function displayLabel(
@@ -104,9 +104,7 @@ export default function MusicArtistPage() {
         }
       />
 
-      {detail.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
       {detail.isError && (
         <StateMessage variant="error">Artist not found.</StateMessage>
       )}

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CacheService } from "../cache/cache.service";
+import { providerFetch } from "../lib/qhttp-outbound";
 
 export type HltbTimes = {
   mainHours: number | null;
@@ -33,7 +34,7 @@ export class HltbService {
         .filter(Boolean)
         .slice(0, 8);
 
-      const res = await fetch("https://howlongtobeat.com/api/find", {
+      const res = await providerFetch("https://howlongtobeat.com/api/find", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

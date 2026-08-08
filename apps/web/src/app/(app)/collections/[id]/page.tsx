@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { GameTile } from "@/components/GameTile";
 import { Button, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import { fetchSignupStatus } from "@/lib/auth-api";
 import { useEffect } from "react";

@@ -1,7 +1,7 @@
 "use client";
 
 import { Command } from "cmdk";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { SearchResult } from "@questorylabs/shared";

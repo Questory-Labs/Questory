@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type { WatchRecentPage } from "@questorylabs/shared";
-import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
+import { Button, EmptyState, PageHeader, SkeletonListRows } from "@/components/ui";
 import { formatDateTime } from "@/lib/dates";
 import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
 import { formatYourWatchRating, watchFetch } from "@/lib/watch";
@@ -30,9 +30,7 @@ export default function WatchHistoryPage() {
         description="Watch events across all connected sources."
       />
 
-      {recent.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {recent.isLoading && !recent.data && <SkeletonListRows />}
       {!recent.isLoading && (recent.data?.items.length ?? 0) === 0 && (
         <EmptyState
           title="No watch events yet"

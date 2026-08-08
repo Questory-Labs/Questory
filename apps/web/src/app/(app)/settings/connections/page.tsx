@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { StoreBadge } from "@/components/StoreBadge";
 import { SteamSyncStatus } from "@/components/SteamSyncStatus";
 import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";

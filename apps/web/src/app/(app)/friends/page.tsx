@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { FRIENDS_PAGE_SIZE } from "@/lib/pagination";

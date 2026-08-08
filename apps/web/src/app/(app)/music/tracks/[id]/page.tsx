@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import {
   MusicRange,
   MusicTimeBucket,
@@ -16,7 +16,7 @@ import { MusicCorrectionEdit } from "@/components/music/MusicCorrectionEdit";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { StatCard } from "@/components/StatCard";
-import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
+import { Button, PageHeader, Panel, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { withTz } from "@/lib/dates";
 import { formatListenDateTime, formatMinutes, musicFetch } from "@/lib/music";
 import { MUSIC_DETAIL_LISTENS_PAGE_SIZE } from "@/lib/pagination";
@@ -229,9 +229,7 @@ export default function MusicTrackPage() {
         }
       />
 
-      {detail.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
       {detail.isError && (
         <StateMessage variant="error">Track not found.</StateMessage>
       )}

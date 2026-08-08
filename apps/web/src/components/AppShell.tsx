@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
 import { sanitizeAppHref } from "@questorylabs/shared";
 import { BrandMark } from "@/components/BrandMark";
 import { LoadingPage } from "@/components/LoadingPage";

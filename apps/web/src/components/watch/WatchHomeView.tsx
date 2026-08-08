@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@questorylabs/qhttp/react";
 import type {
   WatchBreakdownResponse,
   WatchInsights,
@@ -15,7 +15,7 @@ import {
 } from "@/components/watch/WatchMediaPicker";
 import { WatchRangePicker } from "@/components/watch/WatchRangePicker";
 import { StatCard } from "@/components/StatCard";
-import { PageHeader, Panel, StateMessage } from "@/components/ui";
+import { PageHeader, Panel, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
 import {
   formatDeltaPct,
   formatMinutes,
@@ -127,9 +127,12 @@ export function WatchHomeView() {
         }
       />
 
-      {insights.isLoading && (
-        <StateMessage variant="loading" />
-      )}
+      {insights.isLoading && !insights.data ? (
+        <>
+          <SkeletonStatGrid count={6} />
+          <SkeletonTileGrid count={4} className="mt-6" />
+        </>
+      ) : null}
       {insights.isError && (
         <StateMessage variant="error">Could not load watch analytics.</StateMessage>
       )}

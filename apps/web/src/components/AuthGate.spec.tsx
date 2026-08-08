@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
 import { AuthGate } from "./AuthGate";
 
 const replace = vi.fn();
@@ -15,11 +15,11 @@ vi.mock("@/lib/api", () => ({
 import { api } from "@/lib/api";
 
 function wrap(ui: React.ReactNode) {
-  const qc = new QueryClient({
+  const qc = new QueryCache({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={qc}>{ui}</QueryClientProvider>,
+    <QHttpQueryProvider client={qc}>{ui}</QHttpQueryProvider>,
   );
 }
 
