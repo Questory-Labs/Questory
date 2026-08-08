@@ -65,8 +65,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/db
       '@questorylabs/qhttp':
-        specifier: file:../../../qHttp
-        version: file:../qHttp(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)
+        specifier: ^0.1.1
+        version: 0.1.1(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)
       '@questorylabs/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -165,8 +165,8 @@ importers:
   apps/web:
     dependencies:
       '@questorylabs/qhttp':
-        specifier: file:../../../qHttp
-        version: file:../qHttp(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)
+        specifier: ^0.1.1
+        version: 0.1.1(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)
       '@questorylabs/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1364,8 +1364,8 @@ packages:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
 
-  '@questorylabs/qhttp@file:../qHttp':
-    resolution: {directory: ../qHttp, type: directory}
+  '@questorylabs/qhttp@0.1.1':
+    resolution: {integrity: sha512-LkgMOkR3BDjXcLdPo6lJnEkHEWt/3NhYujzzPa3qcdy4a5cFeWyGofN1Pk1+pTYnpgyQm8hqYid8EJFuSupNeA==}
     engines: {node: '>=20'}
     peerDependencies:
       http-cache-semantics: ^4.0.0
@@ -5942,7 +5942,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react-dom'
 
-  '@questorylabs/qhttp@file:../qHttp(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)':
+  '@questorylabs/qhttp@0.1.1(http-cache-semantics@4.2.0)(react@19.2.7)(ws@8.21.1)':
     optionalDependencies:
       http-cache-semantics: 4.2.0
       react: 19.2.7
