@@ -5,7 +5,7 @@ import { EnterpriseEnabledProvider } from "@/hooks/useEnterpriseEnabled";
 
 const RESOURCE_DEFAULTS = {
   freshFor: 30_000,
-  retries: 1,
+  retries: false,
 } as const;
 
 export function Providers({ children }: { children: React.ReactNode }) {

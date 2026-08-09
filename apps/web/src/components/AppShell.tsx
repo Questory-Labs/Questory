@@ -13,7 +13,7 @@ import {
   useGlobalSearch,
 } from "@/components/search/GlobalSearchProvider";
 import { useGlobalSearchShortcut } from "@/components/search/useGlobalSearchShortcut";
-import { api } from "@/lib/api";
+import { api, apiOnce } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
@@ -367,7 +367,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   const me = useResource({
     id: ["me"],
-    load: () => api<MeResponse>("/auth/me"),
+    load: () => apiOnce<MeResponse>("/auth/me"),
     retries: false,
   });
 
@@ -380,6 +380,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     id: ["notifications-unread"],
     load: () => api<{ count: number }>("/notifications/unread-count"),
     when: isAuthed,
+    retries: false,
     refreshEvery: 30_000,
   });
   const notifications = useResource({

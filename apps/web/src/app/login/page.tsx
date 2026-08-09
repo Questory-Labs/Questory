@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
-import { api } from "@/lib/api";
+import { api, apiOnce } from "@/lib/api";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
@@ -33,7 +33,8 @@ export default function LoginPage() {
 
   const me = useResource({
     id: ["me"],
-    load: () => api<{ user: { id: string } | null }>("/auth/me"),
+    load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
+    retries: false,
   });
 
   useEffect(() => {

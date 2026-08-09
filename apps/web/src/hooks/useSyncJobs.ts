@@ -51,6 +51,7 @@ export function useSyncJobs(opts?: { enabled?: boolean }) {
     id: ["sync-jobs"],
     load: () => api<{ jobs: SyncJob[] }>("/sync/jobs"),
     when: enabled,
+    retries: false,
     freshFor: 1_000,
     refreshEvery: (value) => {
       const jobs = value?.jobs ?? [];

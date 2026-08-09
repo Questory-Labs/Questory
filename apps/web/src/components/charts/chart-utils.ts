@@ -105,6 +105,26 @@ export function buildLineLayout(
   const height = options.height ?? CHART_HEIGHT[size];
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
+  const baseline = pad.top + plotH;
+
+  // Hooks in LineChart/BarChart call this before empty-state early returns.
+  if (data.length === 0) {
+    return {
+      points: [],
+      curvePts: [],
+      areaPath: "",
+      yTicks: [0],
+      yMax: 1,
+      plotH,
+      baseline,
+      xTickIdx: new Set(),
+      bandW: plotW,
+      width,
+      height,
+      pad,
+    };
+  }
+
   const maxVal = Math.max(...data.map((d) => d.value), 1);
   const yTicks = niceTicks(maxVal);
   const yMax = yTicks[yTicks.length - 1];
@@ -136,7 +156,6 @@ export function buildLineLayout(
     value: d.value,
   }));
 
-  const baseline = pad.top + plotH;
   const curvePts = points.map((p) => [p.x, p.y] as [number, number]);
   const areaPath = [
     `M ${points[0].x} ${points[0].y}`,

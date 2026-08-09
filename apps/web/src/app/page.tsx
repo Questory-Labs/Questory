@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useResource } from "@questorylabs/qhttp/react";
-import { api } from "@/lib/api";
+import { api, apiOnce } from "@/lib/api";
 import { fetchSignupStatus } from "@/lib/auth-api";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -17,11 +17,13 @@ export default function LandingPage() {
   const router = useRouter();
   const me = useResource({
     id: ["me"],
-    load: () => api<{ user: { id: string } | null }>("/auth/me"),
+    load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
+    retries: false,
   });
   const signup = useResource({
     id: ["signup-status"],
     load: fetchSignupStatus,
+    retries: false,
   });
 
   useEffect(() => {

@@ -9,10 +9,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
-  api: vi.fn(),
+  apiOnce: vi.fn(),
 }));
 
-import { api } from "@/lib/api";
+import { apiOnce } from "@/lib/api";
 
 function wrap(ui: React.ReactNode) {
   const qc = new ResourceStore({ retries: false });
@@ -24,11 +24,11 @@ function wrap(ui: React.ReactNode) {
 describe("AuthGate", () => {
   beforeEach(() => {
     replace.mockReset();
-    vi.mocked(api).mockReset();
+    vi.mocked(apiOnce).mockReset();
   });
 
   it("redirects unauthenticated users to login", async () => {
-    vi.mocked(api).mockResolvedValue({ user: null });
+    vi.mocked(apiOnce).mockResolvedValue({ user: null });
     wrap(
       <AuthGate>
         <div>secret</div>
@@ -39,7 +39,7 @@ describe("AuthGate", () => {
   });
 
   it("renders children when authenticated", async () => {
-    vi.mocked(api).mockResolvedValue({
+    vi.mocked(apiOnce).mockResolvedValue({
       user: {
         id: "u1",
         steamId: "76561198000000000",

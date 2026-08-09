@@ -1,4 +1,4 @@
-import { api, apiOrigin } from "@/lib/api";
+import { api, apiOnce, apiOrigin } from "@/lib/api";
 
 export type AuthChallenge = {
   challengeId: string;
@@ -20,15 +20,15 @@ export type PublicUser = {
 };
 
 export function fetchRegisterChallenge() {
-  return api<AuthChallenge>("/auth/register-challenge");
+  return apiOnce<AuthChallenge>("/auth/register-challenge");
 }
 
 export function fetchLoginChallenge() {
-  return api<AuthChallenge>("/auth/login-challenge");
+  return apiOnce<AuthChallenge>("/auth/login-challenge");
 }
 
 export function fetchSignupStatus() {
-  return api<{ open: boolean; reason: string }>("/auth/signup-status");
+  return apiOnce<{ open: boolean; reason: string }>("/auth/signup-status");
 }
 
 export async function registerAccount(body: {
