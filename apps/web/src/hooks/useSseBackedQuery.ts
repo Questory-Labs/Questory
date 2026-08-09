@@ -38,6 +38,7 @@ export function useSseBackedQuery<T>({
     load: resourceLoad,
     when: enabled,
     freshFor: staleTime,
+    retries: false,
     subscribe: (onEvent, signal) =>
       subscribeSse(streamUrl, { onMessage: onEvent }, signal),
   });

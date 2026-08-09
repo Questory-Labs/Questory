@@ -63,11 +63,31 @@ export async function requestJson<T>(
   url: string,
   init: RequestInit = {},
 ): Promise<T> {
+  return requestJsonWithRetry<T>(url, init, undefined);
+}
+
+/** Single attempt — auth probes and other fire-once GETs. */
+export async function requestJsonOnce<T>(
+  url: string,
+  init: RequestInit = {},
+): Promise<T> {
+  return requestJsonWithRetry<T>(url, init, 0);
+}
+
+async function requestJsonWithRetry<T>(
+  url: string,
+  init: RequestInit,
+  retries: number | undefined,
+): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase() as HttpMethod;
-  const client = sessionHttp
+  let client = sessionHttp
     .clone()
     .setUrl(url)
     .setHeaders(jsonRequestHeaders(init) as Record<string, string>);
+
+  if (retries !== undefined) {
+    client = client.setRetry({ retries });
+  }
 
   if (init.body != null && method !== "GET" && method !== "HEAD") {
     client.setBody(init.body as RequestBody);
@@ -87,7 +107,11 @@ export async function probeJsonSafe<T>(
   timeoutMs = 2500,
 ): Promise<T | null> {
   try {
-    const client = sessionHttp.clone().setUrl(url).setTimeout(timeoutMs);
+    const client = sessionHttp
+      .clone()
+      .setUrl(url)
+      .setTimeout(timeoutMs)
+      .setRetry({ retries: 0 });
     const result = await client.throwOnError(false).get<T>();
     if (!result.ok || result.error) return null;
     return result.data;

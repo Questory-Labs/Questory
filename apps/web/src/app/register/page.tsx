@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
-import { api } from "@/lib/api";
+import { api, apiOnce } from "@/lib/api";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
@@ -34,11 +34,13 @@ export default function RegisterPage() {
 
   const me = useResource({
     id: ["me"],
-    load: () => api<{ user: { id: string } | null }>("/auth/me"),
+    load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
+    retries: false,
   });
   const signup = useResource({
     id: ["signup-status"],
     load: fetchSignupStatus,
+    retries: false,
   });
 
   useEffect(() => {

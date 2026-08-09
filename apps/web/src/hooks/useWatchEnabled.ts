@@ -11,7 +11,7 @@ export function useWatchEnabled() {
     load: fetchWatchHealth,
     when: flagOn,
     freshFor: 30_000,
-    retries: 1,
+    retries: false,
     refreshOnFocus: true,
   });
 

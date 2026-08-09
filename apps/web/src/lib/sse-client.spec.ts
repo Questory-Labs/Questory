@@ -112,4 +112,33 @@ describe("subscribeSse", () => {
 
     ac2.abort();
   });
+
+  it("parks reconnects after repeated failures", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ac = new AbortController();
+    void subscribeSse(
+      "http://localhost:4000/v1/park/stream",
+      { onMessage: () => {} },
+      ac.signal,
+    );
+
+    for (let i = 0; i < 12; i++) {
+      await vi.advanceTimersByTimeAsync(5_000);
+      if (fetchMock.mock.calls.length >= 6) break;
+    }
+
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(7);
+
+    fetchMock.mockClear();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+
+    ac.abort();
+    vi.useRealTimers();
+  });
 });

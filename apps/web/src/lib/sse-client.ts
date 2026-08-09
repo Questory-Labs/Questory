@@ -11,6 +11,36 @@ type SharedConnection = {
 };
 
 const RELEASE_GRACE_MS = 300;
+const MAX_SSE_FAILURES = 6;
+const SSE_PARK_MS = 60_000;
+
+function waitForFocusOrDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    const finish = (fn: () => void) => {
+      clearTimeout(timer);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", onFocus);
+      }
+      signal.removeEventListener("abort", onAbort);
+      fn();
+    };
+
+    const onFocus = () => finish(resolve);
+    const onAbort = () =>
+      finish(() => reject(new DOMException("Aborted", "AbortError")));
+    const timer = setTimeout(() => finish(resolve), ms);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", onFocus);
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
 
 const sharedConnections = new Map<string, SharedConnection>();
 
@@ -106,6 +136,14 @@ async function runSharedConnection(url: string, conn: SharedConnection) {
     } catch {
       if (conn.abortController.signal.aborted) return;
       attempt += 1;
+      if (attempt >= MAX_SSE_FAILURES) {
+        await waitForFocusOrDelay(SSE_PARK_MS, conn.abortController.signal).catch(
+          () => undefined,
+        );
+        if (conn.abortController.signal.aborted) return;
+        attempt = 0;
+        continue;
+      }
       const waitMs = Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5));
       await delay(waitMs, conn.abortController.signal).catch(() => undefined);
     }

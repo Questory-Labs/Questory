@@ -1,12 +1,12 @@
 name: Canary Release
 
-# Builds rolling :canary images for api and web from main.
+# Builds rolling :canary images for api and/or web from main.
+# Each service builds only when apps/<service> changed since its last canary tag.
+# Shared/packages-only changes are skipped (release manually via Manual Release).
 # Pushes lightweight git tags for semver canary numbering (no GitHub Release).
 #
 # Triggers:
 #   - Push to main (cancels in-progress runs)
-#   - Daily schedule (06:00 UTC)
-#   - Manual: Actions → Canary Release → Run workflow
 on:
   push:
     branches:
@@ -25,6 +25,8 @@ jobs:
     name: Resolve canary version
     runs-on: self-hosted
     outputs:
+      api_changed: ${{ steps.changes.outputs.api_changed }}
+      web_changed: ${{ steps.changes.outputs.web_changed }}
       version_api: ${{ steps.version.outputs.version_api }}
       version_web: ${{ steps.version.outputs.version_web }}
       docker_tag_api: ${{ steps.version.outputs.docker_tag_api }}
@@ -43,13 +45,51 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags --force
 
+      - name: Detect service changes
+        id: changes
+        run: |
+          set -euo pipefail
+
+          detect() {
+            local service="$1"
+            local path="apps/${service}"
+            local tag
+            tag="$(
+              git for-each-ref \
+                --count=1 \
+                --sort=-v:refname \
+                --format='%(refname:short)' \
+                "refs/tags/docker-${service}-*-canary.*" \
+                2>/dev/null || true
+            )"
+
+            if [ -z "$tag" ]; then
+              echo "${service}_changed=true" >> "$GITHUB_OUTPUT"
+              echo "${service}: no prior canary tag; will build"
+              return
+            fi
+
+            if git diff --name-only "${tag}..HEAD" -- "$path" | grep -q .; then
+              echo "${service}_changed=true" >> "$GITHUB_OUTPUT"
+              echo "${service}: changes since ${tag}"
+            else
+              echo "${service}_changed=false" >> "$GITHUB_OUTPUT"
+              echo "${service}: no changes since ${tag}"
+            fi
+          }
+
+          detect api
+          detect web
+
       - name: Resolve canary version
         id: version
+        if: steps.changes.outputs.api_changed == 'true' || steps.changes.outputs.web_changed == 'true'
         run: node scripts/release-version.mjs canary --github-output
 
   docker-api:
     name: Canary api
     needs: meta
+    if: needs.meta.outputs.api_changed == 'true'
     uses: ./.github/workflows/docker-release.yml
     with:
       release_tag: ${{ needs.meta.outputs.docker_tag_api }}
@@ -60,6 +100,7 @@ jobs:
   docker-web:
     name: Canary web
     needs: meta
+    if: needs.meta.outputs.web_changed == 'true'
     uses: ./.github/workflows/docker-release.yml
     with:
       release_tag: ${{ needs.meta.outputs.docker_tag_web }}
@@ -71,7 +112,12 @@ jobs:
     name: Push canary git tags
     needs: [meta, docker-api, docker-web]
     runs-on: self-hosted
-    if: needs.docker-api.result == 'success' && needs.docker-web.result == 'success'
+    if: |
+      always() &&
+      needs.meta.result == 'success' &&
+      (needs.docker-api.result == 'success' || needs.docker-api.result == 'skipped') &&
+      (needs.docker-web.result == 'success' || needs.docker-web.result == 'skipped') &&
+      (needs.docker-api.result == 'success' || needs.docker-web.result == 'success')
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -81,9 +127,19 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "${{ needs.meta.outputs.docker_tag_api }}"
-          git tag "${{ needs.meta.outputs.docker_tag_web }}"
-          git push origin "${{ needs.meta.outputs.docker_tag_api }}" "${{ needs.meta.outputs.docker_tag_web }}"
+
+          tags=()
+          if [ "${{ needs.docker-api.result }}" = "success" ]; then
+            tags+=("${{ needs.meta.outputs.docker_tag_api }}")
+          fi
+          if [ "${{ needs.docker-web.result }}" = "success" ]; then
+            tags+=("${{ needs.meta.outputs.docker_tag_web }}")
+          fi
+
+          for tag in "${tags[@]}"; do
+            git tag "$tag"
+          done
+          git push origin "${tags[@]}"
 
   summary:
     name: Canary summary
@@ -98,6 +154,8 @@ jobs:
             echo ""
             echo "| | |"
             echo "|---|---|"
+            echo "| API changed | \`${{ needs.meta.outputs.api_changed }}\` |"
+            echo "| Web changed | \`${{ needs.meta.outputs.web_changed }}\` |"
             echo "| API version | \`${{ needs.meta.outputs.version_api }}\` |"
             echo "| Web version | \`${{ needs.meta.outputs.version_web }}\` |"
             echo "| API job | ${{ needs.docker-api.result }} |"
@@ -112,15 +170,24 @@ jobs:
             echo "docker pull ghcr.io/questory-labs/questorylabs-api:canary"
             echo "docker pull ghcr.io/questory-labs/questorylabs-web:canary"
             echo '```'
-            echo ""
-            echo "Pin this build:"
-            echo ""
-            echo '```bash'
-            echo "docker pull santoshpanna/questorylabs-api:${{ needs.meta.outputs.version_api }}"
-            echo "docker pull santoshpanna/questorylabs-web:${{ needs.meta.outputs.version_web }}"
-            echo '```'
+            if [ "${{ needs.docker-api.result }}" = "success" ] || [ "${{ needs.docker-web.result }}" = "success" ]; then
+              echo ""
+              echo "Pin this build:"
+              echo ""
+              echo '```bash'
+              if [ "${{ needs.docker-api.result }}" = "success" ]; then
+                echo "docker pull santoshpanna/questorylabs-api:${{ needs.meta.outputs.version_api }}"
+              fi
+              if [ "${{ needs.docker-web.result }}" = "success" ]; then
+                echo "docker pull santoshpanna/questorylabs-web:${{ needs.meta.outputs.version_web }}"
+              fi
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail when a release job failed
-        if: needs.docker-api.result != 'success' || needs.docker-web.result != 'success' || needs.tag.result == 'failure'
+        if: |
+          (needs.meta.outputs.api_changed == 'true' && needs.docker-api.result != 'success') ||
+          (needs.meta.outputs.web_changed == 'true' && needs.docker-web.result != 'success') ||
+          needs.tag.result == 'failure'
         run: exit 1
