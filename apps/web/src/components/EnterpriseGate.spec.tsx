@@ -62,8 +62,8 @@ describe("EnterpriseGate", () => {
       </EnterpriseGate>,
     );
 
-    // Loading state now shows a rotating iconic quote: “…” — Source
-    expect(container.textContent).toMatch(/^“.+” — .+$/);
+    expect(container.textContent).toContain("Loading");
+    expect(container.textContent).toMatch(/“.+” — .+/);
     expect(container.textContent).not.toContain("recs");
     expect(replace).not.toHaveBeenCalled();
   });
