@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { GameTile } from "@/components/GameTile";
 import { Button, PageHeader, Panel } from "@/components/ui";
@@ -41,11 +41,11 @@ const SORT_OPTIONS: { value: MultiplayerPlanSort; label: string }[] = [
 ];
 
 export default function MultiplayerPage() {
-  const friends = useQuery({
-    queryKey: ["friends", "all"],
-    queryFn: fetchAllFriends,
+  const friends = useResource({
+    id: ["friends", "all"],
+    load: fetchAllFriends,
   });
-  const friendList = friends.data?.friends || [];
+  const friendList = friends.value?.friends || [];
 
   const [selected, setSelected] = useState<string[]>([]);
   const [friendFilter, setFriendFilter] = useState("");
@@ -111,9 +111,9 @@ export default function MultiplayerPage() {
     ],
   );
 
-  const plan = useQuery({
-    queryKey: ["multiplayer-plan", body],
-    queryFn: () =>
+  const plan = useResource({
+    id: ["multiplayer-plan", body],
+    load: () =>
       api<MultiplayerPlanResponse>("/multiplayer/plan", {
         method: "POST",
         body: JSON.stringify(body),
@@ -130,7 +130,7 @@ export default function MultiplayerPage() {
     );
   }
 
-  const games = plan.data?.games || [];
+  const games = plan.value?.games || [];
   const totalPages = Math.max(1, Math.ceil(games.length / GAME_GRID_PAGE_SIZE));
   const pageGames = useMemo(() => {
     const start = (page - 1) * GAME_GRID_PAGE_SIZE;
@@ -279,12 +279,12 @@ export default function MultiplayerPage() {
                   <span className="min-w-0 flex-1 truncate">{f.personaName}</span>
                 </label>
               ))}
-              {!friends.isLoading && !friendList.length && (
+              {!friends.empty && !friendList.length && (
                 <p className="text-xs text-[var(--faint)]">
                   Sync friends to intersect libraries.
                 </p>
               )}
-              {!friends.isLoading &&
+              {!friends.empty &&
                 friendList.length > 0 &&
                 !filteredFriends.length && (
                   <p className="text-xs text-[var(--faint)]">
@@ -297,10 +297,10 @@ export default function MultiplayerPage() {
           </div>
 
           <div className="min-h-0 min-w-0 overflow-y-auto lg:overscroll-y-contain">
-          {plan.isLoading && (
+          {plan.empty && (
             <p className="text-sm text-[var(--muted)]">Finding games…</p>
           )}
-          {plan.isError && (
+          {plan.failed && (
             <p className="text-sm text-[var(--danger)]">
               Could not load multiplayer plan.
             </p>
@@ -358,7 +358,7 @@ export default function MultiplayerPage() {
               />
             ))}
           </div>
-          {plan.isSuccess && !games.length && (
+          {plan.ready && !games.length && (
             <p className="text-sm text-[var(--muted)]">
               No multiplayer titles found for this group. Try fewer friends, turn
               off strict matching, widen filters, or enable Suggested.

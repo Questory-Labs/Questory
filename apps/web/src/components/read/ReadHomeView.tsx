@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type {
   ReadBreakdownResponse,
   ReadInsights,
@@ -18,64 +18,64 @@ import { withTz } from "@/lib/dates";
 export function ReadHomeView() {
   const [range, setRange] = useState<ReadRange>("week");
 
-  const insights = useQuery({
-    queryKey: ["read-insights", range],
-    queryFn: () =>
+  const insights = useResource({
+    id: ["read-insights", range],
+    load: () =>
       readFetch<ReadInsights>(
         withTz(`/analytics/insights?range=${range}`),
       ),
   });
-  const hour = useQuery({
-    queryKey: ["read-ts-hour", range],
-    queryFn: () =>
+  const hour = useResource({
+    id: ["read-ts-hour", range],
+    load: () =>
       readFetch<ReadTimeBucket[]>(
         withTz(
           `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
         ),
       ),
   });
-  const dow = useQuery({
-    queryKey: ["read-ts-dow", range],
-    queryFn: () =>
+  const dow = useResource({
+    id: ["read-ts-dow", range],
+    load: () =>
       readFetch<ReadTimeBucket[]>(
         withTz(
           `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
         ),
       ),
   });
-  const formats = useQuery({
-    queryKey: ["read-formats", range],
-    queryFn: () =>
+  const formats = useResource({
+    id: ["read-formats", range],
+    load: () =>
       readFetch<ReadBreakdownResponse>(
         `/analytics/breakdown/formats?range=${range}&limit=10`,
       ),
   });
-  const sources = useQuery({
-    queryKey: ["read-sources", range],
-    queryFn: () =>
+  const sources = useResource({
+    id: ["read-sources", range],
+    load: () =>
       readFetch<ReadBreakdownResponse>(
         `/analytics/breakdown/sources?range=${range}&limit=10`,
       ),
   });
 
   const hourData = useMemo(
-    () => (hour.data || []).map((b) => ({ label: b.key, count: b.count })),
-    [hour.data],
+    () => (hour.value || []).map((b) => ({ label: b.key, count: b.count })),
+    [hour.value],
   );
   const dowData = useMemo(
-    () => (dow.data || []).map((b) => ({ label: b.label, count: b.count })),
-    [dow.data],
+    () => (dow.value || []).map((b) => ({ label: b.label, count: b.count })),
+    [dow.value],
   );
   const formatData = useMemo(
     () =>
-      (formats.data?.items || []).map((b) => ({
+      (formats.value?.items || []).map((b) => ({
         label: b.label,
         count: b.count,
       })),
-    [formats.data],
+    [formats.value],
   );
 
-  const d = insights.data;
+  const d = insights.value;
 
   return (
     <>
@@ -85,13 +85,13 @@ export function ReadHomeView() {
         actions={<ReadRangePicker value={range} onChange={setRange} />}
       />
 
-      {insights.isLoading && !insights.data ? (
+      {insights.empty && !insights.value ? (
         <>
           <SkeletonStatGrid count={6} />
           <SkeletonTileGrid count={4} className="mt-6" />
         </>
       ) : null}
-      {insights.isError && (
+      {insights.failed && (
         <StateMessage variant="error">Could not load read analytics.</StateMessage>
       )}
 
@@ -167,7 +167,7 @@ export function ReadHomeView() {
             Sources
           </h2>
           <ul className="mt-3 space-y-2">
-            {(sources.data?.items || []).map((item) => (
+            {(sources.value?.items || []).map((item) => (
               <li
                 key={item.key}
                 className="flex items-baseline justify-between gap-3 text-sm"
@@ -175,13 +175,13 @@ export function ReadHomeView() {
                 <span className="text-[var(--ink)]">{item.label}</span>
                 <span className="font-mono text-[11px] text-[var(--faint)]">
                   {item.count}
-                  {sources.data
-                    ? ` · ${formatShare(item.count, sources.data.periodEvents)}`
+                  {sources.value
+                    ? ` · ${formatShare(item.count, sources.value.periodEvents)}`
                     : ""}
                 </span>
               </li>
             ))}
-            {(sources.data?.items || []).length === 0 ? (
+            {(sources.value?.items || []).length === 0 ? (
               <li className="text-sm text-[var(--muted)]">
                 No source metadata yet.
               </li>

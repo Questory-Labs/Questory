@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GameTile } from "@/components/GameTile";
@@ -75,14 +75,14 @@ function LibraryContent() {
   }, [q, genre, unplayed, multiplayer, deck, activeStore, page]);
 
   const sync = useSyncJobs();
-  const library = useQuery({
-    queryKey: ["library", params],
-    queryFn: () => api<LibraryResponse>(`/library?${params}`),
-    refetchInterval: sync.active ? 3_000 : false,
+  const library = useResource({
+    id: ["library", params],
+    load: () => api<LibraryResponse>(`/library?${params}`),
+    refreshEvery: sync.active ? 3_000 : false,
   });
 
-  const totalPages = library.data
-    ? Math.max(1, Math.ceil(library.data.total / library.data.pageSize))
+  const totalPages = library.value
+    ? Math.max(1, Math.ceil(library.value.total / library.value.pageSize))
     : 1;
 
   return (
@@ -94,7 +94,7 @@ function LibraryContent() {
             ? `Syncing · ${sync.doneCount}/${sync.total}${
                 sync.current ? ` · ${sync.current.label}` : ""
               }`
-            : `${library.data?.total ?? 0} games`
+            : `${library.value?.total ?? 0} games`
         }
         actions={
           <input
@@ -174,9 +174,9 @@ function LibraryContent() {
         </label>
       </div>
 
-      {library.isLoading && !library.data ? (
+      {library.empty ? (
         <SkeletonTileGrid count={12} className="mb-6" />
-      ) : (library.data?.items || []).length === 0 ? (
+      ) : (library.value?.items || []).length === 0 ? (
         <EmptyState
           title={
             sync.active
@@ -203,7 +203,7 @@ function LibraryContent() {
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {(library.data?.items || []).map((item, i) => {
+            {(library.value?.items || []).map((item, i) => {
               const stores = item.stores || item.game.stores || [];
               return (
                 <Link key={item.game.id} href={`/library/${item.game.id}`}>
@@ -221,7 +221,7 @@ function LibraryContent() {
             })}
           </div>
 
-          {library.data && library.data.total > library.data.pageSize && (
+          {library.value && library.value.total > library.value.pageSize && (
             <div className="mt-6 flex items-center justify-center gap-3">
               <Button
                 variant="secondary"

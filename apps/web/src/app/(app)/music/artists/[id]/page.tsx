@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useMemo, useState } from "react";
 import type { MusicArtistDetail, MusicRange } from "@questorylabs/shared";
 import { MusicCorrectionEdit } from "@/components/music/MusicCorrectionEdit";
@@ -22,20 +22,20 @@ function displayLabel(
 export default function MusicArtistPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const qc = useQueryClient();
+  const store = useStore();
   const [range, setRange] = useState<MusicRange>("all");
 
-  const detail = useQuery({
-    queryKey: ["music-artist", id, range],
-    queryFn: () =>
+  const detail = useResource({
+    id: ["music-artist", id, range],
+    load: () =>
       musicFetch<MusicArtistDetail>(
         `/analytics/artists/${id}?range=${range}`,
       ),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const save = useMutation({
-    mutationFn: (values: {
+  const save = useAction({
+    run: (values: {
       artists?: Array<{ id?: string; name: string }>;
       displayName?: string | null;
     }) =>
@@ -44,17 +44,17 @@ export default function MusicArtistPage() {
         body: JSON.stringify(values),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["music-artist", id] });
-      qc.invalidateQueries({ queryKey: ["music-recent"] });
+      store.touch(["music-artist", id]);
+      store.touch(["music-recent"]);
     },
   });
 
-  const a = detail.data?.artist;
+  const a = detail.value?.artist;
   const title = a ? displayLabel(a.userDisplayName, a.name) : "Artist";
 
   const topTrackItems = useMemo(
     () =>
-      detail.data?.topTracks.map((t) => ({
+      detail.value?.topTracks.map((t) => ({
         key: t.id,
         href: `/music/tracks/${t.id}`,
         label: t.title,
@@ -62,19 +62,19 @@ export default function MusicArtistPage() {
         count: t.count,
         imageUrl: t.imageUrl,
       })) ?? [],
-    [detail.data?.topTracks],
+    [detail.value?.topTracks],
   );
 
   const topAlbumItems = useMemo(
     () =>
-      detail.data?.topAlbums.map((t) => ({
+      detail.value?.topAlbums.map((t) => ({
         key: t.id,
         href: `/music/albums/${t.id}`,
         label: t.title,
         count: t.count,
         imageUrl: t.imageUrl,
       })) ?? [],
-    [detail.data?.topAlbums],
+    [detail.value?.topAlbums],
   );
 
   return (
@@ -83,8 +83,8 @@ export default function MusicArtistPage() {
         eyebrow="Artist"
         title={title}
         description={
-          detail.data
-            ? `${detail.data.listenCount} listens in range · first ${formatListenDate(detail.data.firstListenAt)} · latest ${formatListenDate(detail.data.latestListenAt)}`
+          detail.value
+            ? `${detail.value.listenCount} listens in range · first ${formatListenDate(detail.value.firstListenAt)} · latest ${formatListenDate(detail.value.latestListenAt)}`
             : undefined
         }
         actions={
@@ -94,9 +94,9 @@ export default function MusicArtistPage() {
               <MusicCorrectionEdit
                 kind="artist"
                 entityId={id}
-                saving={save.isPending}
+                saving={save.busy}
                 onSave={async (values) => {
-                  await save.mutateAsync(values);
+                  await save.submitAsync(values);
                 }}
               />
             ) : null}
@@ -104,12 +104,12 @@ export default function MusicArtistPage() {
         }
       />
 
-      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
-      {detail.isError && (
+      {detail.empty && <SkeletonDetailHeader />}
+      {detail.failed && (
         <StateMessage variant="error">Artist not found.</StateMessage>
       )}
 
-      {detail.data && a && (
+      {detail.value && a && (
         <>
           <div className="grid gap-8 lg:grid-cols-[auto_1fr]">
             <MusicCover src={a.imageUrl} alt={title} size="lg" />
@@ -128,8 +128,8 @@ export default function MusicArtistPage() {
             </div>
           </div>
 
-          {detail.data.topMoods.length > 0 ? (
-            <MoodTagCloud moods={detail.data.topMoods} />
+          {detail.value.topMoods.length > 0 ? (
+            <MoodTagCloud moods={detail.value.topMoods} />
           ) : null}
 
           <div className="mt-8 grid gap-8 lg:grid-cols-2">

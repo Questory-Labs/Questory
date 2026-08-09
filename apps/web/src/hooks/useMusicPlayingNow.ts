@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { useLiveResource } from "@questorylabs/qhttp/react";
 import { withApiVersion, type MusicPlayingNow } from "@questorylabs/shared";
-import { useSseBackedQuery } from "@/hooks/useSseBackedQuery";
+import { subscribeSse } from "@/lib/sse-client";
 import { getApiUrl } from "@/lib/runtime-env";
 import { musicFetch } from "@/lib/music";
 
@@ -17,15 +18,15 @@ function playingNowStreamUrl() {
   return `${getApiUrl()}${path}`;
 }
 
-/** Now-playing via authenticated SSE; falls back to slow polling if the stream drops. */
+/** Now-playing via authenticated SSE with an initial GET. */
 export function useMusicPlayingNow(opts?: { enabled?: boolean }) {
   const streamUrl = useMemo(() => playingNowStreamUrl(), []);
 
-  return useSseBackedQuery<MusicPlayingNow>({
-    queryKey: MUSIC_PLAYING_NOW_QUERY_KEY,
-    queryFn: () => musicFetch<MusicPlayingNow>("/analytics/playing-now"),
-    streamUrl,
-    enabled: opts?.enabled ?? true,
-    pollInterval: (data) => (data?.track ? 5_000 : 30_000),
+  return useLiveResource<MusicPlayingNow>({
+    id: MUSIC_PLAYING_NOW_QUERY_KEY,
+    load: () => musicFetch<MusicPlayingNow>("/analytics/playing-now"),
+    when: opts?.enabled ?? true,
+    subscribe: (onEvent, signal) =>
+      subscribeSse(streamUrl, { onMessage: onEvent }, signal),
   });
 }

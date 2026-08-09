@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useStore } from "@questorylabs/qhttp/react";
 import { Button, Panel } from "@/components/ui";
 import { ScraperConfigEditor } from "@/components/admin/scrapers/ScraperConfigEditor";
 import { ScraperTestPanel } from "@/components/admin/scrapers/ScraperTestPanel";
@@ -32,7 +32,7 @@ type Props = {
 };
 
 export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
-  const qc = useQueryClient();
+  const store = useStore();
   const iteration = detail.openIteration;
   const [activeStep, setActiveStep] = useState<Step>("draft");
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -56,12 +56,12 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
   }, [iteration]);
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["admin-scraper-provider", providerKey] });
-    qc.invalidateQueries({ queryKey: ["admin-scraper-providers"] });
+    store.touch(["admin-scraper-provider", providerKey]);
+    store.touch(["admin-scraper-providers"]);
   };
 
-  const createDraft = useMutation({
-    mutationFn: () =>
+  const createDraft = useAction({
+    run: () =>
       api<ScraperProviderDetail>(
         `/admin/scrapers/providers/${providerKey}/iterations`,
         { method: "POST" },
@@ -69,8 +69,8 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
     onSuccess: invalidate,
   });
 
-  const save = useMutation({
-    mutationFn: () => {
+  const save = useAction({
+    run: () => {
       if (!iteration || !draft) throw new Error("Nothing to save");
       return api<ScraperIterationRecord>(
         `/admin/scrapers/providers/${providerKey}/iterations/${iteration.id}`,
@@ -86,8 +86,8 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
     onSuccess: invalidate,
   });
 
-  const publish = useMutation({
-    mutationFn: () => {
+  const publish = useAction({
+    run: () => {
       if (!iteration) throw new Error("No iteration");
       return api<ScraperProviderDetail>(
         `/admin/scrapers/providers/${providerKey}/iterations/${iteration.id}/publish`,
@@ -97,8 +97,8 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
     onSuccess: invalidate,
   });
 
-  const discard = useMutation({
-    mutationFn: () => {
+  const discard = useAction({
+    run: () => {
       if (!iteration) throw new Error("No iteration");
       return api<ScraperProviderDetail>(
         `/admin/scrapers/providers/${providerKey}/iterations/${iteration.id}`,
@@ -118,12 +118,12 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
         </p>
         <Button
           className="mt-4"
-          disabled={createDraft.isPending}
-          onClick={() => createDraft.mutate()}
+          disabled={createDraft.busy}
+          onClick={() => createDraft.submit()}
         >
-          {createDraft.isPending ? "Creating…" : "Start new iteration"}
+          {createDraft.busy ? "Creating…" : "Start new iteration"}
         </Button>
-        {createDraft.isError ? (
+        {createDraft.failed ? (
           <p className="mt-3 text-sm text-red-400">
             {createDraft.error instanceof Error
               ? createDraft.error.message
@@ -148,12 +148,12 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
         </div>
         <Button
           variant="secondary"
-          disabled={discard.isPending}
+          disabled={discard.busy}
           onClick={() => {
             if (
               window.confirm("Discard this draft? Unpublished changes will be lost.")
             ) {
-              discard.mutate();
+              discard.submit();
             }
           }}
         >
@@ -210,10 +210,10 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
             }
             hideMeta
           />
-          <Button disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? "Saving…" : "Save draft"}
+          <Button disabled={save.busy} onClick={() => save.submit()}>
+            {save.busy ? "Saving…" : "Save draft"}
           </Button>
-          {save.isError ? (
+          {save.failed ? (
             <p className="text-sm text-red-400">
               {save.error instanceof Error ? save.error.message : "Save failed"}
             </p>
@@ -248,17 +248,17 @@ export function ScraperIterationWorkflow({ providerKey, detail }: Props) {
             version moves to previous iterations.
           </p>
           <Button
-            disabled={!canPublish || publish.isPending}
-            onClick={() => publish.mutate()}
+            disabled={!canPublish || publish.busy}
+            onClick={() => publish.submit()}
           >
-            {publish.isPending ? "Publishing…" : "Publish iteration"}
+            {publish.busy ? "Publishing…" : "Publish iteration"}
           </Button>
           {!canPublish ? (
             <p className="text-sm text-[var(--muted)]">
               Validate the iteration before publishing.
             </p>
           ) : null}
-          {publish.isError ? (
+          {publish.failed ? (
             <p className="text-sm text-red-400">
               {publish.error instanceof Error
                 ? publish.error.message

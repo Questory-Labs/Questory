@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
@@ -40,7 +40,7 @@ function memberLabel(m: {
 }
 
 export default function FamilyPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [steamId, setSteamId] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -52,9 +52,9 @@ export default function FamilyPage() {
   const [page, setPage] = useState(1);
   const [conflictsPage, setConflictsPage] = useState(1);
 
-  const insights = useQuery({
-    queryKey: ["family-insights"],
-    queryFn: () => api<FamilyInsights>("/family/insights"),
+  const insights = useResource({
+    id: ["family-insights"],
+    load: () => api<FamilyInsights>("/family/insights"),
   });
 
   const libraryParams = useMemo(() => {
@@ -66,9 +66,9 @@ export default function FamilyPage() {
     return p.toString();
   }, [activeMember, gameSearch, page]);
 
-  const library = useQuery({
-    queryKey: ["family-library", libraryParams],
-    queryFn: () => api<FamilyLibrary>(`/family/library?${libraryParams}`),
+  const library = useResource({
+    id: ["family-library", libraryParams],
+    load: () => api<FamilyLibrary>(`/family/library?${libraryParams}`),
   });
 
   const conflictsParams = useMemo(() => {
@@ -79,25 +79,25 @@ export default function FamilyPage() {
     return p.toString();
   }, [conflictsPage]);
 
-  const conflicts = useQuery({
-    queryKey: ["family-library-conflicts", conflictsParams],
-    queryFn: () => api<FamilyLibrary>(`/family/library?${conflictsParams}`),
+  const conflicts = useResource({
+    id: ["family-library-conflicts", conflictsParams],
+    load: () => api<FamilyLibrary>(`/family/library?${conflictsParams}`),
   });
 
-  const friends = useQuery({
-    queryKey: ["friends", "all"],
-    queryFn: fetchAllFriends,
-    enabled: showImport,
+  const friends = useResource({
+    id: ["friends", "all"],
+    load: fetchAllFriends,
+    when: showImport,
   });
 
-  const members = insights.data?.members || library.data?.members || [];
+  const members = insights.value?.members || library.value?.members || [];
   const memberIds = useMemo(
     () => new Set(members.map((m) => m.steamId)),
     [members],
   );
 
   const importable = useMemo(() => {
-    const list = (friends.data?.friends || []).filter(
+    const list = (friends.value?.friends || []).filter(
       (f) => !memberIds.has(f.steamId),
     );
     const q = importFilter.trim().toLowerCase();
@@ -106,15 +106,15 @@ export default function FamilyPage() {
       (f) =>
         f.personaName.toLowerCase().includes(q) || f.steamId.includes(q),
     );
-  }, [friends.data, memberIds, importFilter]);
+  }, [friends.value, memberIds, importFilter]);
 
   const invalidateFamily = () => {
-    qc.invalidateQueries({ queryKey: ["family-insights"] });
-    qc.invalidateQueries({ queryKey: ["family-library"] });
+    store.touch(["family-insights"]);
+    store.touch(["family-library"]);
   };
 
-  const add = useMutation({
-    mutationFn: () =>
+  const add = useAction({
+    run: () =>
       api("/family/members", {
         method: "POST",
         body: JSON.stringify({ steamId: steamId.trim() }),
@@ -127,8 +127,8 @@ export default function FamilyPage() {
     onError: (err: Error) => setAddError(parseApiError(err)),
   });
 
-  const importFriends = useMutation({
-    mutationFn: (steamIds: string[]) =>
+  const importFriends = useAction({
+    run: (steamIds: string[]) =>
       api<{ added: number; skipped: number }>("/family/members/import", {
         method: "POST",
         body: JSON.stringify({ steamIds }),
@@ -166,15 +166,15 @@ export default function FamilyPage() {
     });
   };
 
-  const d = insights.data;
+  const d = insights.value;
   const currency = d?.currency || "USD";
   const money = (n: number | null | undefined) => formatMoney(n, currency);
-  const totalPages = library.data
-    ? Math.max(1, Math.ceil(library.data.total / library.data.pageSize))
+  const totalPages = library.value
+    ? Math.max(1, Math.ceil(library.value.total / library.value.pageSize))
     : 1;
-  const conflictsTotal = conflicts.data?.total ?? 0;
+  const conflictsTotal = conflicts.value?.total ?? 0;
   const conflictsPageSize =
-    conflicts.data?.pageSize ?? FAMILY_LIBRARY_PAGE_SIZE;
+    conflicts.value?.pageSize ?? FAMILY_LIBRARY_PAGE_SIZE;
   const conflictsTotalPages = Math.max(
     1,
     Math.ceil(conflictsTotal / conflictsPageSize),
@@ -192,7 +192,7 @@ export default function FamilyPage() {
           className="flex flex-wrap items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (steamId.trim()) add.mutate();
+            if (steamId.trim()) add.submit();
           }}
         >
           <input
@@ -206,10 +206,10 @@ export default function FamilyPage() {
           />
           <Button
             type="submit"
-            disabled={add.isPending || !steamId.trim()}
+            disabled={add.busy || !steamId.trim()}
             className="h-9"
           >
-            {add.isPending ? "Adding…" : "Add member"}
+            {add.busy ? "Adding…" : "Add member"}
           </Button>
         </form>
         <Button
@@ -243,11 +243,11 @@ export default function FamilyPage() {
                   : "Select all"}
               </Button>
               <Button
-                disabled={selected.size === 0 || importFriends.isPending}
-                onClick={() => importFriends.mutate([...selected])}
+                disabled={selected.size === 0 || importFriends.busy}
+                onClick={() => importFriends.submit([...selected])}
                 className="h-9 px-3 text-xs"
               >
-                {importFriends.isPending
+                {importFriends.busy
                   ? "Importing…"
                   : `Add selected (${selected.size})`}
               </Button>
@@ -262,12 +262,12 @@ export default function FamilyPage() {
           />
 
           <div className="mt-4 max-h-72 space-y-1 overflow-y-auto">
-            {friends.isLoading && (
+            {friends.empty && (
               <p className="text-sm text-[var(--muted)]">Loading friends…</p>
             )}
-            {!friends.isLoading && !importable.length && (
+            {!friends.empty && !importable.length && (
               <p className="text-sm text-[var(--muted)]">
-                {(friends.data?.friends || []).length === 0
+                {(friends.value?.friends || []).length === 0
                   ? "No friends synced yet. Open Friends after Steam is linked."
                   : "All synced friends are already in your family group."}
               </p>
@@ -306,22 +306,22 @@ export default function FamilyPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Members"
-          value={insights.isLoading ? "…" : (d?.memberCount ?? "—")}
+          value={insights.empty ? "…" : (d?.memberCount ?? "—")}
           hint="People in this family group"
         />
         <StatCard
           label="Unique games"
-          value={insights.isLoading ? "…" : (d?.totalUniqueGames ?? "—")}
+          value={insights.empty ? "…" : (d?.totalUniqueGames ?? "—")}
           hint="Distinct titles across all libraries"
         />
         <StatCard
           label="Overlaps"
-          value={insights.isLoading ? "…" : (d?.overlapCount ?? "—")}
+          value={insights.empty ? "…" : (d?.overlapCount ?? "—")}
           hint="Games owned by 2+ members (duplicate licenses)"
         />
         <StatCard
           label="Library value"
-          value={insights.isLoading ? "…" : d ? money(d.familyValue) : "—"}
+          value={insights.empty ? "…" : d ? money(d.familyValue) : "—"}
           hint="Unique titles across family sharing — recorded prices when set, otherwise store prices"
         />
       </div>
@@ -341,7 +341,7 @@ export default function FamilyPage() {
             </tr>
           </thead>
           <tbody>
-            {insights.isLoading && (
+            {insights.empty && (
               <tr>
                 <td
                   colSpan={8}
@@ -351,7 +351,7 @@ export default function FamilyPage() {
                 </td>
               </tr>
             )}
-            {!insights.isLoading && !members.length && (
+            {!insights.empty && !members.length && (
               <tr>
                 <td
                   colSpan={8}
@@ -422,9 +422,9 @@ export default function FamilyPage() {
               Family shareable games
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {library.isLoading
+              {library.empty
                 ? "Loading…"
-                : `${library.data?.total ?? 0} games · click a poster for stats`}
+                : `${library.value?.total ?? 0} games · click a poster for stats`}
             </p>
           </div>
           <input
@@ -480,14 +480,14 @@ export default function FamilyPage() {
           ))}
         </div>
 
-        {!insights.isLoading && !members.length && (
+        {!insights.empty && !members.length && (
           <p className="text-sm text-[var(--muted)]">
             No members yet. Import friends or add a SteamID64 above.
           </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {(library.data?.items || []).map((item, index) => (
+          {(library.value?.items || []).map((item, index) => (
             <GameTile
               key={item.appId}
               name={item.name}
@@ -521,17 +521,17 @@ export default function FamilyPage() {
           ))}
         </div>
 
-        {library.isLoading && (
+        {library.empty && (
           <p className="mt-4 text-sm text-[var(--muted)]">Loading games…</p>
         )}
-        {!library.isLoading && library.data && library.data.total === 0 && (
+        {!library.empty && library.value && library.value.total === 0 && (
           <p className="mt-4 text-sm text-[var(--muted)]">
             No shareable games for this filter. Sync libraries or try another
             member.
           </p>
         )}
 
-        {library.data && library.data.total > library.data.pageSize && (
+        {library.value && library.value.total > library.value.pageSize && (
           <div className="mt-6 flex items-center justify-center gap-3">
             <Button
               variant="secondary"
@@ -561,12 +561,12 @@ export default function FamilyPage() {
           License conflicts
         </h2>
         <p className="mb-3 text-sm text-[var(--muted)]">
-          {conflicts.isLoading
+          {conflicts.empty
             ? "Loading overlapping games…"
             : `${conflictsTotal} games owned by more than one family member`}
         </p>
         <div className="space-y-2">
-          {(conflicts.data?.items || []).map((c) => (
+          {(conflicts.value?.items || []).map((c) => (
             <button
               key={c.appId}
               type="button"
@@ -579,7 +579,7 @@ export default function FamilyPage() {
               </span>
             </button>
           ))}
-          {!conflicts.isLoading && conflictsTotal === 0 && (
+          {!conflicts.empty && conflictsTotal === 0 && (
             <p className="text-sm text-[var(--muted)]">
               No overlapping games between members yet.
             </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { useQueryClient } from "@questorylabs/qhttp/react";
+import { useStore } from "@questorylabs/qhttp/react";
 import { withApiVersion } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { getApiUrl } from "@/lib/runtime-env";
@@ -163,7 +163,7 @@ export function useShellSyncStatus(opts?: {
     [moduleOpts],
   );
 
-  const qc = useQueryClient();
+  const store = useStore();
   const wasActive = useRef({
     steam: false,
     music: false,
@@ -172,22 +172,13 @@ export function useShellSyncStatus(opts?: {
   });
 
   const query = useSseBackedQuery<ShellSyncStatus>({
-    queryKey,
-    queryFn: () => api<ShellSyncStatus>(shellStatusPath(moduleOpts)),
+    id: queryKey,
+    load: () => api<ShellSyncStatus>(shellStatusPath(moduleOpts)),
     streamUrl,
     enabled,
-    pollInterval: (status) => {
-      if (!status) return 30_000;
-      const anyActive =
-        status.steam.active ||
-        Boolean(status.music?.active) ||
-        Boolean(status.watch?.active) ||
-        Boolean(status.read?.active);
-      return anyActive ? 2_000 : 30_000;
-    },
   });
 
-  const data = query.data;
+  const data = query.value;
 
   const steamStages: SyncStage[] = useMemo(() => {
     const byType = latestByType(data?.steam.jobs ?? []);
@@ -230,35 +221,35 @@ export function useShellSyncStatus(opts?: {
     if (!enabled || !data) return;
 
     if (wasActive.current.steam && !steamActive) {
-      void qc.invalidateQueries({ queryKey: ["dashboard"] });
-      void qc.invalidateQueries({ queryKey: ["library"] });
-      void qc.invalidateQueries({ queryKey: ["wishlist"] });
-      void qc.invalidateQueries({ queryKey: ["friends"] });
-      void qc.invalidateQueries({ queryKey: ["play-next"] });
-      void qc.invalidateQueries({ queryKey: ["me"] });
-      void qc.invalidateQueries({ queryKey: ["stores"] });
-      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+      void store.touch(["dashboard"]);
+      void store.touch(["library"]);
+      void store.touch(["wishlist"]);
+      void store.touch(["friends"]);
+      void store.touch(["play-next"]);
+      void store.touch(["me"]);
+      void store.touch(["stores"]);
+      void store.touch(["sync-jobs"]);
     }
     if (wasActive.current.music && !musicActive) {
-      void qc.invalidateQueries({ queryKey: ["music-overview"] });
-      void qc.invalidateQueries({ queryKey: ["music-listening"] });
-      void qc.invalidateQueries({ queryKey: ["music-charts"] });
+      void store.touch(["music-overview"]);
+      void store.touch(["music-listening"]);
+      void store.touch(["music-charts"]);
     }
     if (wasActive.current.watch && !watchActive) {
-      void qc.invalidateQueries({ queryKey: ["watch-overview"] });
-      void qc.invalidateQueries({ queryKey: ["watch-recent"] });
-      void qc.invalidateQueries({ queryKey: ["trakt-status"] });
-      void qc.invalidateQueries({ queryKey: ["anilist-status"] });
+      void store.touch(["watch-overview"]);
+      void store.touch(["watch-recent"]);
+      void store.touch(["trakt-status"]);
+      void store.touch(["anilist-status"]);
     }
     if (wasActive.current.read && !readActive) {
-      void qc.invalidateQueries({ queryKey: ["read-overview"] });
-      void qc.invalidateQueries({ queryKey: ["read-recent"] });
-      void qc.invalidateQueries({ queryKey: ["read-library"] });
-      void qc.invalidateQueries({ queryKey: ["read-anilist-status"] });
-      void qc.invalidateQueries({ queryKey: ["read-mal-status"] });
-      void qc.invalidateQueries({ queryKey: ["read-kitsu-status"] });
-      void qc.invalidateQueries({ queryKey: ["read-bangumi-status"] });
-      void qc.invalidateQueries({ queryKey: ["read-shikimori-status"] });
+      void store.touch(["read-overview"]);
+      void store.touch(["read-recent"]);
+      void store.touch(["read-library"]);
+      void store.touch(["read-anilist-status"]);
+      void store.touch(["read-mal-status"]);
+      void store.touch(["read-kitsu-status"]);
+      void store.touch(["read-bangumi-status"]);
+      void store.touch(["read-shikimori-status"]);
     }
 
     wasActive.current = {
@@ -271,7 +262,7 @@ export function useShellSyncStatus(opts?: {
     data,
     enabled,
     musicActive,
-    qc,
+    store,
     readActive,
     steamActive,
     watchActive,

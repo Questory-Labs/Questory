@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -273,7 +273,7 @@ function MultiScrobblerCard({ active }: { active: boolean }) {
 }
 
 export default function MusicSettingsPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -284,12 +284,12 @@ export default function MusicSettingsPage() {
   const [setupOpen, setSetupOpen] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const identity = useQuery({
-    queryKey: ["api-keys-identity"],
-    queryFn: () => api<IdentityResponse>("/api-keys/identity"),
+  const identity = useResource({
+    id: ["api-keys-identity"],
+    load: () => api<IdentityResponse>("/api-keys/identity"),
   });
   const ingestActive = Boolean(
-    (identity.data?.keys || []).find((k) => k.type === "music_ingest"),
+    (identity.value?.keys || []).find((k) => k.type === "music_ingest"),
   );
   const showIngest = ingestActive || setupOpen;
 
@@ -310,9 +310,9 @@ export default function MusicSettingsPage() {
       setMessage(
         `Imported ${next.accepted} listens (${next.skipped} skipped).`,
       );
-      void qc.invalidateQueries({ queryKey: ["music-overview"] });
-      void qc.invalidateQueries({ queryKey: ["music-recent"] });
-      void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
+      void store.touch(["music-overview"]);
+      void store.touch(["music-recent"]);
+      void store.touch(["shell-sync-status"]);
       return;
     }
     if (next.status === "failed") {

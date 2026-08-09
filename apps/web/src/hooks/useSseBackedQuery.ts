@@ -1,80 +1,44 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  useQuery,
-  useQueryClient,
-  type QueryKey,
-} from "@questorylabs/qhttp/react";
+import { useLiveResource } from "@questorylabs/qhttp/react";
+import type { ResourceId } from "@questorylabs/qhttp/react";
 import { subscribeSse } from "@/lib/sse-client";
 
 type UseSseBackedQueryOpts<T> = {
-  queryKey: QueryKey;
-  queryFn: () => Promise<T>;
+  /** @deprecated use `id` */
+  queryKey?: ResourceId;
+  /** @deprecated use `load` */
+  queryFn?: () => Promise<T>;
+  id?: ResourceId;
+  load?: () => Promise<T>;
   streamUrl: string;
   enabled?: boolean;
   staleTime?: number;
-  pollInterval: (data: T | undefined) => number | false;
+  pollInterval?: (data: T | undefined) => number | false;
 };
 
-function queryKeyId(key: QueryKey): string {
-  return JSON.stringify(key);
-}
-
-/** React Query data fed by an authenticated SSE stream; polls only if the stream fails. */
+/** @deprecated Use useLiveResource from @questorylabs/qhttp/react */
 export function useSseBackedQuery<T>({
   queryKey,
   queryFn,
+  id,
+  load,
   streamUrl,
   enabled = true,
   staleTime = 5_000,
-  pollInterval,
 }: UseSseBackedQueryOpts<T>) {
-  const qc = useQueryClient();
-  const [pollFallback, setPollFallback] = useState(false);
-  const queryKeyRef = useRef(queryKey);
-  const pollIntervalRef = useRef(pollInterval);
-  queryKeyRef.current = queryKey;
-  pollIntervalRef.current = pollInterval;
+  const resourceId = id ?? queryKey;
+  const resourceLoad = load ?? queryFn;
+  if (!resourceId || !resourceLoad) {
+    throw new Error("useSseBackedQuery requires id/load (or queryKey/queryFn)");
+  }
 
-  const stableKeyId = queryKeyId(queryKey);
-
-  const query = useQuery({
-    queryKey,
-    queryFn,
-    enabled,
-    staleTime,
-    refetchInterval: pollFallback
-      ? (ctx) => pollIntervalRef.current(ctx.data as T | undefined)
-      : false,
-    refetchOnWindowFocus: pollFallback,
+  return useLiveResource<T>({
+    id: resourceId,
+    load: resourceLoad,
+    when: enabled,
+    freshFor: staleTime,
+    subscribe: (onEvent, signal) =>
+      subscribeSse(streamUrl, { onMessage: onEvent }, signal),
   });
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    const ac = new AbortController();
-
-    void subscribeSse(
-      streamUrl,
-      {
-        onMessage: (raw) => {
-          try {
-            const data = JSON.parse(raw) as T;
-            qc.setQueryData(queryKeyRef.current, data);
-            setPollFallback(false);
-          } catch {
-            // ignore malformed frames
-          }
-        },
-      },
-      ac.signal,
-    );
-
-    return () => {
-      ac.abort();
-    };
-  }, [enabled, stableKeyId, streamUrl, qc]);
-
-  return query;
 }

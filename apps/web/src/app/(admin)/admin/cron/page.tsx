@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -52,39 +52,39 @@ type CronRunsResponse = {
 };
 
 export default function AdminCronPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [page, setPage] = useState(1);
-  const status = useQuery({
-    queryKey: ["admin-cron-status"],
-    queryFn: () => api<CronStatus>("/admin/cron/status"),
-    refetchInterval: 10_000,
+  const status = useResource({
+    id: ["admin-cron-status"],
+    load: () => api<CronStatus>("/admin/cron/status"),
+    refreshEvery: 10_000,
   });
-  const runs = useQuery({
-    queryKey: ["admin-cron-runs", page],
-    queryFn: () => {
+  const runs = useResource({
+    id: ["admin-cron-runs", page],
+    load: () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(ADMIN_CRON_PAGE_SIZE),
       });
       return api<CronRunsResponse>(`/admin/cron/runs?${params}`);
     },
-    refetchInterval: 10_000,
+    refreshEvery: 10_000,
   });
 
-  const totalPages = runs.data
-    ? Math.max(1, Math.ceil(runs.data.total / runs.data.pageSize))
+  const totalPages = runs.value
+    ? Math.max(1, Math.ceil(runs.value.total / runs.value.pageSize))
     : 1;
 
-  const trigger = useMutation({
-    mutationFn: (jobName: string) =>
+  const trigger = useAction({
+    run: (jobName: string) =>
       api("/admin/cron/trigger", {
         method: "POST",
         body: JSON.stringify({ jobName }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-cron-runs"] });
-      qc.invalidateQueries({ queryKey: ["admin-cron-status"] });
-      qc.invalidateQueries({ queryKey: ["admin-overview"] });
+      store.touch(["admin-cron-runs"]);
+      store.touch(["admin-cron-status"]);
+      store.touch(["admin-overview"]);
     },
   });
 
@@ -100,24 +100,24 @@ export default function AdminCronPage() {
           <span>
             In-process:{" "}
             <span className="font-medium">
-              {status.data?.enabled ? "enabled" : "disabled"}
+              {status.value?.enabled ? "enabled" : "disabled"}
             </span>
           </span>
           <span className="text-[var(--muted)]">
             HTTP cron secret:{" "}
-            {status.data?.secretConfigured ? "configured" : "not set"}
+            {status.value?.secretConfigured ? "configured" : "not set"}
           </span>
         </div>
-        {status.isLoading ? (
+        {status.empty ? (
           <p className="text-[var(--muted)]">Loading scheduler status…</p>
         ) : null}
-        {status.isError ? (
+        {status.failed ? (
           <p className="text-[var(--warm)]">
             {(status.error as Error).message}
           </p>
         ) : null}
         <div className="space-y-2">
-          {(status.data?.jobs || []).map((job) => (
+          {(status.value?.jobs || []).map((job) => (
             <div
               key={job.name}
               className="flex flex-wrap items-start justify-between gap-3 border-t border-[var(--line)] pt-2 first:border-t-0 first:pt-0"
@@ -138,8 +138,8 @@ export default function AdminCronPage() {
                     <button
                       type="button"
                       className="cursor-pointer text-[var(--accent)] hover:text-[var(--ink)] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={trigger.isPending}
-                      onClick={() => trigger.mutate(job.name)}
+                      disabled={trigger.busy}
+                      onClick={() => trigger.submit(job.name)}
                     >
                       Run
                     </button>
@@ -164,14 +164,14 @@ export default function AdminCronPage() {
         </div>
       </Panel>
 
-      {trigger.isError ? (
+      {trigger.failed ? (
         <p className="mb-4 text-sm text-[var(--warm)]">
           {(trigger.error as Error).message}
         </p>
       ) : null}
 
       <div className="space-y-2">
-        {(runs.data?.runs || []).map((r) => (
+        {(runs.value?.runs || []).map((r) => (
           <Panel key={r.id} className="px-4 py-3 text-sm">
             <div className="flex flex-wrap justify-between gap-2">
               <span>
@@ -189,12 +189,12 @@ export default function AdminCronPage() {
             ) : null}
           </Panel>
         ))}
-        {!runs.isLoading && !runs.data?.runs?.length ? (
+        {!runs.value?.runs?.length ? (
           <p className="text-sm text-[var(--muted)]">No cron runs recorded.</p>
         ) : null}
       </div>
 
-      {runs.data && runs.data.total > runs.data.pageSize ? (
+      {runs.value && runs.value.total > runs.value.pageSize ? (
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button
             variant="secondary"

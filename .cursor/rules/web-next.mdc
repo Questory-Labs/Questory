@@ -8,9 +8,9 @@ alwaysApply: false
 
 ## Data fetching
 
-All API calls go through `@questorylabs/qhttp` (`lib/qhttp-client.ts`, domain wrappers `api`/`musicFetch`/`watchFetch`/`readFetch`, `auth-api`, `enterprise-api`) with `@questorylabs/qhttp/react` (`useQuery`/`useMutation`). Never call raw `fetch()` in components. For live data use SSE hooks (`useSseBackedQuery`), not polling loops.
+All API calls go through `@questorylabs/qhttp` (`lib/qhttp-client.ts`, domain wrappers `api`/`musicFetch`/`watchFetch`/`readFetch`, `auth-api`, `enterprise-api`) with `@questorylabs/qhttp/react` (`useResource`/`useAction`/`useLiveResource`/`useStore`). Never call raw `fetch()` in components. For live data use `useLiveResource` (or the thin `useSseBackedQuery` wrapper), not polling loops.
 
-**Loading UX:** full-page gates use `LoadingPage` + quotes; in-page first-load uses `Skeleton*` from `components/ui`; errors use `StateMessage variant="error"` or `EmptyState`.
+**Loading UX:** full-page gates use `LoadingPage` + quotes; in-page first-load uses `Skeleton*` when `resource.empty`; background refetch uses `resource.refreshing`; errors use `StateMessage variant="error"` or `EmptyState`.
 
 ## Types come from shared
 
@@ -28,7 +28,7 @@ Soft-gated routes (`/music/*`, `/watch/*`, `/read/*`, `/recommendations`, `/admi
 
 ## Destructive actions require confirmation
 
-Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the mutation fires. Use the shared `Dialog` from `components/ui` with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `mutation.mutate(...)`, and do not use `window.confirm` for new code.
+Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the action fires. Use the shared `Dialog` from `components/ui` with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `action.submit(...)`, and do not use `window.confirm` for new code.
 
 ## Shared constants, not inline literals
 
@@ -40,4 +40,4 @@ Tailwind v4 utility classes plus the CSS variables defined in `globals.css` (`--
 
 ## App Router
 
-Routes live under `src/app` with the `(app)`/`(admin)` route groups and their shells. Follow the existing client-component + React Query pattern for pages; do not introduce one-off server-side data fetching patterns without need.
+Routes live under `src/app` with the `(app)`/`(admin)` route groups and their shells. Follow the existing client-component + ResourceStore pattern for pages; do not introduce one-off server-side data fetching patterns without need.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "@questorylabs/qhttp/react";
+import { useAction } from "@questorylabs/qhttp/react";
 import { Button, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { ScraperTestResponse } from "@questorylabs/shared";
@@ -22,8 +22,8 @@ export function ScraperTestPanel({
   const [macros, setMacros] = useState(defaultMacros);
   const [result, setResult] = useState<ScraperTestResponse | null>(null);
 
-  const test = useMutation({
-    mutationFn: () => {
+  const test = useAction({
+    run: () => {
       const parsed: Record<string, string> = {};
       for (const line of macros.split("\n")) {
         const trimmed = line.trim();
@@ -44,8 +44,8 @@ export function ScraperTestPanel({
     onSuccess: (data) => setResult(data),
   });
 
-  const validate = useMutation({
-    mutationFn: () => {
+  const validate = useAction({
+    run: () => {
       const parsed: Record<string, string> = {};
       for (const line of macros.split("\n")) {
         const trimmed = line.trim();
@@ -84,21 +84,21 @@ export function ScraperTestPanel({
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           variant="secondary"
-          disabled={test.isPending || validate.isPending}
-          onClick={() => test.mutate()}
+          disabled={test.busy || validate.busy}
+          onClick={() => test.submit()}
         >
-          {test.isPending ? "Running…" : "Test scrape"}
+          {test.busy ? "Running…" : "Test scrape"}
         </Button>
         {onValidated ? (
           <Button
-            disabled={test.isPending || validate.isPending}
-            onClick={() => validate.mutate()}
+            disabled={test.busy || validate.busy}
+            onClick={() => validate.submit()}
           >
-            {validate.isPending ? "Validating…" : "Validate iteration"}
+            {validate.busy ? "Validating…" : "Validate iteration"}
           </Button>
         ) : null}
       </div>
-      {test.isError || validate.isError ? (
+      {test.failed || validate.failed ? (
         <p className="mt-3 text-sm text-red-400">
           {(test.error ?? validate.error) instanceof Error
             ? (test.error ?? validate.error)?.message

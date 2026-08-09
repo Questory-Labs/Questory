@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import type { ReadRange, ReadTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
@@ -21,18 +21,18 @@ function displayLabel(
 export default function ReadTitlePage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const qc = useQueryClient();
+  const store = useStore();
   const [range, setRange] = useState<ReadRange>("all");
 
-  const detail = useQuery({
-    queryKey: ["read-title", id, range],
-    queryFn: () =>
+  const detail = useResource({
+    id: ["read-title", id, range],
+    load: () =>
       readFetch<ReadTitleDetail>(`/analytics/titles/${id}?range=${range}`),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const save = useMutation({
-    mutationFn: (values: { displayName: string; coverUrl: string }) =>
+  const save = useAction({
+    run: (values: { displayName: string; coverUrl: string }) =>
       readFetch(`/catalog/titles/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -41,11 +41,11 @@ export default function ReadTitlePage() {
         }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["read-title", id] });
+      store.touch(["read-title", id]);
     },
   });
 
-  const t = detail.data?.title;
+  const t = detail.value?.title;
   const title = t ? displayLabel(t.displayName, t.name) : "Title";
 
   return (
@@ -54,8 +54,8 @@ export default function ReadTitlePage() {
         eyebrow={t?.format ?? "Title"}
         title={title}
         description={
-          detail.data
-            ? `${detail.data.eventCount} events in range · first ${formatDate(detail.data.firstReadAt)} · latest ${formatDate(detail.data.latestReadAt)}${detail.data.listStatus ? ` · ${detail.data.listStatus}` : ""}`
+          detail.value
+            ? `${detail.value.eventCount} events in range · first ${formatDate(detail.value.firstReadAt)} · latest ${formatDate(detail.value.latestReadAt)}${detail.value.listStatus ? ` · ${detail.value.listStatus}` : ""}`
             : undefined
         }
         actions={
@@ -67,9 +67,9 @@ export default function ReadTitlePage() {
                 initialCoverUrl={t.coverUrl}
                 canonicalName={t.name}
                 coverLabel="Cover URL"
-                saving={save.isPending}
+                saving={save.busy}
                 onSave={async (values) => {
-                  await save.mutateAsync(values);
+                  await save.submitAsync(values);
                 }}
               />
             ) : null}
@@ -77,12 +77,12 @@ export default function ReadTitlePage() {
         }
       />
 
-      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
-      {detail.isError && (
+      {detail.empty && <SkeletonDetailHeader />}
+      {detail.failed && (
         <StateMessage variant="error">Title not found.</StateMessage>
       )}
 
-      {detail.data && t && (
+      {detail.value && t && (
         <div className="grid gap-8 lg:grid-cols-[auto_1fr]">
           {t.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -122,9 +122,9 @@ export default function ReadTitlePage() {
               <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
                 Recent activity
               </h2>
-              {detail.data.recentEvents.length > 0 ? (
+              {detail.value.recentEvents.length > 0 ? (
                 <ul className="mt-3 divide-y divide-[var(--line)]">
-                  {detail.data.recentEvents.map((e) => (
+                  {detail.value.recentEvents.map((e) => (
                     <li
                       key={e.id}
                       className="py-2 font-mono text-[12px] text-[var(--muted)]"

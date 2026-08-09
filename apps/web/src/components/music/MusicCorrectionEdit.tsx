@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type { MusicCorrectionForm, MusicEntityRef } from "@questorylabs/shared";
 import { Button, Dialog, StateMessage } from "@/components/ui";
 import { EntityTagInput, type EntityTag } from "@/components/music/EntityTagInput";
@@ -39,22 +39,22 @@ export function MusicCorrectionEdit({
   const [mergeTarget, setMergeTarget] = useState<EntityTag[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const form = useQuery({
-    queryKey: ["music-correction-form", kind, entityId],
-    queryFn: () =>
+  const form = useResource({
+    id: ["music-correction-form", kind, entityId],
+    load: () =>
       musicFetch<MusicCorrectionForm>(`/corrections/${kind}s/${entityId}`),
-    enabled: open && Boolean(entityId),
+    when: open && Boolean(entityId),
   });
 
   useEffect(() => {
-    if (!open || !form.data) return;
+    if (!open || !form.value) return;
     setTrackTitle("");
     setAlbumTitle("");
     setArtists([]);
     setDisplayName("");
     setMergeTarget([]);
     setError(null);
-  }, [open, form.data]);
+  }, [open, form.value]);
 
   function handleClose() {
     if (saving || merging) return;
@@ -129,7 +129,7 @@ export function MusicCorrectionEdit({
       return;
     }
 
-    const listenCount = form.data?.sourceListenCount ?? 0;
+    const listenCount = form.value?.sourceListenCount ?? 0;
     const targetName = target.name;
     const confirmed = window.confirm(
       listenCount > 0
@@ -148,8 +148,8 @@ export function MusicCorrectionEdit({
     }
   }
 
-  const original = form.data?.original;
-  const current = form.data?.current;
+  const original = form.value?.original;
+  const current = form.value?.current;
 
   return (
     <>
@@ -162,7 +162,7 @@ export function MusicCorrectionEdit({
       </button>
 
       <Dialog open={open} onClose={handleClose} title="Metadata">
-        {form.isLoading ? (
+        {form.empty ? (
           <StateMessage variant="loading" className="mt-0" />
         ) : (
           <>
@@ -276,8 +276,8 @@ export function MusicCorrectionEdit({
                 <div className="border-t border-[var(--line)] pt-4">
                   <p className="text-sm text-[var(--muted)]">
                     Merge this historical track into another one in your library.
-                    {form.data?.sourceListenCount
-                      ? ` You have ${form.data.sourceListenCount.toLocaleString()} listen${form.data.sourceListenCount === 1 ? "" : "s"} here.`
+                    {form.value?.sourceListenCount
+                      ? ` You have ${form.value.sourceListenCount.toLocaleString()} listen${form.value.sourceListenCount === 1 ? "" : "s"} here.`
                       : null}
                   </p>
                   <div className="mt-3">

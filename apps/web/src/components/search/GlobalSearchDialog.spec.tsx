@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+﻿import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { useEffect } from "react";
 import { GlobalSearchProvider, useGlobalSearch } from "./GlobalSearchProvider";
 import { GlobalSearchDialog } from "./GlobalSearchDialog";
@@ -47,16 +47,14 @@ function OpenPalette({ query = "" }: { query?: string }) {
 }
 
 function renderPalette(query = "") {
-  const qc = new QueryCache({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const qc = new ResourceStore({ retries: false });
   return render(
-    <QHttpQueryProvider client={qc}>
+    <ResourceProvider store={qc}>
       <GlobalSearchProvider>
         <GlobalSearchDialog />
         <OpenPalette query={query} />
       </GlobalSearchProvider>
-    </QHttpQueryProvider>,
+    </ResourceProvider>,
   );
 }
 

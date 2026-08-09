@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type { ReadRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, SkeletonListRows } from "@/components/ui";
 import { formatDateTime } from "@/lib/dates";
@@ -11,16 +11,16 @@ import { readFetch } from "@/lib/read";
 
 export default function ReadHistoryPage() {
   const [page, setPage] = useState(1);
-  const recent = useQuery({
-    queryKey: ["read-recent", page],
-    queryFn: () =>
+  const recent = useResource({
+    id: ["read-recent", page],
+    load: () =>
       readFetch<ReadRecentPage>(
         `/analytics/recent?page=${page}&pageSize=${MEDIA_HISTORY_PAGE_SIZE}`,
       ),
   });
 
-  const totalPages = recent.data
-    ? Math.max(1, Math.ceil(recent.data.total / recent.data.pageSize))
+  const totalPages = recent.value
+    ? Math.max(1, Math.ceil(recent.value.total / recent.value.pageSize))
     : 1;
 
   return (
@@ -30,17 +30,17 @@ export default function ReadHistoryPage() {
         description="Reading progress events across connected sources."
       />
 
-      {recent.isLoading && !recent.data && <SkeletonListRows />}
-      {!recent.isLoading && (recent.data?.items.length ?? 0) === 0 && (
+      {recent.empty && <SkeletonListRows />}
+      {!recent.empty && (recent.value?.items.length ?? 0) === 0 && (
         <EmptyState
           title="No reading events yet"
           description="Connect AniList under Read → Sources to start syncing."
         />
       )}
-      {recent.data && recent.data.items.length > 0 && (
+      {recent.value && recent.value.items.length > 0 && (
         <>
           <ul className="space-y-3">
-            {recent.data.items.map((e) => (
+            {recent.value.items.map((e) => (
               <li
                 key={e.id}
                 className="border-b border-[var(--line)] pb-3 text-sm"
@@ -68,11 +68,11 @@ export default function ReadHistoryPage() {
             ))}
           </ul>
 
-          {recent.data.total > recent.data.pageSize && (
+          {recent.value.total > recent.value.pageSize && (
             <div className="mt-6 flex items-center justify-center gap-3">
               <Button
                 variant="secondary"
-                disabled={page <= 1 || recent.isFetching}
+                disabled={page <= 1 || recent.refreshing}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-1.5"
               >
@@ -83,7 +83,7 @@ export default function ReadHistoryPage() {
               </span>
               <Button
                 variant="secondary"
-                disabled={page >= totalPages || recent.isFetching}
+                disabled={page >= totalPages || recent.refreshing}
                 onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5"
               >

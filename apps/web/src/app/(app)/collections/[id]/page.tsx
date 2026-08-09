@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { GameTile } from "@/components/GameTile";
 import { Button, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -31,30 +31,30 @@ export default function CollectionDetailPage() {
     setPage(1);
   }, [params.id]);
 
-  const collection = useQuery({
-    queryKey: ["collection", params.id, page],
-    queryFn: () =>
+  const collection = useResource({
+    id: ["collection", params.id, page],
+    load: () =>
       api<CollectionDetailResponse>(
         `/collections/${params.id}?page=${page}&pageSize=${GAME_GRID_PAGE_SIZE}`,
       ),
   });
 
-  const total = collection.data?.total ?? 0;
-  const pageSize = collection.data?.pageSize ?? GAME_GRID_PAGE_SIZE;
+  const total = collection.value?.total ?? 0;
+  const pageSize = collection.value?.pageSize ?? GAME_GRID_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <>
       <PageHeader
-        title={collection.data?.name || "Collection"}
+        title={collection.value?.name || "Collection"}
         description={
-          collection.data
-            ? `${collection.data.total} games${collection.data.description ? ` · ${collection.data.description}` : collection.data.type ? ` · ${collection.data.type}` : ""}`
+          collection.value
+            ? `${collection.value.total} games${collection.value.description ? ` · ${collection.value.description}` : collection.value.type ? ` · ${collection.value.type}` : ""}`
             : undefined
         }
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {(collection.data?.games || []).map((g) => (
+        {(collection.value?.games || []).map((g) => (
           <GameTile
             key={g.appId}
             name={g.name}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
@@ -30,17 +30,17 @@ type MeResponse = {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { enabled: enterpriseEnabled, isLoading: enterpriseLoading } =
+  const { when: enterpriseEnabled, isLoading: enterpriseLoading } =
     useEnterpriseEnabled();
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
-    retry: false,
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
+    retries: false,
   });
 
-  const user = me.data?.user ?? null;
-  const authReady = me.isSuccess || me.isError;
+  const user = me.value?.user ?? null;
+  const authReady = me.ready || me.failed;
 
   const showEnterpriseNav = enterpriseEnabled && !enterpriseLoading;
 

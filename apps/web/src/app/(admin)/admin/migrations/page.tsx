@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, Dialog, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -48,31 +48,31 @@ function parseResult(raw: string | null): Record<string, unknown> | null {
 }
 
 export default function AdminMigrationsPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
-  const migrations = useQuery({
-    queryKey: ["admin-migrations"],
-    queryFn: () => api<MigrationsResponse>("/admin/migrations"),
-    refetchInterval: 5_000,
+  const migrations = useResource({
+    id: ["admin-migrations"],
+    load: () => api<MigrationsResponse>("/admin/migrations"),
+    refreshEvery: 5_000,
   });
 
-  const run = useMutation({
-    mutationFn: (key: string) =>
+  const run = useAction({
+    run: (key: string) =>
       api(`/admin/migrations/${encodeURIComponent(key)}/run`, {
         method: "POST",
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-migrations"] });
+      store.touch(["admin-migrations"]);
     },
   });
 
-  const pendingMigration = migrations.data?.migrations.find(
+  const pendingMigration = migrations.value?.migrations.find(
     (m) => m.key === confirmKey,
   );
 
   function handleConfirmRun() {
     if (!confirmKey) return;
-    run.mutate(confirmKey);
+    run.submit(confirmKey);
     setConfirmKey(null);
   }
 
@@ -83,20 +83,20 @@ export default function AdminMigrationsPage() {
         description="One-off data repairs for existing imports. Run once after deploy, or retry if a migration failed."
       />
 
-      {migrations.isError ? (
+      {migrations.failed ? (
         <p className="mb-4 text-sm text-[var(--warm)]">
           {(migrations.error as Error).message}
         </p>
       ) : null}
 
-      {run.isError ? (
+      {run.failed ? (
         <p className="mb-4 text-sm text-[var(--warm)]">
           {(run.error as Error).message}
         </p>
       ) : null}
 
       <div className="space-y-4">
-        {(migrations.data?.migrations || []).map((migration) => {
+        {(migrations.value?.migrations || []).map((migration) => {
           const result = parseResult(migration.lastResult);
           const actionLabel = migration.hasRun ? "Retry" : "Run";
 
@@ -116,10 +116,10 @@ export default function AdminMigrationsPage() {
                 </div>
                 <Button
                   variant="secondary"
-                  disabled={!migration.canRun || run.isPending}
+                  disabled={!migration.canRun || run.busy}
                   onClick={() => setConfirmKey(migration.key)}
                 >
-                  {run.isPending && run.variables === migration.key
+                  {run.busy && run.input === migration.key
                     ? "Running…"
                     : actionLabel}
                 </Button>
@@ -164,7 +164,7 @@ export default function AdminMigrationsPage() {
           );
         })}
 
-        {!migrations.isLoading && !migrations.data?.migrations?.length ? (
+        {!migrations.value?.migrations?.length ? (
           <p className="text-sm text-[var(--muted)]">
             No migrations are registered.
           </p>
@@ -195,7 +195,7 @@ export default function AdminMigrationsPage() {
           <Button variant="secondary" onClick={() => setConfirmKey(null)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirmRun} disabled={run.isPending}>
+          <Button onClick={handleConfirmRun} disabled={run.busy}>
             {pendingMigration?.hasRun ? "Retry" : "Run"}
           </Button>
         </div>

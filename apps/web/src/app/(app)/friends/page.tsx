@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { FRIENDS_PAGE_SIZE } from "@/lib/pagination";
@@ -10,18 +10,18 @@ import { useState } from "react";
 
 export default function FriendsPage() {
   const [page, setPage] = useState(1);
-  const friends = useQuery({
-    queryKey: ["friends", page],
-    queryFn: () =>
+  const friends = useResource({
+    id: ["friends", page],
+    load: () =>
       api<FriendsListResponse>(
         `/friends?page=${page}&pageSize=${FRIENDS_PAGE_SIZE}`,
       ),
   });
 
-  const list = friends.data?.friends || [];
-  const meta = friends.data?.meta;
-  const total = friends.data?.total ?? 0;
-  const pageSize = friends.data?.pageSize ?? FRIENDS_PAGE_SIZE;
+  const list = friends.value?.friends || [];
+  const meta = friends.value?.meta;
+  const total = friends.value?.total ?? 0;
+  const pageSize = friends.value?.pageSize ?? FRIENDS_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -79,7 +79,7 @@ export default function FriendsPage() {
             </Link>
           </Panel>
         ))}
-        {!friends.isLoading && !total && (
+        {!friends.empty && !total && (
           <p className="text-sm text-[var(--muted)]">
             No friends synced yet. Make sure your Steam friends list is public.
           </p>

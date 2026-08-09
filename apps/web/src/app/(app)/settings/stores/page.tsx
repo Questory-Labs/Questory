@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { Suspense } from "react";
 import { StoreBadge } from "@/components/StoreBadge";
 import { PageHeader, Panel, StateMessage } from "@/components/ui";
@@ -47,12 +47,12 @@ const FALLBACK: StoreAccountStatus[] = [
 ];
 
 function StoresContent() {
-  const stores = useQuery({
-    queryKey: ["stores"],
-    queryFn: () => api<StoreAccountStatus[]>("/stores"),
+  const stores = useResource({
+    id: ["stores"],
+    load: () => api<StoreAccountStatus[]>("/stores"),
   });
 
-  const rows = stores.data?.length ? stores.data : FALLBACK;
+  const rows = stores.value?.length ? stores.value : FALLBACK;
 
   return (
     <>

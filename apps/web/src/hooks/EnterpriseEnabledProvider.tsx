@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useQuery, type UseQueryResult } from "@questorylabs/qhttp/react";
+import { useResource, type UseResourceResult } from "@questorylabs/qhttp/react";
 import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
 import { isEnterpriseFlagEnabled } from "@/lib/enterprise";
 
@@ -10,13 +10,15 @@ type EnterpriseStatusData = Awaited<ReturnType<typeof fetchEnterpriseStatus>>;
 export type EnterpriseEnabledValue = {
   /** Flag on and QEngine answered available. */
   enabled: boolean;
+  /** Alias for enabled */
+  when: boolean;
   /** Service healthy behind the status payload. */
   serviceOk: boolean;
   /** @deprecated use serviceOk */
   engineOk: boolean;
   flagOn: boolean;
   isLoading: boolean;
-  status: UseQueryResult<EnterpriseStatusData>;
+  status: UseResourceResult<EnterpriseStatusData>;
 };
 
 const EnterpriseEnabledContext = createContext<EnterpriseEnabledValue | null>(
@@ -25,32 +27,33 @@ const EnterpriseEnabledContext = createContext<EnterpriseEnabledValue | null>(
 
 function useEnterpriseEnabledState(): EnterpriseEnabledValue {
   const flagOn = isEnterpriseFlagEnabled();
-  const status = useQuery({
-    queryKey: ["enterprise-status"],
-    queryFn: fetchEnterpriseStatus,
-    enabled: flagOn,
-    staleTime: 30_000,
-    retry: false,
-    refetchOnWindowFocus: true,
+  const status = useResource({
+    id: ["enterprise-status"],
+    load: fetchEnterpriseStatus,
+    when: flagOn,
+    freshFor: 30_000,
+    retries: false,
+    refreshOnFocus: true,
   });
 
   const available =
-    flagOn && status.data?.available === true && !status.isError;
+    flagOn && status.value?.available === true && !status.failed;
 
   return useMemo(
     () => ({
       enabled: available,
-      serviceOk: available && status.data?.service?.ok === true,
-      engineOk: available && status.data?.service?.ok === true,
+      when: available,
+      serviceOk: available && status.value?.service?.ok === true,
+      engineOk: available && status.value?.service?.ok === true,
       flagOn,
-      isLoading: flagOn && status.isLoading,
+      isLoading: flagOn && status.empty,
       status,
     }),
     [available, flagOn, status],
   );
 }
 
-/** Mount once under QHttpQueryProvider; consumers use useEnterpriseEnabled(). */
+/** Mount once under ResourceProvider; consumers use useEnterpriseEnabled(). */
 export function EnterpriseEnabledProvider({ children }: { children: ReactNode }) {
   const value = useEnterpriseEnabledState();
   return (

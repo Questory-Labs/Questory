@@ -1,27 +1,27 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { fetchMusicHealth, isMusicFlagEnabled } from "@/lib/music";
 
 /** Music menus/routes: feature flag ON and music /health ok. */
 export function useMusicEnabled() {
   const flagOn = isMusicFlagEnabled();
-  const health = useQuery({
-    queryKey: ["music-health"],
-    queryFn: fetchMusicHealth,
-    enabled: flagOn,
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
+  const health = useResource({
+    id: ["music-health"],
+    load: fetchMusicHealth,
+    when: flagOn,
+    freshFor: 30_000,
+    retries: 1,
+    refreshOnFocus: true,
   });
 
-  const showMusicNav = flagOn && health.data?.ok === true && !health.isError;
+  const showMusicNav = flagOn && health.value?.ok === true && !health.failed;
 
   return {
     flagOn,
-    healthOk: health.data?.ok === true,
+    healthOk: health.value?.ok === true,
     showMusicNav,
-    isLoading: flagOn && health.isLoading,
+    isLoading: flagOn && health.empty && health.busy,
     health,
   };
 }

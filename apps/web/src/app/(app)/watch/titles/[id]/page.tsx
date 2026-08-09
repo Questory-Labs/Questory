@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import type { WatchRange, WatchTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
@@ -21,20 +21,20 @@ function displayLabel(
 export default function WatchTitlePage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const qc = useQueryClient();
+  const store = useStore();
   const [range, setRange] = useState<WatchRange>("all");
 
-  const detail = useQuery({
-    queryKey: ["watch-title", id, range],
-    queryFn: () =>
+  const detail = useResource({
+    id: ["watch-title", id, range],
+    load: () =>
       watchFetch<WatchTitleDetail>(
         `/analytics/titles/${id}?range=${range}`,
       ),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const save = useMutation({
-    mutationFn: (values: { displayName: string; coverUrl: string }) =>
+  const save = useAction({
+    run: (values: { displayName: string; coverUrl: string }) =>
       watchFetch(`/catalog/titles/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -43,11 +43,11 @@ export default function WatchTitlePage() {
         }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["watch-title", id] });
+      store.touch(["watch-title", id]);
     },
   });
 
-  const t = detail.data?.title;
+  const t = detail.value?.title;
   const title = t ? displayLabel(t.displayName, t.name) : "Title";
 
   return (
@@ -56,11 +56,11 @@ export default function WatchTitlePage() {
         eyebrow={t?.type === "show" ? "Show" : "Movie"}
         title={title}
         description={
-          detail.data
+          detail.value
             ? [
-                `${detail.data.eventCount} watches in range · first ${formatDate(detail.data.firstWatchAt)} · latest ${formatDate(detail.data.latestWatchAt)}`,
-                detail.data.userRating != null
-                  ? formatYourWatchRating(detail.data.userRating)
+                `${detail.value.eventCount} watches in range · first ${formatDate(detail.value.firstWatchAt)} · latest ${formatDate(detail.value.latestWatchAt)}`,
+                detail.value.userRating != null
+                  ? formatYourWatchRating(detail.value.userRating)
                   : null,
               ]
                 .filter(Boolean)
@@ -76,9 +76,9 @@ export default function WatchTitlePage() {
                 initialCoverUrl={t.posterUrl}
                 canonicalName={t.name}
                 coverLabel="Poster URL"
-                saving={save.isPending}
+                saving={save.busy}
                 onSave={async (values) => {
-                  await save.mutateAsync(values);
+                  await save.submitAsync(values);
                 }}
               />
             ) : null}
@@ -86,12 +86,12 @@ export default function WatchTitlePage() {
         }
       />
 
-      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
-      {detail.isError && (
+      {detail.empty && <SkeletonDetailHeader />}
+      {detail.failed && (
         <StateMessage variant="error">Title not found.</StateMessage>
       )}
 
-      {detail.data && t && (
+      {detail.value && t && (
         <div className="grid gap-8 lg:grid-cols-[auto_1fr]">
           {t.posterUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -122,13 +122,13 @@ export default function WatchTitlePage() {
               </p>
             ) : null}
 
-            {t.type === "show" && detail.data.topEpisodes.length > 0 ? (
+            {t.type === "show" && detail.value.topEpisodes.length > 0 ? (
               <section className="mt-8">
                 <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
                   Top episodes
                 </h2>
                 <ol className="mt-3 space-y-2">
-                  {detail.data.topEpisodes.map((ep, i) => (
+                  {detail.value.topEpisodes.map((ep, i) => (
                     <li
                       key={ep.id}
                       className="flex items-center justify-between border-b border-[var(--line)] py-2 text-sm"
@@ -150,9 +150,9 @@ export default function WatchTitlePage() {
               <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
                 Recent watches
               </h2>
-              {detail.data.recentEvents.length > 0 ? (
+              {detail.value.recentEvents.length > 0 ? (
                 <ul className="mt-3 divide-y divide-[var(--line)]">
-                  {detail.data.recentEvents.map((e) => (
+                  {detail.value.recentEvents.map((e) => (
                     <li
                       key={e.id}
                       className="py-2 font-mono text-[12px] text-[var(--muted)]"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { StatCard } from "@/components/StatCard";
@@ -24,29 +24,29 @@ type MeResponse = {
 };
 
 export default function DashboardPage() {
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
   });
-  const steamConnected = Boolean(me.data?.user?.steamId);
+  const steamConnected = Boolean(me.value?.user?.steamId);
   const sync = useSyncJobs({ enabled: steamConnected });
 
-  const stats = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api<DashboardStats>("/dashboard/stats"),
-    refetchInterval: sync.active ? 2500 : false,
+  const stats = useResource({
+    id: ["dashboard"],
+    load: () => api<DashboardStats>("/dashboard/stats"),
+    refreshEvery: sync.active ? 2500 : false,
   });
 
-  const playNext = useQuery({
-    queryKey: ["play-next"],
-    queryFn: () => api<PlayNextItem[]>("/dashboard/play-next"),
+  const playNext = useResource({
+    id: ["play-next"],
+    load: () => api<PlayNextItem[]>("/dashboard/play-next"),
   });
 
-  const d = stats.data;
+  const d = stats.value;
   const syncing = sync.active;
-  const name = me.data?.user?.personaName;
+  const name = me.value?.user?.personaName;
   const recent = d?.recentlyPlayed || [];
-  const nextUp = playNext.data || [];
+  const nextUp = playNext.value || [];
 
   return (
     <>
@@ -97,7 +97,7 @@ export default function DashboardPage() {
             </span>
           ) : null}
         </div>
-        {stats.isLoading && !stats.data ? (
+        {stats.empty ? (
           <>
             <SkeletonStatGrid count={4} />
             <SkeletonStatGrid count={4} className="mt-6" />
@@ -190,7 +190,7 @@ export default function DashboardPage() {
             Full library →
           </Link>
         </div>
-        {playNext.isLoading && !playNext.data ? (
+        {playNext.empty ? (
           <SkeletonTileGrid count={4} />
         ) : nextUp.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -246,7 +246,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {stats.isLoading && !stats.data ? (
+        {stats.empty ? (
           <SkeletonTileGrid count={4} />
         ) : recent.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type {
   MusicBreakdownResponse,
   MusicRange,
@@ -56,34 +56,34 @@ function MusicChartsInner() {
     setRange(next);
   }
 
-  const tops = useQuery({
-    queryKey: ["music-tops", kind, range, page],
-    queryFn: () =>
+  const tops = useResource({
+    id: ["music-tops", kind, range, page],
+    load: () =>
       musicFetch<MusicTopsResponse>(
         `/analytics/tops/${kind}?range=${range}&page=${page}&pageSize=${MUSIC_CHARTS_PAGE_SIZE}`,
       ),
   });
 
-  const years = useQuery({
-    queryKey: ["music-breakdown-years", range],
-    queryFn: () =>
+  const years = useResource({
+    id: ["music-breakdown-years", range],
+    load: () =>
       musicFetch<MusicBreakdownResponse>(
         `/analytics/breakdown/years?range=${range}&limit=12`,
       ),
   });
 
-  const services = useQuery({
-    queryKey: ["music-breakdown-services", range],
-    queryFn: () =>
+  const services = useResource({
+    id: ["music-breakdown-services", range],
+    load: () =>
       musicFetch<MusicBreakdownResponse>(
         `/analytics/breakdown/services?range=${range}&limit=8`,
       ),
   });
 
-  const periodListens = tops.data?.periodListens ?? 0;
-  const items = tops.data?.items ?? [];
-  const total = tops.data?.total ?? 0;
-  const pageSize = tops.data?.pageSize ?? MUSIC_CHARTS_PAGE_SIZE;
+  const periodListens = tops.value?.periodListens ?? 0;
+  const items = tops.value?.items ?? [];
+  const total = tops.value?.total ?? 0;
+  const pageSize = tops.value?.pageSize ?? MUSIC_CHARTS_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const rankOffset = (page - 1) * pageSize;
 
@@ -136,14 +136,14 @@ function MusicChartsInner() {
         })}
       </div>
 
-      {tops.isLoading && (
+      {tops.empty && (
         <StateMessage variant="loading" />
       )}
-      {tops.isError && (
+      {tops.failed && (
         <StateMessage variant="error">Could not load charts.</StateMessage>
       )}
 
-      {!tops.isLoading && items.length === 0 && (
+      {!tops.empty && items.length === 0 && (
         <p className="text-sm text-[var(--muted)]">No listens in this range.</p>
       )}
 
@@ -201,7 +201,7 @@ function MusicChartsInner() {
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button
             variant="secondary"
-            disabled={page <= 1 || tops.isFetching}
+            disabled={page <= 1 || tops.refreshing}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className="px-3 py-1.5"
           >
@@ -212,7 +212,7 @@ function MusicChartsInner() {
           </span>
           <Button
             variant="secondary"
-            disabled={page >= totalPages || tops.isFetching}
+            disabled={page >= totalPages || tops.refreshing}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             className="px-3 py-1.5"
           >
@@ -226,11 +226,11 @@ function MusicChartsInner() {
           <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
             Release years
           </h2>
-          {years.isLoading ? (
+          {years.empty ? (
             <StateMessage variant="loading" className="mt-3" />
           ) : (
             <ul className="mt-3 space-y-1.5">
-              {(years.data?.items || []).map((item) => (
+              {(years.value?.items || []).map((item) => (
                 <li
                   key={item.key}
                   className="flex items-baseline justify-between gap-3 text-sm"
@@ -238,13 +238,13 @@ function MusicChartsInner() {
                   <span className="text-[var(--ink)]">{item.label}</span>
                   <span className="font-mono text-[11px] text-[var(--faint)]">
                     {item.count}
-                    {years.data
-                      ? ` · ${formatShare(item.count, years.data.periodListens)}`
+                    {years.value
+                      ? ` · ${formatShare(item.count, years.value.periodListens)}`
                       : ""}
                   </span>
                 </li>
               ))}
-              {(years.data?.items || []).length === 0 ? (
+              {(years.value?.items || []).length === 0 ? (
                 <li className="text-sm text-[var(--muted)]">No year data yet.</li>
               ) : null}
             </ul>
@@ -255,11 +255,11 @@ function MusicChartsInner() {
           <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
             Sources
           </h2>
-          {services.isLoading ? (
+          {services.empty ? (
             <StateMessage variant="loading" className="mt-3" />
           ) : (
             <ul className="mt-3 space-y-1.5">
-              {(services.data?.items || []).map((item) => (
+              {(services.value?.items || []).map((item) => (
                 <li
                   key={item.key}
                   className="flex items-baseline justify-between gap-3 text-sm"
@@ -267,13 +267,13 @@ function MusicChartsInner() {
                   <span className="text-[var(--ink)]">{item.label}</span>
                   <span className="font-mono text-[11px] text-[var(--faint)]">
                     {item.count}
-                    {services.data
-                      ? ` · ${formatShare(item.count, services.data.periodListens)}`
+                    {services.value
+                      ? ` · ${formatShare(item.count, services.value.periodListens)}`
                       : ""}
                   </span>
                 </li>
               ))}
-              {(services.data?.items || []).length === 0 ? (
+              {(services.value?.items || []).length === 0 ? (
                 <li className="text-sm text-[var(--muted)]">
                   No source metadata yet.
                 </li>

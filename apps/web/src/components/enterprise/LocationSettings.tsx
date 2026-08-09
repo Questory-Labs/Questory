@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { fetchSettings, saveSettings } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 
@@ -17,12 +17,12 @@ export function LocationSettings({
   open: boolean;
   onClose: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const settings = useQuery({
-    queryKey: ["enterprise-settings"],
-    queryFn: fetchSettings,
-    staleTime: 5 * 60_000,
-    retry: 1,
+  const store = useStore();
+  const settings = useResource({
+    id: ["enterprise-settings"],
+    load: fetchSettings,
+    freshFor: 5 * 60_000,
+    retries: 1,
   });
 
   const [draft, setDraft] = useState<{
@@ -31,10 +31,10 @@ export function LocationSettings({
     city: string;
   } | null>(null);
 
-  const save = useMutation({
-    mutationFn: saveSettings,
+  const save = useAction({
+    run: saveSettings,
     onSuccess: (data) => {
-      queryClient.setQueryData(["enterprise-settings"], data);
+      store.push(["enterprise-settings"], data);
       onClose();
     },
   });
@@ -42,9 +42,9 @@ export function LocationSettings({
   if (!open) return null;
 
   const current = draft ?? {
-    country: settings.data?.country ?? "",
-    state: settings.data?.state ?? "",
-    city: settings.data?.city ?? "",
+    country: settings.value?.country ?? "",
+    state: settings.value?.state ?? "",
+    city: settings.value?.city ?? "",
   };
 
   const set =
@@ -57,7 +57,7 @@ export function LocationSettings({
       className={styles.settingsForm}
       onSubmit={(e) => {
         e.preventDefault();
-        save.mutate({
+        save.submit({
           country: current.country.trim() || undefined,
           state: current.state.trim() || undefined,
           city: current.city.trim() || undefined,
@@ -98,9 +98,9 @@ export function LocationSettings({
         <button
           className={styles.moodSubmit}
           type="submit"
-          disabled={save.isPending}
+          disabled={save.busy}
         >
-          {save.isPending ? "Saving…" : "Save location"}
+          {save.busy ? "Saving…" : "Save location"}
         </button>
         <button
           className={styles.settingsCancel}
@@ -109,7 +109,7 @@ export function LocationSettings({
         >
           Cancel
         </button>
-        {save.isError && (
+        {save.failed && (
           <span className={styles.settingsError}>Could not save.</span>
         )}
       </div>

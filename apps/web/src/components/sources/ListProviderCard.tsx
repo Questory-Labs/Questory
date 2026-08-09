@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Panel } from "@/components/ui";
 import { formatDateTime } from "@/lib/dates";
 import { useState } from "react";
@@ -72,18 +72,18 @@ export function ListProviderCard({
   urlFn,
   eyebrow,
 }: ListProviderCardProps) {
-  const qc = useQueryClient();
+  const store = useStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const status = useQuery({
-    queryKey: [`${queryKeyPrefix}-${provider.id}-status`],
-    queryFn: () => fetchFn<ConnStatus>(provider.statusPath),
+  const status = useResource({
+    id: [`${queryKeyPrefix}-${provider.id}-status`],
+    load: () => fetchFn<ConnStatus>(provider.statusPath),
   });
 
-  const connect = useMutation({
-    mutationFn: () =>
+  const connect = useAction({
+    run: () =>
       fetchFn<{ ok: boolean }>(provider.kitsuConnectPath ?? "/kitsu/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,18 +92,16 @@ export function ListProviderCard({
     onSuccess: () => {
       setError(null);
       setPassword("");
-      void qc.invalidateQueries({
-        queryKey: [`${queryKeyPrefix}-${provider.id}-status`],
-      });
-      void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
+      void store.touch([`${queryKeyPrefix}-${provider.id}-status`]);
+      void store.touch(["shell-sync-status"]);
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Connect failed");
     },
   });
 
-  const connected = Boolean(status.data?.connected);
-  const syncing = Boolean(status.data?.syncing);
+  const connected = Boolean(status.value?.connected);
+  const syncing = Boolean(status.value?.syncing);
 
   return (
     <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
@@ -123,7 +121,7 @@ export function ListProviderCard({
       </h3>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
         {connected
-          ? `Connected · last sync ${formatLastSync(status.data?.lastSyncedAt)}`
+          ? `Connected · last sync ${formatLastSync(status.value?.lastSyncedAt)}`
           : provider.blurb}
       </p>
       <div className="mt-auto flex flex-col gap-2 pt-5">
@@ -151,10 +149,10 @@ export function ListProviderCard({
             <button
               type="button"
               className="btn btn-secondary"
-              disabled={connect.isPending || !email || !password}
-              onClick={() => connect.mutate()}
+              disabled={connect.busy || !email || !password}
+              onClick={() => connect.submit()}
             >
-              {connect.isPending ? "Connecting…" : "Connect Kitsu"}
+              {connect.busy ? "Connecting…" : "Connect Kitsu"}
             </button>
           </>
         ) : (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type { MusicRecentPage } from "@questorylabs/shared";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCover } from "@/components/music/MusicCover";
@@ -24,21 +24,21 @@ import { MUSIC_LISTENING_PAGE_SIZE } from "@/lib/pagination";
 
 export default function MusicListeningPage() {
   const [page, setPage] = useState(1);
-  const recent = useQuery({
-    queryKey: ["music-recent", page],
-    queryFn: () =>
+  const recent = useResource({
+    id: ["music-recent", page],
+    load: () =>
       musicFetch<MusicRecentPage>(
         `/analytics/recent?page=${page}&pageSize=${MUSIC_LISTENING_PAGE_SIZE}`,
       ),
   });
   const playing = useMusicPlayingNow();
 
-  const total = recent.data?.total ?? 0;
-  const pageSize = recent.data?.pageSize ?? MUSIC_LISTENING_PAGE_SIZE;
+  const total = recent.value?.total ?? 0;
+  const pageSize = recent.value?.pageSize ?? MUSIC_LISTENING_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const items = recent.data?.items ?? [];
+  const items = recent.value?.items ?? [];
   const dayGroups = groupListensByDay(items);
-  const nowPlaying = playing.data?.track ?? null;
+  const nowPlaying = playing.value?.track ?? null;
 
   return (
     <>
@@ -74,10 +74,10 @@ export default function MusicListeningPage() {
         </Panel>
       ) : null}
 
-      {recent.isLoading && (
+      {recent.empty && (
         <StateMessage variant="loading" />
       )}
-      {!recent.isLoading && items.length === 0 && (
+      {!recent.empty && items.length === 0 && (
         <EmptyState
           title={nowPlaying ? "Waiting for first scrobble" : "No listens yet"}
           description={
@@ -161,7 +161,7 @@ export default function MusicListeningPage() {
             <div className="mt-6 flex items-center justify-center gap-3">
               <Button
                 variant="secondary"
-                disabled={page <= 1 || recent.isFetching}
+                disabled={page <= 1 || recent.refreshing}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-1.5"
               >
@@ -172,7 +172,7 @@ export default function MusicListeningPage() {
               </span>
               <Button
                 variant="secondary"
-                disabled={page >= totalPages || recent.isFetching}
+                disabled={page >= totalPages || recent.refreshing}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="px-3 py-1.5"
               >

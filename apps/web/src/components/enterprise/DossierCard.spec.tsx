@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { DossierCard } from "./DossierCard";
 
 vi.mock("@/lib/enterprise-api", () => ({
@@ -30,13 +30,11 @@ function dossierView(identity: string) {
 }
 
 function renderCard() {
-  const client = new QueryCache({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client = new ResourceStore({ retries: false });
   return render(
-    <QHttpQueryProvider client={client}>
+    <ResourceProvider store={client}>
       <DossierCard />
-    </QHttpQueryProvider>,
+    </ResourceProvider>,
   );
 }
 

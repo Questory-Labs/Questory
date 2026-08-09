@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import {
   ListProviderCard,
@@ -189,7 +189,7 @@ function formatLastSync(value?: string | null) {
 }
 
 export default function WatchSettingsPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -208,17 +208,17 @@ export default function WatchSettingsPage() {
     {},
   );
 
-  const trakt = useQuery({
-    queryKey: ["trakt-status"],
-    queryFn: () => watchFetch<ConnStatus>("/trakt/status"),
+  const trakt = useResource({
+    id: ["trakt-status"],
+    load: () => watchFetch<ConnStatus>("/trakt/status"),
   });
-  const anilist = useQuery({
-    queryKey: ["watch-anilist-status"],
-    queryFn: () => watchFetch<ConnStatus>("/anilist/status"),
+  const anilist = useResource({
+    id: ["watch-anilist-status"],
+    load: () => watchFetch<ConnStatus>("/anilist/status"),
   });
-  const identity = useQuery({
-    queryKey: ["api-keys-identity"],
-    queryFn: () => api<IdentityResponse>("/api-keys/identity"),
+  const identity = useResource({
+    id: ["api-keys-identity"],
+    load: () => api<IdentityResponse>("/api-keys/identity"),
   });
 
   function applyFile(next: File | null) {
@@ -316,8 +316,8 @@ export default function WatchSettingsPage() {
     setProgress(null);
     setImportMsg("Importing…");
     startProgressPoll();
-    void qc.invalidateQueries({ queryKey: ["watch-sync-status"] });
-    void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
+    void store.touch(["watch-sync-status"]);
+    void store.touch(["shell-sync-status"]);
 
     const body = new FormData();
     body.append("file", file);
@@ -372,10 +372,10 @@ export default function WatchSettingsPage() {
       setImportMsg(
         `Imported ${json.accepted ?? 0} rows (${json.skipped ?? 0} skipped)${used}${warn}.`,
       );
-      void qc.invalidateQueries({ queryKey: ["watch-overview"] });
-      void qc.invalidateQueries({ queryKey: ["watch-recent"] });
-      void qc.invalidateQueries({ queryKey: ["watch-sync-status"] });
-    void qc.invalidateQueries({ queryKey: ["shell-sync-status"] });
+      void store.touch(["watch-overview"]);
+      void store.touch(["watch-recent"]);
+      void store.touch(["watch-sync-status"]);
+    void store.touch(["shell-sync-status"]);
     } catch (err) {
       setImportMsg(err instanceof Error ? err.message : "Import failed");
       setProgress(null);
@@ -385,10 +385,10 @@ export default function WatchSettingsPage() {
     }
   }
 
-  const traktConnected = Boolean(trakt.data?.connected);
-  const anilistConnected = Boolean(anilist.data?.connected);
+  const traktConnected = Boolean(trakt.value?.connected);
+  const anilistConnected = Boolean(anilist.value?.connected);
   const webhookActive = Boolean(
-    (identity.data?.keys || []).find((k) => k.type === "watch_webhook"),
+    (identity.value?.keys || []).find((k) => k.type === "watch_webhook"),
   );
   const showTrakt = traktConnected || Boolean(expanded.trakt);
   const showAnilist = anilistConnected || Boolean(expanded.anilist);
@@ -520,7 +520,7 @@ export default function WatchSettingsPage() {
                 title="Trakt"
                 blurb={
                   traktConnected
-                    ? `Connected · last sync ${formatLastSync(trakt.data?.lastSyncedAt)}`
+                    ? `Connected · last sync ${formatLastSync(trakt.value?.lastSyncedAt)}`
                     : "Connect Trakt to sync your watched history and keep Watch up to date."
                 }
                 status={

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { PageHeader } from "@/components/ui";
 import { SearchResults, isSearchEmpty } from "@/components/search/SearchResults";
 import { SearchTips } from "@/components/search/SearchTips";
@@ -20,10 +20,10 @@ function SearchInner() {
   const { enabled: showWatchNav } = useWatchEnabled();
   const { showReadNav } = useReadEnabled();
 
-  const result = useQuery({
-    queryKey: ["search", q],
-    queryFn: () => api<SearchResult>(`/search?q=${encodeURIComponent(q)}`),
-    enabled: Boolean(q),
+  const result = useResource({
+    id: ["search", q],
+    load: () => api<SearchResult>(`/search?q=${encodeURIComponent(q)}`),
+    when: Boolean(q),
   });
 
   const chips = useMemo(() => formatSearchChips(parseSearchQuery(q)), [q]);
@@ -56,28 +56,28 @@ function SearchInner() {
           </p>
         ) : null}
 
-        {result.isLoading ? (
+        {result.empty ? (
           <p className="text-sm text-[var(--muted)]">Searching…</p>
         ) : null}
 
-        {result.isError ? (
+        {result.failed ? (
           <p className="text-sm text-[var(--muted)]">Search failed. Try again.</p>
         ) : null}
 
-        {q && result.data && isSearchEmpty(result.data) ? (
+        {q && result.value && isSearchEmpty(result.value) ? (
           <p className="text-sm text-[var(--muted)]">No results found.</p>
         ) : null}
 
-        {result.data && !isSearchEmpty(result.data) ? (
+        {result.value && !isSearchEmpty(result.value) ? (
           <SearchResults
-            data={result.data}
+            data={result.value}
             showMusic={showMusicNav}
             showWatch={showWatchNav}
             showRead={showReadNav}
           />
         ) : null}
 
-        {q && result.data && isSearchEmpty(result.data) && !result.isLoading ? (
+        {q && result.value && isSearchEmpty(result.value) && !result.empty ? (
           <p className="text-sm text-[var(--muted)]">
             Try a scope like{" "}
             <code className="text-[var(--ink)]">game:</code>,{" "}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { PageHeader, Panel, StateMessage, Button } from "@/components/ui";
 import { musicFetch } from "@/lib/music";
 import { watchFetch } from "@/lib/watch";
@@ -75,7 +75,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState<number | "all">(() => defaultRewindMonthForYear(currentYear));
   const [forceRedo, setForceRedo] = useState(false);
-  const { enabled: enterpriseEnabled } = useEnterpriseEnabled();
+  const { when: enterpriseEnabled } = useEnterpriseEnabled();
 
   const fetcher =
     domain === "music" ? musicFetch : domain === "watch" ? watchFetch : readFetch;
@@ -87,15 +87,15 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // 1. Fast DB stats query
-  const statsQuery = useQuery({
-    queryKey: ["rewind-stats", domain, period, tz],
-    queryFn: () => fetcher<RewindStatsResponse>(`/analytics/rewind/stats?period=${period}&tz=${tz}`),
+  const statsQuery = useResource({
+    id: ["rewind-stats", domain, period, tz],
+    load: () => fetcher<RewindStatsResponse>(`/analytics/rewind/stats?period=${period}&tz=${tz}`),
   });
 
   // 2. Slow AI agent query
-  const aiQuery = useQuery({
-    queryKey: ["rewind-ai", domain, period, forceRedo],
-    queryFn: async () => {
+  const aiQuery = useResource({
+    id: ["rewind-ai", domain, period, forceRedo],
+    load: async () => {
       const result = await fetcher<RewindInsightResponse>(
         `/analytics/rewind/ai?period=${period}&tz=${encodeURIComponent(tz)}${forceRedo ? "&forceRedo=true" : ""}`
       );
@@ -104,7 +104,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
       }
       return result;
     },
-    enabled: enterpriseEnabled && aiGenerationAllowed,
+    when: enterpriseEnabled && aiGenerationAllowed,
   });
 
   const years = Array.from({ length: currentYear - 2010 + 1 }, (_, i) => 2010 + i).reverse();
@@ -141,10 +141,10 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
 
   const handleRedo = () => {
     setForceRedo(true);
-    setTimeout(() => aiQuery.refetch(), 0);
+    setTimeout(() => aiQuery.reload(), 0);
   };
 
-  const stats = statsQuery.data;
+  const stats = statsQuery.value;
 
   return (
     <>
@@ -202,7 +202,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
                 <Button variant="ghost" onClick={() => document.getElementById('ai-carousel')?.scrollBy({ left: window.innerWidth * 0.8, behavior: 'smooth' })} className="hidden md:flex p-2 !px-3 border border-[var(--line-strong)] rounded-lg hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)] transition-colors mr-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </Button>
-                <Button onClick={handleRedo} disabled={!aiGenerationAllowed || aiQuery.isFetching || forceRedo} className="bg-[var(--surface-2)] hover:bg-[var(--bg-3)] border-[var(--line-strong)] hover:border-[var(--muted)] transition-all shadow-sm">
+                <Button onClick={handleRedo} disabled={!aiGenerationAllowed || aiQuery.refreshing || forceRedo} className="bg-[var(--surface-2)] hover:bg-[var(--bg-3)] border-[var(--line-strong)] hover:border-[var(--muted)] transition-all shadow-sm">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                   Regenerate
                 </Button>
@@ -217,7 +217,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
               <p className="text-sm text-[var(--muted)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-6 py-8">
                 {aiPeriodError ?? "AI rewind is not available for this period."}
               </p>
-            ) : aiQuery.isPending && !aiQuery.data ? (
+            ) : aiQuery.busy && !aiQuery.value ? (
               <div className="h-48 flex items-center justify-center rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                  <div className="flex flex-col items-center gap-4">
                    <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin"></div>
@@ -228,14 +228,14 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
               <StateMessage variant="error">{aiQuery.error.message || "Failed to load narrative"}</StateMessage>
             ) : (
               <div id="ai-carousel" className="flex overflow-x-auto snap-x snap-mandatory gap-8 pb-8 pt-4 -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar">
-                {aiQuery.data?.content ? formatAiCards(aiQuery.data.content, domain) : null}
+                {aiQuery.value?.content ? formatAiCards(aiQuery.value.content, domain) : null}
               </div>
             )}
           </div>
         )}
         
         {/* STATS SECTION */}
-        {statsQuery.isPending ? (
+        {statsQuery.busy ? (
           <StateMessage variant="loading">Crunching the numbers...</StateMessage>
         ) : statsQuery.error ? (
           <StateMessage variant="error">{statsQuery.error.message || "Failed to load stats"}</StateMessage>

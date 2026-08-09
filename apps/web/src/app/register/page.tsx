@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import {
   AuthFormAbuseFields,
@@ -26,24 +26,24 @@ import { LandingBackground } from "@/components/LandingBackground";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const qc = useQueryClient();
+  const store = useStore();
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
   const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<{ user: { id: string } | null }>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<{ user: { id: string } | null }>("/auth/me"),
   });
-  const signup = useQuery({
-    queryKey: ["signup-status"],
-    queryFn: fetchSignupStatus,
+  const signup = useResource({
+    id: ["signup-status"],
+    load: fetchSignupStatus,
   });
 
   useEffect(() => {
-    if (me.data?.user) router.replace("/dashboard");
-  }, [me.data, router]);
+    if (me.value?.user) router.replace("/dashboard");
+  }, [me.value, router]);
 
   const refreshChallenge = useCallback(async () => {
     setChallengeLoading(true);
@@ -61,13 +61,13 @@ export default function RegisterPage() {
   }, []);
 
   useEffect(() => {
-    if (signup.data && !signup.data.open) {
+    if (signup.value && !signup.value.open) {
       setChallengeLoading(false);
       return;
     }
-    if (!signup.data) return;
+    if (!signup.value) return;
     void refreshChallenge();
-  }, [signup.data, refreshChallenge]);
+  }, [signup.value, refreshChallenge]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -98,7 +98,7 @@ export default function RegisterPage() {
         challengeToken: ch.token,
       });
       if (res.ok && res.user) {
-        await qc.invalidateQueries({ queryKey: ["me"] });
+        await store.touch(["me"]);
         router.replace("/dashboard");
         return;
       }
@@ -142,7 +142,7 @@ export default function RegisterPage() {
     }
   }
 
-  const closed = signup.data && !signup.data.open;
+  const closed = signup.value && !signup.value.open;
 
   return (
     <div className="relative min-h-screen overflow-hidden">

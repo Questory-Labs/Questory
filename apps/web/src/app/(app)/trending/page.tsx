@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
@@ -83,34 +83,34 @@ function friendAvatars(game: TrendingGame) {
 }
 
 export default function TrendingPage() {
-  const friends = useQuery({
-    queryKey: ["trending", "friends"],
-    queryFn: () => api<FriendsShelf>("/trending/friends"),
-    staleTime: 60_000,
+  const friends = useResource({
+    id: ["trending", "friends"],
+    load: () => api<FriendsShelf>("/trending/friends"),
+    freshFor: 60_000,
   });
 
-  const global = useQuery({
-    queryKey: ["trending", "global"],
-    queryFn: () => api<GlobalShelf>("/trending/global"),
-    staleTime: 60_000,
+  const global = useResource({
+    id: ["trending", "global"],
+    load: () => api<GlobalShelf>("/trending/global"),
+    freshFor: 60_000,
   });
 
-  const concurrent = useQuery({
-    queryKey: ["trending", "concurrent"],
-    queryFn: () => api<ChartShelf>("/trending/concurrent"),
-    staleTime: 30_000,
+  const concurrent = useResource({
+    id: ["trending", "concurrent"],
+    load: () => api<ChartShelf>("/trending/concurrent"),
+    freshFor: 30_000,
   });
 
-  const deck = useQuery({
-    queryKey: ["trending", "deck"],
-    queryFn: () => api<ChartShelf>("/trending/deck"),
-    staleTime: 60_000,
+  const deck = useResource({
+    id: ["trending", "deck"],
+    load: () => api<ChartShelf>("/trending/deck"),
+    freshFor: 60_000,
   });
 
-  const topReleases = useQuery({
-    queryKey: ["trending", "top-releases"],
-    queryFn: () => api<ChartShelf>("/trending/top-releases"),
-    staleTime: 120_000,
+  const topReleases = useResource({
+    id: ["trending", "top-releases"],
+    load: () => api<ChartShelf>("/trending/top-releases"),
+    freshFor: 120_000,
   });
 
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
@@ -138,24 +138,24 @@ export default function TrendingPage() {
       <GameShelf
         title="Among friends"
         description="Most played by your friends over the last two weeks"
-        loading={friends.isLoading}
+        loading={friends.empty}
         meta={
-          friends.data
-            ? `${friends.data.meta.friendsWithData}/${friends.data.meta.friendsSampled} friends with recent play${
-                friends.data.meta.truncated
-                  ? ` · sampled ${friends.data.meta.friendsSampled}/${friends.data.meta.friendsTotal}`
+          friends.value
+            ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
+                friends.value.meta.truncated
+                  ? ` · sampled ${friends.value.meta.friendsSampled}/${friends.value.meta.friendsTotal}`
                   : ""
-              }${friends.data.meta.cached ? " · cached" : ""}${
-                friends.isFetching && friends.data.meta.cached
+              }${friends.value.meta.cached ? " · cached" : ""}${
+                friends.refreshing && friends.value.meta.cached
                   ? " · refreshing"
                   : ""
               }`
-            : friends.isLoading
+            : friends.empty
               ? "sampling friends…"
               : undefined
         }
         empty={
-          friends.isError ? (
+          friends.failed ? (
             <EmptyState
               title={
                 <span className="text-[var(--danger)]">
@@ -164,14 +164,14 @@ export default function TrendingPage() {
                 </span>
               }
             />
-          ) : !friends.isLoading &&
-            friends.data &&
-            !friends.data.games.length ? (
+          ) : !friends.empty &&
+            friends.value &&
+            !friends.value.games.length ? (
             <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
           ) : undefined
         }
       >
-        {(friends.data?.games || []).map((g, i) => (
+        {(friends.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
@@ -190,14 +190,14 @@ export default function TrendingPage() {
       <GameShelf
         title="Playing now"
         description="Live concurrent players across Steam"
-        loading={concurrent.isLoading}
+        loading={concurrent.empty}
         meta={
-          concurrent.data?.meta.lastUpdate
-            ? `updated ${new Date(concurrent.data.meta.lastUpdate).toLocaleTimeString()}`
+          concurrent.value?.meta.lastUpdate
+            ? `updated ${new Date(concurrent.value.meta.lastUpdate).toLocaleTimeString()}`
             : undefined
         }
         empty={
-          concurrent.isError ? (
+          concurrent.failed ? (
             <EmptyState
               title={
                 <span className="text-[var(--danger)]">
@@ -205,14 +205,14 @@ export default function TrendingPage() {
                 </span>
               }
             />
-          ) : !concurrent.isLoading &&
-            concurrent.data &&
-            !concurrent.data.games.length ? (
+          ) : !concurrent.empty &&
+            concurrent.value &&
+            !concurrent.value.games.length ? (
             <EmptyState title="Concurrent chart unavailable right now." />
           ) : undefined
         }
       >
-        {(concurrent.data?.games || []).map((g, i) => (
+        {(concurrent.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
@@ -235,14 +235,14 @@ export default function TrendingPage() {
       <GameShelf
         title="Global most played"
         description="Steam Charts weekly rollup — same source as the store charts page"
-        loading={global.isLoading}
+        loading={global.empty}
         meta={
-          global.data?.meta.rollupDate
-            ? `week of ${new Date(global.data.meta.rollupDate).toLocaleDateString()}`
+          global.value?.meta.rollupDate
+            ? `week of ${new Date(global.value.meta.rollupDate).toLocaleDateString()}`
             : undefined
         }
         empty={
-          global.isError ? (
+          global.failed ? (
             <EmptyState
               title={
                 <span className="text-[var(--danger)]">
@@ -250,14 +250,14 @@ export default function TrendingPage() {
                 </span>
               }
             />
-          ) : !global.isLoading &&
-            global.data &&
-            !global.data.games.length ? (
+          ) : !global.empty &&
+            global.value &&
+            !global.value.games.length ? (
             <EmptyState title="Steam Charts unavailable right now." />
           ) : undefined
         }
       >
-        {(global.data?.games || []).map((g, i) => (
+        {(global.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
@@ -276,9 +276,9 @@ export default function TrendingPage() {
       <GameShelf
         title="Steam Deck most played"
         description="What Deck players are jumping into"
-        loading={deck.isLoading}
+        loading={deck.empty}
         empty={
-          deck.isError ? (
+          deck.failed ? (
             <EmptyState
               title={
                 <span className="text-[var(--danger)]">
@@ -286,12 +286,12 @@ export default function TrendingPage() {
                 </span>
               }
             />
-          ) : !deck.isLoading && deck.data && !deck.data.games.length ? (
+          ) : !deck.empty && deck.value && !deck.value.games.length ? (
             <EmptyState title="Deck chart unavailable right now." />
           ) : undefined
         }
       >
-        {(deck.data?.games || []).map((g, i) => (
+        {(deck.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
@@ -307,12 +307,12 @@ export default function TrendingPage() {
       <GameShelf
         title="Top releases"
         description={
-          topReleases.data?.meta.pageName ||
+          topReleases.value?.meta.pageName ||
           "Steam Charts curated new-release standouts"
         }
-        loading={topReleases.isLoading}
+        loading={topReleases.empty}
         empty={
-          topReleases.isError ? (
+          topReleases.failed ? (
             <EmptyState
               title={
                 <span className="text-[var(--danger)]">
@@ -320,14 +320,14 @@ export default function TrendingPage() {
                 </span>
               }
             />
-          ) : !topReleases.isLoading &&
-            topReleases.data &&
-            !topReleases.data.games.length ? (
+          ) : !topReleases.empty &&
+            topReleases.value &&
+            !topReleases.value.games.length ? (
             <EmptyState title="Top releases unavailable right now." />
           ) : undefined
         }
       >
-        {(topReleases.data?.games || []).map((g, i) => (
+        {(topReleases.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}

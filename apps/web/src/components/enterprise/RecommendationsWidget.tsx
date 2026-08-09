@@ -1,23 +1,23 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { fetchRecommendations } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 
 /** Compact top-N strip, e.g. for the dashboard. */
 export function RecommendationsWidget({ limit = 3 }: { limit?: number }) {
-  const recs = useQuery({
-    queryKey: ["enterprise-recommendations-widget", limit],
-    queryFn: () => fetchRecommendations({ limit }),
-    staleTime: 60_000,
-    retry: 1,
+  const recs = useResource({
+    id: ["enterprise-recommendations-widget", limit],
+    load: () => fetchRecommendations({ limit }),
+    freshFor: 60_000,
+    retries: 1,
   });
 
-  if (!recs.data?.available || recs.data.items.length === 0) return null;
+  if (!recs.value?.available || recs.value.items.length === 0) return null;
 
   return (
     <div className={styles.widget}>
-      {recs.data.items.map((item) => (
+      {recs.value.items.map((item) => (
         <div
           key={`${item.kind}:${item.gameId ?? item.titleId ?? item.artistId ?? item.name}`}
           className={styles.widgetRow}

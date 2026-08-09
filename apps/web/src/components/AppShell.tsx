@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { sanitizeAppHref } from "@questorylabs/shared";
 import { BrandMark } from "@/components/BrandMark";
 import { LoadingPage } from "@/components/LoadingPage";
@@ -345,7 +345,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const qc = useQueryClient();
+  const store = useStore();
   const menuId = useId();
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -365,26 +365,26 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     return groups;
   }, [showEnterpriseNav, showMusicNav, showWatchNav, showReadNav]);
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
-    retry: false,
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
+    retries: false,
   });
 
-  const user = me.data?.user ?? null;
-  const authReady = me.isSuccess || me.isError;
+  const user = me.value?.user ?? null;
+  const authReady = me.ready || me.failed;
   const isAuthed = Boolean(user);
 
   const [notifOpen, setNotifOpen] = useState(false);
-  const unread = useQuery({
-    queryKey: ["notifications-unread"],
-    queryFn: () => api<{ count: number }>("/notifications/unread-count"),
-    enabled: isAuthed,
-    refetchInterval: 30_000,
+  const unread = useResource({
+    id: ["notifications-unread"],
+    load: () => api<{ count: number }>("/notifications/unread-count"),
+    when: isAuthed,
+    refreshEvery: 30_000,
   });
-  const notifications = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () =>
+  const notifications = useResource({
+    id: ["notifications"],
+    load: () =>
       api<
         {
           id: string;
@@ -395,20 +395,20 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           createdAt: string;
         }[]
       >("/notifications"),
-    enabled: isAuthed && notifOpen,
+    when: isAuthed && notifOpen,
   });
-  const markRead = useMutation({
-    mutationFn: () => api("/notifications/read", { method: "POST" }),
+  const markRead = useAction({
+    run: () => api("/notifications/read", { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["notifications"] });
-      qc.invalidateQueries({ queryKey: ["notifications-unread"] });
+      store.touch(["notifications"]);
+      store.touch(["notifications-unread"]);
     },
   });
 
-  const logout = useMutation({
-    mutationFn: () => api("/auth/logout", { method: "POST" }),
+  const logout = useAction({
+    run: () => api("/auth/logout", { method: "POST" }),
     onSuccess: () => {
-      qc.clear();
+      store.drop();
       router.push("/");
     },
   });
@@ -445,7 +445,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   // Soft gate: never paint app pages until /auth/me confirms a session.
   if (!authReady || !user) {
-    if (me.isError) {
+    if (me.failed) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
           Redirecting to sign in…
@@ -488,8 +488,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <div className="border-t border-[var(--line)] p-3">
           <AccountMenu
             user={user}
-            onLogout={() => logout.mutate()}
-            logoutPending={logout.isPending}
+            onLogout={() => logout.submit()}
+            logoutPending={logout.busy}
             placement="up"
           />
         </div>
@@ -554,9 +554,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 aria-label="Notifications"
               >
                 <BellIcon />
-                {(unread.data?.count || 0) > 0 && (
+                {(unread.value?.count || 0) > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-[var(--accent)] px-1 font-mono text-[10px] text-[var(--bg-0)]">
-                    {unread.data?.count}
+                    {unread.value?.count}
                   </span>
                 )}
               </button>
@@ -569,18 +569,18 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                     <button
                       type="button"
                       className="text-[11px] text-[var(--accent)]"
-                      onClick={() => markRead.mutate()}
+                      onClick={() => markRead.submit()}
                     >
                       Mark all read
                     </button>
                   </div>
                   <ul className="max-h-72 overflow-y-auto">
-                    {(notifications.data || []).length === 0 && (
+                    {(notifications.value || []).length === 0 && (
                       <li className="px-3 py-4 text-sm text-[var(--muted)]">
                         No deal alerts yet. Set wishlist targets to get notified.
                       </li>
                     )}
-                    {(notifications.data || []).map((n) => (
+                    {(notifications.value || []).map((n) => (
                       <li
                         key={n.id}
                         className={`border-t border-[var(--line)] px-3 py-2.5 text-sm ${
@@ -674,8 +674,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               <div className="border-t border-[var(--line)] p-3">
                 <AccountMenu
                   user={user}
-                  onLogout={() => logout.mutate()}
-                  logoutPending={logout.isPending}
+                  onLogout={() => logout.submit()}
+                  logoutPending={logout.busy}
                   placement="up"
                 />
               </div>

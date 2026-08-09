@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type {
   WatchBreakdownResponse,
   WatchInsights,
@@ -33,41 +33,41 @@ export function WatchHomeView() {
   const [media, setMedia] = useState<WatchMediaFilter>("all");
   const typeQs = typeQuery(media);
 
-  const insights = useQuery({
-    queryKey: ["watch-insights", range, media],
-    queryFn: () =>
+  const insights = useResource({
+    id: ["watch-insights", range, media],
+    load: () =>
       watchFetch<WatchInsights>(
         withTz(`/analytics/insights?range=${range}${typeQs}`),
       ),
   });
-  const hour = useQuery({
-    queryKey: ["watch-ts-hour", range, media],
-    queryFn: () =>
+  const hour = useResource({
+    id: ["watch-ts-hour", range, media],
+    load: () =>
       watchFetch<WatchTimeBucket[]>(
         withTz(
           `/analytics/timeseries?granularity=hourOfDay&range=${range}${typeQs}`,
         ),
       ),
   });
-  const dow = useQuery({
-    queryKey: ["watch-ts-dow", range, media],
-    queryFn: () =>
+  const dow = useResource({
+    id: ["watch-ts-dow", range, media],
+    load: () =>
       watchFetch<WatchTimeBucket[]>(
         withTz(
           `/analytics/timeseries?granularity=dayOfWeek&range=${range}${typeQs}`,
         ),
       ),
   });
-  const years = useQuery({
-    queryKey: ["watch-years", range, media],
-    queryFn: () =>
+  const years = useResource({
+    id: ["watch-years", range, media],
+    load: () =>
       watchFetch<WatchBreakdownResponse>(
         `/analytics/breakdown/years?range=${range}&limit=16${typeQs}`,
       ),
   });
-  const sources = useQuery({
-    queryKey: ["watch-sources", range, media],
-    queryFn: () =>
+  const sources = useResource({
+    id: ["watch-sources", range, media],
+    load: () =>
       watchFetch<WatchBreakdownResponse>(
         `/analytics/breakdown/sources?range=${range}&limit=10${typeQs}`,
       ),
@@ -75,31 +75,31 @@ export function WatchHomeView() {
 
   const hourData = useMemo(
     () =>
-      (hour.data || []).map((b) => ({
+      (hour.value || []).map((b) => ({
         label: b.key,
         count: b.count,
       })),
-    [hour.data],
+    [hour.value],
   );
   const dowData = useMemo(
     () =>
-      (dow.data || []).map((b) => ({
+      (dow.value || []).map((b) => ({
         label: b.label,
         count: b.count,
       })),
-    [dow.data],
+    [dow.value],
   );
   const yearData = useMemo(
     () =>
-      (years.data?.items || [])
+      (years.value?.items || [])
         .filter((i) => i.key !== "unknown")
         .slice()
         .reverse()
         .map((b) => ({ label: b.label, count: b.count })),
-    [years.data],
+    [years.value],
   );
 
-  const d = insights.data;
+  const d = insights.value;
   const scopeLabel =
     media === "movie" ? "movies" : media === "show" ? "TV" : "watches";
 
@@ -127,13 +127,13 @@ export function WatchHomeView() {
         }
       />
 
-      {insights.isLoading && !insights.data ? (
+      {insights.empty && !insights.value ? (
         <>
           <SkeletonStatGrid count={6} />
           <SkeletonTileGrid count={4} className="mt-6" />
         </>
       ) : null}
-      {insights.isError && (
+      {insights.failed && (
         <StateMessage variant="error">Could not load watch analytics.</StateMessage>
       )}
 
@@ -256,7 +256,7 @@ export function WatchHomeView() {
             Sources
           </h2>
           <ul className="mt-3 space-y-2">
-            {(sources.data?.items || []).map((item) => (
+            {(sources.value?.items || []).map((item) => (
               <li
                 key={item.key}
                 className="flex items-baseline justify-between gap-3 text-sm"
@@ -264,13 +264,13 @@ export function WatchHomeView() {
                 <span className="text-[var(--ink)]">{item.label}</span>
                 <span className="font-mono text-[11px] text-[var(--faint)]">
                   {item.count}
-                  {sources.data
-                    ? ` · ${formatShare(item.count, sources.data.periodWatches)}`
+                  {sources.value
+                    ? ` · ${formatShare(item.count, sources.value.periodWatches)}`
                     : ""}
                 </span>
               </li>
             ))}
-            {(sources.data?.items || []).length === 0 ? (
+            {(sources.value?.items || []).length === 0 ? (
               <li className="text-sm text-[var(--muted)]">
                 No source metadata yet.
               </li>

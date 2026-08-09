@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Panel } from "@/components/ui/Panel";
@@ -165,28 +165,28 @@ function ActionSelect({
 }
 
 export function GuardrailsSettings() {
-  const queryClient = useQueryClient();
-  const settings = useQuery({
-    queryKey: ["enterprise-guardrails"],
-    queryFn: fetchGuardrailSettings,
-    staleTime: 30_000,
-    retry: 1,
+  const store = useStore();
+  const settings = useResource({
+    id: ["enterprise-guardrails"],
+    load: fetchGuardrailSettings,
+    freshFor: 30_000,
+    retries: 1,
   });
 
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const saved = useMemo(
-    () => settingsToDraft(settings.data),
-    [settings.data],
+    () => settingsToDraft(settings.value),
+    [settings.value],
   );
 
   const rows = draft ?? saved;
 
-  const save = useMutation({
-    mutationFn: (payload: GuardrailSettings) => saveGuardrailSettings(payload),
+  const save = useAction({
+    run: (payload: GuardrailSettings) => saveGuardrailSettings(payload),
     onSuccess: (data) => {
-      queryClient.setQueryData(["enterprise-guardrails"], data);
+      store.push(["enterprise-guardrails"], data);
       setDraft(null);
       setConfirmOpen(false);
     },
@@ -205,7 +205,7 @@ export function GuardrailsSettings() {
       setConfirmOpen(true);
       return;
     }
-    save.mutate(draftToPayload(draft));
+    save.submit(draftToPayload(draft));
   };
 
   return (
@@ -222,11 +222,11 @@ export function GuardrailsSettings() {
 
       <Panel className="overflow-x-auto p-4">
         <h2 className="mb-3 font-display text-lg font-bold">Categories</h2>
-        {settings.isError ? (
+        {settings.failed ? (
           <p className="text-sm text-red-400">
             {(settings.error as Error).message}
           </p>
-        ) : settings.isLoading ? (
+        ) : settings.empty ? (
           <p className="text-sm text-[var(--muted)]">Loading guardrails…</p>
         ) : (
           <table className="w-full min-w-[40rem] text-left text-sm">
@@ -362,15 +362,15 @@ export function GuardrailsSettings() {
       </Panel>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={!dirty || save.isPending} onClick={requestSave}>
-          {save.isPending ? "Saving…" : "Save guardrails"}
+        <Button disabled={!dirty || save.busy} onClick={requestSave}>
+          {save.busy ? "Saving…" : "Save guardrails"}
         </Button>
         {dirty ? (
           <Button variant="secondary" onClick={() => setDraft(null)}>
             Reset changes
           </Button>
         ) : null}
-        {save.isError ? (
+        {save.failed ? (
           <span className="text-sm text-red-400">
             {(save.error as Error).message}
           </span>
@@ -393,10 +393,10 @@ export function GuardrailsSettings() {
             Cancel
           </Button>
           <Button
-            disabled={save.isPending}
-            onClick={() => draft && save.mutate(draftToPayload(draft))}
+            disabled={save.busy}
+            onClick={() => draft && save.submit(draftToPayload(draft))}
           >
-            {save.isPending ? "Saving…" : "Confirm and save"}
+            {save.busy ? "Saving…" : "Confirm and save"}
           </Button>
         </div>
       </Dialog>
