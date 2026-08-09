@@ -6,6 +6,7 @@ import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import type { ReadRange, ReadTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
+import { TagsEditor } from "@/components/TagsEditor";
 import { ReadRangePicker } from "@/components/read/ReadRangePicker";
 import { PageHeader, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
@@ -142,6 +143,10 @@ export default function ReadTitlePage() {
                   No events in this range.
                 </p>
               )}
+            </section>
+
+            <section className="mt-8">
+              <TagsEditor itemKey={`read_title:${id}`} />
             </section>
 
             <p className="mt-8 text-sm text-[var(--muted)]">

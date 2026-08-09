@@ -5,6 +5,8 @@ import type {
   FeedbackAction,
   RecommendationDomain,
   RecommendationResponse,
+  RecommendationGoalsRequest,
+  RecommendationGoalsResponse,
   UserSettings,
 } from "@/lib/enterprise-types";
 import { api } from "@/lib/api";
@@ -43,6 +45,20 @@ export async function fetchRecommendations(options: {
       limit: options.limit,
       domains: options.domains,
       context: clientContext(),
+    }),
+  });
+}
+
+/** Goals path — synchronous heuristic. */
+export async function fetchSmartGoals(options: {
+  targetCount: number;
+  timeframe: string;
+}): Promise<RecommendationGoalsResponse> {
+  return enterpriseRequest<RecommendationGoalsResponse>("/recommendations/goals", {
+    method: "POST",
+    body: JSON.stringify({
+      targetCount: options.targetCount,
+      timeframe: options.timeframe,
     }),
   });
 }

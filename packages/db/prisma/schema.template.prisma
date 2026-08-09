@@ -1033,6 +1033,8 @@ model ReadTitle {
   id                 String    @id @default(cuid())
   /** manga | manhwa | manhua | novel | one_shot | other */
   format             String
+  /** manga | novel | fiction | non_fiction | comic */
+  category           String    @default("manga")
   name               String
   nameNormalized     String
   displayName        String?
@@ -1162,4 +1164,33 @@ model AiInsightCache {
 
   @@unique([userId, domain, period])
   @@index([userId, domain])
+}
+
+/* ─── Global Tags (Cross-Media) ─── */
+
+model Tag {
+  id             String     @id @default(cuid())
+  name           String     @unique
+  nameNormalized String     @unique
+  description    String?
+  createdAt      DateTime   @default(now())
+
+  mediaTags      MediaTag[]
+}
+
+model MediaTag {
+  id             String   @id @default(cuid())
+  tagId          String
+  /** steam_game | music_track | watch_title | read_title */
+  mediaType      String
+  /** gameId | trackId | titleId | readTitleId */
+  mediaId        String
+  isUserModified Boolean  @default(false)
+  weight         Float    @default(1)
+  createdAt      DateTime @default(now())
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, mediaType, mediaId])
+  @@index([mediaType, mediaId])
 }

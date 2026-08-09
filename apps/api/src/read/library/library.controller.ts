@@ -22,6 +22,7 @@ export class ReadLibraryController {
     @Query("pageSize") pageSizeRaw?: string,
     @Query("status") status?: string,
     @Query("format") format?: string,
+    @Query("category") category?: string,
     @Query("q") q?: string,
     @Query("minScore") minScoreRaw?: string,
   ) {
@@ -43,6 +44,7 @@ export class ReadLibraryController {
       pageSize,
       status: status?.trim() || undefined,
       format: format?.trim() || undefined,
+      category: category?.trim() || undefined,
       q,
       minScore,
     });

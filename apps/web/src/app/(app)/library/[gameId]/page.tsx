@@ -8,6 +8,7 @@ import {
   SectionTitle,
 } from "@/components/GameDetailStats";
 import { StoreBadge, StoreBadgeRow } from "@/components/StoreBadge";
+import { TagsEditor } from "@/components/TagsEditor";
 import { Panel, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
@@ -266,6 +267,10 @@ export default function LibraryGamePage() {
               </div>
             </section>
           )}
+
+          <section className="mt-10 max-w-4xl">
+            <TagsEditor itemKey={`steam_game:${e.game.id}`} />
+          </section>
         </>
       )}
     </>

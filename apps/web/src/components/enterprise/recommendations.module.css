@@ -197,6 +197,36 @@
   letter-spacing: 0.06em;
 }
 
+.goalsControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.goalsSelect {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+}
+
+.goalsMeta {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.kindBadge[data-static] {
+  position: static;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
 .worldFaint {
   color: var(--faint);
 }

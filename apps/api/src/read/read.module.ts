@@ -10,6 +10,7 @@ import { ReadLibraryModule } from "./library/library.module";
 import { ReadMalModule } from "./mal/mal.module";
 import { ReadShikimoriModule } from "./shikimori/shikimori.module";
 import { ReadSyncStatusController } from "./sync-status.controller";
+import { ReadOpenLibraryModule } from "./openlibrary/openlibrary.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ReadSyncStatusController } from "./sync-status.controller";
     ReadKitsuModule,
     ReadBangumiModule,
     ReadShikimoriModule,
+    ReadOpenLibraryModule,
     WatchAnilistModule,
   ],
   controllers: [ReadSyncStatusController],

@@ -7,10 +7,11 @@ import { api } from "@/lib/api";
 import { ADMIN_CRON_PAGE_SIZE } from "@/lib/pagination";
 
 const TRIGGERABLE_JOBS = new Set([
-  "daily-refresh",
+  "daily-refresh", // Steam user library sync (owned + friends)
   "recover-failed-sync",
   "watch-sync",
   "catalog-sync",
+  "price-sync",
   "trakt-sync",
   "anilist-sync",
   "mal-sync",
