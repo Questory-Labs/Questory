@@ -35,6 +35,18 @@ export class EnterpriseRecommendationsController {
     });
   }
 
+  @Post("goals")
+  async goals(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+    await this.rateLimit.assertAllowed(user.userId, "recommendations");
+    return this.proxy.forward({
+      userId: user.userId,
+      isAdmin: false,
+      method: "POST",
+      path: "/v1/recommendations/goals",
+      body,
+    });
+  }
+
   @Post("curate")
   async curate(@CurrentUser() user: SessionUser, @Body() body: unknown) {
     await this.rateLimit.assertAllowed(user.userId, "llm");

@@ -30,7 +30,7 @@ import { ReadModule } from "./read/read.module";
 import { ShellModule } from "./shell/shell.module";
 import { HealthController } from "./health.controller";
 import { EnterpriseModule } from "./enterprise/enterprise.module";
-
+import { TagsModule } from "./tags/tags.module";
 
 const rootEnv = resolve(process.cwd(), "../../.env");
 const localEnv = resolve(process.cwd(), ".env");
@@ -71,6 +71,7 @@ const localEnv = resolve(process.cwd(), ".env");
     CronModule,
     AdminModule,
     EnterpriseModule,
+    TagsModule,
   ],
   controllers: [HealthController],
 })

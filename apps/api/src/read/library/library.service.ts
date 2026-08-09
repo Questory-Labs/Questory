@@ -16,6 +16,7 @@ export class ReadLibraryService {
       pageSize?: number;
       status?: string;
       format?: string;
+      category?: string;
       q?: string;
       minScore?: number;
     } = {},
@@ -32,10 +33,11 @@ export class ReadLibraryService {
       userId: user.id,
       ...(opts.status ? { listStatus: opts.status } : {}),
       ...(opts.minScore != null ? { score: { gte: opts.minScore } } : {}),
-      ...(opts.format || q
+      ...(opts.format || opts.category || q
         ? {
             readTitle: {
               ...(opts.format ? { format: opts.format } : {}),
+              ...(opts.category ? { category: opts.category } : {}),
               ...(q
                 ? { name: { contains: q, mode: "insensitive" as const } }
                 : {}),
@@ -74,6 +76,7 @@ export class ReadLibraryService {
           id: r.readTitle.id,
           name: r.readTitle.name,
           format: r.readTitle.format,
+          category: r.readTitle.category,
           coverUrl: r.readTitle.coverUrl,
           chapters: r.readTitle.chapters,
           volumes: r.readTitle.volumes,

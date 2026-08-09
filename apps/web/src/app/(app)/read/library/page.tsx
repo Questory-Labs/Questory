@@ -27,15 +27,25 @@ const FORMATS = [
   { value: "other", label: "Other" },
 ];
 
+const CATEGORIES = [
+  { value: "", label: "All categories" },
+  { value: "manga", label: "Manga" },
+  { value: "novel", label: "Novel" },
+  { value: "fiction", label: "Fiction" },
+  { value: "non_fiction", label: "Non-fiction" },
+  { value: "comic", label: "Comic" },
+];
+
 export default function ReadLibraryPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<"" | ReadListStatus>("");
   const [format, setFormat] = useState("");
+  const [category, setCategory] = useState("");
   const [q, setQ] = useState("");
   const [qDraft, setQDraft] = useState("");
 
   const library = useResource({
-    id: ["read-library", page, status, format, q],
+    id: ["read-library", page, status, format, category, q],
     load: () => {
       const params = new URLSearchParams({
         page: String(page),
@@ -43,6 +53,7 @@ export default function ReadLibraryPage() {
       });
       if (status) params.set("status", status);
       if (format) params.set("format", format);
+      if (category) params.set("category", category);
       if (q) params.set("q", q);
       return readFetch<ReadLibraryPage>(`/library?${params}`);
     },
@@ -85,6 +96,20 @@ export default function ReadLibraryPage() {
           {FORMATS.map((f) => (
             <option key={f.label} value={f.value}>
               {f.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setPage(1);
+          }}
+          className="rounded border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm text-[var(--ink)]"
+        >
+          {CATEGORIES.map((c) => (
+            <option key={c.label} value={c.value}>
+              {c.label}
             </option>
           ))}
         </select>
@@ -144,7 +169,8 @@ export default function ReadLibraryPage() {
                       {item.title.name}
                     </Link>
                     <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
-                      {item.listStatus} · {item.title.format}
+                      {item.listStatus} · {item.title.format} 
+                      {item.title.category && ` · ${item.title.category}`}
                     </span>
                   </div>
                   <p className="mt-1 font-mono text-xs text-[var(--muted)]">

@@ -68,6 +68,30 @@ export type RecommendationResponse = {
   message?: string;
 };
 
+/* ── smart goals ── */
+
+export type GoalSuggestion = {
+  itemKey: string;
+  name: string;
+  domain: RecommendationDomain;
+  kind: RecommendationItemKind;
+  estimatedTimeMinutes?: number;
+  reason: string;
+};
+
+export type RecommendationGoalsRequest = {
+  userId: string;
+  targetCount: number;
+  timeframe: string;
+};
+
+export type RecommendationGoalsResponse = {
+  generatedAt: string;
+  timeframe: string;
+  targetCount: number;
+  suggestions: GoalSuggestion[];
+};
+
 /* ── curation jobs ── */
 
 export type JobStatus =

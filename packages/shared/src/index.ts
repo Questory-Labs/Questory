@@ -1512,6 +1512,7 @@ export const ReadLibraryItemSchema = z.object({
     id: z.string(),
     name: z.string(),
     format: z.string(),
+    category: z.string().nullable().optional(),
     coverUrl: z.string().nullable(),
     chapters: z.number().nullable(),
     volumes: z.number().nullable(),

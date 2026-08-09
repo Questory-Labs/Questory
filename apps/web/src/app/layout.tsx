@@ -34,14 +34,14 @@ export const metadata: Metadata = {
     url: "https://questorylabs.com",
     siteName: "Questory",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630 }],
+    images: [{ url: "/logo.png", width: 800, height: 800 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Questory",
     description:
       "Steam-first library and media intelligence — games, music, movies/TV, and reading",
-    images: ["/og.png"],
+    images: ["/logo.png"],
   },
 };
 
