@@ -1,29 +1,29 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { fetchWatchHealth, isWatchFlagEnabled } from "@/lib/watch";
 
 /** Watch menus/routes: feature flag ON and watch /health ok. */
 export function useWatchEnabled() {
   const flagOn = isWatchFlagEnabled();
-  const health = useQuery({
-    queryKey: ["watch-health"],
-    queryFn: fetchWatchHealth,
-    enabled: flagOn,
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
+  const health = useResource({
+    id: ["watch-health"],
+    load: fetchWatchHealth,
+    when: flagOn,
+    freshFor: 30_000,
+    retries: 1,
+    refreshOnFocus: true,
   });
 
-  const enabled = flagOn && health.data?.ok === true && !health.isError;
+  const enabled = flagOn && health.value?.ok === true && !health.failed;
 
   return {
     enabled,
     flag: flagOn,
     flagOn,
-    healthOk: health.data?.ok === true,
+    healthOk: health.value?.ok === true,
     showWatchNav: enabled,
-    isLoading: flagOn && health.isLoading,
+    isLoading: flagOn && health.empty && health.busy,
     health,
   };
 }

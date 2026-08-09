@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, Dialog } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -19,13 +19,13 @@ export function AdminAddUserDialog({
   onClose,
   onMessage,
 }: AdminAddUserDialogProps) {
-  const qc = useQueryClient();
+  const store = useStore();
   const [personaName, setPersonaName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const create = useMutation({
-    mutationFn: (body: {
+  const create = useAction({
+    run: (body: {
       personaName: string;
       email: string;
       password: string;
@@ -39,19 +39,19 @@ export function AdminAddUserDialog({
       setPersonaName("");
       setEmail("");
       setPassword("");
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      store.touch(["admin-users"]);
       onClose();
     },
     onError: (e: Error) => onMessage(e.message),
   });
 
   function handleClose() {
-    if (create.isPending) return;
+    if (create.busy) return;
     onClose();
   }
 
   function handleSubmit() {
-    create.mutate({
+    create.submit({
       personaName: personaName.trim(),
       email: email.trim(),
       password,
@@ -97,20 +97,20 @@ export function AdminAddUserDialog({
         </label>
       </div>
 
-      {create.isError ? (
+      {create.failed ? (
         <p className="mt-3 text-sm text-[var(--warm)]">
           {(create.error as Error).message}
         </p>
       ) : null}
 
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onClick={handleClose} disabled={create.isPending}>
+        <Button variant="secondary" onClick={handleClose} disabled={create.busy}>
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           disabled={
-            create.isPending ||
+            create.busy ||
             !personaName.trim() ||
             !email.trim() ||
             password.length < 10

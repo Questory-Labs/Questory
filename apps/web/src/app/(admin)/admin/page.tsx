@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -26,13 +26,13 @@ type Overview = {
 };
 
 export default function AdminDashboardPage() {
-  const overview = useQuery({
-    queryKey: ["admin-overview"],
-    queryFn: () => api<Overview>("/admin/overview"),
-    refetchInterval: 30_000,
+  const overview = useResource({
+    id: ["admin-overview"],
+    load: () => api<Overview>("/admin/overview"),
+    refreshEvery: 30_000,
   });
 
-  const d = overview.data;
+  const d = overview.value;
 
   return (
     <>

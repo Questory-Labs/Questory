@@ -1,4 +1,4 @@
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminAddUserDialog } from "./AdminAddUserDialog";
@@ -12,18 +12,16 @@ afterEach(() => {
 });
 
 function renderDialog(open = true) {
-  const qc = new QueryCache({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  const qc = new ResourceStore({ retries: false });
 
   return render(
-    <QHttpQueryProvider client={qc}>
+    <ResourceProvider store={qc}>
       <AdminAddUserDialog
         open={open}
         onClose={vi.fn()}
         onMessage={vi.fn()}
       />
-    </QHttpQueryProvider>,
+    </ResourceProvider>,
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Collection } from "@questorylabs/shared";
@@ -8,21 +8,21 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function CollectionsPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [name, setName] = useState("");
-  const list = useQuery({
-    queryKey: ["collections"],
-    queryFn: () => api<Collection[]>("/collections"),
+  const list = useResource({
+    id: ["collections"],
+    load: () => api<Collection[]>("/collections"),
   });
-  const create = useMutation({
-    mutationFn: () =>
+  const create = useAction({
+    run: () =>
       api("/collections", {
         method: "POST",
         body: JSON.stringify({ name }),
       }),
     onSuccess: () => {
       setName("");
-      qc.invalidateQueries({ queryKey: ["collections"] });
+      store.touch(["collections"]);
     },
   });
 
@@ -37,7 +37,7 @@ export default function CollectionsPage() {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (name.trim()) create.mutate();
+          if (name.trim()) create.submit();
         }}
       >
         <input
@@ -52,7 +52,7 @@ export default function CollectionsPage() {
       </form>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {(list.data || []).map((c) => (
+        {(list.value || []).map((c) => (
           <Link key={c.id} href={`/collections/${c.id}`}>
             <Panel className="p-5 transition hover:border-[var(--accent)]">
               <div className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { StoreBadge } from "@/components/StoreBadge";
 import { SteamSyncStatus } from "@/components/SteamSyncStatus";
 import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
@@ -32,17 +32,17 @@ function ConnectionsContent() {
   const watch = useWatchEnabled();
   const read = useReadEnabled();
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
   });
-  const stores = useQuery({
-    queryKey: ["stores"],
-    queryFn: () => api<StoreAccountStatus[]>("/stores"),
+  const stores = useResource({
+    id: ["stores"],
+    load: () => api<StoreAccountStatus[]>("/stores"),
   });
 
-  const steamConnected = Boolean(me.data?.user?.steamId);
-  const steamStatus = stores.data?.find((s) => s.store === "steam");
+  const steamConnected = Boolean(me.value?.user?.steamId);
+  const steamStatus = stores.value?.find((s) => s.store === "steam");
   const justLinked = linked === "steam";
   const sync = useSyncJobs({ enabled: steamConnected });
 
@@ -88,7 +88,7 @@ function ConnectionsContent() {
               </p>
               {steamConnected ? (
                 <p className="mt-2 font-mono text-xs text-[var(--faint)]">
-                  Linked · {me.data?.user?.steamId}
+                  Linked · {me.value?.user?.steamId}
                   {steamStatus?.displayName
                     ? ` · ${steamStatus.displayName}`
                     : ""}

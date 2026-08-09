@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
@@ -18,14 +18,14 @@ type MeResponse = {
 /** Soft session gate for pages that are not wrapped by AppShell. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
-    retry: false,
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
+    retries: false,
   });
 
-  const user = me.data?.user ?? null;
-  const authReady = me.isSuccess || me.isError;
+  const user = me.value?.user ?? null;
+  const authReady = me.ready || me.failed;
 
   useEffect(() => {
     if (!authReady) return;
@@ -33,7 +33,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [authReady, user, router]);
 
   if (!authReady || !user) {
-    if (me.isError) {
+    if (me.failed) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
           Redirecting to sign in…

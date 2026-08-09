@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { MusicGate } from "./MusicGate";
 
 const replace = vi.fn();
@@ -26,11 +26,9 @@ vi.mock("@/lib/api", () => ({
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 
 function wrap(ui: React.ReactNode) {
-  const qc = new QueryCache({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const qc = new ResourceStore({ retries: false });
   return render(
-    <QHttpQueryProvider client={qc}>{ui}</QHttpQueryProvider>,
+    <ResourceProvider store={qc}>{ui}</ResourceProvider>,
   );
 }
 

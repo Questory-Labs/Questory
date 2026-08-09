@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import type {
   MusicAlbumDetail,
   MusicAlbumListenPage,
@@ -37,52 +37,52 @@ function displayLabel(
 export default function MusicAlbumPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const qc = useQueryClient();
+  const store = useStore();
   const [range, setRange] = useState<MusicRange>("all");
   const [page, setPage] = useState(1);
 
-  const detail = useQuery({
-    queryKey: ["music-album", id, range],
-    queryFn: () =>
+  const detail = useResource({
+    id: ["music-album", id, range],
+    load: () =>
       musicFetch<MusicAlbumDetail>(
         withTz(`/analytics/albums/${id}?range=${range}`),
       ),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const listens = useQuery({
-    queryKey: ["music-album-listens", id, range, page],
-    queryFn: () =>
+  const listens = useResource({
+    id: ["music-album-listens", id, range, page],
+    load: () =>
       musicFetch<MusicAlbumListenPage>(
         `/analytics/albums/${id}/listens?range=${range}&page=${page}&pageSize=${MUSIC_DETAIL_LISTENS_PAGE_SIZE}`,
       ),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const hourSeries = useQuery({
-    queryKey: ["music-album-hour", id, range],
-    queryFn: () =>
+  const hourSeries = useResource({
+    id: ["music-album-hour", id, range],
+    load: () =>
       musicFetch<MusicTimeBucket[]>(
         withTz(
           `/analytics/albums/${id}/timeseries?granularity=hourOfDay&range=${range}`,
         ),
       ),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const dowSeries = useQuery({
-    queryKey: ["music-album-dow", id, range],
-    queryFn: () =>
+  const dowSeries = useResource({
+    id: ["music-album-dow", id, range],
+    load: () =>
       musicFetch<MusicTimeBucket[]>(
         withTz(
           `/analytics/albums/${id}/timeseries?granularity=dayOfWeek&range=${range}`,
         ),
       ),
-    enabled: Boolean(id),
+    when: Boolean(id),
   });
 
-  const save = useMutation({
-    mutationFn: (values: {
+  const save = useAction({
+    run: (values: {
       albumTitle?: string | null;
       artists?: Array<{ id?: string; name: string }>;
       displayName?: string | null;
@@ -92,35 +92,35 @@ export default function MusicAlbumPage() {
         body: JSON.stringify(values),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["music-album", id] });
-      qc.invalidateQueries({ queryKey: ["music-recent"] });
+      store.touch(["music-album", id]);
+      store.touch(["music-recent"]);
     },
   });
 
-  const album = detail.data?.album;
+  const album = detail.value?.album;
   const title = album ? displayLabel(album.userDisplayName, album.title) : "Album";
 
   const hourData = useMemo(
     () =>
-      (hourSeries.data || []).map((b) => ({
+      (hourSeries.value || []).map((b) => ({
         label: b.label,
         count: b.count,
       })),
-    [hourSeries.data],
+    [hourSeries.value],
   );
   const dowData = useMemo(
     () =>
-      (dowSeries.data || []).map((b) => ({
+      (dowSeries.value || []).map((b) => ({
         label: b.label,
         count: b.count,
       })),
-    [dowSeries.data],
+    [dowSeries.value],
   );
 
-  const total = listens.data?.total ?? 0;
-  const pageSize = listens.data?.pageSize ?? MUSIC_DETAIL_LISTENS_PAGE_SIZE;
+  const total = listens.value?.total ?? 0;
+  const pageSize = listens.value?.pageSize ?? MUSIC_DETAIL_LISTENS_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const listenItems = listens.data?.items ?? [];
+  const listenItems = listens.value?.items ?? [];
 
   const handleRangeChange = (next: MusicRange) => {
     setRange(next);
@@ -156,9 +156,9 @@ export default function MusicAlbumPage() {
               <MusicCorrectionEdit
                 kind="album"
                 entityId={id}
-                saving={save.isPending}
+                saving={save.busy}
                 onSave={async (values) => {
-                  await save.mutateAsync(values);
+                  await save.submitAsync(values);
                 }}
               />
             ) : null}
@@ -166,12 +166,12 @@ export default function MusicAlbumPage() {
         }
       />
 
-      {detail.isLoading && !detail.data && <SkeletonDetailHeader />}
-      {detail.isError && (
+      {detail.empty && <SkeletonDetailHeader />}
+      {detail.failed && (
         <StateMessage variant="error">Album not found.</StateMessage>
       )}
 
-      {detail.data && album && (
+      {detail.value && album && (
         <div className="grid gap-8 lg:grid-cols-[auto_1fr]">
           <MusicCover src={album.imageUrl} alt={title} size="lg" />
           <section>
@@ -180,28 +180,28 @@ export default function MusicAlbumPage() {
             ) : null}
 
             <div className="grid grid-cols-4 gap-3">
-              <StatCard label="Listens" value={detail.data.listenCount} />
+              <StatCard label="Listens" value={detail.value.listenCount} />
               <StatCard
                 label="Listening time"
                 value={
-                  detail.data.listeningMinutes > 0
-                    ? formatMinutes(detail.data.listeningMinutes)
+                  detail.value.listeningMinutes > 0
+                    ? formatMinutes(detail.value.listeningMinutes)
                     : "—"
                 }
                 hint="Estimated from track lengths"
               />
-              {detail.data.peakDow ? (
+              {detail.value.peakDow ? (
                 <StatCard
                   label="Peak day"
-                  value={detail.data.peakDow.label}
-                  hint={`${detail.data.peakDow.count} listens`}
+                  value={detail.value.peakDow.label}
+                  hint={`${detail.value.peakDow.count} listens`}
                 />
               ) : null}
-              {detail.data.peakHour ? (
+              {detail.value.peakHour ? (
                 <StatCard
                   label="Peak hour"
-                  value={detail.data.peakHour.label}
-                  hint={`${detail.data.peakHour.count} listens`}
+                  value={detail.value.peakHour.label}
+                  hint={`${detail.value.peakHour.count} listens`}
                 />
               ) : null}
             </div>
@@ -225,7 +225,7 @@ export default function MusicAlbumPage() {
               Top tracks
             </h2>
             <ol className="mt-3 space-y-1">
-              {detail.data.topTracks.map((t, i) => (
+              {detail.value.topTracks.map((t, i) => (
                 <li key={t.id}>
                   <Link
                     href={`/music/tracks/${t.id}`}
@@ -244,7 +244,7 @@ export default function MusicAlbumPage() {
                 </li>
               ))}
             </ol>
-            {detail.data.topTracks.length === 0 ? (
+            {detail.value.topTracks.length === 0 ? (
               <p className="mt-3 text-sm text-[var(--muted)]">
                 No listens in this range.
               </p>
@@ -253,9 +253,9 @@ export default function MusicAlbumPage() {
             <h2 className="mt-8 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
               Top moods
             </h2>
-            {detail.data.topMoods.length > 0 ? (
+            {detail.value.topMoods.length > 0 ? (
               <ul className="mt-3 space-y-2">
-                {detail.data.topMoods.map((m) => (
+                {detail.value.topMoods.map((m) => (
                   <li
                     key={m.id}
                     className="flex items-center justify-between border-b border-[var(--line)] py-2 text-sm"
@@ -306,10 +306,10 @@ export default function MusicAlbumPage() {
                   </li>
                 ))}
               </ul>
-              {listens.isLoading && listenItems.length === 0 ? (
+              {listens.empty && listenItems.length === 0 ? (
                 <StateMessage variant="loading" className="mt-3" />
               ) : null}
-              {!listens.isLoading && listenItems.length === 0 ? (
+              {!listens.empty && listenItems.length === 0 ? (
                 <p className="mt-3 text-sm text-[var(--muted)]">
                   No listens in this range.
                 </p>
@@ -319,7 +319,7 @@ export default function MusicAlbumPage() {
                 <div className="mt-4 flex items-center justify-center gap-3">
                   <Button
                     variant="secondary"
-                    disabled={page <= 1 || listens.isFetching}
+                    disabled={page <= 1 || listens.refreshing}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     className="px-3 py-1.5"
                   >
@@ -330,7 +330,7 @@ export default function MusicAlbumPage() {
                   </span>
                   <Button
                     variant="secondary"
-                    disabled={page >= totalPages || listens.isFetching}
+                    disabled={page >= totalPages || listens.refreshing}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     className="px-3 py-1.5"
                   >

@@ -9,28 +9,28 @@ import { useMusicPlayingNow } from "@/hooks/useMusicPlayingNow";
 function NowPlayingPanel() {
   const playing = useMusicPlayingNow();
 
-  if (!playing.data?.track) return null;
+  if (!playing.value?.track) return null;
 
   return (
     <Panel wrapperClassName="mb-8" className="flex items-center gap-4 p-4">
-      <MusicCover src={playing.data.track.imageUrl} alt="" size="md" />
+      <MusicCover src={playing.value.track.imageUrl} alt="" size="md" />
       <div className="min-w-0">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
           Now playing
         </p>
         <OverflowMarquee className="mt-1 text-[var(--ink)]">
           <Link
-            href={`/music/tracks/${playing.data.track.id}`}
+            href={`/music/tracks/${playing.value.track.id}`}
             className="hover:text-[var(--accent)]"
           >
-            {playing.data.track.title}
+            {playing.value.track.title}
           </Link>
         </OverflowMarquee>
         <Link
-          href={`/music/artists/${playing.data.track.artistId}`}
+          href={`/music/artists/${playing.value.track.artistId}`}
           className="text-sm text-[var(--muted)] hover:text-[var(--accent)]"
         >
-          {playing.data.track.artistName}
+          {playing.value.track.artistName}
         </Link>
       </div>
     </Panel>

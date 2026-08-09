@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { AdminAddUserDialog } from "@/components/admin/AdminAddUserDialog";
 import { AdminUserCard } from "@/components/admin/AdminUserCard";
@@ -24,11 +24,11 @@ export default function AdminUsersPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
-  const users = useQuery({
-    queryKey: ["admin-users"],
-    queryFn: () => api<AdminUsersResponse>("/admin/users"),
+  const users = useResource({
+    id: ["admin-users"],
+    load: () => api<AdminUsersResponse>("/admin/users"),
   });
-  const startFreshEnabled = users.data?.startFreshEnabled === true;
+  const startFreshEnabled = users.value?.startFreshEnabled === true;
 
   return (
     <>
@@ -48,7 +48,7 @@ export default function AdminUsersPage() {
       {msg ? <p className="mb-4 text-sm text-[var(--accent)]">{msg}</p> : null}
 
       <div className="space-y-3">
-        {(users.data?.users || []).map((user) => (
+        {(users.value?.users || []).map((user) => (
           <AdminUserCard
             key={user.id}
             user={user}

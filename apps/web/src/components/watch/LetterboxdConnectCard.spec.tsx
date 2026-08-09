@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { LetterboxdConnectCard } from "./LetterboxdConnectCard";
 
 vi.mock("@/lib/watch", () => ({
@@ -10,11 +10,9 @@ vi.mock("@/lib/watch", () => ({
 import { watchFetch } from "@/lib/watch";
 
 function wrap(ui: React.ReactNode) {
-  const client = new QueryCache({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client = new ResourceStore({ retries: false });
   return render(
-    <QHttpQueryProvider client={client}>{ui}</QHttpQueryProvider>,
+    <ResourceProvider store={client}>{ui}</ResourceProvider>,
   );
 }
 

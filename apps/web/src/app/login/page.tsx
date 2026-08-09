@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import {
   AuthFormAbuseFields,
@@ -25,20 +25,20 @@ import { LandingBackground } from "@/components/LandingBackground";
 
 export default function LoginPage() {
   const router = useRouter();
-  const qc = useQueryClient();
+  const store = useStore();
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
   const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<{ user: { id: string } | null }>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<{ user: { id: string } | null }>("/auth/me"),
   });
 
   useEffect(() => {
-    if (me.data?.user) router.replace("/dashboard");
-  }, [me.data, router]);
+    if (me.value?.user) router.replace("/dashboard");
+  }, [me.value, router]);
 
   const refreshChallenge = useCallback(async () => {
     setChallengeLoading(true);
@@ -79,7 +79,7 @@ export default function LoginPage() {
         challengeId: ch.challengeId,
         challengeToken: ch.token,
       });
-      await qc.invalidateQueries({ queryKey: ["me"] });
+      await store.touch(["me"]);
       router.replace("/dashboard");
     }
 

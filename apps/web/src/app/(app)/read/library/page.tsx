@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type { ReadLibraryPage, ReadListStatus } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, StateMessage } from "@/components/ui";
 import { readFetch } from "@/lib/read";
@@ -34,9 +34,9 @@ export default function ReadLibraryPage() {
   const [q, setQ] = useState("");
   const [qDraft, setQDraft] = useState("");
 
-  const library = useQuery({
-    queryKey: ["read-library", page, status, format, q],
-    queryFn: () => {
+  const library = useResource({
+    id: ["read-library", page, status, format, q],
+    load: () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(MEDIA_HISTORY_PAGE_SIZE),
@@ -48,8 +48,8 @@ export default function ReadLibraryPage() {
     },
   });
 
-  const totalPages = library.data
-    ? Math.max(1, Math.ceil(library.data.total / library.data.pageSize))
+  const totalPages = library.value
+    ? Math.max(1, Math.ceil(library.value.total / library.value.pageSize))
     : 1;
 
   return (
@@ -108,19 +108,19 @@ export default function ReadLibraryPage() {
         </form>
       </div>
 
-      {library.isLoading && (
+      {library.empty && (
         <StateMessage variant="loading" />
       )}
-      {!library.isLoading && (library.data?.items.length ?? 0) === 0 && (
+      {!library.empty && (library.value?.items.length ?? 0) === 0 && (
         <EmptyState
           title="No titles yet"
           description="Connect AniList under Read → Sources to sync your manga list."
         />
       )}
-      {library.data && library.data.items.length > 0 && (
+      {library.value && library.value.items.length > 0 && (
         <>
           <ul className="space-y-3">
-            {library.data.items.map((item) => (
+            {library.value.items.map((item) => (
               <li
                 key={item.id}
                 className="flex gap-3 border-b border-[var(--line)] pb-3 text-sm"
@@ -162,11 +162,11 @@ export default function ReadLibraryPage() {
             ))}
           </ul>
 
-          {library.data.total > library.data.pageSize && (
+          {library.value.total > library.value.pageSize && (
             <div className="mt-6 flex items-center justify-center gap-3">
               <Button
                 variant="secondary"
-                disabled={page <= 1 || library.isFetching}
+                disabled={page <= 1 || library.refreshing}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-1.5"
               >
@@ -177,7 +177,7 @@ export default function ReadLibraryPage() {
               </span>
               <Button
                 variant="secondary"
-                disabled={page >= totalPages || library.isFetching}
+                disabled={page >= totalPages || library.refreshing}
                 onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5"
               >

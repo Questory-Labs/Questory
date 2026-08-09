@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import type {
   MusicBreakdownResponse,
   MusicInsights,
@@ -23,41 +23,41 @@ import { withTz } from "@/lib/dates";
 export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
   const [range, setRange] = useState<MusicRange>("week");
 
-  const insights = useQuery({
-    queryKey: ["music-insights", range],
-    queryFn: () =>
+  const insights = useResource({
+    id: ["music-insights", range],
+    load: () =>
       musicFetch<MusicInsights>(
         withTz(`/analytics/insights?range=${range}`),
       ),
   });
-  const hour = useQuery({
-    queryKey: ["music-ts-hour", range],
-    queryFn: () =>
+  const hour = useResource({
+    id: ["music-ts-hour", range],
+    load: () =>
       musicFetch<MusicTimeBucket[]>(
         withTz(
           `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
         ),
       ),
   });
-  const dow = useQuery({
-    queryKey: ["music-ts-dow", range],
-    queryFn: () =>
+  const dow = useResource({
+    id: ["music-ts-dow", range],
+    load: () =>
       musicFetch<MusicTimeBucket[]>(
         withTz(
           `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
         ),
       ),
   });
-  const years = useQuery({
-    queryKey: ["music-years", range],
-    queryFn: () =>
+  const years = useResource({
+    id: ["music-years", range],
+    load: () =>
       musicFetch<MusicBreakdownResponse>(
         `/analytics/breakdown/years?range=${range}&limit=16`,
       ),
   });
-  const services = useQuery({
-    queryKey: ["music-services", range],
-    queryFn: () =>
+  const services = useResource({
+    id: ["music-services", range],
+    load: () =>
       musicFetch<MusicBreakdownResponse>(
         `/analytics/breakdown/services?range=${range}&limit=10`,
       ),
@@ -65,31 +65,31 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
 
   const hourData = useMemo(
     () =>
-      (hour.data || []).map((b) => ({
+      (hour.value || []).map((b) => ({
         label: b.key,
         count: b.count,
       })),
-    [hour.data],
+    [hour.value],
   );
   const dowData = useMemo(
     () =>
-      (dow.data || []).map((b) => ({
+      (dow.value || []).map((b) => ({
         label: b.label,
         count: b.count,
       })),
-    [dow.data],
+    [dow.value],
   );
   const yearData = useMemo(
     () =>
-      (years.data?.items || [])
+      (years.value?.items || [])
         .filter((i) => i.key !== "unknown")
         .slice()
         .reverse()
         .map((b) => ({ label: b.label, count: b.count })),
-    [years.data],
+    [years.value],
   );
 
-  const d = insights.data;
+  const d = insights.value;
 
   return (
     <>
@@ -101,13 +101,13 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
 
       {afterHeader}
 
-      {insights.isLoading && !insights.data ? (
+      {insights.empty && !insights.value ? (
         <>
           <SkeletonStatGrid count={6} className="mb-6 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" />
           <SkeletonTileGrid count={4} />
         </>
       ) : null}
-      {insights.isError && (
+      {insights.failed && (
         <StateMessage variant="error">Could not load music analytics.</StateMessage>
       )}
 
@@ -210,7 +210,7 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
             Sources
           </h2>
           <ul className="mt-3 space-y-2">
-            {(services.data?.items || []).map((item) => (
+            {(services.value?.items || []).map((item) => (
               <li
                 key={item.key}
                 className="flex items-baseline justify-between gap-3 text-sm"
@@ -218,13 +218,13 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
                 <span className="text-[var(--ink)]">{item.label}</span>
                 <span className="font-mono text-[11px] text-[var(--faint)]">
                   {item.count}
-                  {services.data
-                    ? ` · ${formatShare(item.count, services.data.periodListens)}`
+                  {services.value
+                    ? ` · ${formatShare(item.count, services.value.periodListens)}`
                     : ""}
                 </span>
               </li>
             ))}
-            {(services.data?.items || []).length === 0 ? (
+            {(services.value?.items || []).length === 0 ? (
               <li className="text-sm text-[var(--muted)]">
                 No source metadata yet.
               </li>

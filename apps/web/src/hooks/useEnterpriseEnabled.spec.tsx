@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, cleanup } from "@testing-library/react";
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 
 vi.mock("@/lib/enterprise-api", () => ({
   fetchEnterpriseStatus: vi.fn(),
@@ -13,13 +13,11 @@ import {
 } from "./useEnterpriseEnabled";
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  const qc = new QueryCache({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const qc = new ResourceStore({ retries: false });
   return (
-    <QHttpQueryProvider client={qc}>
+    <ResourceProvider store={qc}>
       <EnterpriseEnabledProvider>{children}</EnterpriseEnabledProvider>
-    </QHttpQueryProvider>
+    </ResourceProvider>
   );
 }
 

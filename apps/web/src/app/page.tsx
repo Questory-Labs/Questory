@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import { fetchSignupStatus } from "@/lib/auth-api";
 import { useEffect } from "react";
@@ -15,18 +15,18 @@ const enterEase = [0.22, 1, 0.36, 1] as const;
 
 export default function LandingPage() {
   const router = useRouter();
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<{ user: { id: string } | null }>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<{ user: { id: string } | null }>("/auth/me"),
   });
-  const signup = useQuery({
-    queryKey: ["signup-status"],
-    queryFn: fetchSignupStatus,
+  const signup = useResource({
+    id: ["signup-status"],
+    load: fetchSignupStatus,
   });
 
   useEffect(() => {
-    if (me.data?.user) router.replace("/dashboard");
-  }, [me.data, router]);
+    if (me.value?.user) router.replace("/dashboard");
+  }, [me.value, router]);
 
   useEffect(() => {
     document.documentElement.classList.add("landing-active");
@@ -72,7 +72,7 @@ export default function LandingPage() {
               Sign in
             </HatchShadow>
           </Link>
-          {signup.data?.open !== false ? (
+          {signup.value?.open !== false ? (
             <Link href="/register" className="inline-block">
               <HatchShadow
                 size="sm"

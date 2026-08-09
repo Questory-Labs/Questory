@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { LineChart } from "@/components/charts/LineChart";
 import { BarChart } from "@/components/charts/BarChart";
 import { SketchDonut } from "@/components/charts/SketchDonut";
@@ -171,26 +171,26 @@ export default function CostPage() {
     setWorstPage(1);
   }, [worstTab]);
 
-  const summary = useQuery({
-    queryKey: ["cost-summary"],
-    queryFn: () => api<CostSummary>("/cost/summary"),
+  const summary = useResource({
+    id: ["cost-summary"],
+    load: () => api<CostSummary>("/cost/summary"),
   });
-  const bestRoi = useQuery({
-    queryKey: ["cost-roi", "best", bestTab, bestPage],
-    queryFn: () =>
+  const bestRoi = useResource({
+    id: ["cost-roi", "best", bestTab, bestPage],
+    load: () =>
       api<CostRoiPage>(
         `/cost/roi?sort=best&value=${bestTab}&page=${bestPage}&pageSize=${COST_ROI_PAGE_SIZE}`,
       ),
   });
-  const worstRoi = useQuery({
-    queryKey: ["cost-roi", "worst", worstTab, worstPage],
-    queryFn: () =>
+  const worstRoi = useResource({
+    id: ["cost-roi", "worst", worstTab, worstPage],
+    load: () =>
       api<CostRoiPage>(
         `/cost/roi?sort=worst&value=${worstTab}&page=${worstPage}&pageSize=${COST_ROI_PAGE_SIZE}`,
       ),
   });
 
-  const s = summary.data;
+  const s = summary.value;
   const currency = s?.currency || "USD";
   const money = (n: number | null | undefined) => formatMoney(n, currency);
 
@@ -219,11 +219,11 @@ export default function CostPage() {
 
   const bestTotalPages = Math.max(
     1,
-    Math.ceil((bestRoi.data?.total ?? 0) / (bestRoi.data?.pageSize ?? COST_ROI_PAGE_SIZE)),
+    Math.ceil((bestRoi.value?.total ?? 0) / (bestRoi.value?.pageSize ?? COST_ROI_PAGE_SIZE)),
   );
   const worstTotalPages = Math.max(
     1,
-    Math.ceil((worstRoi.data?.total ?? 0) / (worstRoi.data?.pageSize ?? COST_ROI_PAGE_SIZE)),
+    Math.ceil((worstRoi.value?.total ?? 0) / (worstRoi.value?.pageSize ?? COST_ROI_PAGE_SIZE)),
   );
 
   return (
@@ -384,12 +384,12 @@ export default function CostPage() {
           <ValueTabs value={bestTab} onChange={setBestTab} />
         </div>
         <RoiList
-          rows={bestRoi.data?.items ?? []}
+          rows={bestRoi.value?.items ?? []}
           currency={currency}
           emptyMessage={
-            bestRoi.isLoading
+            bestRoi.empty
               ? "Loading rankings…"
-              : (bestRoi.data?.total ?? 0) === 0
+              : (bestRoi.value?.total ?? 0) === 0
                 ? "Price data will appear after the next store sync."
                 : `No ${bestTab} games with playtime to rank.`
           }
@@ -409,12 +409,12 @@ export default function CostPage() {
           <ValueTabs value={worstTab} onChange={setWorstTab} />
         </div>
         <RoiList
-          rows={worstRoi.data?.items ?? []}
+          rows={worstRoi.value?.items ?? []}
           currency={currency}
           emptyMessage={
-            worstRoi.isLoading
+            worstRoi.empty
               ? "Loading rankings…"
-              : (worstRoi.data?.total ?? 0) === 0
+              : (worstRoi.value?.total ?? 0) === 0
                 ? "Price data will appear after the next store sync."
                 : `No ${worstTab} games with playtime to rank.`
           }

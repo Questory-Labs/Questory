@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { LineChart } from "@/components/charts/LineChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
@@ -163,7 +163,7 @@ function flattenTree(nodes: SpanNode[]): SpanNode[] {
 }
 
 export function TelemetryDashboard() {
-  const queryClient = useQueryClient();
+  const store = useStore();
   const [range, setRange] = useState<TimeRange>("24h");
   const [page, setPage] = useState(0);
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
@@ -177,54 +177,50 @@ export function TelemetryDashboard() {
     setPage(0);
   }, [range]);
 
-  const health = useQuery({
-    queryKey: ["enterprise-otel-health"],
-    queryFn: fetchOtelHealth,
-    refetchInterval: 30_000,
-    retry: false,
+  const health = useResource({
+    id: ["enterprise-otel-health"],
+    load: fetchOtelHealth,
+    refreshEvery: 30_000,
+    retries: false,
   });
 
-  const usage = useQuery({
-    queryKey: ["enterprise-otel-usage", range],
-    queryFn: () => fetchOtelUsage(range),
-    refetchInterval: 60_000,
-    retry: false,
+  const usage = useResource({
+    id: ["enterprise-otel-usage", range],
+    load: () => fetchOtelUsage(range),
+    refreshEvery: 60_000,
+    retries: false,
   });
 
-  const pricing = useQuery({
-    queryKey: ["enterprise-otel-pricing"],
-    queryFn: fetchOtelPricing,
-    retry: false,
+  const pricing = useResource({
+    id: ["enterprise-otel-pricing"],
+    load: fetchOtelPricing,
+    retries: false,
   });
 
-  const traces = useQuery({
-    queryKey: ["enterprise-otel-traces", range, page],
-    queryFn: () =>
+  const traces = useResource({
+    id: ["enterprise-otel-traces", range, page],
+    load: () =>
       fetchOtelTraces({
         since: range,
         limit: TELEMETRY_PAGE_SIZE,
         offset: page * TELEMETRY_PAGE_SIZE,
       }),
-    refetchInterval: 60_000,
-    retry: false,
+    refreshEvery: 60_000,
+    retries: false,
   });
 
-  const savePricing = useMutation({
-    mutationFn: (models: OtelModelPricing[]) => saveOtelPricing(models),
+  const savePricing = useAction({
+    run: (models: OtelModelPricing[]) => saveOtelPricing(models),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["enterprise-otel-pricing"],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["enterprise-otel-usage"],
-      });
+      await store.touch(["enterprise-otel-pricing"]);
+      await store.touch(["enterprise-otel-usage"]);
       setPricingDraft(null);
     },
   });
 
-  const h: OtelHealth | undefined = health.data;
-  const u = (usage.data || {}) as OtelUsage;
-  const tracePage = traces.data;
+  const h: OtelHealth | undefined = health.value;
+  const u = (usage.value || {}) as OtelUsage;
+  const tracePage = traces.value;
   const traceList = tracePage?.traces ?? [];
   const totalTraces = tracePage?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalTraces / TELEMETRY_PAGE_SIZE));
@@ -283,7 +279,7 @@ export function TelemetryDashboard() {
 
   const pricingRows = useMemo(() => {
     if (pricingDraft) return pricingDraft;
-    const fromApi = pricing.data?.models ?? [];
+    const fromApi = pricing.value?.models ?? [];
     const seen = new Set(fromApi.map((m) => m.model));
     const merged = [...fromApi];
     for (const row of modelRows) {
@@ -299,7 +295,7 @@ export function TelemetryDashboard() {
       }
     }
     return merged;
-  }, [pricingDraft, pricing.data?.models, modelRows]);
+  }, [pricingDraft, pricing.value?.models, modelRows]);
 
   const updatePricingRow = (
     index: number,
@@ -323,7 +319,7 @@ export function TelemetryDashboard() {
 
   const collectorOk = h?.ok === true;
   const collectorError =
-    health.isError || h?.ok === false
+    health.failed || h?.ok === false
       ? h?.error || (health.error as Error | undefined)?.message || "unreachable"
       : null;
 
@@ -365,7 +361,7 @@ export function TelemetryDashboard() {
             Collector
           </p>
           <p className="mt-1 text-sm text-[var(--ink)]">
-            {health.isLoading
+            {health.empty
               ? "Checking…"
               : collectorOk
                 ? "Healthy"
@@ -381,21 +377,21 @@ export function TelemetryDashboard() {
       </Panel>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Requests" value={requestCount} loading={usage.isLoading} />
-        <Stat label="Input tokens" value={inputTokens} loading={usage.isLoading} />
+        <Stat label="Requests" value={requestCount} loading={usage.empty} />
+        <Stat label="Input tokens" value={inputTokens} loading={usage.empty} />
         <Stat
           label="Output tokens"
           value={outputTokens}
-          loading={usage.isLoading}
+          loading={usage.empty}
         />
-        <Stat label="Total tokens" value={totalTokens} loading={usage.isLoading} />
+        <Stat label="Total tokens" value={totalTokens} loading={usage.empty} />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Est. cost"
           value={
-            usage.isLoading
+            usage.empty
               ? "…"
               : pricingConfigured
                 ? formatUsd(costUsd)
@@ -410,7 +406,7 @@ export function TelemetryDashboard() {
         <StatCard
           label="Avg / request"
           value={
-            usage.isLoading
+            usage.empty
               ? "…"
               : pricingConfigured
                 ? formatUsd(avgCost)
@@ -420,7 +416,7 @@ export function TelemetryDashboard() {
         <StatCard
           label="Cost / 1M tokens"
           value={
-            usage.isLoading
+            usage.empty
               ? "…"
               : pricingConfigured
                 ? formatUsd(costPer1m)
@@ -430,7 +426,7 @@ export function TelemetryDashboard() {
         <StatCard
           label="Cached · Reasoning"
           value={
-            usage.isLoading
+            usage.empty
               ? "…"
               : `${formatCompact(cachedTokens ?? 0)} · ${formatCompact(reasoningTokens ?? 0)}`
           }
@@ -453,7 +449,7 @@ export function TelemetryDashboard() {
         </div>
         {pricingOpen ? (
           <div className="mt-3 space-y-3">
-            {pricing.isError ? (
+            {pricing.failed ? (
               <p className="text-sm text-[var(--danger)]">
                 {(pricing.error as Error).message}
               </p>
@@ -547,10 +543,10 @@ export function TelemetryDashboard() {
               </Button>
               <Button
                 className="px-2.5 py-1 text-xs"
-                disabled={savePricing.isPending}
-                onClick={() => savePricing.mutate(pricingRows)}
+                disabled={savePricing.busy}
+                onClick={() => savePricing.submit(pricingRows)}
               >
-                {savePricing.isPending ? "Saving…" : "Save rates"}
+                {savePricing.busy ? "Saving…" : "Save rates"}
               </Button>
               {pricingDraft ? (
                 <button
@@ -561,7 +557,7 @@ export function TelemetryDashboard() {
                   Reset
                 </button>
               ) : null}
-              {savePricing.isError ? (
+              {savePricing.failed ? (
                 <span className="text-xs text-[var(--danger)]">
                   {(savePricing.error as Error).message}
                 </span>
@@ -571,7 +567,7 @@ export function TelemetryDashboard() {
         ) : null}
       </TitledPanel>
 
-      {usage.isError ? (
+      {usage.failed ? (
         <p className="text-sm text-[var(--muted)]">
           Usage unavailable: {(usage.error as Error).message}
         </p>
@@ -579,7 +575,7 @@ export function TelemetryDashboard() {
 
       <section className="grid gap-4 xl:grid-cols-2">
         <TitledPanel title={`Tokens over time (${u.timeseries_granularity || "bucket"})`}>
-          {usage.isLoading ? (
+          {usage.empty ? (
             <StateMessage variant="loading" className="mt-0" />
           ) : series.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No token samples yet.</p>
@@ -608,7 +604,7 @@ export function TelemetryDashboard() {
         </TitledPanel>
 
         <TitledPanel title="Requests & cost over time">
-          {usage.isLoading ? (
+          {usage.empty ? (
             <StateMessage variant="loading" className="mt-0" />
           ) : series.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No request samples yet.</p>
@@ -745,13 +741,13 @@ export function TelemetryDashboard() {
             page={page}
             totalPages={totalPages}
             onChange={setPage}
-            disabled={traces.isLoading}
+            disabled={traces.empty}
           />
         </div>
 
-        {traces.isLoading ? (
+        {traces.empty ? (
           <p className="mt-3 text-sm text-[var(--muted)]">Loading traces…</p>
-        ) : traces.isError ? (
+        ) : traces.failed ? (
           <p className="mt-3 text-sm text-[var(--muted)]">
             {(traces.error as Error).message}
           </p>
@@ -824,7 +820,7 @@ export function TelemetryDashboard() {
               page={page}
               totalPages={totalPages}
               onChange={setPage}
-              disabled={traces.isLoading}
+              disabled={traces.empty}
             />
           </div>
         ) : null}
@@ -847,11 +843,11 @@ function TraceSidebar({
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const detail = useQuery({
-    queryKey: ["enterprise-otel-trace", traceId],
-    queryFn: () => fetchOtelTrace(traceId as string),
-    enabled: Boolean(traceId),
-    retry: false,
+  const detail = useResource({
+    id: ["enterprise-otel-trace", traceId],
+    load: () => fetchOtelTrace(traceId as string),
+    when: Boolean(traceId),
+    retries: false,
   });
 
   useEffect(() => {
@@ -867,7 +863,7 @@ function TraceSidebar({
     setExpanded({});
   }, [traceId]);
 
-  const data: OtelTraceDetail | undefined = detail.data;
+  const data: OtelTraceDetail | undefined = detail.value;
   const spans = data?.spans || [];
   const tree = useMemo(() => buildSpanTree(spans), [spans]);
   const flat = useMemo(() => flattenTree(tree), [tree]);
@@ -935,9 +931,9 @@ function TraceSidebar({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {detail.isLoading ? (
+          {detail.empty ? (
             <p className="text-sm text-[var(--muted)]">Loading spans…</p>
-          ) : detail.isError ? (
+          ) : detail.failed ? (
             <p className="text-sm text-[var(--danger)]">
               {(detail.error as Error).message}
             </p>

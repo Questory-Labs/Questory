@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Button, PageHeader, Panel, StateMessage } from "@/components/ui";
 import { ScraperIterationList } from "@/components/admin/scrapers/ScraperIterationList";
 import { ScraperIterationWorkflow } from "@/components/admin/scrapers/ScraperIterationWorkflow";
@@ -13,62 +13,62 @@ import type {
 import { useEffect, useState } from "react";
 
 export default function AdminScrapersPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [providerKey, setProviderKey] = useState<string>("letterboxd");
   const [viewIterationId, setViewIterationId] = useState<string | null>(null);
 
-  const providers = useQuery({
-    queryKey: ["admin-scraper-providers"],
-    queryFn: () =>
+  const providers = useResource({
+    id: ["admin-scraper-providers"],
+    load: () =>
       api<ScraperProviderSummary[]>("/admin/scrapers/providers"),
   });
 
-  const detail = useQuery({
-    queryKey: ["admin-scraper-provider", providerKey],
-    queryFn: () =>
+  const detail = useResource({
+    id: ["admin-scraper-provider", providerKey],
+    load: () =>
       api<ScraperProviderDetail>(`/admin/scrapers/providers/${providerKey}`),
-    enabled: Boolean(providerKey),
+    when: Boolean(providerKey),
   });
 
-  const toggleEnabled = useMutation({
-    mutationFn: (enabled: boolean) =>
+  const toggleEnabled = useAction({
+    run: (enabled: boolean) =>
       api<ScraperProviderDetail>(`/admin/scrapers/providers/${providerKey}`, {
         method: "PATCH",
         body: JSON.stringify({ enabled }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-scraper-provider", providerKey] });
-      qc.invalidateQueries({ queryKey: ["admin-scraper-providers"] });
+      store.touch(["admin-scraper-provider", providerKey]);
+      store.touch(["admin-scraper-providers"]);
     },
   });
 
   useEffect(() => {
-    if (!providerKey && providers.data?.length) {
-      setProviderKey(providers.data[0].key);
+    if (!providerKey && providers.value?.length) {
+      setProviderKey(providers.value[0].key);
     }
-  }, [providers.data, providerKey]);
+  }, [providers.value, providerKey]);
 
   useEffect(() => {
-    if (!detail.data) return;
-    if (detail.data.openIteration) {
-      setViewIterationId(detail.data.openIteration.id);
+    if (!detail.value) return;
+    if (detail.value.openIteration) {
+      setViewIterationId(detail.value.openIteration.id);
       return;
     }
-    if (detail.data.current) {
-      setViewIterationId(detail.data.current.id);
+    if (detail.value.current) {
+      setViewIterationId(detail.value.current.id);
     }
-  }, [detail.data]);
+  }, [detail.value]);
 
   const viewing =
-    detail.data?.current?.id === viewIterationId
-      ? detail.data.current
-      : detail.data?.previous.find((row) => row.id === viewIterationId) ??
-        detail.data?.current ??
+    detail.value?.current?.id === viewIterationId
+      ? detail.value.current
+      : detail.value?.previous.find((row) => row.id === viewIterationId) ??
+        detail.value?.current ??
         null;
 
   const viewingReadOnly =
     viewing &&
-    viewing.id !== detail.data?.openIteration?.id &&
+    viewing.id !== detail.value?.openIteration?.id &&
     (viewing.status === "published" || viewing.status === "archived");
 
   return (
@@ -84,7 +84,7 @@ export default function AdminScrapersPage() {
             Providers
           </p>
           <ul className="mt-2 space-y-1">
-            {(providers.data ?? []).map((provider) => (
+            {(providers.value ?? []).map((provider) => (
               <li key={provider.key}>
                 <button
                   type="button"
@@ -107,26 +107,26 @@ export default function AdminScrapersPage() {
         </Panel>
 
         <div className="space-y-6">
-          {detail.data ? (
+          {detail.value ? (
             <>
               <Panel className="p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="font-display text-xl font-bold">
-                      {detail.data.label}
+                      {detail.value.label}
                     </h2>
-                    {detail.data.description ? (
+                    {detail.value.description ? (
                       <p className="mt-1 text-sm text-[var(--muted)]">
-                        {detail.data.description}
+                        {detail.value.description}
                       </p>
                     ) : null}
                   </div>
                   <label className="flex items-center gap-2 text-sm text-[var(--ink)]">
                     <input
                       type="checkbox"
-                      checked={detail.data.enabled}
-                      disabled={toggleEnabled.isPending}
-                      onChange={(e) => toggleEnabled.mutate(e.target.checked)}
+                      checked={detail.value.enabled}
+                      disabled={toggleEnabled.busy}
+                      onChange={(e) => toggleEnabled.submit(e.target.checked)}
                     />
                     Provider enabled (cron sync)
                   </label>
@@ -135,8 +135,8 @@ export default function AdminScrapersPage() {
 
               <Panel className="p-5">
                 <ScraperIterationList
-                  current={detail.data.current}
-                  previous={detail.data.previous}
+                  current={detail.value.current}
+                  previous={detail.value.previous}
                   selectedId={viewIterationId}
                   onSelect={setViewIterationId}
                 />
@@ -161,10 +161,10 @@ export default function AdminScrapersPage() {
 
               <ScraperIterationWorkflow
                 providerKey={providerKey}
-                detail={detail.data}
+                detail={detail.value}
               />
             </>
-          ) : detail.isLoading ? (
+          ) : detail.empty ? (
             <Panel className="p-5">
               <StateMessage variant="loading" className="mt-0" />
             </Panel>

@@ -1,29 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
 import styles from "./recommendations.module.css";
 
 /** Collapsible "Your taste fingerprint" card from the dossier endpoint. */
 export function DossierCard() {
   const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const dossier = useQuery({
-    queryKey: ["enterprise-dossier"],
-    queryFn: fetchDossier,
-    staleTime: 5 * 60_000,
-    retry: 1,
+  const store = useStore();
+  const dossier = useResource({
+    id: ["enterprise-dossier"],
+    load: fetchDossier,
+    freshFor: 5 * 60_000,
+    retries: 1,
   });
-  const refresh = useMutation({
-    mutationFn: refreshDossier,
+  const refresh = useAction({
+    run: refreshDossier,
     onSuccess: (view) => {
-      queryClient.setQueryData(["enterprise-dossier"], view);
+      store.push(["enterprise-dossier"], view);
     },
   });
 
-  const d = dossier.data?.dossier;
-  if (!dossier.data?.available || !d) return null;
+  const d = dossier.value?.dossier;
+  if (!dossier.value?.available || !d) return null;
 
   return (
     <section className={styles.dossier}>
@@ -40,12 +40,12 @@ export function DossierCard() {
         <button
           type="button"
           className={styles.dossierRefresh}
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
+          onClick={() => refresh.submit()}
+          disabled={refresh.busy}
           aria-label="Refresh taste fingerprint"
           title="Regenerate from your latest activity"
         >
-          <span aria-hidden className={refresh.isPending ? styles.dossierRefreshSpin : undefined}>
+          <span aria-hidden className={refresh.busy ? styles.dossierRefreshSpin : undefined}>
             ↻
           </span>
         </button>

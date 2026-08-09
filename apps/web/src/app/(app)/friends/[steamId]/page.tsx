@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { StatCard } from "@/components/StatCard";
 import { GameTile } from "@/components/GameTile";
 import { PageHeader } from "@/components/ui";
@@ -10,12 +10,12 @@ import { useParams } from "next/navigation";
 
 export default function FriendComparePage() {
   const params = useParams<{ steamId: string }>();
-  const compare = useQuery({
-    queryKey: ["friend-compare", params.steamId],
-    queryFn: () =>
+  const compare = useResource({
+    id: ["friend-compare", params.steamId],
+    load: () =>
       api<FriendCompare>(`/friends/${params.steamId}/compare`),
   });
-  const d = compare.data;
+  const d = compare.value;
 
   return (
     <>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -44,19 +44,19 @@ export function ApiKeyPanel({
   endpointHint,
   embedded = false,
 }: Props) {
-  const qc = useQueryClient();
+  const store = useStore();
   const [plainToken, setPlainToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const identity = useQuery({
-    queryKey: ["api-keys-identity"],
-    queryFn: () => api<IdentityResponse>("/api-keys/identity"),
+  const identity = useResource({
+    id: ["api-keys-identity"],
+    load: () => api<IdentityResponse>("/api-keys/identity"),
   });
 
-  const key = (identity.data?.keys || []).find((k) => k.type === type);
+  const key = (identity.value?.keys || []).find((k) => k.type === type);
 
-  const create = useMutation({
-    mutationFn: () =>
+  const create = useAction({
+    run: () =>
       api<CreateResponse>("/api-keys", {
         method: "POST",
         body: JSON.stringify({ type }),
@@ -64,7 +64,7 @@ export function ApiKeyPanel({
     onSuccess: (data) => {
       setError(null);
       setPlainToken(data.token);
-      void qc.invalidateQueries({ queryKey: ["api-keys-identity"] });
+      void store.touch(["api-keys-identity"]);
     },
     onError: (err: Error) => {
       setPlainToken(null);
@@ -72,13 +72,13 @@ export function ApiKeyPanel({
     },
   });
 
-  const revoke = useMutation({
-    mutationFn: (id: string) =>
+  const revoke = useAction({
+    run: (id: string) =>
       api(`/api-keys/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       setPlainToken(null);
       setError(null);
-      void qc.invalidateQueries({ queryKey: ["api-keys-identity"] });
+      void store.touch(["api-keys-identity"]);
     },
     onError: (err: Error) => {
       setError(err.message || "Failed to revoke key");
@@ -92,9 +92,9 @@ export function ApiKeyPanel({
       </h2>
       <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
 
-      {type === "music_ingest" && identity.data?.listenbrainzUsername && (
+      {type === "music_ingest" && identity.value?.listenbrainzUsername && (
         <p className="mt-3 font-mono text-xs text-[var(--faint)]">
-          LZ_USER / username: {identity.data.listenbrainzUsername}
+          LZ_USER / username: {identity.value.listenbrainzUsername}
         </p>
       )}
       {endpointHint && (
@@ -131,10 +131,10 @@ export function ApiKeyPanel({
       <div className="mt-4 flex flex-wrap gap-3">
         <Button
           variant="primary"
-          disabled={create.isPending}
-          onClick={() => create.mutate()}
+          disabled={create.busy}
+          onClick={() => create.submit()}
         >
-          {create.isPending
+          {create.busy
             ? "Generating…"
             : key
               ? "Rotate key"
@@ -143,8 +143,8 @@ export function ApiKeyPanel({
         {key && (
           <Button
             variant="secondary"
-            disabled={revoke.isPending}
-            onClick={() => revoke.mutate(key.id)}
+            disabled={revoke.busy}
+            onClick={() => revoke.submit(key.id)}
           >
             Revoke
           </Button>

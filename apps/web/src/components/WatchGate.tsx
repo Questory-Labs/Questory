@@ -15,12 +15,12 @@ export function WatchGate({ children }: { children: React.ReactNode }) {
       router.replace("/dashboard");
       return;
     }
-    if (health.isSuccess && !health.data?.ok) {
+    if (health.ready && !health.value?.ok) {
       router.replace("/dashboard");
     }
-  }, [flag, health.isSuccess, health.data?.ok, router]);
+  }, [flag, health.ready, health.value?.ok, router]);
 
-  if (!flag || health.isLoading) {
+  if (!flag || (health.empty && health.busy)) {
     return (
       <div className="py-8">
         <StateMessage variant="loading" className="mt-0" />

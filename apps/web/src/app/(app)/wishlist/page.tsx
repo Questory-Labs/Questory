@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { GameTile } from "@/components/GameTile";
 import { StoreBadge } from "@/components/StoreBadge";
 import { Button, PageHeader, Panel } from "@/components/ui";
@@ -40,7 +40,7 @@ const STORE_CHIPS: { id: Store | "all"; label: string }[] = [
 ];
 
 export default function WishlistPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [storeFilter, setStoreFilter] = useState<Store | "all">("all");
   const [page, setPage] = useState(1);
 
@@ -48,9 +48,9 @@ export default function WishlistPage() {
     setPage(1);
   }, [storeFilter]);
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
   });
   const listPath = useMemo(() => {
     const p = new URLSearchParams();
@@ -59,24 +59,24 @@ export default function WishlistPage() {
     p.set("pageSize", String(WISHLIST_PAGE_SIZE));
     return `/wishlist?${p.toString()}`;
   }, [storeFilter, page]);
-  const list = useQuery({
-    queryKey: ["wishlist", storeFilter, page],
-    queryFn: () => api<WishlistResponse>(listPath),
+  const list = useResource({
+    id: ["wishlist", storeFilter, page],
+    load: () => api<WishlistResponse>(listPath),
   });
-  const recommendations = useQuery({
-    queryKey: ["wishlist-recommendations"],
-    queryFn: () => api<Recommendation[]>("/wishlist/recommendations"),
+  const recommendations = useResource({
+    id: ["wishlist-recommendations"],
+    load: () => api<Recommendation[]>("/wishlist/recommendations"),
   });
-  const deals = useQuery({
-    queryKey: ["wishlist-deals"],
-    queryFn: () => api<DealAlert[]>("/wishlist/deals"),
+  const deals = useResource({
+    id: ["wishlist-deals"],
+    load: () => api<DealAlert[]>("/wishlist/deals"),
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [target, setTarget] = useState("");
-  const currency = me.data?.user?.currency || "USD";
+  const currency = me.value?.user?.currency || "USD";
 
-  const update = useMutation({
-    mutationFn: ({
+  const update = useAction({
+    run: ({
       store,
       externalId,
       targetPrice,
@@ -90,30 +90,30 @@ export default function WishlistPage() {
         body: JSON.stringify({ targetPrice }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["wishlist"] });
-      qc.invalidateQueries({ queryKey: ["wishlist-recommendations"] });
-      qc.invalidateQueries({ queryKey: ["wishlist-deals"] });
+      store.touch(["wishlist"]);
+      store.touch(["wishlist-recommendations"]);
+      store.touch(["wishlist-deals"]);
     },
   });
 
-  const filteredRecs = (recommendations.data || []).filter(
+  const filteredRecs = (recommendations.value || []).filter(
     (i) => storeFilter === "all" || i.store === storeFilter,
   );
-  const filteredDeals = (deals.data || []).filter(
+  const filteredDeals = (deals.value || []).filter(
     (d) => storeFilter === "all" || d.store === storeFilter,
   );
 
-  const total = list.data?.total ?? 0;
-  const pageSize = list.data?.pageSize ?? WISHLIST_PAGE_SIZE;
+  const total = list.value?.total ?? 0;
+  const pageSize = list.value?.pageSize ?? WISHLIST_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const items = list.data?.items ?? [];
+  const items = list.value?.items ?? [];
 
   return (
     <>
       <PageHeader
         title="Wishlist"
         description={
-          list.data
+          list.value
             ? `${total} games · should-buy scores, price targets, and deal signals across Steam, Epic, and GOG`
             : "Should-buy scores, price targets, and deal signals across Steam, Epic, and GOG"
         }
@@ -253,7 +253,7 @@ export default function WishlistPage() {
                         className="flex gap-2"
                         onSubmit={(ev) => {
                           ev.preventDefault();
-                          update.mutate({
+                          update.submit({
                             store: item.store,
                             externalId: item.externalId,
                             targetPrice: target ? Number(target) : null,

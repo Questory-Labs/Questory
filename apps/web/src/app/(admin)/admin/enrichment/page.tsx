@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useEffect, useState } from "react";
 import { Button, EmptyState, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -58,7 +58,7 @@ const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
 ];
 
 export default function AdminEnrichmentPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [domain, setDomain] = useState<Domain>("music");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -67,9 +67,9 @@ export default function AdminEnrichmentPage() {
     setPage(1);
   }, [domain, status]);
 
-  const data = useQuery({
-    queryKey: ["admin-enrichment", domain, page, status],
-    queryFn: () => {
+  const data = useResource({
+    id: ["admin-enrichment", domain, page, status],
+    load: () => {
       const params = new URLSearchParams({
         domain,
         page: String(page),
@@ -78,24 +78,24 @@ export default function AdminEnrichmentPage() {
       });
       return api<EnrichmentResponse>(`/admin/enrichment?${params}`);
     },
-    refetchInterval: 15_000,
+    refreshEvery: 15_000,
   });
 
-  const trigger = useMutation({
-    mutationFn: () =>
+  const trigger = useAction({
+    run: () =>
       api("/admin/enrichment/trigger", {
         method: "POST",
         body: JSON.stringify({ action: "recover-failed-sync" }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-enrichment"] });
+      store.touch(["admin-enrichment"]);
     },
   });
 
-  const counts = data.data?.counts;
+  const counts = data.value?.counts;
   const activeCounts = counts?.[domain];
-  const totalPages = data.data
-    ? Math.max(1, Math.ceil(data.data.total / data.data.pageSize))
+  const totalPages = data.value
+    ? Math.max(1, Math.ceil(data.value.total / data.value.pageSize))
     : 1;
   const activeTab = TABS.find((t) => t.id === domain)!;
 
@@ -107,15 +107,15 @@ export default function AdminEnrichmentPage() {
         actions={
           <Button
             variant="secondary"
-            disabled={trigger.isPending}
-            onClick={() => trigger.mutate()}
+            disabled={trigger.busy}
+            onClick={() => trigger.submit()}
           >
             Recover failed
           </Button>
         }
       />
 
-      {trigger.isError ? (
+      {trigger.failed ? (
         <p className="mb-4 text-sm text-[var(--warm)]">
           {(trigger.error as Error).message}
         </p>
@@ -204,24 +204,24 @@ export default function AdminEnrichmentPage() {
             );
           })}
         </div>
-        {data.data ? (
+        {data.value ? (
           <span className="font-mono text-[10px] text-[var(--faint)]">
-            {data.data.total} job{data.data.total === 1 ? "" : "s"}
+            {data.value.total} job{data.value.total === 1 ? "" : "s"}
             {status !== "all" ? ` · ${status}` : ""}
           </span>
         ) : null}
       </div>
 
-      {data.isLoading ? (
+      {data.empty ? (
         <p className="text-sm text-[var(--muted)]">Loading jobs…</p>
       ) : null}
-      {data.isError ? (
+      {data.failed ? (
         <p className="text-sm text-[var(--warm)]">
           {(data.error as Error).message}
         </p>
       ) : null}
 
-      {!data.isLoading && !data.isError && !(data.data?.items.length) ? (
+      {!data.empty && !data.failed && !(data.value?.items.length) ? (
         <EmptyState
           title="No jobs in this view"
           description={
@@ -232,7 +232,7 @@ export default function AdminEnrichmentPage() {
         />
       ) : null}
 
-      {data.data?.items.length ? (
+      {data.value?.items.length ? (
         <Panel className="overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
@@ -248,7 +248,7 @@ export default function AdminEnrichmentPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.data.items.map((job) => (
+                {data.value.items.map((job) => (
                   <tr
                     key={job.id}
                     className="border-t border-[var(--line)] align-top first:border-t-0"
@@ -288,7 +288,7 @@ export default function AdminEnrichmentPage() {
         </Panel>
       ) : null}
 
-      {data.data && data.data.total > data.data.pageSize ? (
+      {data.value && data.value.total > data.value.pageSize ? (
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button
             variant="secondary"

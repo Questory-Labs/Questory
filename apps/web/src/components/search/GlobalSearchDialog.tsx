@@ -1,7 +1,7 @@
 "use client";
 
 import { Command } from "cmdk";
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { SearchResult } from "@questorylabs/shared";
@@ -31,17 +31,17 @@ export function GlobalSearchDialog() {
     }
   }, [open]);
 
-  const result = useQuery({
-    queryKey: ["search", "palette", debounced],
-    queryFn: () =>
+  const result = useResource({
+    id: ["search", "palette", debounced],
+    load: () =>
       api<SearchResult>(
         `/search?q=${encodeURIComponent(debounced)}&limit=8`,
       ),
-    enabled: open && debounced.length > 0,
+    when: open && debounced.length > 0,
   });
 
   const items = useMemo(() => {
-    const raw = searchResultItems(result.data);
+    const raw = searchResultItems(result.value);
     return raw.filter((item) => {
       if (item.group === "Artists" || item.group === "Albums" || item.group === "Tracks") {
         return showMusicNav;
@@ -54,7 +54,7 @@ export function GlobalSearchDialog() {
       }
       return true;
     });
-  }, [result.data, showMusicNav, showReadNav, showWatchNav]);
+  }, [result.value, showMusicNav, showReadNav, showWatchNav]);
 
   const groups = useMemo(() => {
     const map = new Map<string, typeof items>();
@@ -100,10 +100,10 @@ export function GlobalSearchDialog() {
               Type to search your library, friends, music, watch, and reads.
             </div>
           ) : null}
-          {result.isLoading && debounced.length > 0 ? (
+          {result.empty && debounced.length > 0 ? (
             <div className="px-2 py-4 text-sm text-[var(--muted)]">Searching…</div>
           ) : null}
-          {result.isSuccess && debounced.length > 0 && items.length === 0 ? (
+          {result.ready && debounced.length > 0 && items.length === 0 ? (
             <Command.Empty className="px-2 py-4 text-sm text-[var(--muted)]">
               No results.
             </Command.Empty>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import type { FamilyGameDetail, GameDetail } from "@questorylabs/shared";
 import { useEffect } from "react";
@@ -28,13 +28,13 @@ export function FamilyGameSidebar({
     avatarUrl: string | null;
   }>;
 }) {
-  const detail = useQuery({
-    queryKey: ["game-detail", variant, appId],
-    queryFn: () =>
+  const detail = useResource({
+    id: ["game-detail", variant, appId],
+    load: () =>
       variant === "friends"
         ? api<GameDetail>(`/games/${appId}`)
         : api<FamilyGameDetail>(`/family/games/${appId}`),
-    enabled: appId != null,
+    when: appId != null,
   });
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function FamilyGameSidebar({
 
   if (appId == null) return null;
 
-  const d = detail.data;
+  const d = detail.value;
   const familyDetail = variant === "family" ? (d as FamilyGameDetail) : null;
   const friendsDetail = d as GameDetail | undefined;
   const partyOwnerIds = new Set(
@@ -88,7 +88,7 @@ export function FamilyGameSidebar({
               Game details
             </p>
             <h2 className="mt-1 truncate font-display text-xl font-bold tracking-tight">
-              {d?.name || (detail.isLoading ? "Loading…" : "Game")}
+              {d?.name || (detail.empty ? "Loading…" : "Game")}
             </h2>
           </div>
           <Button
@@ -101,10 +101,10 @@ export function FamilyGameSidebar({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {detail.isLoading && (
+          {detail.empty && (
             <p className="text-sm text-[var(--muted)]">Loading stats…</p>
           )}
-          {detail.isError && (
+          {detail.failed && (
             <p className="text-sm text-[var(--danger)]">
               Could not load game details.
             </p>

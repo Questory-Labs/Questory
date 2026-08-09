@@ -6,7 +6,7 @@ import {
   waitFor,
   cleanup,
 } from "@testing-library/react";
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { RecommendationsPanel } from "./RecommendationsPanel";
 
 const heuristicResponse = {
@@ -14,7 +14,7 @@ const heuristicResponse = {
   engine: "qengine/0.1.0",
   userId: "u1",
   generatedAt: "2026-07-22T20:00:00Z",
-  ml: { enabled: false, ready: false },
+  ml: { when: false, ready: false },
   items: [
     {
       kind: "game",
@@ -76,13 +76,11 @@ function installFetch() {
 }
 
 function renderPanel() {
-  const client = new QueryCache({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client = new ResourceStore({ retries: false });
   return render(
-    <QHttpQueryProvider client={client}>
+    <ResourceProvider store={client}>
       <RecommendationsPanel />
-    </QHttpQueryProvider>,
+    </ResourceProvider>,
   );
 }
 

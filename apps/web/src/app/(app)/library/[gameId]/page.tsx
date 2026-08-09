@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@questorylabs/qhttp/react";
+import { useResource } from "@questorylabs/qhttp/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -50,21 +50,21 @@ export default function LibraryGamePage() {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
 
-  const entry = useQuery({
-    queryKey: ["library-entry", gameId],
-    queryFn: () => api<LibraryEntryDetail>(`/library/${gameId}`),
-    enabled: Boolean(gameId),
+  const entry = useResource({
+    id: ["library-entry", gameId],
+    load: () => api<LibraryEntryDetail>(`/library/${gameId}`),
+    when: Boolean(gameId),
   });
 
-  const appId = entry.data?.game.appId;
-  const detail = useQuery({
-    queryKey: ["game-detail", appId],
-    queryFn: () => api<GameDetail>(`/games/${appId}`),
-    enabled: appId != null && appId > 0,
+  const appId = entry.value?.game.appId;
+  const detail = useResource({
+    id: ["game-detail", appId],
+    load: () => api<GameDetail>(`/games/${appId}`),
+    when: appId != null && appId > 0,
   });
 
-  const e = entry.data;
-  const d = detail.data;
+  const e = entry.value;
+  const d = detail.value;
   const currency = d?.price.currency || "USD";
   const stores = e?.stores || e?.game.stores || [];
   const name = e?.game.name || d?.name || gameId;
@@ -80,10 +80,10 @@ export default function LibraryGamePage() {
         {name}
       </p>
 
-      {(entry.isLoading || (appId && detail.isLoading)) && !entry.data && (
+      {(entry.empty || (appId && detail.empty)) && !entry.value && (
         <SkeletonDetailHeader />
       )}
-      {entry.isError && (
+      {entry.failed && (
         <StateMessage variant="error">Could not load this game.</StateMessage>
       )}
 
@@ -229,7 +229,7 @@ export default function LibraryGamePage() {
             </section>
           )}
 
-          {detail.isError && (
+          {detail.failed && (
             <StateMessage variant="error">
               Could not load enriched game stats.
             </StateMessage>

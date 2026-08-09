@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -11,26 +11,26 @@ type Settings = {
 };
 
 export default function AdminSettingsPage() {
-  const qc = useQueryClient();
-  const settings = useQuery({
-    queryKey: ["admin-settings"],
-    queryFn: () => api<Settings>("/admin/settings"),
+  const store = useStore();
+  const settings = useResource({
+    id: ["admin-settings"],
+    load: () => api<Settings>("/admin/settings"),
   });
 
-  const patch = useMutation({
-    mutationFn: (signupEnabled: boolean) =>
+  const patch = useAction({
+    run: (signupEnabled: boolean) =>
       api("/admin/settings", {
         method: "PATCH",
         body: JSON.stringify({ signupEnabled }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-settings"] });
-      qc.invalidateQueries({ queryKey: ["admin-overview"] });
-      qc.invalidateQueries({ queryKey: ["signup-status"] });
+      store.touch(["admin-settings"]);
+      store.touch(["admin-overview"]);
+      store.touch(["signup-status"]);
     },
   });
 
-  const s = settings.data;
+  const s = settings.value;
 
   return (
     <>
@@ -49,15 +49,15 @@ export default function AdminSettingsPage() {
         </p>
         <div className="mt-4 flex gap-2">
           <Button
-            disabled={patch.isPending || s?.signupEnabled === true}
-            onClick={() => patch.mutate(true)}
+            disabled={patch.busy || s?.signupEnabled === true}
+            onClick={() => patch.submit(true)}
           >
             Enable signup
           </Button>
           <Button
             variant="secondary"
-            disabled={patch.isPending || s?.signupEnabled === false}
-            onClick={() => patch.mutate(false)}
+            disabled={patch.busy || s?.signupEnabled === false}
+            onClick={() => patch.submit(false)}
           >
             Disable signup
           </Button>

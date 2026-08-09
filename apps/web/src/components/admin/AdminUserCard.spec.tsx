@@ -1,4 +1,4 @@
-import { QueryCache, QHttpQueryProvider } from "@questorylabs/qhttp/react";
+import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminUserCard, type AdminUser } from "./AdminUserCard";
@@ -22,19 +22,17 @@ const user: AdminUser = {
 };
 
 function renderCard(overrides?: Partial<Parameters<typeof AdminUserCard>[0]>) {
-  const qc = new QueryCache({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  const qc = new ResourceStore({ retries: false });
 
   return render(
-    <QHttpQueryProvider client={qc}>
+    <ResourceProvider store={qc}>
       <AdminUserCard
         user={user}
         startFreshEnabled
         onMessage={vi.fn()}
         {...overrides}
       />
-    </QHttpQueryProvider>,
+    </ResourceProvider>,
   );
 }
 

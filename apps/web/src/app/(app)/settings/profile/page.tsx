@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useEffect, useState } from "react";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { Button, PageHeader, Panel } from "@/components/ui";
@@ -27,30 +27,30 @@ type MeResponse = {
 };
 
 export default function ProfileSettingsPage() {
-  const qc = useQueryClient();
+  const store = useStore();
   const music = useMusicEnabled();
   const watch = useWatchEnabled();
   const [countryCode, setCountryCode] = useState("IN");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<MeResponse>("/auth/me"),
+  const me = useResource({
+    id: ["me"],
+    load: () => api<MeResponse>("/auth/me"),
   });
 
-  const regions = useQuery({
-    queryKey: ["price-regions"],
-    queryFn: () => api<PriceRegion[]>("/users/price-regions"),
+  const regions = useResource({
+    id: ["price-regions"],
+    load: () => api<PriceRegion[]>("/users/price-regions"),
   });
 
   useEffect(() => {
-    const cc = me.data?.user?.countryCode;
+    const cc = me.value?.user?.countryCode;
     if (cc) setCountryCode(cc.toUpperCase());
-  }, [me.data?.user?.countryCode]);
+  }, [me.value?.user?.countryCode]);
 
-  const save = useMutation({
-    mutationFn: async (nextCountry: string) => {
+  const save = useAction({
+    run: async (nextCountry: string) => {
       return api<MeResponse>("/users/me", {
         method: "PATCH",
         body: JSON.stringify({ countryCode: nextCountry }),
@@ -62,14 +62,14 @@ export default function ProfileSettingsPage() {
       setMessage(
         `Price region set to ${data.user?.countryCode || "—"} (${currency}).`,
       );
-      qc.invalidateQueries({ queryKey: ["me"] });
-      qc.invalidateQueries({ queryKey: ["cost-summary"] });
-      qc.invalidateQueries({ queryKey: ["cost-roi"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["wishlist"] });
-      qc.invalidateQueries({ queryKey: ["family-insights"] });
-      qc.invalidateQueries({ queryKey: ["family-library"] });
-      qc.invalidateQueries({ queryKey: ["library"] });
+      store.touch(["me"]);
+      store.touch(["cost-summary"]);
+      store.touch(["cost-roi"]);
+      store.touch(["dashboard"]);
+      store.touch(["wishlist"]);
+      store.touch(["family-insights"]);
+      store.touch(["family-library"]);
+      store.touch(["library"]);
     },
     onError: (err: Error) => {
       setMessage(null);
@@ -83,11 +83,11 @@ export default function ProfileSettingsPage() {
     },
   });
 
-  const selected = (regions.data || []).find(
+  const selected = (regions.value || []).find(
     (r) => r.countryCode === countryCode,
   );
   const dirty =
-    (me.data?.user?.countryCode || "").toUpperCase() !== countryCode;
+    (me.value?.user?.countryCode || "").toUpperCase() !== countryCode;
 
   return (
     <>
@@ -101,7 +101,7 @@ export default function ProfileSettingsPage() {
           Price region
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          {me.data?.user?.priceRegionLocked
+          {me.value?.user?.priceRegionLocked
             ? "Locked to your choice — Steam login will not change it."
             : "Currently following Steam account country until you save a choice."}
         </p>
@@ -115,10 +115,10 @@ export default function ProfileSettingsPage() {
               setMessage(null);
               setError(null);
             }}
-            disabled={regions.isLoading || save.isPending}
+            disabled={regions.empty || save.busy}
             className="mt-1.5 w-full rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           >
-            {(regions.data || [{ countryCode: "IN", currency: "INR", label: "India (INR)" }]).map(
+            {(regions.value || [{ countryCode: "IN", currency: "INR", label: "India (INR)" }]).map(
               (r) => (
                 <option key={r.countryCode} value={r.countryCode}>
                   {r.label}
@@ -136,10 +136,10 @@ export default function ProfileSettingsPage() {
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <Button
-            disabled={!dirty || save.isPending || !countryCode}
-            onClick={() => save.mutate(countryCode)}
+            disabled={!dirty || save.busy || !countryCode}
+            onClick={() => save.submit(countryCode)}
           >
-            {save.isPending ? "Saving…" : "Save"}
+            {save.busy ? "Saving…" : "Save"}
           </Button>
         </div>
 

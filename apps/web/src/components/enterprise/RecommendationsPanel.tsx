@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useResource, useStore } from "@questorylabs/qhttp/react";
 import {
   fetchRecommendations,
   fetchSettings,
@@ -149,7 +149,7 @@ function RecommendationCard({
 }
 
 export function RecommendationsPanel() {
-  const queryClient = useQueryClient();
+  const store = useStore();
   const [tab, setTab] = useState<RecommendationDomain | "all">("all");
   const [jobId, setJobId] = useState<string | null>(null);
   const [peekHeuristics, setPeekHeuristics] = useState(false);
@@ -163,37 +163,37 @@ export function RecommendationsPanel() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   /* Heuristic fast path — instant, always available. */
-  const recs = useQuery({
-    queryKey: ["enterprise-recommendations", tab],
-    queryFn: () =>
+  const recs = useResource({
+    id: ["enterprise-recommendations", tab],
+    load: () =>
       fetchRecommendations({
         limit: 12,
         domains: tab === "all" ? undefined : [tab],
       }),
-    staleTime: 60_000,
-    retry: 1,
+    freshFor: 60_000,
+    retries: 1,
   });
 
-  const settings = useQuery({
-    queryKey: ["enterprise-settings"],
-    queryFn: fetchSettings,
-    staleTime: 5 * 60_000,
-    retry: 1,
+  const settings = useResource({
+    id: ["enterprise-settings"],
+    load: fetchSettings,
+    freshFor: 5 * 60_000,
+    retries: 1,
   });
 
   /* Agentic path — poll the curation job until it settles. */
-  const job = useQuery({
-    queryKey: ["enterprise-curation-job", jobId],
-    queryFn: () => getCurationJob(jobId as string),
-    enabled: Boolean(jobId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
+  const job = useResource({
+    id: ["enterprise-curation-job", jobId],
+    load: () => getCurationJob(jobId as string),
+    when: Boolean(jobId),
+    refreshEvery: (value) => {
+      const status = value?.status;
       return status === "done" || status === "failed" ? false : 1500;
     },
-    retry: 1,
+    retries: 1,
   });
 
-  const jobData: CurationJob | undefined = job.data;
+  const jobData: CurationJob | undefined = job.value;
   const jobRunning =
     Boolean(jobId) &&
     jobData?.status !== "done" &&
@@ -253,9 +253,7 @@ export function RecommendationsPanel() {
         setFading((prev) => new Set(prev).add(key));
         window.setTimeout(() => {
           setDismissed((prev) => new Set(prev).add(key));
-          void queryClient.invalidateQueries({
-            queryKey: ["enterprise-recommendations"],
-          });
+          void store.touch(["enterprise-recommendations"]);
         }, 320);
       } else {
         setVotes((prev) => ({
@@ -267,14 +265,14 @@ export function RecommendationsPanel() {
         /* best-effort — the engine also learns from impressions */
       });
     },
-    [queryClient],
+    [store],
   );
 
   /* Which response is on screen? */
   const showingCurated = Boolean(curated) && !jobRunning;
   const active: RecommendationResponse | undefined = showingCurated
     ? (curated as RecommendationResponse)
-    : recs.data;
+    : recs.value;
 
   const visibleItems = (active?.items ?? []).filter(
     (item) =>
@@ -283,7 +281,7 @@ export function RecommendationsPanel() {
   );
 
   const worldSummary = active?.worldSummary;
-  const hasLocation = Boolean(settings.data?.city || settings.data?.latitude);
+  const hasLocation = Boolean(settings.value?.city || settings.value?.latitude);
 
   return (
     <section>
@@ -354,10 +352,10 @@ export function RecommendationsPanel() {
 
       {(!jobRunning || peekHeuristics) && (
         <>
-          {recs.isLoading && !active && (
+          {recs.empty && !active && (
             <p className={styles.message}>Scoring your libraries…</p>
           )}
-          {recs.isError && !active && (
+          {recs.failed && !active && (
             <p className={styles.messageError}>
               Could not load recommendations. Is QEngine running?
             </p>

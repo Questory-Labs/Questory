@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Button, Panel } from "@/components/ui";
 import { watchFetch } from "@/lib/watch";
 import { formatDateTime } from "@/lib/dates";
@@ -20,37 +20,37 @@ function formatLastSync(value?: string | null) {
 }
 
 export function LetterboxdConnectCard() {
-  const qc = useQueryClient();
+  const store = useStore();
   const [username, setUsername] = useState("");
 
-  const status = useQuery({
-    queryKey: ["watch-letterboxd-status"],
-    queryFn: () => watchFetch<LetterboxdStatus>("/letterboxd/status"),
+  const status = useResource({
+    id: ["watch-letterboxd-status"],
+    load: () => watchFetch<LetterboxdStatus>("/letterboxd/status"),
   });
 
-  const connect = useMutation({
-    mutationFn: (name: string) =>
+  const connect = useAction({
+    run: (name: string) =>
       watchFetch<LetterboxdStatus>("/letterboxd/connect", {
         method: "POST",
         body: JSON.stringify({ username: name }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["watch-letterboxd-status"] });
-      qc.invalidateQueries({ queryKey: ["watch-sync-status"] });
+      store.touch(["watch-letterboxd-status"]);
+      store.touch(["watch-sync-status"]);
     },
   });
 
-  const disconnect = useMutation({
-    mutationFn: () =>
+  const disconnect = useAction({
+    run: () =>
       watchFetch("/letterboxd/connect", { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["watch-letterboxd-status"] });
-      qc.invalidateQueries({ queryKey: ["watch-sync-status"] });
+      store.touch(["watch-letterboxd-status"]);
+      store.touch(["watch-sync-status"]);
       setUsername("");
     },
   });
 
-  const connected = status.data?.connected === true;
+  const connected = status.value?.connected === true;
 
   return (
     <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
@@ -76,7 +76,7 @@ export function LetterboxdConnectCard() {
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
         {connected
-          ? `@${status.data?.username} · last sync ${formatLastSync(status.data?.lastSyncedAt)}`
+          ? `@${status.value?.username} · last sync ${formatLastSync(status.value?.lastSyncedAt)}`
           : "Connect your Letterboxd username for scheduled diary scrape sync (admin configures selectors)."}
       </p>
       <div className="mt-auto space-y-3 pt-5">
@@ -91,8 +91,8 @@ export function LetterboxdConnectCard() {
               aria-label="Letterboxd username"
             />
             <Button
-              disabled={connect.isPending || !username.trim()}
-              onClick={() => connect.mutate(username.trim())}
+              disabled={connect.busy || !username.trim()}
+              onClick={() => connect.submit(username.trim())}
             >
               Connect
             </Button>
@@ -101,16 +101,16 @@ export function LetterboxdConnectCard() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
-              disabled={disconnect.isPending}
-              onClick={() => disconnect.mutate()}
+              disabled={disconnect.busy}
+              onClick={() => disconnect.submit()}
             >
               Disconnect
             </Button>
           </div>
         )}
-        {status.data?.syncCursor ? (
+        {status.value?.syncCursor ? (
           <p className="font-mono text-[11px] text-[var(--faint)]">
-            Latest entry: {status.data.syncCursor}
+            Latest entry: {status.value.syncCursor}
           </p>
         ) : null}
       </div>

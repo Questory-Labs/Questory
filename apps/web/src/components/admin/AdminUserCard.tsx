@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@questorylabs/qhttp/react";
+import { useAction, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, Dialog, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -77,14 +77,14 @@ export function AdminUserCard({
   startFreshEnabled,
   onMessage,
 }: AdminUserCardProps) {
-  const qc = useQueryClient();
+  const store = useStore();
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState(user.email || "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
 
-  const patch = useMutation({
-    mutationFn: (body: {
+  const patch = useAction({
+    run: (body: {
       email?: string;
       password?: string;
       isAdmin?: boolean;
@@ -97,32 +97,32 @@ export function AdminUserCard({
       onMessage("Updated");
       setPassword("");
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      store.touch(["admin-users"]);
     },
     onError: (e: Error) => onMessage(e.message),
   });
 
-  const del = useMutation({
-    mutationFn: () => api(`/admin/users/${user.id}`, { method: "DELETE" }),
+  const del = useAction({
+    run: () => api(`/admin/users/${user.id}`, { method: "DELETE" }),
     onSuccess: () => {
       onMessage("Deleted");
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      store.touch(["admin-users"]);
     },
     onError: (e: Error) => onMessage(e.message),
   });
 
-  const resetData = useMutation({
-    mutationFn: () =>
+  const resetData = useAction({
+    run: () =>
       api(`/admin/users/${user.id}/reset-data`, { method: "POST" }),
     onSuccess: () => {
       onMessage("Started fresh — user kept, all other data wiped");
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      store.touch(["admin-users"]);
     },
     onError: (e: Error) => onMessage(e.message),
   });
 
-  const syncTarget = useMutation({
-    mutationFn: (target: SyncTarget) =>
+  const syncTarget = useAction({
+    run: (target: SyncTarget) =>
       api("/admin/ops/user-sync-target", {
         method: "POST",
         body: JSON.stringify({ userId: user.id, target }),
@@ -146,7 +146,7 @@ export function AdminUserCard({
   }
 
   function saveEdit() {
-    patch.mutate({
+    patch.submit({
       email: email || undefined,
       password: password || undefined,
     });
@@ -156,23 +156,23 @@ export function AdminUserCard({
     if (!confirm) return;
 
     if (confirm.kind === "role") {
-      patch.mutate({ isAdmin: confirm.promote });
+      patch.submit({ isAdmin: confirm.promote });
     } else if (confirm.kind === "delete") {
-      del.mutate();
+      del.submit();
     } else if (confirm.kind === "sync") {
-      syncTarget.mutate(confirm.target);
+      syncTarget.submit(confirm.target);
     } else if (confirm.kind === "start-fresh") {
-      resetData.mutate();
+      resetData.submit();
     }
 
     setConfirm(null);
   }
 
   const pending =
-    patch.isPending ||
-    del.isPending ||
-    resetData.isPending ||
-    syncTarget.isPending;
+    patch.busy ||
+    del.busy ||
+    resetData.busy ||
+    syncTarget.busy;
 
   const dialog = (() => {
     if (!confirm) return null;
@@ -271,14 +271,14 @@ export function AdminUserCard({
                 <Button
                   variant="secondary"
                   className="px-2 py-1 text-xs"
-                  disabled={patch.isPending}
+                  disabled={patch.busy}
                   onClick={cancelEdit}
                 >
                   Cancel
                 </Button>
                 <Button
                   className="px-2 py-1 text-xs"
-                  disabled={patch.isPending}
+                  disabled={patch.busy}
                   onClick={saveEdit}
                 >
                   Save
