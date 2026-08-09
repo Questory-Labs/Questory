@@ -4,7 +4,7 @@ import { useResource } from "@questorylabs/qhttp/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
-import { api, apiOnce } from "@/lib/api";
+import { apiOnce } from "@/lib/api";
 
 type MeResponse = {
   user: {
