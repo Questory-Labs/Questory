@@ -36,7 +36,7 @@ env:
 jobs:
   release:
     name: Release service from Docker image
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -134,7 +134,7 @@ jobs:
   deploy:
     name: Remote deploy
     needs: release
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: ${{ vars.ENABLE_SERVICE_DEPLOY == 'true' }}
     environment: production
 

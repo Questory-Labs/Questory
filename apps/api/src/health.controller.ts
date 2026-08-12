@@ -7,31 +7,53 @@ import {
   resolveSyncMode,
 } from "./lib/runtime-config";
 
+function coreHealth() {
+  const redis = resolveRedisConfig();
+  return {
+    ok: true as const,
+    mode: resolveAppMode(),
+    allowlistEnabled: isAllowlistEnabled(),
+    database: {
+      provider: resolveDbProvider(),
+      urlConfigured: Boolean(process.env.DATABASE_URL),
+    },
+    redis: {
+      configured: Boolean(redis.url),
+      mode: redis.mode,
+      forceInline: redis.forceInline,
+    },
+    sync: {
+      mode: resolveSyncMode(),
+    },
+    music: { enabled: true },
+    watch: { enabled: true },
+    read: { enabled: true },
+  };
+}
+
 @Controller({ path: "health", version: VERSION_NEUTRAL })
 export class HealthController {
   @Get()
   check() {
-    const redis = resolveRedisConfig();
     return {
-      ok: true,
+      ...coreHealth(),
       service: "questorylabs-api",
-      mode: resolveAppMode(),
-      allowlistEnabled: isAllowlistEnabled(),
-      database: {
-        provider: resolveDbProvider(),
-        urlConfigured: Boolean(process.env.DATABASE_URL),
-      },
-      redis: {
-        configured: Boolean(redis.url),
-        mode: redis.mode,
-        forceInline: redis.forceInline,
-      },
-      sync: {
-        mode: resolveSyncMode(),
-      },
-      music: { enabled: true },
-      watch: { enabled: true },
-      read: { enabled: true },
+    };
+  }
+}
+
+/** qMonitor baseUrl probe — always `/api/health` on BE. */
+@Controller({ path: "api/health", version: VERSION_NEUTRAL })
+export class ApiHealthController {
+  @Get()
+  check() {
+    const webOrigin = (
+      process.env.WEB_ORIGIN || "http://localhost:3000"
+    ).replace(/\/+$/, "");
+    return {
+      ok: true as const,
+      service: "be" as const,
+      webOrigin,
     };
   }
 }

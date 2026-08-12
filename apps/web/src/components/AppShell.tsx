@@ -43,6 +43,7 @@ const BASE_NAV_GROUPS: { label: string; items: { href: string; label: string }[]
       { href: "/library", label: "Library" },
       { href: "/wishlist", label: "Wishlist" },
       { href: "/collections", label: "Collections" },
+      { href: "/sessions", label: "Sessions" },
       { href: "/cost", label: "Cost" },
     ],
   },

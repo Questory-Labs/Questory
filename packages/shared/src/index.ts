@@ -1580,6 +1580,34 @@ export {
   SteamId64Schema,
 } from "./pagination";
 
+export {
+  QMONITOR_CLIENT_ID,
+  QMONITOR_REDIRECT_URI,
+  QMONITOR_SCOPE,
+  QmonitorSessionWebhookSchema,
+  QmonitorAuthorizeQuerySchema,
+  QmonitorTokenRequestSchema,
+  QmonitorTokenAuthorizationCodeSchema,
+  QmonitorTokenRefreshSchema,
+  QmonitorRevokeSchema,
+  QmonitorApproveSchema,
+  QmonitorHealthSchema,
+  QmonitorHealthFeSchema,
+  QmonitorHealthBeSchema,
+  PlaySessionGameSchema,
+  PlaySessionItemSchema,
+  PlaySessionPageSchema,
+  type QmonitorSessionWebhook,
+  type QmonitorAuthorizeQuery,
+  type QmonitorTokenRequest,
+  type QmonitorRevoke,
+  type QmonitorApprove,
+  type QmonitorHealth,
+  type PlaySessionGame,
+  type PlaySessionItem,
+  type PlaySessionPage,
+} from "./qmonitor";
+
 // Server-only crypto helpers: import from `@questorylabs/shared/session`
 // or `@questorylabs/shared/oauth-state` — never from this browser-safe barrel.
 

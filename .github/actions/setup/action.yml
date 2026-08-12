@@ -1,5 +1,5 @@
 name: Setup Node + pnpm
-description: Checkout-ready Node and pnpm install with persistent self-hosted caches
+description: Checkout-ready Node and pnpm install with GitHub Actions or persistent runner caches
 inputs:
   install:
     description: Run pnpm install

@@ -55,6 +55,9 @@ model User {
   musicRules             UserMusicRule[]
   musicLabels            UserMusicLabel[]
   aiInsightCaches        AiInsightCache[]
+  playSessions           PlaySession[]
+  qmonitorDeviceSessions  QmonitorDeviceSession[]
+  qmonitorAuthCodes       QmonitorAuthCode[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -220,9 +223,79 @@ model Game {
   storeListings          GameStoreListing[]
   wishlistItems          WishlistItem[]
   playActivitySnapshots  PlayActivitySnapshot[]
+  playSessions           PlaySession[]
 
   @@index([appId])
   @@index([name])
+}
+
+/**
+ * Ground-truth local play session from qMonitor (start/end/duration).
+ * Distinct from PlayActivitySnapshot (Steam sync hour buckets).
+ */
+model PlaySession {
+  id           String   @id @default(cuid())
+  userId       String
+  gameId       String?
+  appId        Int?
+  title        String
+  source       String
+  /** qMonitor session_id — idempotency key */
+  externalId   String
+  startedAt    DateTime
+  endedAt      DateTime
+  durationSecs Int
+  exe          String?
+  hostOs       String?
+  hostName     String?
+  rawPayload   String?
+  createdAt    DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, externalId])
+  @@index([userId, endedAt])
+  @@index([userId, startedAt])
+  @@index([appId])
+  @@index([gameId])
+}
+
+/** Device-bound qMonitor refresh session (anti-exfil binding). */
+model QmonitorDeviceSession {
+  id               String    @id @default(cuid())
+  userId           String
+  deviceIdHash     String
+  refreshTokenHash String
+  label            String?
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceIdHash])
+  @@index([refreshTokenHash])
+  @@index([userId, revokedAt])
+}
+
+/** Single-use authorization codes for qMonitor PKCE exchange. */
+model QmonitorAuthCode {
+  id            String    @id @default(cuid())
+  codeHash      String    @unique
+  userId        String
+  deviceIdHash  String
+  codeChallenge String
+  redirectUri   String
+  state         String
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 /** Per-storefront release of a canonical game. */
