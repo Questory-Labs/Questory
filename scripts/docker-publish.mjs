@@ -90,10 +90,35 @@ function buildCacheDir(name) {
   return `${cacheRoot}/${name}`;
 }
 
-function buildImage(name, dockerfile, buildArgs, tags) {
+function useGithubActionsCache() {
+  return (
+    process.env.DOCKER_BUILDX_CACHE === "gha" ||
+    process.env.RUNNER_ENVIRONMENT === "github-hosted"
+  );
+}
+
+function buildCacheArgs(name) {
+  if (useGithubActionsCache()) {
+    const scope = `docker-${name}`;
+    return [
+      "--cache-from",
+      `type=gha,scope=${scope}`,
+      "--cache-to",
+      `type=gha,mode=max,scope=${scope},ignore-error=true`,
+    ];
+  }
+
   const cacheDir = buildCacheDir(name);
   run("mkdir", ["-p", cacheDir]);
+  return [
+    "--cache-from",
+    `type=local,src=${cacheDir}`,
+    "--cache-to",
+    `type=local,dest=${cacheDir},mode=max`,
+  ];
+}
 
+function buildImage(name, dockerfile, buildArgs, tags) {
   const useBuildx =
     process.env.DOCKER_BUILDX !== "0" &&
     (process.env.CI === "true" || process.env.DOCKER_BUILDX_CACHE_DIR);
@@ -111,8 +136,7 @@ function buildImage(name, dockerfile, buildArgs, tags) {
     args.push("--label", `org.opencontainers.image.source=${sourceRepo}`);
   }
   if (useBuildx) {
-    args.push("--cache-from", `type=local,src=${cacheDir}`);
-    args.push("--cache-to", `type=local,dest=${cacheDir},mode=max`);
+    args.push(...buildCacheArgs(name));
   }
   args.push(".");
   run("docker", args);

@@ -3,7 +3,7 @@ import { getApiUrl } from "@/lib/runtime-env";
 import { requestJson, requestJsonOnce } from "@/lib/qhttp-client";
 
 function apiPath(path: string) {
-  return withApiVersion(path, ["/auth", "/health"]);
+  return withApiVersion(path, ["/auth", "/health", "/oauth", "/webhooks"]);
 }
 
 export async function api<T>(

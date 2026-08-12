@@ -35,3 +35,6 @@ export const WISHLIST_PAGE_SIZE = 15;
 
 /** Family shareable games and license conflicts (`/family/library`). */
 export const FAMILY_LIBRARY_PAGE_SIZE = 15;
+
+/** qMonitor local play sessions (`/sessions`). */
+export const PLAY_SESSIONS_PAGE_SIZE = 15;

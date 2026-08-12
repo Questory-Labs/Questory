@@ -204,6 +204,31 @@ Locally: `pnpm setup` then `pnpm dev` (watch modules load with the API).
 | **Bangumi** | OAuth at `/v1/watch/bangumi/authorize` → collection import |
 | **Kitsu** | Email/password connect at `POST /v1/watch/kitsu/connect` → library import |
 | **Plex / Jellyfin** | `POST /webhooks/plex` and `POST /webhooks/jellyfin` on the API (unversioned) |
+| **qMonitor** | Device login (auth code + PKCE) + `POST /webhooks/qmonitor` — see below |
+
+### qMonitor device login
+
+qMonitor can use either host as `baseUrl`:
+
+- `https://app.example.com` (FE) or `https://api.example.com` (BE)
+
+On save/test it probes **`GET {baseUrl}/api/health`**:
+
+| `service` | Meaning | Token / webhook root | Consent UI |
+|-----------|---------|----------------------|------------|
+| `fe` | Next.js web | `{baseUrl}/api` (exclusive handlers proxy to Nest) | `{baseUrl}/oauth/qmonitor/authorize` |
+| `be` | Nest API | `{baseUrl}` | `{webOrigin}/oauth/qmonitor/authorize` from health JSON |
+
+FE handlers (no catch-all rewrite):
+
+- `GET /api/health` → `{ ok: true, service: "fe" }`
+- `POST /api/oauth/qmonitor/token` → Nest
+- `POST /api/oauth/qmonitor/revoke` → Nest
+- `POST /api/webhooks/qmonitor` → Nest
+
+BE also exposes `GET /api/health` → `{ ok: true, service: "be", webOrigin }`.
+
+Auth is **not** OIDC discovery: auth-code + PKCE, device-bound refresh tokens (anti-exfil), short-lived access tokens checked against revoked device sessions on webhook ingest.
 
 By default the API schedules Trakt, AniList, MAL, Kitsu, Bangumi, Shikimori, and Letterboxd scrape sync every 6 hours (`CRON_WATCH_SCHEDULE`; disable with `CRON_ENABLED=false`).
 

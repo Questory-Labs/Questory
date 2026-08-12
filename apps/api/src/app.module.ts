@@ -28,8 +28,9 @@ import { MusicModule } from "./music/music.module";
 import { WatchModule } from "./watch/watch.module";
 import { ReadModule } from "./read/read.module";
 import { ShellModule } from "./shell/shell.module";
-import { HealthController } from "./health.controller";
+import { HealthController, ApiHealthController } from "./health.controller";
 import { EnterpriseModule } from "./enterprise/enterprise.module";
+import { QmonitorModule } from "./qmonitor/qmonitor.module";
 import { TagsModule } from "./tags/tags.module";
 
 const rootEnv = resolve(process.cwd(), "../../.env");
@@ -72,7 +73,8 @@ const localEnv = resolve(process.cwd(), ".env");
     AdminModule,
     EnterpriseModule,
     TagsModule,
+    QmonitorModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, ApiHealthController],
 })
 export class AppModule {}

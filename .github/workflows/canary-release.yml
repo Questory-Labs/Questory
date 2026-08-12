@@ -23,7 +23,7 @@ permissions:
 jobs:
   meta:
     name: Resolve canary version
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       api_changed: ${{ steps.changes.outputs.api_changed }}
       web_changed: ${{ steps.changes.outputs.web_changed }}
@@ -111,7 +111,7 @@ jobs:
   tag:
     name: Push canary git tags
     needs: [meta, docker-api, docker-web]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: |
       always() &&
       needs.meta.result == 'success' &&
@@ -144,7 +144,7 @@ jobs:
   summary:
     name: Canary summary
     needs: [meta, docker-api, docker-web, tag]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: always() && needs.meta.result == 'success'
     steps:
       - name: Write summary

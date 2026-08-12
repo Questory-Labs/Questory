@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
-import { api, apiOnce } from "@/lib/api";
+import { sanitizeAppHref } from "@questorylabs/shared";
+import { apiOnce } from "@/lib/api";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
@@ -23,9 +24,24 @@ import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { LandingBackground } from "@/components/LandingBackground";
 
-export default function LoginPage() {
+function safeNextPath(raw: string | null): string {
+  if (!raw) return "/dashboard";
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  })();
+  const cleaned = sanitizeAppHref(decoded);
+  return cleaned || "/dashboard";
+}
+
+function LoginInner() {
   const router = useRouter();
   const store = useStore();
+  const search = useSearchParams();
+  const nextPath = safeNextPath(search.get("next"));
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
   const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +54,8 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (me.value?.user) router.replace("/dashboard");
-  }, [me.value, router]);
+    if (me.value?.user) router.replace(nextPath);
+  }, [me.value, router, nextPath]);
 
   const refreshChallenge = useCallback(async () => {
     setChallengeLoading(true);
@@ -81,7 +97,7 @@ export default function LoginPage() {
         challengeToken: ch.token,
       });
       await store.touch(["me"]);
-      router.replace("/dashboard");
+      router.replace(nextPath);
     }
 
     try {
@@ -116,8 +132,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <LandingBackground />
+    <>
       <AuthErrorToast message={error} onDismiss={() => setError(null)} />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
         <BrandMark href="/" size="md" wordmarkClassName="text-3xl" />
@@ -152,7 +167,10 @@ export default function LoginPage() {
             />
           </label>
           {error ? (
-            <p className="border border-[var(--warm)]/40 bg-[var(--warm)]/10 px-3 py-2 text-sm text-[var(--warm)]" role="alert">
+            <p
+              className="border border-[var(--warm)]/40 bg-[var(--warm)]/10 px-3 py-2 text-sm text-[var(--warm)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -160,32 +178,37 @@ export default function LoginPage() {
             <Button
               type="button"
               variant="secondary"
-              className="w-full"
-              onClick={() => {
-                setError(null);
-                void refreshChallenge();
-              }}
+              onClick={() => void refreshChallenge()}
             >
               Retry
             </Button>
           ) : (
             <Button
               type="submit"
-              disabled={!challenge || pending}
-              className="w-full"
+              disabled={pending || challengeLoading || !challenge}
             >
               {pending ? "Signing in…" : "Sign in"}
             </Button>
           )}
         </form>
-
         <p className="mt-6 text-sm text-[var(--muted)]">
           No account?{" "}
-          <Link href="/register" className="text-[var(--accent)] hover:underline">
-            Create one
+          <Link href="/register" className="text-[var(--ink)] underline">
+            Register
           </Link>
         </p>
       </div>
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="relative min-h-screen overflow-hidden">
+      <LandingBackground />
+      <Suspense fallback={null}>
+        <LoginInner />
+      </Suspense>
     </div>
   );
 }
