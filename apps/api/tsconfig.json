@@ -16,5 +16,13 @@
     "strict": true,
     "esModuleInterop": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "watchOptions": {
+    "excludeDirectories": [
+      "**/node_modules",
+      "**/.git",
+      "**/dist",
+      "**/generated"
+    ]
+  }
 }

@@ -23,6 +23,7 @@ import {
 } from "../lib/json-arrays";
 import { currencyFromCountry, normalizePriceCountry } from "../lib/currency";
 import { isSuspiciousPrice } from "../lib/store-price";
+import { bullmqConnection } from "../lib/redis-connection";
 import { resolveSyncMode } from "../lib/runtime-config";
 import { parseSteamReleaseDate } from "../lib/steam-dates";
 import { truncateToUtcHour } from "./play-activity";
@@ -98,13 +99,19 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
 
     const redisUrl = process.env.REDIS_URL!.trim();
     try {
-      const connection = { url: redisUrl };
+      const connection = bullmqConnection(redisUrl);
       this.queue = new Queue<SyncJobData>("steam-sync", { connection });
       this.worker = new Worker<SyncJobData>(
         "steam-sync",
         async (job) => this.process(job),
         { connection, concurrency: 2 },
       );
+      this.queue.on("error", (err) => {
+        this.logger.warn(`BullMQ queue Redis error: ${err.message}`);
+      });
+      this.worker.on("error", (err) => {
+        this.logger.warn(`BullMQ worker Redis error: ${err.message}`);
+      });
       this.worker.on("failed", (job, err) => {
         this.logger.error(`Job ${job?.id} failed: ${err.message}`);
       });

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import Redis from "ioredis";
+import { redisClientOptions } from "../lib/redis-connection";
 import { resolveRedisConfig } from "../lib/runtime-config";
 import { randomBytes } from "crypto";
 
@@ -20,7 +21,7 @@ export class CacheService implements OnModuleDestroy {
 
     if (config.enabled && config.url) {
       this.client = new Redis(config.url, {
-        maxRetriesPerRequest: null,
+        ...redisClientOptions(),
         lazyConnect: true,
         enableOfflineQueue: false,
       });

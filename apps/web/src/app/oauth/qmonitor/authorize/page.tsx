@@ -159,10 +159,7 @@ function AuthorizeInner() {
 
       {!loggedIn ? (
         <div className="flex flex-wrap gap-3">
-          <Link
-            href={loginHref}
-            className="inline-flex items-center justify-center border border-[var(--line-strong)] bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--bg-0)]"
-          >
+          <Link href={loginHref} className="btn btn-primary">
             Log in
           </Link>
           <Button type="button" variant="ghost" disabled={busy} onClick={onDecline}>
@@ -210,7 +207,13 @@ export default function QmonitorAuthorizePage() {
     <div className="relative min-h-screen overflow-hidden">
       <LandingBackground />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-        <BrandMark href="/" size="md" wordmarkClassName="text-3xl" />
+        <BrandMark
+          href={null}
+          size="md"
+          wordmark="qMonitor"
+          markSrc="/qmonitor-mark.svg"
+          wordmarkClassName="text-3xl"
+        />
         <Suspense fallback={<p className="mt-8 text-sm text-[var(--muted)]">Loading…</p>}>
           <AuthorizeInner />
         </Suspense>
