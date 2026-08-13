@@ -12,6 +12,8 @@ type BrandMarkProps = {
   showWordmark?: boolean;
   className?: string;
   wordmarkClassName?: string;
+  wordmark?: string;
+  markSrc?: string;
 };
 
 export function BrandMark({
@@ -20,6 +22,8 @@ export function BrandMark({
   showWordmark = true,
   className = "",
   wordmarkClassName = "",
+  wordmark = "Questory",
+  markSrc = "/favicon.svg",
 }: BrandMarkProps) {
   const px = SIZES[size];
   const mark = (
@@ -27,7 +31,7 @@ export function BrandMark({
       className={`inline-flex items-center gap-2.5 text-[var(--ink)] ${className}`}
     >
       <img
-        src="/favicon.svg"
+        src={markSrc}
         alt=""
         width={px}
         height={px}
@@ -39,10 +43,10 @@ export function BrandMark({
           className={`font-display leading-none tracking-tight ${wordmarkClassName}`}
           style={{ fontWeight: size === "sm" ? 700 : 800 }}
         >
-          Questory
+          {wordmark}
         </span>
       ) : (
-        <span className="sr-only">Questory</span>
+        <span className="sr-only">{wordmark}</span>
       )}
     </span>
   );
@@ -53,7 +57,7 @@ export function BrandMark({
     <Link
       href={href}
       className="inline-flex transition hover:opacity-90"
-      aria-label="Questory home"
+      aria-label={`${wordmark} home`}
     >
       {mark}
     </Link>
