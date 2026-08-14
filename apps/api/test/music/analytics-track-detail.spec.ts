@@ -33,6 +33,7 @@ describe("AnalyticsService.trackDetail", () => {
           async (_u, kind, _id, canonical: string) => canonical,
         ),
       loadLabelsForUser: vi.fn().mockResolvedValue(new Map()),
+      loadArtistCreditsForUser: vi.fn().mockResolvedValue(new Map()),
     } as unknown as CorrectionsService;
     service = new AnalyticsService(prisma, users, playingNow, corrections);
   });

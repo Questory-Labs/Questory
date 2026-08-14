@@ -2,12 +2,14 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { QmonitorSessionWebhookSchema } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { GameMergeService } from "../stores/game-merge.service";
+import { QmonitorSessionRulesService } from "./qmonitor-session-rules.service";
 
 @Injectable()
 export class QmonitorIngestService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly games: GameMergeService,
+    private readonly rules: QmonitorSessionRulesService,
   ) {}
 
   async ingest(userId: string, body: unknown) {
@@ -29,7 +31,11 @@ export class QmonitorIngestService {
     let gameId: string | null = null;
     let appId: number | null = data.steam_app_id ?? null;
 
-    if (data.steam_app_id) {
+    const ruled = await this.rules.resolveTarget(userId, data.title, data.exe);
+    if (ruled) {
+      gameId = ruled.gameId;
+      appId = ruled.appId ?? data.steam_app_id ?? null;
+    } else if (data.steam_app_id) {
       const { game } = await this.games.upsertListing({
         store: "steam",
         externalId: String(data.steam_app_id),

@@ -16,7 +16,8 @@ import {
 } from "@questorylabs/shared";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { generateCardTheme } from "@/lib/rewind-card-engine";
-import { expandInsightChunks, parseInsightChunk, splitInsightContent } from "@/lib/rewind-ai-parser";
+import { parseInsightChunk, splitInsightContent } from "@/lib/rewind-ai-parser";
+import { RewindCarousel } from "@/components/rewind/RewindCarousel";
 import { RewindInsightCard } from "@/components/rewind/RewindInsightCard";
 
 const currentYear = new Date().getFullYear();
@@ -60,10 +61,7 @@ function TopList({ title, items, unitLabel }: { title: string; items: RewindTopI
 }
 
 function formatAiCards(content: string, domain: "music" | "watch" | "read") {
-  const originalChunks = splitInsightContent(content);
-  const chunks = expandInsightChunks(originalChunks);
-
-  return chunks.map((chunk, i) => {
+  return splitInsightContent(content).map((chunk, i) => {
     const { title, text, tagSlug } = parseInsightChunk(chunk);
     const theme = generateCardTheme(domain, i, tagSlug);
 
@@ -196,12 +194,6 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
                 <h3 className="text-xl font-display font-semibold text-[var(--ink)] tracking-tight">AI Insights</h3>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" onClick={() => document.getElementById('ai-carousel')?.scrollBy({ left: -window.innerWidth * 0.8, behavior: 'smooth' })} className="hidden md:flex p-2 !px-3 border border-[var(--line-strong)] rounded-lg hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)] transition-colors">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                </Button>
-                <Button variant="ghost" onClick={() => document.getElementById('ai-carousel')?.scrollBy({ left: window.innerWidth * 0.8, behavior: 'smooth' })} className="hidden md:flex p-2 !px-3 border border-[var(--line-strong)] rounded-lg hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)] transition-colors mr-2">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                </Button>
                 <Button onClick={handleRedo} disabled={!aiGenerationAllowed || aiQuery.refreshing || forceRedo} className="bg-[var(--surface-2)] hover:bg-[var(--bg-3)] border-[var(--line-strong)] hover:border-[var(--muted)] transition-all shadow-sm">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                   Regenerate
@@ -227,9 +219,9 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
             ) : aiQuery.error ? (
               <StateMessage variant="error">{aiQuery.error.message || "Failed to load narrative"}</StateMessage>
             ) : (
-              <div id="ai-carousel" className="flex overflow-x-auto snap-x snap-mandatory gap-8 pb-8 pt-4 -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar">
+              <RewindCarousel key={aiQuery.value?.content ?? period}>
                 {aiQuery.value?.content ? formatAiCards(aiQuery.value.content, domain) : null}
-              </div>
+              </RewindCarousel>
             )}
           </div>
         )}

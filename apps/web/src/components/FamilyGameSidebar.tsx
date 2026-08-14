@@ -9,6 +9,7 @@ import {
   OwnerRow,
   SectionTitle,
 } from "@/components/GameDetailStats";
+import { GameCover } from "@/components/GameCover";
 import { Button } from "@/components/ui";
 
 export function FamilyGameSidebar({
@@ -112,18 +113,7 @@ export function FamilyGameSidebar({
           {d && (
             <div className="space-y-8">
               <div className="overflow-hidden rounded-lg border border-[var(--line)]">
-                {d.headerImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={d.headerImage}
-                    alt=""
-                    className="aspect-[460/215] w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex aspect-[460/215] items-center justify-center bg-[var(--bg-2)] text-xs text-[var(--faint)]">
-                    No art
-                  </div>
-                )}
+                <GameCover src={d.headerImage} />
               </div>
 
               <GameDetailStats

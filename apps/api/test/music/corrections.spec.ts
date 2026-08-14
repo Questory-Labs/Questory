@@ -237,6 +237,76 @@ describe("CorrectionsService", () => {
     expect(result.correctionArtistIds).toEqual(["a1"]);
   });
 
+  it("preserves combined artist credit and maps individual artist ids", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-split",
+        kind: "track",
+        matchArtistNorm: "amit trivedi, shreya ghoshal",
+        matchAlbumNorm: null,
+        matchTrackNorm: "shubhaarambh",
+        sourceTrackId: "t1",
+        sourceReleaseId: null,
+        sourceArtistId: null,
+        targetTrackTitle: "Shubhaarambh",
+        targetTrackId: "t2",
+        targetAlbumTitle: null,
+        targetAlbumId: null,
+        artistCredit: "Amit Trivedi, Shreya Ghoshal",
+        targetArtists: [
+          { position: 0, artist: { id: "a1", name: "Amit Trivedi" } },
+          { position: 1, artist: { id: "a2", name: "Shreya Ghoshal" } },
+        ],
+      },
+    ]);
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "Amit Trivedi, Shreya Ghoshal",
+      trackName: "Shubhaarambh",
+      releaseName: null,
+      listenedAt: new Date(),
+      listenType: "single",
+    });
+
+    expect(result.artistName).toBe("Amit Trivedi, Shreya Ghoshal");
+    expect(result.artistName).not.toMatch(/feat\./i);
+    expect(result.correctionArtistIds).toEqual(["a1", "a2"]);
+  });
+
+  it("keeps the incoming combined credit when a split rule has no artistCredit", async () => {
+    userMusicRuleFindMany.mockResolvedValue([
+      {
+        id: "rule-split",
+        kind: "track",
+        matchArtistNorm: "a & b",
+        matchAlbumNorm: null,
+        matchTrackNorm: "song",
+        sourceTrackId: "t1",
+        sourceReleaseId: null,
+        sourceArtistId: null,
+        targetTrackTitle: "Song",
+        targetTrackId: "t2",
+        targetAlbumTitle: null,
+        targetAlbumId: null,
+        targetArtists: [
+          { position: 0, artist: { id: "a1", name: "A" } },
+          { position: 1, artist: { id: "a2", name: "B" } },
+        ],
+      },
+    ]);
+
+    const result = await service.applyRulesToMeta("user1", {
+      artistName: "A & B",
+      trackName: "Song",
+      releaseName: null,
+      listenedAt: new Date(),
+      listenType: "single",
+    });
+
+    expect(result.artistName).toBe("A & B");
+    expect(result.correctionArtistIds).toEqual(["a1", "a2"]);
+  });
+
   it("falls back to source track id when metadata matching fails", async () => {
     userMusicRuleFindMany.mockResolvedValue([
       {
@@ -554,6 +624,67 @@ describe("CorrectionsService", () => {
     expect(userMusicLabelDeleteMany).toHaveBeenCalledWith({
       where: { userId: "user1", entityKind: "track", entityId: "t1" },
     });
+  });
+
+  it("splits combined artists and stores the original credit", async () => {
+    trackFindUnique.mockResolvedValue({
+      id: "t1",
+      title: "Shubhaarambh",
+      titleNormalized: "shubhaarambh",
+      artistId: "combined",
+      releaseId: null,
+      artist: {
+        id: "combined",
+        name: "Amit Trivedi, Shreya Ghoshal",
+        nameNormalized: "amit trivedi, shreya ghoshal",
+      },
+      release: null,
+      featuredArtists: [],
+    });
+    userMusicRuleFindFirst.mockResolvedValue(null);
+    upsertArtistPublic
+      .mockResolvedValueOnce({ id: "a1", name: "Amit Trivedi" })
+      .mockResolvedValueOnce({ id: "a2", name: "Shreya Ghoshal" });
+    userMusicRuleCreate.mockResolvedValue({
+      id: "rule1",
+      kind: "track",
+      matchArtistNorm: "amit trivedi, shreya ghoshal",
+      matchAlbumNorm: null,
+      matchTrackNorm: "shubhaarambh",
+    });
+    resolveCorrectedTrack.mockResolvedValue({ id: "t2", releaseId: null });
+    userMusicRuleFindUnique.mockResolvedValue({
+      id: "rule1",
+      kind: "track",
+      matchArtistNorm: "amit trivedi, shreya ghoshal",
+      matchAlbumNorm: null,
+      matchTrackNorm: "shubhaarambh",
+    });
+    listenFindMany.mockResolvedValue([]);
+
+    const result = await service.saveTrackCorrection("user1", "t1", {
+      artists: [
+        { name: "Amit Trivedi" },
+        { name: "Shreya Ghoshal" },
+      ],
+    });
+
+    expect(result.reassigned).toBe(true);
+    expect(result.trackId).toBe("t2");
+    expect(userMusicRuleCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          artistCredit: "Amit Trivedi, Shreya Ghoshal",
+        }),
+      }),
+    );
+    expect(resolveCorrectedTrack).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artistIds: ["a1", "a2"],
+        trackTitle: "Shubhaarambh",
+      }),
+    );
+    expect(userMusicRuleArtistCreate).toHaveBeenCalledTimes(2);
   });
 
   it("rejects merging a track into itself", async () => {

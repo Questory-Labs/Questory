@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { GameCover } from "@/components/GameCover";
 import { HatchShadow } from "@/components/HatchShadow";
 import type { ReactNode } from "react";
 
@@ -25,23 +26,16 @@ export function GameTile({
   const body = (
     <HatchShadow
       size="sm"
-      faceClassName={`group panel hover:border-[var(--line-strong)] ${
+      className="h-full"
+      faceClassName={`group panel flex h-full flex-col hover:border-[var(--line-strong)] ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
-      <div className="relative aspect-[460/215] overflow-hidden bg-[var(--bg-2)]">
-        {headerImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={headerImage}
-            alt=""
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center hatch-fill text-xs text-[var(--faint)]">
-            No art
-          </div>
-        )}
+      <GameCover
+        src={headerImage}
+        className="min-h-0 w-full grow"
+        imgClassName="transition duration-500 group-hover:scale-[1.03]"
+      >
         {corner ? (
           <div className="pointer-events-none absolute top-2 right-2 z-[1]">
             {corner}
@@ -52,8 +46,8 @@ export function GameTile({
             {badge}
           </div>
         ) : null}
-      </div>
-      <div className="border-t border-[var(--line)] px-3 py-2.5">
+      </GameCover>
+      <div className="shrink-0 border-t border-[var(--line)] px-3 py-2.5">
         <div className="truncate text-sm font-medium text-[var(--ink)]">
           {name}
         </div>
@@ -68,6 +62,7 @@ export function GameTile({
 
   return (
     <motion.div
+      className="h-full"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -80,7 +75,7 @@ export function GameTile({
         <button
           type="button"
           onClick={onClick}
-          className="block w-full text-left"
+          className="block h-full w-full text-left"
         >
           {body}
         </button>

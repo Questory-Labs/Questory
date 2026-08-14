@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
+import { CALENDAR_HEATMAP_MAX_WEEKS } from "@/lib/charts";
 import type { ChartPadding, ChartSize, LinePoint, SketchDatum } from "./types";
 
 export const CHART_HEIGHT: Record<ChartSize, number> = {
@@ -190,4 +191,109 @@ export function chartHeightClass(size: ChartSize): string {
   if (size === "sm") return "h-36";
   if (size === "md") return "h-56";
   return "h-64 sm:h-72";
+}
+
+export const HEATMAP_LEVEL_CLASS = [
+  "bg-[var(--line)]",
+  "bg-[color-mix(in_srgb,var(--accent)_22%,transparent)]",
+  "bg-[color-mix(in_srgb,var(--accent)_45%,transparent)]",
+  "bg-[color-mix(in_srgb,var(--accent)_70%,transparent)]",
+  "bg-[var(--accent)]",
+] as const;
+
+/** Discrete 0–4 intensity for heatmap cells (`0` is empty). */
+export function heatmapLevel(value: number, maxValue: number): 0 | 1 | 2 | 3 | 4 {
+  if (value <= 0 || maxValue <= 0) return 0;
+  return Math.min(4, Math.max(1, Math.ceil((value / maxValue) * 4))) as
+    | 1
+    | 2
+    | 3
+    | 4;
+}
+
+export type CalendarDayCell = {
+  date: string;
+  value: number;
+};
+
+export type CalendarWeek = {
+  days: CalendarDayCell[];
+  monthLabel: string | null;
+};
+
+const DAY_MS = 86_400_000;
+const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function utcFromDayKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function dayKeyFromUtc(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addUtcDays(key: string, n: number): string {
+  const date = utcFromDayKey(key);
+  date.setUTCDate(date.getUTCDate() + n);
+  return dayKeyFromUtc(date);
+}
+
+function monFirstIndex(key: string): number {
+  return (utcFromDayKey(key).getUTCDay() + 6) % 7;
+}
+
+function monthShort(key: string): string {
+  return utcFromDayKey(key).toLocaleDateString("en-US", {
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/** Mon-first week columns, padded to week bounds, capped to `maxWeeks`. */
+export function buildCalendarGrid(
+  days: { date: string; value: number }[],
+  maxWeeks = CALENDAR_HEATMAP_MAX_WEEKS,
+): CalendarWeek[] {
+  const byDate = new Map<string, number>();
+  for (const day of days) {
+    if (!DAY_KEY_RE.test(day.date)) continue;
+    byDate.set(day.date, (byDate.get(day.date) ?? 0) + day.value);
+  }
+  if (byDate.size === 0) return [];
+
+  const keys = [...byDate.keys()].sort();
+  const lastKey = keys[keys.length - 1];
+  const firstKey = keys[0];
+
+  let startKey = addUtcDays(firstKey, -monFirstIndex(firstKey));
+  let endKey = addUtcDays(lastKey, 6 - monFirstIndex(lastKey));
+  const paddedDays =
+    (utcFromDayKey(endKey).getTime() - utcFromDayKey(startKey).getTime()) /
+      DAY_MS +
+    1;
+  if (paddedDays / 7 > maxWeeks) {
+    endKey = addUtcDays(lastKey, 6 - monFirstIndex(lastKey));
+    startKey = addUtcDays(endKey, -(maxWeeks * 7 - 1));
+  }
+
+  const weeks: CalendarWeek[] = [];
+  let cursor = startKey;
+  while (cursor <= endKey) {
+    const weekDays: CalendarDayCell[] = [];
+    for (let i = 0; i < 7; i += 1) {
+      const date = addUtcDays(cursor, i);
+      weekDays.push({ date, value: byDate.get(date) ?? 0 });
+    }
+    const firstOfMonth = weekDays.find((d) => d.date.endsWith("-01"));
+    const monthLabel =
+      weeks.length === 0
+        ? monthShort(weekDays[0].date)
+        : firstOfMonth
+          ? monthShort(firstOfMonth.date)
+          : null;
+    weeks.push({ days: weekDays, monthLabel });
+    cursor = addUtcDays(cursor, 7);
+  }
+  return weeks;
 }

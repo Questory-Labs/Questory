@@ -15,6 +15,7 @@ import {
   RangeKey,
   TopsKind,
 } from "./analytics.service";
+import { HeatmapService } from "./heatmap.service";
 import { parseTimeZone } from "../../lib/timezone";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentMusicUser } from "../auth/current-music-user.decorator";
@@ -70,6 +71,7 @@ function parseRange(raw: string | undefined, fallback: RangeKey): RangeKey {
 export class AnalyticsController {
   constructor(
     private readonly analytics: AnalyticsService,
+    private readonly heatmap: HeatmapService,
     private readonly playingNowService: PlayingNowService,
   ) {}
 
@@ -162,6 +164,19 @@ export class AnalyticsController {
       user.userId,
       granularity,
       parseRange(range, "month"),
+      parseTimeZone(tz),
+    );
+  }
+
+  @Get("heatmap")
+  userHeatmap(
+    @CurrentMusicUser() user: { userId: string },
+    @Query("range") range?: string,
+    @Query("tz") tz?: string,
+  ) {
+    return this.heatmap.userHeatmap(
+      user.userId,
+      parseRange(range, "week"),
       parseTimeZone(tz),
     );
   }

@@ -10,6 +10,7 @@ import {
 import { PlayingNowService } from "../playing-now/playing-now.service";
 import { UsersService } from "../users/users.service";
 import { CorrectionsService } from "../corrections/corrections.service";
+import { overlayArtistCredit } from "../corrections/artist-credit";
 import {
   resolveMusicService,
   resolveMusicServiceLabel,
@@ -19,18 +20,19 @@ import {
   ARTIST_TOP_ITEMS_LIMIT,
   TOP_MOODS_LIMIT,
 } from "./analytics.constants";
+import {
+  buildHourDowHeatmap,
+  DOW_MON_LABELS,
+  hourLabel,
+  sunWeekdayToMonFirst,
+} from "./heatmap-matrix";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type TopsKind = "artists" | "albums" | "tracks" | "genres" | "moods";
 
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DOW_MON_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function sunWeekdayToMonFirst(sunWeekday: number): number {
-  return (sunWeekday + 6) % 7;
-}
-
-function rangeStart(range: RangeKey): Date | null {
+export function rangeStart(range: RangeKey): Date | null {
   const now = Date.now();
   switch (range) {
     case "day":
@@ -60,12 +62,6 @@ function rangeDurationMs(range: RangeKey): number | null {
     default:
       return null;
   }
-}
-
-function hourLabel(hour: number): string {
-  const h12 = hour % 12 || 12;
-  const suffix = hour < 12 ? "am" : "pm";
-  return `${h12}${suffix}`;
 }
 
 @Injectable()
@@ -299,10 +295,15 @@ export class AnalyticsService {
         "track",
         [...counts.keys()],
       );
+      const artistCredits = await this.corrections.loadArtistCreditsForUser(
+        user.id,
+        [...counts.keys()],
+      );
       const items = [...counts.values()]
         .map((t) => ({
           ...t,
           title: trackLabels.get(t.id) ?? t.title,
+          artistName: overlayArtistCredit(t.artistName, t.id, artistCredits),
         }))
         .sort((a, b) => b.count - a.count);
       return pageResult(items);
@@ -458,10 +459,12 @@ export class AnalyticsService {
       .map((l) => l.track.release?.id)
       .filter((id): id is string => Boolean(id));
 
-    const [trackLabels, artistLabels, releaseLabels] = await Promise.all([
+    const [trackLabels, artistLabels, releaseLabels, artistCredits] =
+      await Promise.all([
       this.corrections.loadLabelsForUser(user.id, "track", trackIds),
       this.corrections.loadLabelsForUser(user.id, "artist", artistIds),
       this.corrections.loadLabelsForUser(user.id, "release", releaseIds),
+      this.corrections.loadArtistCreditsForUser(user.id, trackIds),
     ]);
 
     return {
@@ -470,8 +473,11 @@ export class AnalyticsService {
       pageSize: take,
       items: listens.map((l) => {
         const primary = l.track.artist;
-        const artistName =
-          artistLabels.get(primary.id)?.trim() || primary.name;
+        const artistName = overlayArtistCredit(
+          artistLabels.get(primary.id)?.trim() || primary.name,
+          l.track.id,
+          artistCredits,
+        );
         return {
           id: l.id,
           listenedAt: l.listenedAt.toISOString(),
@@ -900,7 +906,7 @@ export class AnalyticsService {
       timeZone,
     );
 
-    const [trackLabel, releaseLabel, artists] = await Promise.all([
+    const [trackLabel, releaseLabel, artists, artistCredits] = await Promise.all([
       this.corrections.resolveDisplayName(
         user.id,
         "track",
@@ -916,6 +922,7 @@ export class AnalyticsService {
           )
         : Promise.resolve(null),
       this.buildTrackArtists(user.id, track),
+      this.corrections.loadArtistCreditsForUser(user.id, [track.id]),
     ]);
 
     const primaryArtist = artists[0];
@@ -926,8 +933,11 @@ export class AnalyticsService {
         id: track.id,
         title: track.title,
         userDisplayName: trackLabel !== track.title ? trackLabel : null,
-        artistName:
+        artistName: overlayArtistCredit(
           primaryArtist.userDisplayName?.trim() || primaryArtist.name,
+          track.id,
+          artistCredits,
+        ),
         artistId: primaryArtist.id,
         artists,
         releaseTitle: releaseLabel,
@@ -1056,29 +1066,10 @@ export class AnalyticsService {
       select: { listenedAt: true },
     });
 
-    const matrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
-    for (const l of listens) {
-      const day = sunWeekdayToMonFirst(zonedWeekday(l.listenedAt, timeZone));
-      const hour = zonedHour(l.listenedAt, timeZone);
-      matrix[day][hour] += 1;
-    }
-
-    let maxCount = 0;
-    const cells: Array<{ day: number; hour: number; count: number }> = [];
-    for (let day = 0; day < 7; day += 1) {
-      for (let hour = 0; hour < 24; hour += 1) {
-        const count = matrix[day][hour];
-        if (count > maxCount) maxCount = count;
-        cells.push({ day, hour, count });
-      }
-    }
-
-    return {
-      dayLabels: DOW_MON_LABELS,
-      hourLabels: Array.from({ length: 24 }, (_, hour) => hourLabel(hour)),
-      cells,
-      maxCount,
-    };
+    return buildHourDowHeatmap(
+      listens.map((l) => ({ at: l.listenedAt, count: 1 })),
+      timeZone,
+    );
   }
 
   private aggregateMoodsFromListens(
@@ -1627,6 +1618,10 @@ export class AnalyticsService {
 
     const uniqueTrackIds = [...trackCounts.keys()];
     const uniqueArtistIds = [...artistCounts.keys()];
+    const artistCredits = await this.corrections.loadArtistCreditsForUser(
+      user.id,
+      uniqueTrackIds,
+    );
 
     // To properly calculate new tracks/artists, we need their first listen dates
     let newTracks = 0;
@@ -1665,7 +1660,13 @@ export class AnalyticsService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5),
       topTracks: [...trackCounts.entries()]
-        .map(([id, t]) => ({ id, name: t.title, subtitle: t.artistName, count: t.count, imageUrl: t.imageUrl }))
+        .map(([id, t]) => ({
+          id,
+          name: t.title,
+          subtitle: overlayArtistCredit(t.artistName, id, artistCredits),
+          count: t.count,
+          imageUrl: t.imageUrl,
+        }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5),
       topGenres: [...genreCounts.entries()]

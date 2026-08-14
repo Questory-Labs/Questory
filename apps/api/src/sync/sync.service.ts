@@ -27,8 +27,10 @@ import { bullmqConnection } from "../lib/redis-connection";
 import { resolveSyncMode } from "../lib/runtime-config";
 import { parseSteamReleaseDate } from "../lib/steam-dates";
 import { truncateToUtcHour } from "./play-activity";
+import { orderFriendsForLibraryCache } from "../friends/friend-library-cache";
 import {
   GAMES_PER_FRIEND_LIMIT,
+  LIBRARY_CACHE_ATTEMPT_LIMIT,
   LIBRARY_CACHE_LIMIT,
 } from "../friends/friends.constants";
 
@@ -932,61 +934,97 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    // Cache libraries + recent plays for a limited set of friends
-    for (const friend of friends.slice(0, LIBRARY_CACHE_LIMIT)) {
+    const [familyMembers, cachedOwners] = await Promise.all([
+      this.prisma.familyMember.findMany({
+        where: { group: { ownerId: userId } },
+        select: { steamId: true },
+      }),
+      friends.length
+        ? this.prisma.friendLibraryCache.groupBy({
+            by: ["ownerSteamId"],
+            where: {
+              ownerSteamId: { in: friends.map((f) => f.steamid) },
+            },
+            _max: { syncedAt: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const lastSyncedAtBySteamId = new Map(
+      cachedOwners
+        .filter((row) => row._max.syncedAt)
+        .map((row) => [row.ownerSteamId, row._max.syncedAt as Date]),
+    );
+    const toCache = orderFriendsForLibraryCache(friends, {
+      familySteamIds: familyMembers.map((m) => m.steamId),
+      lastSyncedAtBySteamId,
+    });
+
+    let stored = 0;
+    let attempted = 0;
+    for (const friend of toCache) {
+      if (stored >= LIBRARY_CACHE_LIMIT) break;
+      if (attempted >= LIBRARY_CACHE_ATTEMPT_LIMIT) break;
+      attempted += 1;
       try {
         const owned = await this.steam.getOwnedGames(friend.steamid);
-        for (const g of owned.slice(0, GAMES_PER_FRIEND_LIMIT)) {
-          await this.prisma.friendLibraryCache.upsert({
-            where: {
-              ownerSteamId_gameAppId: {
+        if (!owned.length) {
+          this.logger.warn(
+            `Friend library skip ${friend.steamid}: empty or private library`,
+          );
+        } else {
+          for (const g of owned.slice(0, GAMES_PER_FRIEND_LIMIT)) {
+            await this.prisma.friendLibraryCache.upsert({
+              where: {
+                ownerSteamId_gameAppId: {
+                  ownerSteamId: friend.steamid,
+                  gameAppId: g.appid,
+                },
+              },
+              create: {
                 ownerSteamId: friend.steamid,
                 gameAppId: g.appid,
+                gameName: g.name || `App ${g.appid}`,
+                headerImage: this.steam.headerImageFromAppId(g.appid),
+                playtimeForever: g.playtime_forever || 0,
               },
-            },
-            create: {
-              ownerSteamId: friend.steamid,
-              gameAppId: g.appid,
-              gameName: g.name || `App ${g.appid}`,
-              headerImage: this.steam.headerImageFromAppId(g.appid),
-              playtimeForever: g.playtime_forever || 0,
-            },
-            update: {
-              gameName: g.name || `App ${g.appid}`,
-              playtimeForever: g.playtime_forever || 0,
-              syncedAt: new Date(),
-            },
-          });
-        }
+              update: {
+                gameName: g.name || `App ${g.appid}`,
+                playtimeForever: g.playtime_forever || 0,
+                syncedAt: new Date(),
+              },
+            });
+          }
 
-        const recent = await this.steam.getRecentlyPlayedGames(
-          friend.steamid,
-          12,
-        );
-        for (const g of recent) {
-          await this.prisma.friendRecentPlayCache.upsert({
-            where: {
-              ownerSteamId_gameAppId: {
+          const recent = await this.steam.getRecentlyPlayedGames(
+            friend.steamid,
+            12,
+          );
+          for (const g of recent) {
+            await this.prisma.friendRecentPlayCache.upsert({
+              where: {
+                ownerSteamId_gameAppId: {
+                  ownerSteamId: friend.steamid,
+                  gameAppId: g.appid,
+                },
+              },
+              create: {
                 ownerSteamId: friend.steamid,
                 gameAppId: g.appid,
+                gameName: g.name || `App ${g.appid}`,
+                headerImage: this.steam.headerImageFromAppId(g.appid),
+                playtime2Weeks: g.playtime_2weeks ?? 0,
+                playtimeForever: g.playtime_forever || 0,
               },
-            },
-            create: {
-              ownerSteamId: friend.steamid,
-              gameAppId: g.appid,
-              gameName: g.name || `App ${g.appid}`,
-              headerImage: this.steam.headerImageFromAppId(g.appid),
-              playtime2Weeks: g.playtime_2weeks ?? 0,
-              playtimeForever: g.playtime_forever || 0,
-            },
-            update: {
-              gameName: g.name || `App ${g.appid}`,
-              headerImage: this.steam.headerImageFromAppId(g.appid),
-              playtime2Weeks: g.playtime_2weeks ?? 0,
-              playtimeForever: g.playtime_forever || 0,
-              syncedAt: new Date(),
-            },
-          });
+              update: {
+                gameName: g.name || `App ${g.appid}`,
+                headerImage: this.steam.headerImageFromAppId(g.appid),
+                playtime2Weeks: g.playtime_2weeks ?? 0,
+                playtimeForever: g.playtime_forever || 0,
+                syncedAt: new Date(),
+              },
+            });
+          }
+          stored += 1;
         }
       } catch (err) {
         this.logger.warn(`Friend library skip ${friend.steamid}: ${err}`);
@@ -1068,7 +1106,6 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       this.prisma.friendship.findMany({
         where: { userId },
         select: { friendSteamId: true },
-        take: LIBRARY_CACHE_LIMIT,
       }),
     ]);
 

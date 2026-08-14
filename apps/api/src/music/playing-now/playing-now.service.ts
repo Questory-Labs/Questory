@@ -18,6 +18,7 @@ import {
 } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
 import { CorrectionsService } from "../corrections/corrections.service";
+import { overlayArtistCredit } from "../corrections/artist-credit";
 import {
   PLAYING_NOW_CACHE_TTL_SECONDS,
   PLAYING_NOW_STALE_MS,
@@ -70,7 +71,11 @@ export class PlayingNowService {
         id: result.track.id,
         title: result.track.title,
         artistId: result.artist.id,
-        artistName: result.artist.name,
+        artistName: await this.overlaySnapshotArtist(
+          userId,
+          result.track.id,
+          result.artist.name,
+        ),
         releaseId: result.release?.id ?? null,
         releaseTitle: result.release?.title ?? null,
         imageUrl: result.release?.imageUrl ?? null,
@@ -152,7 +157,16 @@ export class PlayingNowService {
       snapshot.track.id,
     );
     if (targetId === snapshot.track.id) {
-      return snapshot;
+      const artistName = await this.overlaySnapshotArtist(
+        userId,
+        snapshot.track.id,
+        snapshot.track.artistName,
+      );
+      if (artistName === snapshot.track.artistName) return snapshot;
+      return {
+        ...snapshot,
+        track: { ...snapshot.track, artistName },
+      };
     }
 
     const row = await this.prisma.track.findUnique({
@@ -167,7 +181,11 @@ export class PlayingNowService {
         id: row.id,
         title: row.title,
         artistId: row.artist.id,
-        artistName: row.artist.name,
+        artistName: await this.overlaySnapshotArtist(
+          userId,
+          row.id,
+          row.artist.name,
+        ),
         releaseId: row.release?.id ?? null,
         releaseTitle: row.release?.title ?? null,
         imageUrl: row.release?.imageUrl ?? null,
@@ -188,6 +206,17 @@ export class PlayingNowService {
     }
 
     return remapped;
+  }
+
+  private async overlaySnapshotArtist(
+    userId: string,
+    trackId: string,
+    artistName: string,
+  ): Promise<string> {
+    const credits = await this.corrections.loadArtistCreditsForUser(userId, [
+      trackId,
+    ]);
+    return overlayArtistCredit(artistName, trackId, credits);
   }
 
   fingerprint(snapshot: PlayingNowSnapshot | null): string {

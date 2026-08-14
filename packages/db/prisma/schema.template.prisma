@@ -56,6 +56,7 @@ model User {
   musicLabels            UserMusicLabel[]
   aiInsightCaches        AiInsightCache[]
   playSessions           PlaySession[]
+  playSessionRules       UserPlaySessionRule[]
   qmonitorDeviceSessions  QmonitorDeviceSession[]
   qmonitorAuthCodes       QmonitorAuthCode[]
 }
@@ -224,6 +225,7 @@ model Game {
   wishlistItems          WishlistItem[]
   playActivitySnapshots  PlayActivitySnapshot[]
   playSessions           PlaySession[]
+  playSessionRules       UserPlaySessionRule[]
 
   @@index([appId])
   @@index([name])
@@ -259,6 +261,27 @@ model PlaySession {
   @@index([userId, startedAt])
   @@index([appId])
   @@index([gameId])
+}
+
+/** Per-user qMonitor session routing (exe/title → library game). */
+model UserPlaySessionRule {
+  id             String   @id @default(cuid())
+  userId         String
+  /** "exe:dota2.exe" | "title:cool game" */
+  matchKey       String
+  matchExeNorm   String   @default("")
+  matchTitleNorm String
+  targetGameId   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetGame Game @relation(fields: [targetGameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchKey])
+  @@index([userId, matchExeNorm])
+  @@index([userId, matchTitleNorm])
+  @@index([targetGameId])
 }
 
 /** Device-bound qMonitor refresh session (anti-exfil binding). */
@@ -826,6 +849,8 @@ model UserMusicRule {
   targetTrackId     String?
   targetAlbumTitle  String?
   targetAlbumId     String?
+  /** Combined credit string to show; individuals live on targetArtists. */
+  artistCredit      String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

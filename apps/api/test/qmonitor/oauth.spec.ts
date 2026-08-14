@@ -13,6 +13,7 @@ import { GameMergeService } from "../../src/stores/game-merge.service";
 import { QmonitorOauthController } from "../../src/qmonitor/qmonitor-oauth.controller";
 import { QmonitorOauthService } from "../../src/qmonitor/qmonitor-oauth.service";
 import { QmonitorIngestService } from "../../src/qmonitor/qmonitor-ingest.service";
+import { QmonitorSessionRulesService } from "../../src/qmonitor/qmonitor-session-rules.service";
 import { QmonitorWebhookController } from "../../src/qmonitor/qmonitor-webhook.controller";
 import {
   pkceS256Challenge,
@@ -187,6 +188,10 @@ describe("qmonitor oauth token flow", () => {
       providers: [
         QmonitorOauthService,
         QmonitorIngestService,
+        {
+          provide: QmonitorSessionRulesService,
+          useValue: { resolveTarget: async () => null },
+        },
         { provide: PrismaService, useValue: prismaMock },
         {
           provide: GameMergeService,

@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import type { PlaySessionPage } from "@questorylabs/shared";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { PlaySessionDeleteResult, PlaySessionPage } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
@@ -62,5 +62,18 @@ export class QmonitorSessionsService {
           : null,
       })),
     };
+  }
+
+  async remove(
+    userId: string,
+    sessionId: string,
+  ): Promise<PlaySessionDeleteResult> {
+    const result = await this.prisma.playSession.deleteMany({
+      where: { id: sessionId, userId },
+    });
+    if (result.count === 0) {
+      throw new NotFoundException("Session not found");
+    }
+    return { ok: true };
   }
 }

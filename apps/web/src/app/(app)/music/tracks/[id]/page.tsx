@@ -4,19 +4,22 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
-import {
+import type {
+  MusicHeatmap,
   MusicRange,
   MusicTimeBucket,
   MusicTrackDetail,
   MusicTrackListenPage,
 } from "@questorylabs/shared";
+import { HeatmapChart } from "@/components/charts/HeatmapChart";
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
+import { ArtistLinks } from "@/components/music/ArtistLinks";
 import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCorrectionEdit } from "@/components/music/MusicCorrectionEdit";
 import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { StatCard } from "@/components/StatCard";
-import { Button, PageHeader, Panel, SkeletonDetailHeader, StateMessage } from "@/components/ui";
+import { Button, PageHeader, Panel, SkeletonChart, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { withTz } from "@/lib/dates";
 import { formatListenDateTime, formatMinutes, musicFetch } from "@/lib/music";
 import { MUSIC_DETAIL_LISTENS_PAGE_SIZE } from "@/lib/pagination";
@@ -26,36 +29,6 @@ function displayLabel(
   title: string,
 ): string {
   return userDisplayName?.trim() || title;
-}
-
-function ArtistLinks({
-  artists,
-  fallbackArtistId,
-  fallbackArtistName,
-}: {
-  artists?: Array<{ id: string; name: string; userDisplayName?: string | null }>;
-  fallbackArtistId: string;
-  fallbackArtistName: string;
-}) {
-  const list =
-    artists && artists.length > 0
-      ? artists
-      : [{ id: fallbackArtistId, name: fallbackArtistName }];
-  return (
-    <>
-      {list.map((a, i) => (
-        <span key={a.id}>
-          {i > 0 ? ", " : null}
-          <Link
-            href={`/music/artists/${a.id}`}
-            className="hover:text-[var(--accent)]"
-          >
-            {a.userDisplayName?.trim() || a.name}
-          </Link>
-        </span>
-      ))}
-    </>
-  );
 }
 
 export default function MusicTrackPage() {
@@ -105,11 +78,21 @@ export default function MusicTrackPage() {
     when: Boolean(id),
   });
 
+  const heatmap = useResource({
+    id: ["music-track-heatmap", id, range],
+    load: () =>
+      musicFetch<MusicHeatmap>(
+        withTz(`/analytics/tracks/${id}/heatmap?range=${range}`),
+      ),
+    when: Boolean(id),
+  });
+
   const save = useAction({
     run: (values: {
       trackTitle?: string;
       albumTitle?: string | null;
       artists?: Array<{ id?: string; name: string }>;
+      artistName?: string;
       displayName?: string | null;
     }) =>
       musicFetch<{ ok: boolean; reassigned?: boolean; trackId?: string }>(
@@ -166,6 +149,15 @@ export default function MusicTrackPage() {
         count: b.count,
       })),
     [dowSeries.value],
+  );
+  const clockCells = useMemo(
+    () =>
+      (heatmap.value?.cells || []).map((cell) => ({
+        day: cell.day,
+        hour: cell.hour,
+        value: cell.count,
+      })),
+    [heatmap.value],
   );
 
   const total = listens.value?.total ?? 0;
@@ -281,19 +273,39 @@ export default function MusicTrackPage() {
               </div>
             ) : null}
 
-            <div className="mt-8 grid gap-6 lg:grid-cols-2">
-              <SketchChartPanel
-                title="Day of week"
-                data={dowData}
-                valueLabel="listens"
-                emptyMessage="No listens in this range."
-              />
-              <SketchChartPanel
-                title="Hour of day"
-                data={hourData}
-                valueLabel="listens"
-                emptyMessage="No listens in this range."
-              />
+            <div className="mt-8 space-y-6">
+              <Panel className="p-4">
+                <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+                  When you listen
+                </h2>
+                <div className="mt-3">
+                  {heatmap.empty && !heatmap.value ? (
+                    <SkeletonChart height={168} />
+                  ) : (
+                    <HeatmapChart
+                      cells={clockCells}
+                      dayLabels={heatmap.value?.dayLabels ?? []}
+                      hourLabels={heatmap.value?.hourLabels ?? []}
+                      maxValue={heatmap.value?.maxCount}
+                      ariaLabel="Track listens by day and hour"
+                    />
+                  )}
+                </div>
+              </Panel>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <SketchChartPanel
+                  title="Day of week"
+                  data={dowData}
+                  valueLabel="listens"
+                  emptyMessage="No listens in this range."
+                />
+                <SketchChartPanel
+                  title="Hour of day"
+                  data={hourData}
+                  valueLabel="listens"
+                  emptyMessage="No listens in this range."
+                />
+              </div>
             </div>
 
             <section className="mt-8">

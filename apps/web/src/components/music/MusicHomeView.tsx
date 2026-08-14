@@ -1,23 +1,13 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
-import type {
-  MusicBreakdownResponse,
-  MusicInsights,
-  MusicRange,
-  MusicTimeBucket,
-} from "@questorylabs/shared";
-import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
+import type { MusicInsights, MusicRange } from "@questorylabs/shared";
+import { MusicHomeCharts } from "@/components/music/MusicHomeCharts";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { StatCard } from "@/components/StatCard";
-import { PageHeader, Panel, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
-import {
-  formatDeltaPct,
-  formatMinutes,
-  formatShare,
-  musicFetch,
-} from "@/lib/music";
+import { PageHeader, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
+import { formatDeltaPct, formatMinutes, musicFetch } from "@/lib/music";
 import { withTz } from "@/lib/dates";
 
 export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
@@ -30,64 +20,6 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
         withTz(`/analytics/insights?range=${range}`),
       ),
   });
-  const hour = useResource({
-    id: ["music-ts-hour", range],
-    load: () =>
-      musicFetch<MusicTimeBucket[]>(
-        withTz(
-          `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
-        ),
-      ),
-  });
-  const dow = useResource({
-    id: ["music-ts-dow", range],
-    load: () =>
-      musicFetch<MusicTimeBucket[]>(
-        withTz(
-          `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
-        ),
-      ),
-  });
-  const years = useResource({
-    id: ["music-years", range],
-    load: () =>
-      musicFetch<MusicBreakdownResponse>(
-        `/analytics/breakdown/years?range=${range}&limit=16`,
-      ),
-  });
-  const services = useResource({
-    id: ["music-services", range],
-    load: () =>
-      musicFetch<MusicBreakdownResponse>(
-        `/analytics/breakdown/services?range=${range}&limit=10`,
-      ),
-  });
-
-  const hourData = useMemo(
-    () =>
-      (hour.value || []).map((b) => ({
-        label: b.key,
-        count: b.count,
-      })),
-    [hour.value],
-  );
-  const dowData = useMemo(
-    () =>
-      (dow.value || []).map((b) => ({
-        label: b.label,
-        count: b.count,
-      })),
-    [dow.value],
-  );
-  const yearData = useMemo(
-    () =>
-      (years.value?.items || [])
-        .filter((i) => i.key !== "unknown")
-        .slice()
-        .reverse()
-        .map((b) => ({ label: b.label, count: b.count })),
-    [years.value],
-  );
 
   const d = insights.value;
 
@@ -201,37 +133,7 @@ export function MusicHomeView({ afterHeader }: { afterHeader?: ReactNode }) {
         </>
       )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <SketchChartPanel title="Hour of day" data={hourData} valueLabel="listens" />
-        <SketchChartPanel title="Day of week" data={dowData} valueLabel="listens" />
-        <SketchChartPanel title="Release years" data={yearData} valueLabel="listens" />
-        <Panel className="p-4">
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-            Sources
-          </h2>
-          <ul className="mt-3 space-y-2">
-            {(services.value?.items || []).map((item) => (
-              <li
-                key={item.key}
-                className="flex items-baseline justify-between gap-3 text-sm"
-              >
-                <span className="text-[var(--ink)]">{item.label}</span>
-                <span className="font-mono text-[11px] text-[var(--faint)]">
-                  {item.count}
-                  {services.value
-                    ? ` · ${formatShare(item.count, services.value.periodListens)}`
-                    : ""}
-                </span>
-              </li>
-            ))}
-            {(services.value?.items || []).length === 0 ? (
-              <li className="text-sm text-[var(--muted)]">
-                No source metadata yet.
-              </li>
-            ) : null}
-          </ul>
-        </Panel>
-      </div>
+      <MusicHomeCharts range={range} />
     </>
   );
 }

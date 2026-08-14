@@ -119,3 +119,48 @@ export const PlaySessionPageSchema = z.object({
   items: z.array(PlaySessionItemSchema),
 });
 export type PlaySessionPage = z.infer<typeof PlaySessionPageSchema>;
+
+export const PlaySessionAssignSchema = z.object({
+  gameId: z.string().min(1),
+});
+export type PlaySessionAssign = z.infer<typeof PlaySessionAssignSchema>;
+
+export const PlaySessionAssignResultSchema = z.object({
+  ok: z.literal(true),
+  assignedCount: z.number().int().nonnegative(),
+  ruleId: z.string().min(1),
+});
+export type PlaySessionAssignResult = z.infer<
+  typeof PlaySessionAssignResultSchema
+>;
+
+export const PlaySessionSimilarSchema = z.object({
+  count: z.number().int().nonnegative(),
+  matchKind: z.enum(["exe", "title"]),
+  matchValue: z.string(),
+});
+export type PlaySessionSimilar = z.infer<typeof PlaySessionSimilarSchema>;
+
+export const PlaySessionGameSuggestItemSchema = z.object({
+  gameId: z.string().min(1),
+  name: z.string(),
+  headerImage: z.string().nullable(),
+  appId: z.number().int().nullable(),
+});
+export type PlaySessionGameSuggestItem = z.infer<
+  typeof PlaySessionGameSuggestItemSchema
+>;
+
+export const PlaySessionGameSuggestPageSchema = z.object({
+  items: z.array(PlaySessionGameSuggestItemSchema),
+});
+export type PlaySessionGameSuggestPage = z.infer<
+  typeof PlaySessionGameSuggestPageSchema
+>;
+
+export const PlaySessionDeleteResultSchema = z.object({
+  ok: z.literal(true),
+});
+export type PlaySessionDeleteResult = z.infer<
+  typeof PlaySessionDeleteResultSchema
+>;

@@ -1,12 +1,20 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 type GlobalSearchContextValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
   query: string;
   setQuery: (query: string) => void;
+  reset: () => void;
 };
 
 const GlobalSearchContext = createContext<GlobalSearchContextValue | null>(null);
@@ -15,9 +23,14 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  const reset = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+  }, []);
+
   const value = useMemo(
-    () => ({ open, setOpen, query, setQuery }),
-    [open, query],
+    () => ({ open, setOpen, query, setQuery, reset }),
+    [open, query, reset],
   );
 
   return (

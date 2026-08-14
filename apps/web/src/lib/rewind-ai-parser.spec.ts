@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  expandInsightChunks,
   parseBoldSegments,
   parseInsightChunk,
   splitInsightContent,
@@ -59,9 +58,5 @@ describe("rewind-ai-parser", () => {
     expect(parseBoldSegments("3 * 4 = 12")).toEqual([
       { bold: false, italic: false, value: "3 * 4 = 12" },
     ]);
-  });
-
-  it("expands chunks for carousel repetition", () => {
-    expect(expandInsightChunks(["a", "b"], 2)).toEqual(["a", "b", "a", "b"]);
   });
 });

@@ -206,7 +206,11 @@ function LibraryContent() {
             {(library.value?.items || []).map((item, i) => {
               const stores = item.stores || item.game.stores || [];
               return (
-                <Link key={item.game.id} href={`/library/${item.game.id}`}>
+                <Link
+                  key={item.game.id}
+                  href={`/library/${item.game.id}`}
+                  className="block h-full"
+                >
                   <GameTile
                     name={item.game.name}
                     headerImage={item.game.headerImage}
