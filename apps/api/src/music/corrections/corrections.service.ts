@@ -12,6 +12,7 @@ import {
   type IncomingListenMeta,
 } from "../catalog/catalog.service";
 import { normalizeName, primaryArtistNorm } from "../lib/tokens";
+import { loadArtistCreditsByTrackId } from "./artist-credit";
 
 type RuleKind = "track" | "album" | "artist";
 
@@ -28,6 +29,7 @@ type LoadedRule = {
   targetTrackId: string | null;
   targetAlbumTitle: string | null;
   targetAlbumId: string | null;
+  artistCredit: string | null;
   artists: Array<{ id: string; name: string; position: number }>;
 };
 
@@ -66,11 +68,9 @@ export class CorrectionsService {
     if (!rule || rule.artists.length === 0) return meta;
 
     const primary = rule.artists[0];
-    const featured = rule.artists.slice(1);
     const artistName =
-      featured.length > 0
-        ? `${primary.name} feat. ${featured.map((a) => a.name).join(", ")}`
-        : primary.name;
+      rule.artistCredit?.trim() ||
+      (rule.artists.length > 1 ? meta.artistName : primary.name);
 
     const next: IncomingListenMeta = {
       ...meta,
@@ -287,7 +287,11 @@ export class CorrectionsService {
     if (!track) throw new NotFoundException("Track not found");
 
     const rule = await this.prisma.userMusicRule.findFirst({
-      where: { userId, sourceTrackId: trackId, kind: "track" },
+      where: {
+        userId,
+        kind: "track",
+        OR: [{ sourceTrackId: trackId }, { targetTrackId: trackId }],
+      },
       include: {
         targetArtists: {
           include: { artist: true },
@@ -327,12 +331,13 @@ export class CorrectionsService {
       kind: "track" as const,
       original: {
         title: track.title,
-        artistName: track.artist.name,
+        artistName: rule?.artistCredit ?? track.artist.name,
         albumTitle: track.release?.title ?? null,
       },
       current: {
         title: rule?.targetTrackTitle ?? track.title,
         displayName: label?.displayName ?? null,
+        artistCredit: rule?.artistCredit ?? null,
         artists,
         albumTitle:
           rule?.targetAlbumTitle ?? track.release?.title ?? null,
@@ -521,6 +526,7 @@ export class CorrectionsService {
       trackTitle?: string;
       albumTitle?: string | null;
       artists?: MusicEntityRef[];
+      artistName?: string;
       displayName?: string | null;
     },
   ) {
@@ -535,7 +541,11 @@ export class CorrectionsService {
     if (!track) throw new NotFoundException("Track not found");
 
     const existingRule = await this.prisma.userMusicRule.findFirst({
-      where: { userId, sourceTrackId: trackId, kind: "track" },
+      where: {
+        userId,
+        kind: "track",
+        OR: [{ sourceTrackId: trackId }, { targetTrackId: trackId }],
+      },
       include: {
         targetArtists: {
           include: { artist: true },
@@ -564,6 +574,7 @@ export class CorrectionsService {
       Boolean(input.trackTitle?.trim()) ||
       Boolean(input.artists?.length) ||
       Boolean(input.albumTitle?.trim()) ||
+      Boolean(input.artistName?.trim()) ||
       input.displayName !== undefined;
     if (!hasChanges) {
       return { ok: true, reassigned: false };
@@ -574,6 +585,10 @@ export class CorrectionsService {
     const albumTitle = input.albumTitle?.trim()
       ? input.albumTitle.trim()
       : currentAlbumTitle;
+    const artistCredit =
+      input.artistName?.trim() ||
+      existingRule?.artistCredit ||
+      (input.artists && input.artists.length > 1 ? track.artist.name : null);
 
     const resolvedArtists = await this.resolveArtistRefs(artists);
     const primaryId = resolvedArtists[0].id;
@@ -605,9 +620,24 @@ export class CorrectionsService {
           input.displayName ?? null,
         );
       }
-      await this.prisma.userMusicRule.deleteMany({
-        where: { userId, sourceTrackId: trackId, kind: "track" },
-      });
+      const keepRule =
+        Boolean(artistCredit) ||
+        featuredIds.length > 0 ||
+        Boolean(
+          existingRule?.targetTrackId && existingRule.targetTrackId !== trackId,
+        );
+      if (keepRule && existingRule) {
+        if (artistCredit !== existingRule.artistCredit) {
+          await this.prisma.userMusicRule.update({
+            where: { id: existingRule.id },
+            data: { artistCredit },
+          });
+        }
+      } else if (!keepRule) {
+        await this.prisma.userMusicRule.deleteMany({
+          where: { userId, sourceTrackId: trackId, kind: "track" },
+        });
+      }
       this.invalidateRulesCache(userId);
       return { ok: true, reassigned: false };
     }
@@ -633,6 +663,7 @@ export class CorrectionsService {
       targetTrackTitle: trackTitle,
       targetAlbumTitle: albumTitle,
       artistIds: resolvedArtists.map((a) => a.id),
+      artistCredit,
     });
 
     const targetTrack = await this.catalog.resolveCorrectedTrack({
@@ -647,6 +678,7 @@ export class CorrectionsService {
       data: {
         targetTrackId: targetTrack.id,
         targetAlbumId: targetTrack.releaseId,
+        artistCredit,
       },
     });
 
@@ -871,6 +903,13 @@ export class CorrectionsService {
     return map;
   }
 
+  async loadArtistCreditsForUser(
+    userId: string,
+    trackIds: string[],
+  ): Promise<Map<string, string>> {
+    return loadArtistCreditsByTrackId(this.prisma, userId, trackIds);
+  }
+
   private async resolveArtistRefs(refs: MusicEntityRef[]) {
     const out: Array<{ id: string; name: string }> = [];
     for (const ref of refs) {
@@ -901,23 +940,41 @@ export class CorrectionsService {
       targetAlbumTitle: string | null;
       targetAlbumId?: string | null;
       artistIds: string[];
+      artistCredit?: string | null;
     },
   ) {
     const existing = await this.prisma.userMusicRule.findFirst({
-      where: { userId, sourceTrackId, kind: "track" },
+      where: {
+        userId,
+        kind: "track",
+        OR: [{ sourceTrackId }, { targetTrackId: sourceTrackId }],
+      },
     });
 
     const rule = existing
       ? await this.prisma.userMusicRule.update({
           where: { id: existing.id },
           data: {
-            matchArtistNorm: data.matchArtistNorm,
-            matchAlbumNorm: data.matchAlbumNorm,
-            matchTrackNorm: data.matchTrackNorm,
+            matchArtistNorm:
+              existing.sourceTrackId === sourceTrackId
+                ? data.matchArtistNorm
+                : existing.matchArtistNorm,
+            matchAlbumNorm:
+              existing.sourceTrackId === sourceTrackId
+                ? data.matchAlbumNorm
+                : existing.matchAlbumNorm,
+            matchTrackNorm:
+              existing.sourceTrackId === sourceTrackId
+                ? data.matchTrackNorm
+                : existing.matchTrackNorm,
             targetTrackTitle: data.targetTrackTitle,
             targetTrackId: data.targetTrackId ?? null,
             targetAlbumTitle: data.targetAlbumTitle,
             targetAlbumId: data.targetAlbumId ?? null,
+            artistCredit:
+              data.artistCredit !== undefined
+                ? data.artistCredit
+                : existing.artistCredit,
           },
         })
       : await this.prisma.userMusicRule.create({
@@ -932,6 +989,7 @@ export class CorrectionsService {
             targetTrackId: data.targetTrackId ?? null,
             targetAlbumTitle: data.targetAlbumTitle,
             targetAlbumId: data.targetAlbumId ?? null,
+            artistCredit: data.artistCredit ?? null,
           },
         });
 
@@ -1366,6 +1424,7 @@ export class CorrectionsService {
       targetTrackId: r.targetTrackId,
       targetAlbumTitle: r.targetAlbumTitle,
       targetAlbumId: r.targetAlbumId,
+      artistCredit: r.artistCredit ?? null,
       artists: r.targetArtists.map((ta) => ({
         id: ta.artist.id,
         name: ta.artist.name,

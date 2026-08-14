@@ -8,10 +8,8 @@ import { BrandMark } from "@/components/BrandMark";
 import { LoadingPage } from "@/components/LoadingPage";
 import { SyncStatusBar } from "@/components/SyncStatusBar";
 import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
-import {
-  GlobalSearchProvider,
-  useGlobalSearch,
-} from "@/components/search/GlobalSearchProvider";
+import { GlobalSearchProvider } from "@/components/search/GlobalSearchProvider";
+import { HeaderSearch } from "@/components/search/HeaderSearch";
 import { useGlobalSearchShortcut } from "@/components/search/useGlobalSearchShortcut";
 import { api, apiOnce } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
@@ -348,9 +346,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const store = useStore();
   const menuId = useId();
-  const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const { setOpen: setSearchOpen } = useGlobalSearch();
   useGlobalSearchShortcut();
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
@@ -437,14 +433,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     };
   }, [menuOpen]);
 
-  const submitSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (search.trim()) {
-      router.push(`/search?q=${encodeURIComponent(search.trim())}`);
-      setMenuOpen(false);
-    }
-  };
-
   // Soft gate: never paint app pages until /auth/me confirms a session.
   if (!authReady || !user) {
     if (me.failed) {
@@ -518,35 +506,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               wordmarkClassName="text-lg"
             />
 
-            <form className="ml-auto min-w-0 max-w-xl flex-1 sm:ml-0" onSubmit={submitSearch}>
-              <label className="sr-only" htmlFor="shell-search">
-                Search library
-              </label>
-              <div className="relative">
-                <span
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--faint)]"
-                  aria-hidden
-                >
-                  <SearchIcon />
-                </span>
-                <input
-                  id="shell-search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder='Search games, movie:godfather, within:<7d'
-                  className="w-full border border-[var(--line)] bg-[var(--bg-1)] py-2 pl-9 pr-20 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--faint)] focus:border-[var(--line-strong)] focus:bg-[var(--bg-2)]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(true)}
-                  className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 border border-[var(--line)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-[var(--faint)] transition hover:border-[var(--line-strong)] hover:text-[var(--muted)] sm:inline-flex"
-                  aria-label="Open command palette"
-                >
-                  <span>Ctrl</span>
-                  <span>K</span>
-                </button>
-              </div>
-            </form>
+            <HeaderSearch />
 
             <div className="relative shrink-0">
               <button
@@ -697,20 +657,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
       </div>
     </div>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M16 16l4.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="square"
-      />
-    </svg>
   );
 }
 

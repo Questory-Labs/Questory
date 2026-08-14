@@ -67,12 +67,6 @@ export function parseInsightChunk(chunk: string): ParsedInsightChunk {
   return { title: "", text: chunk.trim(), tagSlug: "" };
 }
 
-/** Split content and duplicate chunks for an infinite-carousel feel. */
-export function expandInsightChunks(chunks: string[], repeat = 4): string[] {
-  if (!chunks.length) return [];
-  return Array.from({ length: repeat }, () => chunks).flat();
-}
-
 export interface EmphasisSegment {
   bold: boolean;
   italic: boolean;

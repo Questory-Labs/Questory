@@ -39,7 +39,7 @@ export default function FriendsPage() {
               <p className="mt-2 font-mono text-[11px] text-[var(--faint)]">
                 {meta.librariesCached}/{meta.totalFriends} libraries cached
                 {meta.truncated
-                  ? ` · truncated (first ${meta.libraryCacheLimit} friends, ${meta.gamesPerFriendLimit} games each)`
+                  ? ` · truncated (up to ${meta.libraryCacheLimit} friends, ${meta.gamesPerFriendLimit} games each)`
                   : ""}
                 {meta.lastSyncedAt
                   ? ` · synced ${new Date(meta.lastSyncedAt).toLocaleDateString()}`

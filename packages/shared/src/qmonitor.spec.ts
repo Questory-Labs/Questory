@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  PlaySessionAssignResultSchema,
+  PlaySessionAssignSchema,
+  PlaySessionDeleteResultSchema,
+  PlaySessionGameSuggestPageSchema,
   PlaySessionItemSchema,
   PlaySessionPageSchema,
+  PlaySessionSimilarSchema,
   QmonitorAuthorizeQuerySchema,
   QmonitorSessionWebhookSchema,
   QmonitorTokenRequestSchema,
@@ -126,5 +131,75 @@ describe("PlaySessionPageSchema", () => {
     expect(
       PlaySessionItemSchema.safeParse({ ...item, durationSecs: -1 }).success,
     ).toBe(false);
+  });
+});
+
+describe("PlaySessionAssignSchema", () => {
+  it("requires a gameId", () => {
+    expect(PlaySessionAssignSchema.safeParse({ gameId: "g1" }).success).toBe(
+      true,
+    );
+    expect(PlaySessionAssignSchema.safeParse({ gameId: "" }).success).toBe(
+      false,
+    );
+    expect(PlaySessionAssignSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("PlaySessionSimilarSchema", () => {
+  it("accepts exe and title matches", () => {
+    expect(
+      PlaySessionSimilarSchema.safeParse({
+        count: 3,
+        matchKind: "exe",
+        matchValue: "dota2.exe",
+      }).success,
+    ).toBe(true);
+    expect(
+      PlaySessionSimilarSchema.safeParse({
+        count: 0,
+        matchKind: "title",
+        matchValue: "cool game",
+      }).success,
+    ).toBe(true);
+    expect(
+      PlaySessionSimilarSchema.safeParse({
+        count: 1,
+        matchKind: "process",
+        matchValue: "x",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("PlaySessionGameSuggestPageSchema", () => {
+  it("accepts library suggest items", () => {
+    expect(
+      PlaySessionGameSuggestPageSchema.safeParse({
+        items: [
+          {
+            gameId: "g1",
+            name: "Dota 2",
+            headerImage: null,
+            appId: 570,
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("PlaySessionAssignResultSchema", () => {
+  it("requires assignedCount and ruleId", () => {
+    expect(
+      PlaySessionAssignResultSchema.safeParse({
+        ok: true,
+        assignedCount: 2,
+        ruleId: "r1",
+      }).success,
+    ).toBe(true);
+    expect(
+      PlaySessionDeleteResultSchema.safeParse({ ok: true }).success,
+    ).toBe(true);
   });
 });

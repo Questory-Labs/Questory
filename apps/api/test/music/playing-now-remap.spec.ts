@@ -53,6 +53,7 @@ describe("PlayingNowService merge remap", () => {
 
     const corrections = {
       resolvePlaybackTrackId,
+      loadArtistCreditsForUser: vi.fn().mockResolvedValue(new Map()),
     } as unknown as CorrectionsService;
 
     service = new PlayingNowService(

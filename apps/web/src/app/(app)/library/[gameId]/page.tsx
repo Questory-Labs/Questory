@@ -8,6 +8,7 @@ import {
   SectionTitle,
 } from "@/components/GameDetailStats";
 import { StoreBadge, StoreBadgeRow } from "@/components/StoreBadge";
+import { GameCover } from "@/components/GameCover";
 import { TagsEditor } from "@/components/TagsEditor";
 import { Panel, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -90,20 +91,15 @@ export default function LibraryGamePage() {
 
       {e && (
         <>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-            <Panel className="overflow-hidden">
-              {e.game.headerImage || d?.headerImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={e.game.headerImage || d?.headerImage || ""}
-                  alt=""
-                  className="aspect-[460/215] w-full object-cover"
-                />
-              ) : (
-                <div className="flex aspect-[460/215] items-center justify-center bg-[var(--bg-2)] text-sm text-[var(--faint)]">
-                  No art
-                </div>
-              )}
+          <div className="mt-4 grid gap-6 lg:grid-cols-[1.2fr_1fr] lg:items-stretch">
+            <Panel
+              wrapperClassName="h-full min-h-0"
+              className="flex h-full min-h-0 flex-col overflow-hidden"
+            >
+              <GameCover
+                src={e.game.headerImage || d?.headerImage || null}
+                className="min-h-0 w-full grow"
+              />
             </Panel>
             <div>
               <div className="mb-2">

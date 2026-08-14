@@ -8,6 +8,7 @@ import {
   encodeSessionCookie,
 } from "@questorylabs/shared/session";
 import { QmonitorSessionsController } from "../../src/qmonitor/qmonitor-sessions.controller";
+import { QmonitorSessionRulesService } from "../../src/qmonitor/qmonitor-session-rules.service";
 import { QmonitorSessionsService } from "../../src/qmonitor/qmonitor-sessions.service";
 import { PrismaService } from "../../src/prisma/prisma.service";
 
@@ -23,17 +24,38 @@ describe("play-sessions list", () => {
     playSession: {
       count: async ({ where }: { where: { userId: string } }) =>
         where.userId === userId ? 1 : 0,
+      findFirst: async ({
+        where,
+      }: {
+        where: { id: string; userId: string };
+      }) =>
+        where.userId === userId && where.id === "ps1"
+          ? {
+              id: "ps1",
+              title: "Dota 2",
+              source: "steam",
+              appId: 570,
+              gameId: "g1",
+              startedAt,
+              endedAt,
+              durationSecs: 3600,
+              exe: "dota2.exe",
+              hostOs: "windows",
+              hostName: "pc",
+            }
+          : null,
       findMany: async ({
         where,
         skip,
         take,
       }: {
         where: { userId: string };
-        skip: number;
-        take: number;
+        skip?: number;
+        take?: number;
       }) => {
-        if (where.userId !== userId || skip >= 1) return [];
-        return [
+        if (where.userId !== userId) return [];
+        if (typeof skip === "number" && skip >= 1) return [];
+        const rows = [
           {
             id: "ps1",
             title: "Dota 2",
@@ -53,8 +75,25 @@ describe("play-sessions list", () => {
               appId: 570,
             },
           },
-        ].slice(0, take);
+        ];
+        return typeof take === "number" ? rows.slice(0, take) : rows;
       },
+      deleteMany: async ({
+        where,
+      }: {
+        where: { id: string; userId: string };
+      }) =>
+        where.userId === userId && where.id === "ps1"
+          ? { count: 1 }
+          : { count: 0 },
+    },
+    libraryEntry: {
+      findUnique: async () => null,
+      findMany: async () => [],
+    },
+    userPlaySessionRule: {
+      findMany: async () => [],
+      upsert: async () => ({ id: "r1" }),
     },
   };
 
@@ -64,6 +103,7 @@ describe("play-sessions list", () => {
       controllers: [QmonitorSessionsController],
       providers: [
         QmonitorSessionsService,
+        QmonitorSessionRulesService,
         { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
@@ -132,5 +172,68 @@ describe("play-sessions list", () => {
         },
       ],
     });
+  });
+
+  it("rejects assign without a gameId", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    await request(app.getHttpServer())
+      .post("/v1/play-sessions/ps1/assign")
+      .set("Cookie", cookie)
+      .send({})
+      .expect(400);
+  });
+
+  it("rejects assign when the game is not in the library", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    await request(app.getHttpServer())
+      .post("/v1/play-sessions/ps1/assign")
+      .set("Cookie", cookie)
+      .send({ gameId: "g-missing" })
+      .expect(400);
+  });
+
+  it("returns similar preview for a session", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    const res = await request(app.getHttpServer())
+      .get("/v1/play-sessions/ps1/similar")
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(res.body).toEqual({
+      count: 1,
+      matchKind: "exe",
+      matchValue: "dota2.exe",
+    });
+  });
+
+  it("deletes a session owned by the user", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    const res = await request(app.getHttpServer())
+      .delete("/v1/play-sessions/ps1")
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it("404s when deleting someone else's session", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    await request(app.getHttpServer())
+      .delete("/v1/play-sessions/other")
+      .set("Cookie", cookie)
+      .expect(404);
   });
 });

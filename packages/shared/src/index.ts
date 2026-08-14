@@ -1136,6 +1136,7 @@ export const MusicCorrectionFormSchema = z.object({
   current: z.object({
     title: z.string().optional(),
     displayName: z.string().nullable().optional(),
+    artistCredit: z.string().nullable().optional(),
     artists: z.array(MusicArtistRefSchema).optional(),
     albumTitle: z.string().nullable().optional(),
     albumId: z.string().nullable().optional(),
@@ -1597,6 +1598,12 @@ export {
   PlaySessionGameSchema,
   PlaySessionItemSchema,
   PlaySessionPageSchema,
+  PlaySessionAssignSchema,
+  PlaySessionAssignResultSchema,
+  PlaySessionSimilarSchema,
+  PlaySessionGameSuggestItemSchema,
+  PlaySessionGameSuggestPageSchema,
+  PlaySessionDeleteResultSchema,
   type QmonitorSessionWebhook,
   type QmonitorAuthorizeQuery,
   type QmonitorTokenRequest,
@@ -1606,6 +1613,12 @@ export {
   type PlaySessionGame,
   type PlaySessionItem,
   type PlaySessionPage,
+  type PlaySessionAssign,
+  type PlaySessionAssignResult,
+  type PlaySessionSimilar,
+  type PlaySessionGameSuggestItem,
+  type PlaySessionGameSuggestPage,
+  type PlaySessionDeleteResult,
 } from "./qmonitor";
 
 // Server-only crypto helpers: import from `@questorylabs/shared/session`

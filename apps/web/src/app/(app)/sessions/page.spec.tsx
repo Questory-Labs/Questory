@@ -71,5 +71,7 @@ describe("SessionsPage", () => {
       "href",
       "/library/g1",
     );
+    expect(screen.getByRole("button", { name: "Assign" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 });

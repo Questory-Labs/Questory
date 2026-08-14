@@ -1,16 +1,20 @@
 export { BarChart } from "./BarChart";
 export { CalendarHeatmap } from "./CalendarHeatmap";
 export {
+  buildCalendarGrid,
   buildLineLayout,
   chartHeightClass,
   CHART_HEIGHT,
   CHART_PAD,
   defaultXLabel,
+  HEATMAP_LEVEL_CLASS,
+  heatmapLevel,
   niceTicks,
   readToken,
   shortDate,
   useChartWidth,
 } from "./chart-utils";
+export type { CalendarDayCell, CalendarWeek } from "./chart-utils";
 export { GaugeChart } from "./GaugeChart";
 export { HeatmapChart } from "./HeatmapChart";
 export { LineChart } from "./LineChart";

@@ -195,7 +195,11 @@ export default function DashboardPage() {
         ) : nextUp.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {nextUp.slice(0, 8).map((g, i) => (
-              <Link key={g.appId} href={`/library/${g.appId}`}>
+              <Link
+                key={g.appId}
+                href={`/library/${g.appId}`}
+                className="block h-full"
+              >
                 <GameTile
                   name={g.name}
                   headerImage={g.headerImage}
@@ -251,7 +255,11 @@ export default function DashboardPage() {
         ) : recent.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {recent.map((g, i) => (
-              <Link key={g.appId} href={`/library/${g.appId}`}>
+              <Link
+                key={g.appId}
+                href={`/library/${g.appId}`}
+                className="block h-full"
+              >
                 <GameTile
                   name={g.name}
                   headerImage={g.headerImage}
