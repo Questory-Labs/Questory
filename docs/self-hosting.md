@@ -106,13 +106,13 @@ Pushes/PRs to `main` run CI tests per package when a `test` script exists; other
 
 ## Music analytics (optional)
 
-Questory Music runs **inside the Steam API** (`apps/api`). It does not collect plays itself — deploy [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler) (or any ListenBrainz-compatible client) and point it at the API.
+Questory Music runs **inside the Steam API** (`apps/api`). Live plays can come from **native Last.fm polling** (Music → Sources → Connect Last.fm) or from [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler) / any ListenBrainz-compatible client. Connecting a native scrobbler **disables** ListenBrainz ingest for that user — `/1/*` requests are rejected with 403 until they disconnect.
 
 ### Enable
 
 Music **shares the same database** as Steam (same `DATABASE_URL`). Schema is owned by `packages/db`.
 
-1. Turn on the web flag (`NEXT_PUBLIC_ENABLE_MUSIC=true` on the web service). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars):
+1. Turn on the web flag (`NEXT_PUBLIC_ENABLE_MUSIC=true` on the web service). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars), unless native Last.fm is connected:
 
 ```env
 NEXT_PUBLIC_ENABLE_MUSIC=true
@@ -122,9 +122,39 @@ Session APIs live at `/v1/music/*` on the API origin (same process and port as S
 
 2. Start the normal API (music modules load with it). Locally: `pnpm setup` then `pnpm dev`.
 
+### Native Last.fm source
+
+Create an API account at [last.fm/api/account/create](https://www.last.fm/api/account/create) and set:
+
+```env
+LASTFM_API_KEY=
+LASTFM_API_SECRET=
+LASTFM_REDIRECT_URI=http://localhost:4000/v1/music/scrobbler/lastfm/callback
+```
+
+The callback URL must match what you register on Last.fm. Users connect under **Music → Sources**. Native scrobbling and multi-scrobbler ingest cannot run at the same time for one user.
+
+Polling is **not** done on the HTTP API process when Redis queues are enabled (`REDIS_URL` set and `USE_INLINE_SYNC` is not `true`):
+
+| Stack | Where Last.fm polls run |
+|-------|-------------------------|
+| `local` / `selfhosted` (no Redis) | In-process in the API (fine for a household) |
+| `selfhosted-full` / `production` / enterprise compose | Separate `scrobbler` container (`PROCESS_ROLE=scrobbler`) |
+
+Last.fm’s shared API key is capped at about **5 requests/second**. The worker rate-limits to that and stretches the per-user interval as the connected-user count grows (about 30s at tens of users, ~200s at 1,000). Playing-now is therefore near-real-time at family scale and a delay of a few minutes at large scale — not a 5s tick on the API event loop.
+
+Compose profiles already start the worker. If you run the API with Redis locally, also run:
+
+```bash
+pnpm --filter @questorylabs/api build
+pnpm --filter @questorylabs/api start:scrobbler
+```
+
+Without that worker, connect/catch-up jobs sit in the `music-scrobble` queue until a worker consumes them.
+
 ### Point multi-scrobbler at Questory Music
 
-Use multi-scrobbler’s [ListenBrainz client](https://docs.multi-scrobbler.app/configuration/clients/listenbrainz/) (or the [Koito client](https://docs.multi-scrobbler.app/configuration/clients/koito/) pattern):
+Use this path only when the user has **not** connected a native Last.fm/Spotify source. Multi-scrobbler’s [ListenBrainz client](https://docs.multi-scrobbler.app/configuration/clients/listenbrainz/) (or the [Koito client](https://docs.multi-scrobbler.app/configuration/clients/koito/) pattern):
 
 | Variable | Value |
 |----------|--------|

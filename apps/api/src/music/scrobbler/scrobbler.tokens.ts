@@ -1,0 +1,1 @@
+export const SCROBBLE_SOURCES = Symbol("SCROBBLE_SOURCES");

@@ -16,11 +16,13 @@ import {
   TokenGuard,
   extractToken,
 } from "./token.guard";
+import { ListenBrainzNativeMutexGuard } from "../scrobbler/listenbrainz-native-mutex.guard";
 
 @Controller({
   path: ["1", "apis/listenbrainz/1"],
   version: VERSION_NEUTRAL,
 })
+@UseGuards(ListenBrainzNativeMutexGuard)
 export class ListenBrainzController {
   constructor(private readonly lb: ListenBrainzService) {}
 

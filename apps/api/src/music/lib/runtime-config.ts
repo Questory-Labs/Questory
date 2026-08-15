@@ -25,3 +25,24 @@ export function resolveDbProvider(): "sqlite" | "postgresql" {
   }
   return "sqlite";
 }
+
+export function resolveLastFmApiKey(): string {
+  return (process.env.LASTFM_API_KEY || "").trim();
+}
+
+export function resolveLastFmApiSecret(): string {
+  return (process.env.LASTFM_API_SECRET || "").trim();
+}
+
+export function isLastFmConfigured(): boolean {
+  return Boolean(resolveLastFmApiKey() && resolveLastFmApiSecret());
+}
+
+export function resolveLastFmRedirectUri(): string {
+  const port = Number(process.env.API_PORT || 4000);
+  const fallbackPort = Number.isFinite(port) && port > 0 ? port : 4000;
+  return (
+    process.env.LASTFM_REDIRECT_URI ||
+    `http://localhost:${fallbackPort}/v1/music/scrobbler/lastfm/callback`
+  ).trim();
+}

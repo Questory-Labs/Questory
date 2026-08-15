@@ -7,6 +7,7 @@ import { ListenBrainzModule } from "./listenbrainz/listenbrainz.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ImportsModule } from "./imports/imports.module";
 import { PlayingNowModule } from "./playing-now/playing-now.module";
+import { ScrobblerModule } from "./scrobbler/scrobbler.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PlayingNowModule } from "./playing-now/playing-now.module";
     ListenBrainzModule,
     AnalyticsModule,
     ImportsModule,
+    ScrobblerModule,
   ],
 })
 export class MusicModule {}

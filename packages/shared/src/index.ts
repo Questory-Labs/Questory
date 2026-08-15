@@ -1621,6 +1621,8 @@ export {
   type PlaySessionDeleteResult,
 } from "./qmonitor";
 
+export * from "./music-scrobbler";
+
 // Server-only crypto helpers: import from `@questorylabs/shared/session`
 // or `@questorylabs/shared/oauth-state` — never from this browser-safe barrel.
 

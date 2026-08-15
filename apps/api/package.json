@@ -9,6 +9,7 @@
     "prebuild": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
     "build": "nest build",
     "start": "node dist/main.js",
+    "start:scrobbler": "node dist/scrobbler-worker.js",
     "prisma:generate": "pnpm --filter @questorylabs/db run generate",
     "prisma:migrate": "pnpm --filter @questorylabs/db run migrate",
     "prisma:push": "pnpm --filter @questorylabs/db run push",
