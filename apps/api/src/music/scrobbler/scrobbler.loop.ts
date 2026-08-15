@@ -18,6 +18,7 @@ import {
   SCROBBLER_AUTH_FAILED,
   SCROBBLER_TICK_MS,
   isScrobblerWorkerProcess,
+  shouldRunScrobblerConsumer,
   scaledPollIntervalMs,
   scrobblerJobId,
   scrobblerLockKey,
@@ -107,9 +108,9 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
       this.queue.on("error", (err) => {
         this.logger.warn(`Scrobbler queue Redis error: ${err.message}`);
       });
-      if (!workerProc) {
+      if (!shouldRunScrobblerConsumer()) {
         this.logger.log(
-          "Scrobbler HTTP process queues polls to music-scrobble (run PROCESS_ROLE=scrobbler worker)",
+          "Scrobbler HTTP process queues polls to music-scrobble (SCROBBLER_IN_API=false; run PROCESS_ROLE=scrobbler worker)",
         );
         return;
       }
@@ -133,7 +134,7 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
         ),
       );
       this.logger.log(
-        `Scrobbler worker started (${[...this.sourcesById.keys()].join(", ")}, concurrency=${LASTFM_QUEUE_CONCURRENCY}, cap=${LASTFM_MAX_RPS}/s)`,
+        `Scrobbler worker started ${workerProc ? "(dedicated process)" : "(in API process)"} (${[...this.sourcesById.keys()].join(", ")}, concurrency=${LASTFM_QUEUE_CONCURRENCY}, cap=${LASTFM_MAX_RPS}/s)`,
       );
       return;
     }

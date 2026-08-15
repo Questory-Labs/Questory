@@ -51,6 +51,17 @@ export function isScrobblerWorkerProcess(): boolean {
   return (process.env.PROCESS_ROLE || "").trim().toLowerCase() === "scrobbler";
 }
 
+/** True unless SCROBBLER_IN_API is explicitly false, FALSE, or 0. Empty/unset → on. */
+export function isScrobblerInApi(): boolean {
+  const raw = (process.env.SCROBBLER_IN_API || "").trim();
+  if (!raw) return true;
+  return !(raw === "false" || raw === "FALSE" || raw === "0");
+}
+
+export function shouldRunScrobblerConsumer(): boolean {
+  return isScrobblerWorkerProcess() || isScrobblerInApi();
+}
+
 /**
  * Stretch the poll interval so N users at `rps` do not backlog.
  * 1000 users / 5 Last.fm req/s → ~200s between polls per user.

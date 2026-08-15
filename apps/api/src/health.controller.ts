@@ -7,6 +7,10 @@ import {
   resolveSyncMode,
 } from "./lib/runtime-config";
 import { isLastFmConfigured } from "./music/lib/runtime-config";
+import {
+  isScrobblerInApi,
+  isScrobblerWorkerProcess,
+} from "./music/scrobbler/scrobbler.constants";
 
 function coreHealth() {
   const redis = resolveRedisConfig();
@@ -29,6 +33,8 @@ function coreHealth() {
     music: {
       enabled: true,
       scrobblers: { lastfm: isLastFmConfigured() },
+      scrobblerInApi: isScrobblerInApi(),
+      scrobblerProcess: isScrobblerWorkerProcess() ? "scrobbler" : "api",
     },
     watch: { enabled: true },
     read: { enabled: true },
