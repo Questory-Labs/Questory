@@ -31,6 +31,10 @@ x-api-env-common: &api-env-common
   CRON_WATCH_SCHEDULE: ${CRON_WATCH_SCHEDULE:-0 */6 * * *}
   CRON_CATALOG_SCHEDULE: ${CRON_CATALOG_SCHEDULE:-0 4 * * *}
   CRON_PRICE_SCHEDULE: ${CRON_PRICE_SCHEDULE:-0 5 * * *}
+  LASTFM_API_KEY: ${LASTFM_API_KEY:-}
+  LASTFM_API_SECRET: ${LASTFM_API_SECRET:-}
+  LASTFM_REDIRECT_URI: ${LASTFM_REDIRECT_URI:-http://localhost:4000/v1/music/scrobbler/lastfm/callback}
+  MUSIC_CREDS_KEY: ${MUSIC_CREDS_KEY:-}
 
 services:
   postgres:
@@ -91,7 +95,7 @@ services:
       - "4000:4000"
 
   # Durable self-host / production: Postgres + Redis + BullMQ
-  # Music, watch, and in-process cron are part of this API process.
+  # Music/watch HTTP + Steam cron stay in this process; Last.fm polls run in `scrobbler`.
   api:
     profiles: ["selfhosted-full", "production"]
     image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}"
@@ -112,6 +116,31 @@ services:
       USE_INLINE_SYNC: "false"
     ports:
       - "4000:4000"
+
+  # Last.fm (and later Spotify) poll worker — required when REDIS_URL is set.
+  # Same image as api; do not re-run prisma db push here.
+  scrobbler:
+    profiles: ["selfhosted-full", "production"]
+    image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}"
+    build: *api-build
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      <<: *api-env-common
+      APP_MODE: ${APP_MODE:-selfhosted-full}
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://questorylabs:questorylabs@postgres:5432/questorylabs
+      REDIS_URL: redis://redis:6379
+      USE_INLINE_SYNC: "false"
+      PROCESS_ROLE: scrobbler
+    command: ["node", "dist/scrobbler-worker.js"]
 
   web:
     profiles: ["selfhosted", "selfhosted-full", "production"]

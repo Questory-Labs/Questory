@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -13,12 +14,15 @@ import {
   AccountsService,
   generateApiToken,
 } from "../accounts/accounts.service";
+import { LB_NATIVE_DISABLED_ERROR } from "../music/scrobbler/scrobbler.constants";
+import { ScrobblerConnections } from "../music/scrobbler/scrobbler.connections";
 
 @Injectable()
 export class ApiKeysService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: AccountsService,
+    private readonly scrobbler: ScrobblerConnections,
   ) {}
 
   list(userId: string) {
@@ -51,6 +55,12 @@ export class ApiKeysService {
     if (!user) throw new NotFoundException("User not found");
 
     if (type === API_KEY_TYPE.musicIngest) {
+      if (await this.scrobbler.hasNative(userId)) {
+        throw new ForbiddenException({
+          code: 403,
+          error: LB_NATIVE_DISABLED_ERROR,
+        });
+      }
       await this.accounts.ensureListenbrainzAccount(userId, user.personaName);
     }
 
@@ -101,11 +111,13 @@ export class ApiKeysService {
   }
 
   async identity(userId: string) {
-    const [steamId, listenbrainzUsername, keys] = await Promise.all([
-      this.accounts.getSteamId(userId),
-      this.accounts.getListenbrainzUsername(userId),
-      this.list(userId),
-    ]);
-    return { steamId, listenbrainzUsername, keys };
+    const [steamId, listenbrainzUsername, keys, nativeScrobbling] =
+      await Promise.all([
+        this.accounts.getSteamId(userId),
+        this.accounts.getListenbrainzUsername(userId),
+        this.list(userId),
+        this.scrobbler.hasNative(userId),
+      ]);
+    return { steamId, listenbrainzUsername, keys, nativeScrobbling };
   }
 }

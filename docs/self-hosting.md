@@ -106,13 +106,13 @@ Pushes/PRs to `main` run CI tests per package when a `test` script exists; other
 
 ## Music analytics (optional)
 
-Questory Music runs **inside the Steam API** (`apps/api`). It does not collect plays itself — deploy [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler) (or any ListenBrainz-compatible client) and point it at the API.
+Questory Music runs **inside the Steam API** (`apps/api`). Live plays can come from **native Last.fm polling** (Music → Sources → Connect Last.fm) or from [multi-scrobbler](https://github.com/foxxmd/multi-scrobbler) / any ListenBrainz-compatible client. Connecting a native scrobbler **disables** ListenBrainz ingest for that user — `/1/*` requests are rejected with 403 until they disconnect.
 
 ### Enable
 
 Music **shares the same database** as Steam (same `DATABASE_URL`). Schema is owned by `packages/db`.
 
-1. Turn on the web flag (`NEXT_PUBLIC_ENABLE_MUSIC=true` on the web service). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars):
+1. Turn on the web flag (`NEXT_PUBLIC_ENABLE_MUSIC=true` on the web service). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars), unless native Last.fm is connected:
 
 ```env
 NEXT_PUBLIC_ENABLE_MUSIC=true
@@ -122,9 +122,32 @@ Session APIs live at `/v1/music/*` on the API origin (same process and port as S
 
 2. Start the normal API (music modules load with it). Locally: `pnpm setup` then `pnpm dev`.
 
+### Native Last.fm source
+
+Create an API account at [last.fm/api/account/create](https://www.last.fm/api/account/create) and set:
+
+```env
+LASTFM_API_KEY=
+LASTFM_API_SECRET=
+LASTFM_REDIRECT_URI=http://localhost:4000/v1/music/scrobbler/lastfm/callback
+```
+
+The callback URL must match what you register on the Last.fm API account **exactly** (no trailing slash, no extra query string). If Last.fm shows “Application authenticated / close your browser” instead of sending you back, the Callback URL on that API account is wrong or missing — set it to the same value as `LASTFM_REDIRECT_URI`, then return to Music → Sources; Questory will finish the session on the next status load.
+
+Polling is **not** done on the HTTP API process when Redis queues are enabled (`REDIS_URL` set and `USE_INLINE_SYNC` is not `true`):
+
+| Stack | Where Last.fm polls run |
+|-------|-------------------------|
+| No Redis (`USE_INLINE_SYNC=true`) | In-process in the API |
+| Redis queues (`REDIS_URL` set) | BullMQ queue `music-scrobble`, consumed by `PROCESS_ROLE=scrobbler` |
+
+`pnpm dev` / `pnpm dev:api` starts the HTTP API **and** the scrobbler worker (same as Steam sync using Redis). Compose `selfhosted-full` / `production` / enterprise starts a `scrobbler` container.
+
+Without a worker, jobs sit in the queue and Last.fm playing-now never updates.
+
 ### Point multi-scrobbler at Questory Music
 
-Use multi-scrobbler’s [ListenBrainz client](https://docs.multi-scrobbler.app/configuration/clients/listenbrainz/) (or the [Koito client](https://docs.multi-scrobbler.app/configuration/clients/koito/) pattern):
+Use this path only when the user has **not** connected a native Last.fm/Spotify source. Multi-scrobbler’s [ListenBrainz client](https://docs.multi-scrobbler.app/configuration/clients/listenbrainz/) (or the [Koito client](https://docs.multi-scrobbler.app/configuration/clients/koito/) pattern):
 
 | Variable | Value |
 |----------|--------|

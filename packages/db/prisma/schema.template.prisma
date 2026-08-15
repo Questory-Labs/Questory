@@ -1047,7 +1047,7 @@ model WatchHourBucket {
 model SourceConnection {
   id             String    @id @default(cuid())
   userId         String
-  /** trakt | anilist | mal | kitsu | bangumi | shikimori */
+  /** trakt | anilist | mal | kitsu | bangumi | shikimori | lastfm | spotify */
   provider       String
   externalUserId String?
   accessToken    String
@@ -1057,6 +1057,8 @@ model SourceConnection {
   /** Opaque sync cursor / last watched_at ISO */
   syncCursor     String?
   lastSyncedAt   DateTime?
+  /** Last provider error; `auth_failed` stops native music polling until reconnect. */
+  lastError      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

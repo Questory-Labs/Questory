@@ -6,6 +6,7 @@ import {
   resolveRedisConfig,
   resolveSyncMode,
 } from "./lib/runtime-config";
+import { isLastFmConfigured } from "./music/lib/runtime-config";
 
 function coreHealth() {
   const redis = resolveRedisConfig();
@@ -25,7 +26,10 @@ function coreHealth() {
     sync: {
       mode: resolveSyncMode(),
     },
-    music: { enabled: true },
+    music: {
+      enabled: true,
+      scrobblers: { lastfm: isLastFmConfigured() },
+    },
     watch: { enabled: true },
     read: { enabled: true },
   };

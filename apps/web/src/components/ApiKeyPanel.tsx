@@ -18,6 +18,7 @@ type IdentityResponse = {
   steamId: string | null;
   listenbrainzUsername: string | null;
   keys: ApiKeyMeta[];
+  nativeScrobbling?: boolean;
 };
 
 type CreateResponse = {
@@ -54,6 +55,8 @@ export function ApiKeyPanel({
   });
 
   const key = (identity.value?.keys || []).find((k) => k.type === type);
+  const nativeLocked =
+    type === "music_ingest" && Boolean(identity.value?.nativeScrobbling);
 
   const create = useAction({
     run: () =>
@@ -128,28 +131,35 @@ export function ApiKeyPanel({
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button
-          variant="primary"
-          disabled={create.busy}
-          onClick={() => create.submit()}
-        >
-          {create.busy
-            ? "Generating…"
-            : key
-              ? "Rotate key"
-              : "Generate key"}
-        </Button>
-        {key && (
+      {nativeLocked ? (
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          ListenBrainz ingest is disabled while native scrobbling is on.
+          Disconnect Last.fm under Music → Sources to mint or use ingest keys.
+        </p>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-3">
           <Button
-            variant="secondary"
-            disabled={revoke.busy}
-            onClick={() => revoke.submit(key.id)}
+            variant="primary"
+            disabled={create.busy}
+            onClick={() => create.submit()}
           >
-            Revoke
+            {create.busy
+              ? "Generating…"
+              : key
+                ? "Rotate key"
+                : "Generate key"}
           </Button>
-        )}
-      </div>
+          {key && (
+            <Button
+              variant="secondary"
+              disabled={revoke.busy}
+              onClick={() => revoke.submit(key.id)}
+            >
+              Revoke
+            </Button>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>

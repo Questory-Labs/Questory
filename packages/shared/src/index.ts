@@ -745,6 +745,7 @@ export const MusicHealthSchema = z.object({
     })
     .optional(),
   ingestConfigured: z.boolean().optional(),
+  lastfmConfigured: z.boolean().optional(),
 });
 export type MusicHealth = z.infer<typeof MusicHealthSchema>;
 
@@ -1620,6 +1621,8 @@ export {
   type PlaySessionGameSuggestPage,
   type PlaySessionDeleteResult,
 } from "./qmonitor";
+
+export * from "./music-scrobbler";
 
 // Server-only crypto helpers: import from `@questorylabs/shared/session`
 // or `@questorylabs/shared/oauth-state` — never from this browser-safe barrel.

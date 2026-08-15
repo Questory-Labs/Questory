@@ -46,6 +46,10 @@ x-api-env: &api-env
   CRON_WATCH_SCHEDULE: ${CRON_WATCH_SCHEDULE:-0 */6 * * *}
   CRON_CATALOG_SCHEDULE: ${CRON_CATALOG_SCHEDULE:-0 4 * * *}
   CRON_PRICE_SCHEDULE: ${CRON_PRICE_SCHEDULE:-0 5 * * *}
+  LASTFM_API_KEY: ${LASTFM_API_KEY:-}
+  LASTFM_API_SECRET: ${LASTFM_API_SECRET:-}
+  LASTFM_REDIRECT_URI: ${LASTFM_REDIRECT_URI:-http://localhost:4000/v1/music/scrobbler/lastfm/callback}
+  MUSIC_CREDS_KEY: ${MUSIC_CREDS_KEY:-}
   APP_MODE: ${APP_MODE:-selfhosted-full}
   DATABASE_PROVIDER: postgresql
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
@@ -124,6 +128,23 @@ services:
       <<: *api-env
     ports:
       - "${API_PORT:-4000}:4000"
+
+  scrobbler:
+    image: ${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}
+    build: *api-build
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      <<: *api-env
+      PROCESS_ROLE: scrobbler
+    command: ["node", "dist/scrobbler-worker.js"]
 
   web:
     image: ${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-web:${IMAGE_TAG:-latest}

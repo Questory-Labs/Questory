@@ -1,17 +1,22 @@
 "use client";
 
 import { useResource, useStore } from "@questorylabs/qhttp/react";
-import { ApiKeyPanel } from "@/components/ApiKeyPanel";
-import { PageHeader, Panel } from "@/components/ui";
+import { LastFmScrobblerCard } from "@/components/music/LastFmScrobblerCard";
+import { MultiScrobblerCard } from "@/components/music/MultiScrobblerCard";
+import {
+  MusicSectionHeading,
+  MusicSourceCard,
+  MusicStatusPill,
+} from "@/components/music/MusicSourceCard";
+import { PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
-import { getMusicUrl, musicUrl } from "@/lib/music";
+import { musicUrl } from "@/lib/music";
 import {
   useEffect,
   useRef,
   useState,
   type ChangeEvent,
   type DragEvent,
-  type ReactNode,
 } from "react";
 
 type ImportStart = {
@@ -49,29 +54,8 @@ type IdentityResponse = {
   steamId: string | null;
   listenbrainzUsername: string | null;
   keys: ApiKeyMeta[];
+  nativeScrobbling?: boolean;
 };
-
-function StatusPill({
-  tone,
-  children,
-}: {
-  tone: "ok" | "idle" | "warn";
-  children: ReactNode;
-}) {
-  const cls =
-    tone === "ok"
-      ? "bg-[var(--accent-dim)] text-[var(--accent)]"
-      : tone === "warn"
-        ? "bg-[var(--bg-3)] text-[var(--ink)]"
-        : "bg-[var(--bg-2)] text-[var(--faint)]";
-  return (
-    <span
-      className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}
-    >
-      {children}
-    </span>
-  );
-}
 
 function ImportProgress({ job }: { job: ImportJob }) {
   const running = job.status === "running";
@@ -125,61 +109,6 @@ function ImportProgress({ job }: { job: ImportJob }) {
   );
 }
 
-function SourceCard({
-  label,
-  title,
-  blurb,
-  status,
-  children,
-}: {
-  label: string;
-  title: string;
-  blurb: string;
-  status: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
-      <div className="flex items-start justify-between gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-          {label}
-        </span>
-        {status}
-      </div>
-      <h2
-        className="mt-3 font-display text-xl tracking-tight text-[var(--ink)]"
-        style={{ fontWeight: 700 }}
-      >
-        {title}
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{blurb}</p>
-      {children ? <div className="mt-auto pt-5">{children}</div> : null}
-    </Panel>
-  );
-}
-
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mb-4">
-      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-        {eyebrow}
-      </div>
-      <h2 className="mt-1 font-display text-lg font-bold tracking-tight text-[var(--ink)]">
-        {title}
-      </h2>
-      <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">{description}</p>
-    </div>
-  );
-}
-
 const MUSIC_ACCEPT =
   ".db,.sqlite,.sqlite3,.json,.zip,application/json,application/zip";
 
@@ -198,80 +127,6 @@ function isMusicImportFile(file: File) {
   );
 }
 
-function MultiScrobblerCard({ active }: { active: boolean }) {
-  const baseUrl = getMusicUrl();
-  const [showDetails, setShowDetails] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  async function copyBaseUrl() {
-    try {
-      await navigator.clipboard.writeText(baseUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2_000);
-    } catch {
-      setCopied(false);
-    }
-  }
-
-  return (
-    <SourceCard
-      label="Live ingest"
-      title="Multi-scrobbler"
-      blurb="Submit new listens via the ListenBrainz-compatible API. Generate a music ingest key and set LZ_URL to the base URL below."
-      status={
-        active ? (
-          <StatusPill tone="ok">Active</StatusPill>
-        ) : (
-          <StatusPill tone="idle">Setup</StatusPill>
-        )
-      }
-    >
-      <div className="mb-4 rounded border border-[var(--accent)]/35 bg-[var(--bg-2)] px-3 py-2.5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--accent)]">
-          LZ_URL / base URL
-        </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <code className="min-w-0 flex-1 break-all font-mono text-sm text-[var(--ink)]">
-            {baseUrl}
-          </code>
-          <button
-            type="button"
-            onClick={() => void copyBaseUrl()}
-            className="shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)] hover:text-[var(--accent)]"
-          >
-            {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowDetails((v) => !v)}
-          className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)] hover:text-[var(--muted)]"
-        >
-          {showDetails ? "Hide endpoints" : "Show endpoints"}
-        </button>
-        {showDetails ? (
-          <ul className="mt-2 space-y-1.5 border-t border-[var(--line)] pt-2 font-mono text-[11px] text-[var(--muted)]">
-            <li className="break-all">
-              <span className="text-[var(--faint)]">POST</span> {baseUrl}
-              /1/submit-listens
-            </li>
-            <li className="break-all">
-              <span className="text-[var(--faint)]">GET</span> {baseUrl}
-              /1/validate-token
-            </li>
-          </ul>
-        ) : null}
-      </div>
-      <ApiKeyPanel
-        embedded
-        type="music_ingest"
-        title="Ingest key"
-        description="Shown once when generated. Rotate anytime."
-      />
-    </SourceCard>
-  );
-}
-
 export default function MusicSettingsPage() {
   const store = useStore();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -281,7 +136,7 @@ export default function MusicSettingsPage() {
   const [job, setJob] = useState<ImportJob | null>(null);
   const [restoring, setRestoring] = useState(true);
   const [dragging, setDragging] = useState(false);
-  const [setupOpen, setSetupOpen] = useState(false);
+  const [lastfmFlash, setLastfmFlash] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const identity = useResource({
@@ -291,7 +146,7 @@ export default function MusicSettingsPage() {
   const ingestActive = Boolean(
     (identity.value?.keys || []).find((k) => k.type === "music_ingest"),
   );
-  const showIngest = ingestActive || setupOpen;
+  const nativeLocked = Boolean(identity.value?.nativeScrobbling);
 
   function stopPoll() {
     if (pollRef.current) {
@@ -376,6 +231,13 @@ export default function MusicSettingsPage() {
       stopPoll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resume once on mount
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lastfm = params.get("lastfm");
+    if (lastfm === "connected") setLastfmFlash("connected");
+    if (lastfm === "error") setLastfmFlash(params.get("reason") || "error");
   }, []);
 
   const busy =
@@ -473,13 +335,13 @@ export default function MusicSettingsPage() {
 
   const pill =
     job?.status === "completed" ? (
-      <StatusPill tone="ok">Done</StatusPill>
+      <MusicStatusPill tone="ok">Done</MusicStatusPill>
     ) : failed ? (
-      <StatusPill tone="warn">Error</StatusPill>
+      <MusicStatusPill tone="warn">Error</MusicStatusPill>
     ) : jobId || restoring ? (
-      <StatusPill tone="warn">Running</StatusPill>
+      <MusicStatusPill tone="warn">Running</MusicStatusPill>
     ) : (
-      <StatusPill tone="idle">Upload</StatusPill>
+      <MusicStatusPill tone="idle">Upload</MusicStatusPill>
     );
 
   const showProgress =
@@ -493,47 +355,44 @@ export default function MusicSettingsPage() {
       <PageHeader
         eyebrow="Music"
         title="Sources"
-        description="Point multi-scrobbler at the ListenBrainz-compatible ingest API for live listens. Enrich with a history export below."
+        description="Connect Last.fm for live polling, or point multi-scrobbler at the ListenBrainz ingest API. Native scrobbling and ListenBrainz ingest cannot run at the same time."
       />
 
+      {lastfmFlash === "connected" ? (
+        <p className="mb-4 text-sm text-[var(--accent)]">
+          Last.fm connected — ListenBrainz ingest is now disabled for this account.
+        </p>
+      ) : null}
+      {lastfmFlash && lastfmFlash !== "connected" ? (
+        <p className="mb-4 text-sm text-[var(--danger)]" role="alert">
+          Could not connect Last.fm{lastfmFlash !== "error" ? `: ${lastfmFlash}` : ""}.
+        </p>
+      ) : null}
+
       <section className="mb-10">
-        <SectionHeading
+        <MusicSectionHeading
           eyebrow="Live"
           title="Live sources"
-          description="Active ingest that records new listens as they happen."
+          description="Native Last.fm polling, or ListenBrainz-compatible ingest. Connecting Last.fm disables multi-scrobbler for this user."
         />
 
-        {!showIngest ? (
-          <Panel className="p-5">
-            <p className="text-sm text-[var(--ink)]">No live source yet.</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Generate a music ingest key and point multi-scrobbler here.
-            </p>
-            <div className="mt-4">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setSetupOpen(true)}
-              >
-                Add Multi-scrobbler
-              </button>
-            </div>
-          </Panel>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            <MultiScrobblerCard active={ingestActive} />
-          </div>
-        )}
+        <div className="grid gap-4 md:grid-cols-2">
+          <LastFmScrobblerCard />
+          <MultiScrobblerCard
+            active={ingestActive}
+            nativeLocked={nativeLocked}
+          />
+        </div>
       </section>
 
       <section>
-        <SectionHeading
+        <MusicSectionHeading
           eyebrow="Enrich"
           title="Enrich with history"
           description="Import past listens from Koito, Spotify, Maloja, Last.fm, or ListenBrainz. This does not replace live ingest."
         />
         <div className="grid gap-4 md:grid-cols-2">
-          <SourceCard
+          <MusicSourceCard
             label="Import"
             title="History upload"
             blurb="Drop a Koito SQLite database, Koito JSON export, Spotify Streaming_History_Audio JSON, Maloja export, Last.fm recenttracks JSON, or ListenBrainz export zip. Format is detected from the filename and contents."
@@ -617,13 +476,13 @@ export default function MusicSettingsPage() {
                 {job?.source ? ` · ${job.source}` : ""}
               </p>
             )}
-          </SourceCard>
+          </MusicSourceCard>
 
-          <SourceCard
+          <MusicSourceCard
             label="Formats"
             title="Filename hints"
             blurb="Same conventions as Koito: include these substrings so auto-detect is reliable."
-            status={<StatusPill tone="idle">Reference</StatusPill>}
+            status={<MusicStatusPill tone="idle">Reference</MusicStatusPill>}
           >
             <ul className="space-y-1.5 font-mono text-[11px] text-[var(--muted)]">
               <li>
@@ -651,7 +510,7 @@ export default function MusicSettingsPage() {
                 ListenBrainz
               </li>
             </ul>
-          </SourceCard>
+          </MusicSourceCard>
         </div>
       </section>
     </>
