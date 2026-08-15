@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  isScrobblerInApi,
   scaledPollIntervalMs,
+  shouldRunScrobblerConsumer,
   staggerOffsetMs,
 } from "../../src/music/scrobbler/scrobbler.constants";
 
@@ -24,6 +26,34 @@ describe("scaledPollIntervalMs", () => {
 
   it("stretches so 1000 users at 5 rps are not queued faster than Last.fm allows", () => {
     expect(scaledPollIntervalMs(1000, 30_000, 5)).toBe(200_000);
+  });
+});
+
+describe("shouldRunScrobblerConsumer", () => {
+  const prev = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...prev };
+  });
+
+  it("runs in the API process when SCROBBLER_IN_API is unset", () => {
+    delete process.env.SCROBBLER_IN_API;
+    delete process.env.PROCESS_ROLE;
+    expect(isScrobblerInApi()).toBe(true);
+    expect(shouldRunScrobblerConsumer()).toBe(true);
+  });
+
+  it("queues only when SCROBBLER_IN_API=false on the API process", () => {
+    process.env.SCROBBLER_IN_API = "false";
+    delete process.env.PROCESS_ROLE;
+    expect(isScrobblerInApi()).toBe(false);
+    expect(shouldRunScrobblerConsumer()).toBe(false);
+  });
+
+  it("still consumes in the dedicated worker when SCROBBLER_IN_API=false", () => {
+    process.env.SCROBBLER_IN_API = "false";
+    process.env.PROCESS_ROLE = "scrobbler";
+    expect(shouldRunScrobblerConsumer()).toBe(true);
   });
 });
 

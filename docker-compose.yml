@@ -35,6 +35,7 @@ x-api-env-common: &api-env-common
   LASTFM_API_SECRET: ${LASTFM_API_SECRET:-}
   LASTFM_REDIRECT_URI: ${LASTFM_REDIRECT_URI:-http://localhost:4000/v1/music/scrobbler/lastfm/callback}
   MUSIC_CREDS_KEY: ${MUSIC_CREDS_KEY:-}
+  SCROBBLER_IN_API: ${SCROBBLER_IN_API:-true}
 
 services:
   postgres:
@@ -95,7 +96,6 @@ services:
       - "4000:4000"
 
   # Durable self-host / production: Postgres + Redis + BullMQ
-  # Music/watch HTTP + Steam cron stay in this process; Last.fm polls run in `scrobbler`.
   api:
     profiles: ["selfhosted-full", "production"]
     image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}"
@@ -117,8 +117,6 @@ services:
     ports:
       - "4000:4000"
 
-  # Last.fm (and later Spotify) poll worker — required when REDIS_URL is set.
-  # Same image as api; do not re-run prisma db push here.
   scrobbler:
     profiles: ["selfhosted-full", "production"]
     image: "${DOCKERHUB_NAMESPACE:-santoshpanna}/questorylabs-api:${IMAGE_TAG:-latest}"
