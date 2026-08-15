@@ -21,7 +21,6 @@ import {
   scaledPollIntervalMs,
   scrobblerJobId,
   scrobblerLockKey,
-  staggerOffsetMs,
   type MusicScrobblerProviderId,
 } from "./scrobbler.constants";
 import { ScrobblerConnections } from "./scrobbler.connections";
@@ -73,7 +72,6 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ScrobblerLoop.name);
   private timer: ReturnType<typeof setInterval> | null = null;
   private ticking = false;
-  private readonly startedAt = Date.now();
   private readonly nextDue = new Map<string, number>();
   private readonly playingFp = new Map<string, string>();
   private readonly semaphore = new Semaphore(LASTFM_QUEUE_CONCURRENCY);
@@ -129,6 +127,11 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
         return;
       }
       this.startTimer();
+      void this.tick().catch((err) =>
+        this.logger.error(
+          `Scrobbler first tick failed: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
       this.logger.log(
         `Scrobbler worker started (${[...this.sourcesById.keys()].join(", ")}, concurrency=${LASTFM_QUEUE_CONCURRENCY}, cap=${LASTFM_MAX_RPS}/s)`,
       );
@@ -144,6 +147,11 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
       return;
     }
     this.startTimer();
+    void this.tick().catch((err) =>
+      this.logger.error(
+        `Scrobbler first tick failed: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
     this.logger.log(
       `Scrobbler inline loop started (${[...this.sourcesById.keys()].join(", ")})`,
     );
@@ -219,7 +227,7 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
     const key = this.dueKey(conn);
     let due = this.nextDue.get(key);
     if (due == null) {
-      due = this.startedAt + staggerOffsetMs(conn.userId, intervalMs);
+      due = now;
       this.nextDue.set(key, due);
     }
     if (now < due) return;

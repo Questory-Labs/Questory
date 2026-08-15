@@ -34,15 +34,18 @@ export function resolveLastFmApiSecret(): string {
   return (process.env.LASTFM_API_SECRET || "").trim();
 }
 
-export function isLastFmConfigured(): boolean {
-  return Boolean(resolveLastFmApiKey() && resolveLastFmApiSecret());
-}
-
 export function resolveLastFmRedirectUri(): string {
+  const explicit = (process.env.LASTFM_REDIRECT_URI || "").trim();
+  if (explicit) return explicit;
   const port = Number(process.env.API_PORT || 4000);
   const fallbackPort = Number.isFinite(port) && port > 0 ? port : 4000;
-  return (
-    process.env.LASTFM_REDIRECT_URI ||
-    `http://localhost:${fallbackPort}/v1/music/scrobbler/lastfm/callback`
-  ).trim();
+  return `http://localhost:${fallbackPort}/v1/music/scrobbler/lastfm/callback`;
+}
+
+export function isLastFmConfigured(): boolean {
+  return Boolean(
+    resolveLastFmApiKey() &&
+      resolveLastFmApiSecret() &&
+      (process.env.LASTFM_REDIRECT_URI || "").trim(),
+  );
 }

@@ -4,7 +4,7 @@ import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import type { MusicScrobblerStatus } from "@questorylabs/shared";
 import { useState } from "react";
 import { Button, Dialog } from "@/components/ui";
-import { musicFetch, musicUrl } from "@/lib/music";
+import { fetchMusicHealth, musicFetch, musicUrl } from "@/lib/music";
 import { MusicSourceCard, MusicStatusPill } from "./MusicSourceCard";
 
 function formatLastSync(iso: string | null): string {
@@ -18,14 +18,21 @@ export function LastFmScrobblerCard() {
   const store = useStore();
   const [confirm, setConfirm] = useState<"connect" | "disconnect" | null>(null);
 
+  const health = useResource({
+    id: ["music-health"],
+    load: fetchMusicHealth,
+    freshFor: 30_000,
+    retries: false,
+  });
+
   const status = useResource({
     id: ["music-scrobbler-lastfm"],
     load: () => musicFetch<MusicScrobblerStatus>("/scrobbler/lastfm/status"),
+    when: health.value?.lastfmConfigured === true,
   });
 
   const lastfm = status.value?.lastfm;
   const connected = Boolean(lastfm?.connected);
-  const configured = Boolean(lastfm?.configured);
 
   const disconnect = useAction({
     run: () => musicFetch("/scrobbler/lastfm", { method: "DELETE" }),
@@ -36,8 +43,10 @@ export function LastFmScrobblerCard() {
     },
   });
 
-  const blurb = !configured
-    ? "Set LASTFM_API_KEY and LASTFM_API_SECRET on the API to enable live Last.fm polling."
+  if (health.value?.lastfmConfigured !== true) return null;
+
+  const blurb = status.failed
+    ? "Could not load Last.fm status from the API. Check the API logs (schema push may be needed)."
     : connected
       ? `Connected as ${lastfm?.username ?? "Last.fm"} · last sync ${formatLastSync(lastfm?.lastSyncedAt ?? null)}. ListenBrainz ingest is disabled while this is on.`
       : "Poll Last.fm for what you are listening to. Connecting disables multi-scrobbler / ListenBrainz ingest for your account.";
@@ -53,10 +62,8 @@ export function LastFmScrobblerCard() {
             <MusicStatusPill tone={lastfm?.lastError ? "warn" : "ok"}>
               {lastfm?.lastError ? "Reconnect" : "Connected"}
             </MusicStatusPill>
-          ) : configured ? (
-            <MusicStatusPill tone="idle">Connect</MusicStatusPill>
           ) : (
-            <MusicStatusPill tone="idle">Off</MusicStatusPill>
+            <MusicStatusPill tone="idle">Connect</MusicStatusPill>
           )
         }
       >
@@ -67,24 +74,22 @@ export function LastFmScrobblerCard() {
               : lastfm.lastError}
           </p>
         ) : null}
-        {configured ? (
-          <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => setConfirm("connect")}
+          >
+            {connected ? "Reconnect Last.fm" : "Connect Last.fm"}
+          </Button>
+          {connected ? (
             <Button
-              variant="secondary"
-              onClick={() => setConfirm("connect")}
+              variant="ghost-danger"
+              onClick={() => setConfirm("disconnect")}
             >
-              {connected ? "Reconnect Last.fm" : "Connect Last.fm"}
+              Disconnect
             </Button>
-            {connected ? (
-              <Button
-                variant="ghost-danger"
-                onClick={() => setConfirm("disconnect")}
-              >
-                Disconnect
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </MusicSourceCard>
 
       <Dialog

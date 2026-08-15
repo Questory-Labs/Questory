@@ -35,6 +35,10 @@ export function lastFmAuthCacheKey(token: string): string {
   return `scrobbler:lastfm:auth:${token}`;
 }
 
+export function lastFmPendingCacheKey(userId: string): string {
+  return `scrobbler:lastfm:pending:${userId}`;
+}
+
 export function scrobblerLockKey(provider: string, userId: string): string {
   return `scrobbler:${provider}:${userId}`;
 }

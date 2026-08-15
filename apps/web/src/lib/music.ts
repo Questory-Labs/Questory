@@ -57,7 +57,7 @@ export async function musicFetch<T>(
 export async function fetchMusicHealth(): Promise<MusicHealth> {
   const body = await probeJsonSafe<{
     ok?: boolean;
-    music?: { enabled?: boolean };
+    music?: { enabled?: boolean; scrobblers?: { lastfm?: boolean } };
   }>(`${getMusicUrl()}/health`);
   if (!body) {
     return { ok: false, service: "questorylabs-music" };
@@ -66,6 +66,7 @@ export async function fetchMusicHealth(): Promise<MusicHealth> {
   return {
     ok: musicOk,
     service: "questorylabs-music",
+    lastfmConfigured: body.music?.scrobblers?.lastfm === true,
   };
 }
 

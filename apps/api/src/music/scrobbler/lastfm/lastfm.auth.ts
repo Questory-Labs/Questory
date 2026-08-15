@@ -9,6 +9,7 @@ import {
   LASTFM_PROVIDER,
   SCROBBLER_AUTH_TOKEN_TTL_SECONDS,
   lastFmAuthCacheKey,
+  lastFmPendingCacheKey,
 } from "../scrobbler.constants";
 import { ScrobblerConnections } from "../scrobbler.connections";
 import { ScrobblerLoop } from "../scrobbler.loop";
@@ -29,9 +30,11 @@ export class LastFmAuth {
     return isLastFmConfigured();
   }
 
-  async authorizeUrl(userId: string, state: string): Promise<string> {
+  async authorizeUrl(userId: string): Promise<string> {
     if (!this.configured()) {
-      throw new BadRequestException("LASTFM_API_KEY/SECRET not configured");
+      throw new BadRequestException(
+        "LASTFM_API_KEY, LASTFM_API_SECRET, and LASTFM_REDIRECT_URI must be set",
+      );
     }
     const { token } = await this.client.getToken();
     if (!token) throw new BadRequestException("Last.fm did not return a token");
@@ -40,18 +43,23 @@ export class LastFmAuth {
       userId,
       SCROBBLER_AUTH_TOKEN_TTL_SECONDS,
     );
-    const cb = new URL(resolveLastFmRedirectUri());
-    cb.searchParams.set("state", state);
+    await this.cache.setJson(
+      lastFmPendingCacheKey(userId),
+      token,
+      SCROBBLER_AUTH_TOKEN_TTL_SECONDS,
+    );
+    // Last.fm only redirects if `cb` matches the API-account Callback URL exactly.
+    // Extra query params (e.g. state) make it show "close your browser" instead.
     const url = new URL("https://www.last.fm/api/auth/");
     url.searchParams.set("api_key", resolveLastFmApiKey());
     url.searchParams.set("token", token);
-    url.searchParams.set("cb", cb.toString());
+    url.searchParams.set("cb", resolveLastFmRedirectUri());
     return url.toString();
   }
 
   async complete(token: string, userId: string) {
     if (!this.configured()) {
-      throw new BadRequestException("LASTFM_API_KEY/SECRET not configured");
+      throw new BadRequestException("LASTFM_API_KEY, LASTFM_API_SECRET, and LASTFM_REDIRECT_URI must be set");
     }
     const data = await this.client.getSession(token);
     const sessionKey = data.session?.key;
@@ -66,6 +74,7 @@ export class LastFmAuth {
       externalUserId: username,
     });
     await this.cache.del(lastFmAuthCacheKey(token));
+    await this.cache.del(lastFmPendingCacheKey(userId));
     void this.loop.pollNow(userId, LASTFM_PROVIDER).catch((err) =>
       this.logger.warn(
         `Last.fm catch-up failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -83,7 +92,20 @@ export class LastFmAuth {
     return this.connections.disconnect(userId, LASTFM_PROVIDER);
   }
 
-  status(userId: string) {
+  async status(userId: string) {
+    await this.finishPending(userId);
     return this.connections.lastFmStatus(userId);
+  }
+
+  /** Last.fm often leaves you on their "close the browser" page. Finish when you come back. */
+  private async finishPending(userId: string): Promise<void> {
+    const token = await this.cache.getJson<string>(lastFmPendingCacheKey(userId));
+    if (!token) return;
+    try {
+      await this.complete(token, userId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.debug(`Last.fm pending session not ready: ${message}`);
+    }
   }
 }

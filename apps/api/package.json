@@ -5,7 +5,9 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "predev": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
-    "dev": "nest start --watch",
+    "dev": "node scripts/dev.mjs",
+    "dev:http": "nest start --watch",
+    "dev:scrobbler": "nest start --watch --entryFile scrobbler-worker",
     "prebuild": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
     "build": "nest build",
     "start": "node dist/main.js",

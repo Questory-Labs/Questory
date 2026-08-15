@@ -132,25 +132,18 @@ LASTFM_API_SECRET=
 LASTFM_REDIRECT_URI=http://localhost:4000/v1/music/scrobbler/lastfm/callback
 ```
 
-The callback URL must match what you register on Last.fm. Users connect under **Music → Sources**. Native scrobbling and multi-scrobbler ingest cannot run at the same time for one user.
+The callback URL must match what you register on the Last.fm API account **exactly** (no trailing slash, no extra query string). If Last.fm shows “Application authenticated / close your browser” instead of sending you back, the Callback URL on that API account is wrong or missing — set it to the same value as `LASTFM_REDIRECT_URI`, then return to Music → Sources; Questory will finish the session on the next status load.
 
 Polling is **not** done on the HTTP API process when Redis queues are enabled (`REDIS_URL` set and `USE_INLINE_SYNC` is not `true`):
 
 | Stack | Where Last.fm polls run |
 |-------|-------------------------|
-| `local` / `selfhosted` (no Redis) | In-process in the API (fine for a household) |
-| `selfhosted-full` / `production` / enterprise compose | Separate `scrobbler` container (`PROCESS_ROLE=scrobbler`) |
+| No Redis (`USE_INLINE_SYNC=true`) | In-process in the API |
+| Redis queues (`REDIS_URL` set) | BullMQ queue `music-scrobble`, consumed by `PROCESS_ROLE=scrobbler` |
 
-Last.fm’s shared API key is capped at about **5 requests/second**. The worker rate-limits to that and stretches the per-user interval as the connected-user count grows (about 30s at tens of users, ~200s at 1,000). Playing-now is therefore near-real-time at family scale and a delay of a few minutes at large scale — not a 5s tick on the API event loop.
+`pnpm dev` / `pnpm dev:api` starts the HTTP API **and** the scrobbler worker (same as Steam sync using Redis). Compose `selfhosted-full` / `production` / enterprise starts a `scrobbler` container.
 
-Compose profiles already start the worker. If you run the API with Redis locally, also run:
-
-```bash
-pnpm --filter @questorylabs/api build
-pnpm --filter @questorylabs/api start:scrobbler
-```
-
-Without that worker, connect/catch-up jobs sit in the `music-scrobble` queue until a worker consumes them.
+Without a worker, jobs sit in the queue and Last.fm playing-now never updates.
 
 ### Point multi-scrobbler at Questory Music
 

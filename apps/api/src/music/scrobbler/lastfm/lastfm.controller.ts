@@ -7,10 +7,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Response } from "express";
-import {
-  signOAuthState,
-  verifyOAuthState,
-} from "@questorylabs/shared/oauth-state";
 import { SessionUserGuard } from "../../auth/session-user.guard";
 import { CurrentMusicUser } from "../../auth/current-music-user.decorator";
 import { LastFmAuth } from "./lastfm.auth";
@@ -39,15 +35,13 @@ export class LastFmController {
     @Res() res: Response,
     @CurrentMusicUser() user: { userId: string },
   ) {
-    const state = signOAuthState(user.userId);
-    const url = await this.lastfm.authorizeUrl(user.userId, state);
+    const url = await this.lastfm.authorizeUrl(user.userId);
     return res.redirect(url);
   }
 
   @Get("callback")
   async callback(
     @Query("token") token: string | undefined,
-    @Query("state") state: string | undefined,
     @Res() res: Response,
   ) {
     const web = webOrigin();
@@ -58,9 +52,7 @@ export class LastFmController {
 
     if (!token) return fail("missing_token");
 
-    const verified = verifyOAuthState(state);
-    const cachedUserId = await this.lastfm.resolveUserIdFromToken(token);
-    const userId = verified?.userId ?? cachedUserId;
+    const userId = await this.lastfm.resolveUserIdFromToken(token);
     if (!userId) return fail("invalid_state");
 
     try {

@@ -26,3 +26,4 @@ describe("scaledPollIntervalMs", () => {
     expect(scaledPollIntervalMs(1000, 30_000, 5)).toBe(200_000);
   });
 });
+

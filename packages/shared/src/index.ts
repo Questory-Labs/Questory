@@ -745,6 +745,7 @@ export const MusicHealthSchema = z.object({
     })
     .optional(),
   ingestConfigured: z.boolean().optional(),
+  lastfmConfigured: z.boolean().optional(),
 });
 export type MusicHealth = z.infer<typeof MusicHealthSchema>;
 
