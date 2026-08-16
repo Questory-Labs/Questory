@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCalendarGrid,
   buildLineLayout,
+  chartAnchorPoint,
   heatmapLevel,
 } from "./chart-utils";
 
@@ -29,6 +30,24 @@ describe("buildLineLayout", () => {
     expect(layout.points).toHaveLength(2);
     expect(layout.areaPath.startsWith("M ")).toBe(true);
     expect(layout.areaPath.endsWith("Z")).toBe(true);
+  });
+});
+
+describe("chartAnchorPoint", () => {
+  it("returns the target center relative to the root", () => {
+    const root = {
+      getBoundingClientRect: () => ({ left: 10, top: 20, width: 400, height: 80 }),
+    } as HTMLElement;
+    const target = {
+      getBoundingClientRect: () => ({
+        left: 80,
+        top: 40,
+        width: 20,
+        height: 14,
+      }),
+    } as HTMLElement;
+
+    expect(chartAnchorPoint(target, root)).toEqual({ x: 80, y: 20 });
   });
 });
 

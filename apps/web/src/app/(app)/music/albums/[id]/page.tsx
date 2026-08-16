@@ -151,7 +151,11 @@ export default function MusicAlbumPage() {
         }
         actions={
           <>
-            <MusicRangePicker value={range} onChange={handleRangeChange} />
+            <MusicRangePicker
+              value={range}
+              onChange={handleRangeChange}
+              includeAll
+            />
             {album ? (
               <MusicCorrectionEdit
                 kind="album"

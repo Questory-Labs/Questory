@@ -13,6 +13,8 @@ export type TmdbMovie = {
   poster_path?: string;
   backdrop_path?: string;
   original_language?: string;
+  origin_country?: string[];
+  media_type?: string;
   genres?: { id: number; name: string }[];
   imdb_id?: string;
   episode_run_time?: number[];
@@ -53,7 +55,10 @@ export class TmdbService {
           : { Accept: "application/json" },
       });
       if (!res.ok) {
-        this.logger.warn(`TMDB ${path} → ${res.status}`);
+        const detail = (await res.text()).slice(0, 180);
+        this.logger.warn(
+          `TMDB ${path} → ${res.status}${detail ? `: ${detail}` : ""}`,
+        );
         return null;
       }
       return (await res.json()) as T;
@@ -87,6 +92,17 @@ export class TmdbService {
       ...(year ? { first_air_date_year: String(year) } : {}),
     });
     return data?.results?.[0] ?? null;
+  }
+
+  async searchMulti(query: string, limit: number): Promise<TmdbMovie[] | null> {
+    if (!this.configured()) return [];
+    const data = await this.get<{ results: TmdbMovie[] }>("/search/multi", {
+      query,
+    });
+    if (data == null) return null;
+    return (data.results ?? [])
+      .filter((hit) => hit.media_type === "movie" || hit.media_type === "tv")
+      .slice(0, limit);
   }
 
   /** Search hits omit runtime; resolve a full detail payload when needed. */

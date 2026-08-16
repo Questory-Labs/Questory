@@ -4,6 +4,7 @@ import { AuthModule } from "../auth/auth.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { EnrichmentModule } from "../enrichment/enrichment.module";
 import { ImportsModule } from "../imports/imports.module";
+import { TmdbModule } from "../tmdb/tmdb.module";
 import { LetterboxdConnectController } from "./letterboxd-connect.controller";
 import { LetterboxdConnectService } from "./letterboxd-connect.service";
 import { LetterboxdScrapeSyncService } from "./letterboxd-scrape-sync.service";
@@ -15,6 +16,7 @@ import { LetterboxdScrapeSyncService } from "./letterboxd-scrape-sync.service";
     EnrichmentModule,
     ScraperModule,
     ImportsModule,
+    TmdbModule,
   ],
   controllers: [LetterboxdConnectController],
   providers: [LetterboxdConnectService, LetterboxdScrapeSyncService],

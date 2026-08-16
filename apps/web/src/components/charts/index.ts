@@ -3,6 +3,7 @@ export { CalendarHeatmap } from "./CalendarHeatmap";
 export {
   buildCalendarGrid,
   buildLineLayout,
+  chartAnchorPoint,
   chartHeightClass,
   CHART_HEIGHT,
   CHART_PAD,

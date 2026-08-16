@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import type { Title } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { hourStartUtc, normalizeName, slugify } from "../lib/normalize";
+import { findTitleByName } from "./title-match";
+import { claimTmdbId } from "./title-merge";
 
 export type UpsertTitleInput = {
   type: "movie" | "show";
@@ -102,6 +105,8 @@ export class CatalogService {
 
     const mergeUpdate = (
       existing: {
+        name: string;
+        nameNormalized: string;
         traktId: number | null;
         tmdbId: number | null;
         imdbId: string | null;
@@ -117,8 +122,14 @@ export class CatalogService {
         imageManual: boolean;
       },
     ) => ({
-      name: input.name,
-      nameNormalized,
+      name:
+        existing.tmdbId != null && input.tmdbId == null
+          ? existing.name
+          : input.name,
+      nameNormalized:
+        existing.tmdbId != null && input.tmdbId == null
+          ? existing.nameNormalized
+          : nameNormalized,
       year: input.year ?? existing.year,
       overview: input.overview ?? existing.overview,
       runtimeMinutes: input.runtimeMinutes ?? existing.runtimeMinutes,
@@ -175,24 +186,33 @@ export class CatalogService {
       if (input[lookup.field] == null) continue;
       const found = await this.prisma.title.findFirst({ where: lookup.where });
       if (found) {
+        const keep = await this.keepForUpsert(found, input);
         return this.prisma.title.update({
-          where: { id: found.id },
-          data: mergeUpdate(found),
+          where: { id: keep.id },
+          data: mergeUpdate(keep),
         });
       }
     }
 
-    const existing = await this.prisma.title.findFirst({
-      where: {
-        type: input.type,
-        nameNormalized,
-        year: input.year ?? undefined,
-      },
-    });
+    if (input.imdbId) {
+      const byImdb = await this.prisma.title.findFirst({
+        where: { type: input.type, imdbId: input.imdbId },
+      });
+      if (byImdb) {
+        const keep = await this.keepForUpsert(byImdb, input);
+        return this.prisma.title.update({
+          where: { id: keep.id },
+          data: mergeUpdate(keep),
+        });
+      }
+    }
+
+    const existing = await findTitleByName(this.prisma, input);
     if (existing) {
+      const keep = await this.keepForUpsert(existing, input);
       return this.prisma.title.update({
-        where: { id: existing.id },
-        data: mergeUpdate(existing),
+        where: { id: keep.id },
+        data: mergeUpdate(keep),
       });
     }
 
@@ -215,6 +235,17 @@ export class CatalogService {
         shikimoriId: idMerge.shikimoriId,
       },
     });
+  }
+
+  /** Prefer the title that already owns `tmdbId` so unique(type, tmdbId) cannot collide. */
+  private async keepForUpsert(
+    found: Title,
+    input: UpsertTitleInput,
+  ) {
+    if (input.tmdbId == null) return found;
+    const id = await claimTmdbId(this.prisma, found.id, input.type, input.tmdbId);
+    if (id === found.id) return found;
+    return this.prisma.title.findUniqueOrThrow({ where: { id } });
   }
 
   async upsertEpisode(input: UpsertEpisodeInput) {

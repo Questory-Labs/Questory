@@ -1328,6 +1328,8 @@ export const WatchTitleUpdateSchema = z.object({
 });
 export type WatchTitleUpdate = z.infer<typeof WatchTitleUpdateSchema>;
 
+export * from "./watch-manual";
+
 /* ─── Read service DTOs (manga / print) ─── */
 
 export const ReadRangeSchema = z.enum(["day", "week", "month", "year", "all"]);

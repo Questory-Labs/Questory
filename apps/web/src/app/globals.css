@@ -287,6 +287,28 @@ a {
   color: var(--ink);
 }
 
+/* Page-header row: primary + segmented control share one height */
+.header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+.header-controls > .btn {
+  height: 2.25rem;
+  padding-block: 0;
+}
+.header-controls > [role="group"] {
+  display: inline-flex;
+  align-items: stretch;
+  height: 2.25rem;
+  box-sizing: border-box;
+}
+.header-controls > [role="group"] > button {
+  height: auto;
+  padding-block: 0;
+}
+
 /* Nav active underline drawn as a hatch stroke */
 .nav-hatch {
   position: relative;

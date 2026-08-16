@@ -3,11 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
-import { useState } from "react";
-import type { ReadRange, ReadTitleDetail } from "@questorylabs/shared";
+import type { ReadTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
 import { TagsEditor } from "@/components/TagsEditor";
-import { ReadRangePicker } from "@/components/read/ReadRangePicker";
 import { PageHeader, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { readFetch } from "@/lib/read";
@@ -23,12 +21,10 @@ export default function ReadTitlePage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const store = useStore();
-  const [range, setRange] = useState<ReadRange>("all");
 
   const detail = useResource({
-    id: ["read-title", id, range],
-    load: () =>
-      readFetch<ReadTitleDetail>(`/analytics/titles/${id}?range=${range}`),
+    id: ["read-title", id],
+    load: () => readFetch<ReadTitleDetail>(`/analytics/titles/${id}`),
     when: Boolean(id),
   });
 
@@ -56,25 +52,22 @@ export default function ReadTitlePage() {
         title={title}
         description={
           detail.value
-            ? `${detail.value.eventCount} events in range · first ${formatDate(detail.value.firstReadAt)} · latest ${formatDate(detail.value.latestReadAt)}${detail.value.listStatus ? ` · ${detail.value.listStatus}` : ""}`
+            ? `${detail.value.eventCount} events · first ${formatDate(detail.value.firstReadAt)} · latest ${formatDate(detail.value.latestReadAt)}${detail.value.listStatus ? ` · ${detail.value.listStatus}` : ""}`
             : undefined
         }
         actions={
-          <>
-            <ReadRangePicker value={range} onChange={setRange} />
-            {t ? (
-              <EntityMetadataEdit
-                initialDisplayName={t.displayName}
-                initialCoverUrl={t.coverUrl}
-                canonicalName={t.name}
-                coverLabel="Cover URL"
-                saving={save.busy}
-                onSave={async (values) => {
-                  await save.submitAsync(values);
-                }}
-              />
-            ) : null}
-          </>
+          t ? (
+            <EntityMetadataEdit
+              initialDisplayName={t.displayName}
+              initialCoverUrl={t.coverUrl}
+              canonicalName={t.name}
+              coverLabel="Cover URL"
+              saving={save.busy}
+              onSave={async (values) => {
+                await save.submitAsync(values);
+              }}
+            />
+          ) : null
         }
       />
 
@@ -121,7 +114,7 @@ export default function ReadTitlePage() {
 
             <section className="mt-8">
               <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                Recent activity
+                History
               </h2>
               {detail.value.recentEvents.length > 0 ? (
                 <ul className="mt-3 divide-y divide-[var(--line)]">
@@ -140,7 +133,7 @@ export default function ReadTitlePage() {
                 </ul>
               ) : (
                 <p className="mt-3 text-sm text-[var(--muted)]">
-                  No events in this range.
+                  No events yet.
                 </p>
               )}
             </section>

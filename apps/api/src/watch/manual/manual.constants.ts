@@ -1,0 +1,2 @@
+export const WATCH_MANUAL_SEARCH_LIMIT = 10;
+export const WATCH_MANUAL_PROVIDER_LIMIT = 10;

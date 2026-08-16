@@ -8,6 +8,7 @@ import {
   zonedWeekday,
 } from "../../lib/timezone";
 import { UsersService } from "../users/users.service";
+import { TITLE_DETAIL_EVENTS_LIMIT } from "./analytics.constants";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type MediaType = "movie" | "show";
@@ -580,7 +581,7 @@ export class AnalyticsService {
       this.prisma.watchEvent.findMany({
         where: rangeWhere,
         orderBy: { watchedAt: "desc" },
-        take: 200,
+        take: TITLE_DETAIL_EVENTS_LIMIT,
         include: {
           episode: {
             select: {
@@ -643,7 +644,7 @@ export class AnalyticsService {
       topEpisodes: [...episodeCounts.values()]
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
-      recentEvents: events.slice(0, 50).map((e) => ({
+      recentEvents: events.map((e) => ({
         id: e.id,
         watchedAt: e.watchedAt.toISOString(),
         source: e.source,

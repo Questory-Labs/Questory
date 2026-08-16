@@ -8,9 +8,16 @@ type DialogProps = {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  className?: string;
 };
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+export function Dialog({
+  open,
+  onClose,
+  title,
+  children,
+  className = "",
+}: DialogProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -34,7 +41,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
-        className="relative w-full max-w-md rounded border border-[var(--line)] bg-[var(--bg-1)] shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        className={`relative w-full rounded border border-[var(--line)] bg-[var(--bg-1)] shadow-[0_12px_40px_rgba(0,0,0,0.45)] ${className || "max-w-md"}`.trim()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
           <h2

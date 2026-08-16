@@ -5,7 +5,6 @@ import { useResource } from "@questorylabs/qhttp/react";
 import type {
   WatchBreakdownResponse,
   WatchInsights,
-  WatchRange,
   WatchTimeBucket,
 } from "@questorylabs/shared";
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
@@ -13,7 +12,7 @@ import {
   WatchMediaPicker,
   type WatchMediaFilter,
 } from "@/components/watch/WatchMediaPicker";
-import { WatchRangePicker } from "@/components/watch/WatchRangePicker";
+import { WatchAddButton } from "@/components/watch/WatchAddButton";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
 import {
@@ -29,47 +28,46 @@ function typeQuery(type: WatchMediaFilter): string {
 }
 
 export function WatchHomeView() {
-  const [range, setRange] = useState<WatchRange>("week");
   const [media, setMedia] = useState<WatchMediaFilter>("all");
   const typeQs = typeQuery(media);
 
   const insights = useResource({
-    id: ["watch-insights", range, media],
+    id: ["watch-insights", media],
     load: () =>
       watchFetch<WatchInsights>(
-        withTz(`/analytics/insights?range=${range}${typeQs}`),
+        withTz(`/analytics/insights?range=all${typeQs}`),
       ),
   });
   const hour = useResource({
-    id: ["watch-ts-hour", range, media],
+    id: ["watch-ts-hour", media],
     load: () =>
       watchFetch<WatchTimeBucket[]>(
         withTz(
-          `/analytics/timeseries?granularity=hourOfDay&range=${range}${typeQs}`,
+          `/analytics/timeseries?granularity=hourOfDay&range=all${typeQs}`,
         ),
       ),
   });
   const dow = useResource({
-    id: ["watch-ts-dow", range, media],
+    id: ["watch-ts-dow", media],
     load: () =>
       watchFetch<WatchTimeBucket[]>(
         withTz(
-          `/analytics/timeseries?granularity=dayOfWeek&range=${range}${typeQs}`,
+          `/analytics/timeseries?granularity=dayOfWeek&range=all${typeQs}`,
         ),
       ),
   });
   const years = useResource({
-    id: ["watch-years", range, media],
+    id: ["watch-years", media],
     load: () =>
       watchFetch<WatchBreakdownResponse>(
-        `/analytics/breakdown/years?range=${range}&limit=16${typeQs}`,
+        `/analytics/breakdown/years?range=all&limit=16${typeQs}`,
       ),
   });
   const sources = useResource({
-    id: ["watch-sources", range, media],
+    id: ["watch-sources", media],
     load: () =>
       watchFetch<WatchBreakdownResponse>(
-        `/analytics/breakdown/sources?range=${range}&limit=10${typeQs}`,
+        `/analytics/breakdown/sources?range=all&limit=10${typeQs}`,
       ),
   });
 
@@ -108,21 +106,15 @@ export function WatchHomeView() {
       <PageHeader
         title="Watch"
         description={
-          <>
-            <p>
-              Movie &amp; TV analytics from Trakt, Letterboxd CSV, AniList, and
-              local player webhooks. Connect sources under Watch → Sources.
-            </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
-              This product uses TMDB and the TMDB APIs but is not endorsed,
-              certified, or otherwise approved by TMDB.
-            </p>
-          </>
+          <p>
+            Movie &amp; TV analytics from Trakt, Letterboxd CSV, AniList, and
+            local player webhooks.
+          </p>
         }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="header-controls">
+            <WatchAddButton />
             <WatchMediaPicker value={media} onChange={setMedia} />
-            <WatchRangePicker value={range} onChange={setRange} />
           </div>
         }
       />
