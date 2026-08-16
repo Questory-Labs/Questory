@@ -101,7 +101,7 @@ describe("absorbTitle", () => {
       .mockResolvedValueOnce(keep)
       .mockResolvedValueOnce(drop)
       .mockResolvedValue(keep);
-    const prisma = {
+    const db = {
       title: {
         findUnique: titleFindUnique,
         findUniqueOrThrow: vi.fn().mockResolvedValue({ ...keep, anilistId: 10 }),
@@ -114,6 +114,10 @@ describe("absorbTitle", () => {
       titleListState: { findMany: vi.fn().mockResolvedValue([]) },
       titleGenre: { findMany: vi.fn().mockResolvedValue([]) },
       titleEnrichmentJob: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    };
+    const prisma = {
+      ...db,
+      $transaction: vi.fn(async (fn: (tx: typeof db) => unknown) => fn(db)),
     } as unknown as PrismaService;
 
     await absorbTitle(prisma, "tmdb-row", "anilist-row");
@@ -144,5 +148,46 @@ describe("claimTmdbId", () => {
     await expect(claimTmdbId(prisma, "clone", "movie", 949)).resolves.toBe(
       "clone",
     );
+  });
+
+  it("absorbs this title into a different tmdbId owner", async () => {
+    const keep = titleRow({
+      id: "owner",
+      type: "movie",
+      tmdbId: 949,
+    });
+    const drop = titleRow({
+      id: "clone",
+      type: "movie",
+    });
+    const titleDelete = vi.fn().mockResolvedValue({});
+    const titleFindUnique = vi
+      .fn()
+      .mockResolvedValueOnce(keep)
+      .mockResolvedValueOnce(keep)
+      .mockResolvedValueOnce(drop);
+    const db = {
+      title: {
+        findUnique: titleFindUnique,
+        findUniqueOrThrow: vi.fn().mockResolvedValue(keep),
+        update: vi.fn().mockResolvedValue({}),
+        delete: titleDelete,
+      },
+      episode: { findMany: vi.fn().mockResolvedValue([]) },
+      season: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      watchEvent: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      titleListState: { findMany: vi.fn().mockResolvedValue([]) },
+      titleGenre: { findMany: vi.fn().mockResolvedValue([]) },
+      titleEnrichmentJob: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    };
+    const prisma = {
+      ...db,
+      $transaction: vi.fn(async (fn: (tx: typeof db) => unknown) => fn(db)),
+    } as unknown as PrismaService;
+
+    await expect(claimTmdbId(prisma, "clone", "movie", 949)).resolves.toBe(
+      "owner",
+    );
+    expect(titleDelete).toHaveBeenCalledWith({ where: { id: "clone" } });
   });
 });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ServiceUnavailableException } from "@nestjs/common";
 import { ManualService } from "../../src/watch/manual/manual.service";
 import { TmdbService } from "../../src/watch/tmdb/tmdb.service";
 import type { AnilistSearch } from "../../src/watch/manual/anilist-search";
@@ -127,7 +127,7 @@ describe("ManualService", () => {
         source: "manual",
         precision: "day",
         rating: 4.5,
-        dedupeKey: "manual:tmdb:949:movie:0:0:2026-08-16",
+        dedupeKey: "manual:title-1:movie:0:0:2026-08-16",
       }),
     );
     expect(upsertListState).toHaveBeenCalledWith(
@@ -175,7 +175,7 @@ describe("ManualService", () => {
     expect(recordWatch).toHaveBeenCalledWith(
       expect.objectContaining({
         episodeId: "ep-1",
-        dedupeKey: "manual:al:154587:show:1:3:2026-08-16",
+        dedupeKey: "manual:title-1:show:1:3:2026-08-16",
       }),
     );
     expect(upsertListState).not.toHaveBeenCalled();
@@ -210,5 +210,93 @@ describe("ManualService", () => {
         anilistId: 154587,
       }),
     );
+  });
+
+  it("rejects an AniList result whose format does not match the log type", async () => {
+    getMedia.mockResolvedValue({
+      id: 1,
+      title: { english: "A Silent Voice" },
+      format: "MOVIE",
+      seasonYear: 2016,
+    });
+
+    await expect(
+      service.log("user-1", {
+        anilistId: 1,
+        type: "show",
+        watchedAt: "2026-08-16",
+        seasonNumber: 1,
+        episodeNumber: 1,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(upsertTitle).not.toHaveBeenCalled();
+  });
+
+  it("rejects linking TMDB and AniList when names and years do not match", async () => {
+    getMovie.mockResolvedValue({
+      id: 949,
+      title: "Heat",
+      release_date: "1995-12-15",
+    });
+    getMedia.mockResolvedValue({
+      id: 209270,
+      title: { english: "A Silent Voice" },
+      format: "MOVIE",
+      seasonYear: 2016,
+    });
+
+    await expect(
+      service.log("user-1", {
+        tmdbId: 949,
+        anilistId: 209270,
+        type: "movie",
+        watchedAt: "2026-08-16",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(upsertTitle).not.toHaveBeenCalled();
+  });
+
+  it("uses the canonical title id so AniList-only and merged logs share a dedupe key", async () => {
+    getMedia.mockResolvedValue({
+      id: 154587,
+      title: { english: "Frieren" },
+      format: "TV",
+      seasonYear: 2023,
+    });
+    upsertTitle.mockResolvedValue({ id: "canonical-1" });
+
+    await service.log("user-1", {
+      anilistId: 154587,
+      type: "show",
+      watchedAt: "2026-08-16",
+      seasonNumber: 1,
+      episodeNumber: 1,
+    });
+
+    const anilistKey = recordWatch.mock.calls[0][0].dedupeKey as string;
+
+    getTv.mockResolvedValue({
+      id: 209867,
+      name: "Frieren: Beyond Journey's End",
+      first_air_date: "2023-09-29",
+    });
+    getMedia.mockResolvedValue({
+      id: 154587,
+      title: { english: "Frieren" },
+      format: "TV",
+      seasonYear: 2023,
+    });
+
+    await service.log("user-1", {
+      tmdbId: 209867,
+      anilistId: 154587,
+      type: "show",
+      watchedAt: "2026-08-16",
+      seasonNumber: 1,
+      episodeNumber: 1,
+    });
+
+    expect(anilistKey).toBe("manual:canonical-1:show:1:1:2026-08-16");
+    expect(recordWatch.mock.calls[1][0].dedupeKey).toBe(anilistKey);
   });
 });

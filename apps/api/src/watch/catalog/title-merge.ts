@@ -1,4 +1,8 @@
+import { Prisma } from "../../generated/prisma/client";
 import type { PrismaService } from "../../prisma/prisma.service";
+
+/** Interactive transactions default to 5s; episode-heavy merges can exceed that. */
+const ABSORB_TITLE_TIMEOUT_MS = 60_000;
 
 type TitleRow = {
   id: string;
@@ -30,6 +34,17 @@ export async function absorbTitle(
     return prisma.title.findUniqueOrThrow({ where: { id: keepId } });
   }
 
+  return prisma.$transaction(
+    (tx) => mergeTitleRows(tx, keepId, dropId),
+    { timeout: ABSORB_TITLE_TIMEOUT_MS },
+  );
+}
+
+async function mergeTitleRows(
+  prisma: Prisma.TransactionClient,
+  keepId: string,
+  dropId: string,
+): Promise<TitleRow> {
   const [keep, drop] = await Promise.all([
     prisma.title.findUnique({ where: { id: keepId } }),
     prisma.title.findUnique({ where: { id: dropId } }),

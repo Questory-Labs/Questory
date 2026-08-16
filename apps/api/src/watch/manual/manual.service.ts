@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -8,6 +9,7 @@ import type {
   WatchCatalogSearchHit,
   WatchCatalogSearchResponse,
 } from "@questorylabs/shared";
+import { namesLikelySame, yearsCompatible } from "../catalog/title-match";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
 import { TmdbService, type TmdbMovie } from "../tmdb/tmdb.service";
@@ -87,6 +89,26 @@ export class ManualService {
     if (!tmdbDetail && !anilistDetail) {
       throw new NotFoundException("Title not found");
     }
+    if (
+      anilistDetail &&
+      anilistFormatToType(anilistDetail.format) !== input.type
+    ) {
+      throw new BadRequestException("AniList title type does not match");
+    }
+    if (tmdbDetail && anilistDetail) {
+      const tmdbName = tmdbDetail.title || tmdbDetail.name || "";
+      const anilistName = anilistDisplayName(anilistDetail);
+      const tmdbYear = this.tmdb.yearFromDate(
+        tmdbDetail.release_date ?? tmdbDetail.first_air_date,
+      );
+      const anilistYearValue = anilistYear(anilistDetail);
+      if (
+        !namesLikelySame(tmdbName, anilistName) ||
+        !yearsCompatible(tmdbYear, anilistYearValue)
+      ) {
+        throw new BadRequestException("Provider titles do not match");
+      }
+    }
 
     const name =
       (tmdbDetail
@@ -150,15 +172,13 @@ export class ManualService {
       input.type === "show"
         ? `${input.seasonNumber}:${input.episodeNumber}`
         : "0:0";
-    const idPart =
-      input.tmdbId != null ? `tmdb:${input.tmdbId}` : `al:${input.anilistId}`;
     const event = await this.catalog.recordWatch({
       userId,
       titleId: title.id,
       episodeId,
       watchedAt,
       source: "manual",
-      dedupeKey: `manual:${idPart}:${input.type}:${epKey}:${input.watchedAt}`,
+      dedupeKey: `manual:${title.id}:${input.type}:${epKey}:${input.watchedAt}`,
       action: "watch",
       rating: input.rating ?? null,
       runtimeMinutes,

@@ -40,6 +40,21 @@ const halfStarRating = z
   .nullable()
   .optional();
 
+export const WATCH_SEASON_NUMBER_MIN = 0;
+export const WATCH_SEASON_NUMBER_MAX = 99;
+export const WATCH_EPISODE_NUMBER_MIN = 1;
+export const WATCH_EPISODE_NUMBER_MAX = 9999;
+
+function isUtcCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
 export const WatchCatalogLogSchema = z
   .object({
     tmdbId: z.number().int().positive().optional(),
@@ -47,10 +62,21 @@ export const WatchCatalogLogSchema = z
     type: z.enum(["movie", "show"]),
     watchedAt: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "watchedAt must be YYYY-MM-DD"),
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "watchedAt must be YYYY-MM-DD")
+      .refine(isUtcCalendarDate, "watchedAt must be a valid calendar date"),
     rating: halfStarRating,
-    seasonNumber: z.number().int().min(0).max(99).optional(),
-    episodeNumber: z.number().int().min(1).max(9999).optional(),
+    seasonNumber: z
+      .number()
+      .int()
+      .min(WATCH_SEASON_NUMBER_MIN)
+      .max(WATCH_SEASON_NUMBER_MAX)
+      .optional(),
+    episodeNumber: z
+      .number()
+      .int()
+      .min(WATCH_EPISODE_NUMBER_MIN)
+      .max(WATCH_EPISODE_NUMBER_MAX)
+      .optional(),
   })
   .refine((d) => d.tmdbId != null || d.anilistId != null, {
     message: "tmdbId or anilistId is required",

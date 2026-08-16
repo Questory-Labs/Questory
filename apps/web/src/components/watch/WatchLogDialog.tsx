@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAction, useStore } from "@questorylabs/qhttp/react";
-import type {
-  WatchCatalogLog,
-  WatchCatalogLogResult,
-  WatchCatalogSearchHit,
-  WatchCatalogSearchResponse,
+import {
+  WATCH_EPISODE_NUMBER_MAX,
+  WATCH_EPISODE_NUMBER_MIN,
+  WATCH_SEASON_NUMBER_MAX,
+  WATCH_SEASON_NUMBER_MIN,
+  type WatchCatalogLog,
+  type WatchCatalogLogResult,
+  type WatchCatalogSearchHit,
+  type WatchCatalogSearchResponse,
 } from "@questorylabs/shared";
 import { Button, DateField, Dialog, StarRating } from "@/components/ui";
 import { localDayKey } from "@/lib/dates";
@@ -32,6 +36,7 @@ export function WatchLogDialog({ open, onClose }: WatchLogDialogProps) {
   const [rating, setRating] = useState<number | null>(null);
   const [watchedAt, setWatchedAt] = useState(localDayKey(new Date().toISOString()));
   const [formError, setFormError] = useState<string | null>(null);
+  const searchGen = useRef(0);
 
   const log = useAction({
     run: (body: WatchCatalogLog) =>
@@ -68,28 +73,38 @@ export function WatchLogDialog({ open, onClose }: WatchLogDialogProps) {
   }, [open]);
 
   useEffect(() => {
-    if (!open || selected) return;
+    if (!open || selected) {
+      searchGen.current += 1;
+      return;
+    }
     const q = query.trim();
     if (q.length === 0) {
+      searchGen.current += 1;
       setHits([]);
       setSearching(false);
       setSearchError(null);
       return;
     }
+    const gen = ++searchGen.current;
     setSearching(true);
     const timer = window.setTimeout(() => {
       void watchFetch<WatchCatalogSearchResponse>(
         `/catalog/search?q=${encodeURIComponent(q)}`,
       )
         .then((res) => {
+          if (gen !== searchGen.current) return;
           setHits(res.items);
           setSearchError(null);
         })
         .catch((err: unknown) => {
+          if (gen !== searchGen.current) return;
           setHits([]);
           setSearchError(err instanceof Error ? err.message : "Search failed");
         })
-        .finally(() => setSearching(false));
+        .finally(() => {
+          if (gen !== searchGen.current) return;
+          setSearching(false);
+        });
     }, WATCH_LOG_SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [open, query, selected]);
@@ -99,7 +114,14 @@ export function WatchLogDialog({ open, onClose }: WatchLogDialogProps) {
     if (selected.type === "show") {
       const season = Number(seasonNumber);
       const episode = Number(episodeNumber);
-      if (!Number.isInteger(season) || !Number.isInteger(episode)) {
+      if (
+        !Number.isInteger(season) ||
+        !Number.isInteger(episode) ||
+        season < WATCH_SEASON_NUMBER_MIN ||
+        season > WATCH_SEASON_NUMBER_MAX ||
+        episode < WATCH_EPISODE_NUMBER_MIN ||
+        episode > WATCH_EPISODE_NUMBER_MAX
+      ) {
         setFormError("Enter a season and episode number");
         return;
       }

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import type { Title } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { hourStartUtc, normalizeName, slugify } from "../lib/normalize";
 import { findTitleByName } from "./title-match";
@@ -238,7 +239,7 @@ export class CatalogService {
 
   /** Prefer the title that already owns `tmdbId` so unique(type, tmdbId) cannot collide. */
   private async keepForUpsert(
-    found: NonNullable<Awaited<ReturnType<PrismaService["title"]["findFirst"]>>>,
+    found: Title,
     input: UpsertTitleInput,
   ) {
     if (input.tmdbId == null) return found;

@@ -81,6 +81,9 @@ describe("CalendarHeatmap", () => {
       top: `${32 - CHART_TOOLTIP_GAP_PX}px`,
     });
     expect(tip.className).not.toMatch(/left-1\/2/);
+
+    fireEvent.scroll(document.querySelector(".overflow-x-auto")!);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("adds a wider gap before the first week of a new month", () => {

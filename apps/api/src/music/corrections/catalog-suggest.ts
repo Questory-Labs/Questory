@@ -19,11 +19,13 @@ function withCreateOption(
   q: string,
   qNorm: string,
   items: CatalogSuggestItem[],
+  take: number,
 ): CatalogSuggestItem[] {
-  if (q && !items.some((i) => normalizeName(i.name) === qNorm)) {
-    return [{ name: q, isNew: true }, ...items];
-  }
-  return items;
+  const withCreate =
+    q && !items.some((i) => normalizeName(i.name) === qNorm)
+      ? [{ name: q, isNew: true }, ...items]
+      : items;
+  return withCreate.slice(0, take);
 }
 
 export async function suggestCatalog(
@@ -56,6 +58,7 @@ export async function suggestCatalog(
         q,
         qNorm,
         artists.map((a) => ({ id: a.id, name: a.name })),
+        take,
       ),
     };
   }
@@ -75,6 +78,7 @@ export async function suggestCatalog(
         q,
         qNorm,
         releases.map((r) => ({ id: r.id, name: r.title })),
+        take,
       ),
     };
   }
@@ -93,6 +97,7 @@ export async function suggestCatalog(
       q,
       qNorm,
       tracks.map((t) => ({ id: t.id, name: t.title })),
+      take,
     ),
   };
 }

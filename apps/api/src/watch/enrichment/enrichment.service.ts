@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { claimTmdbId } from "../catalog/title-merge";
+import { TMDB_REQUEST_PACE_MS } from "../tmdb/tmdb.constants";
 import { TmdbService } from "../tmdb/tmdb.service";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
@@ -58,7 +59,7 @@ export class EnrichmentService implements OnModuleInit {
       while (this.queue.length) {
         const titleId = this.queue.shift()!;
         await this.enrichOne(titleId);
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, TMDB_REQUEST_PACE_MS));
       }
     } finally {
       this.running = false;
@@ -137,7 +138,18 @@ export class EnrichmentService implements OnModuleInit {
         canonicalId === titleId
           ? title
           : await this.prisma.title.findUnique({ where: { id: canonicalId } });
-      if (!canonical) return;
+      if (!canonical) {
+        await this.prisma.titleEnrichmentJob.update({
+          where: { id: job.id },
+          data: {
+            status: "failed",
+            lastError: "Canonical title missing",
+            attempts: 1,
+            completedAt: new Date(),
+          },
+        });
+        return;
+      }
 
       const year =
         this.tmdb.yearFromDate(detail.release_date) ??

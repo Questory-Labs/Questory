@@ -10,6 +10,10 @@ import type { LetterboxdConnectService } from "../../src/watch/letterboxd/letter
 import type { LetterboxdService } from "../../src/watch/imports/letterboxd.service";
 import { watchedAtDayUtc } from "../../src/watch/imports/letterboxd-keys";
 
+vi.mock("../../src/watch/tmdb/tmdb.constants", () => ({
+  TMDB_REQUEST_PACE_MS: 0,
+}));
+
 describe("LetterboxdScrapeSyncService", () => {
   let prisma: {
     watchEvent: { findMany: ReturnType<typeof vi.fn> };
@@ -97,7 +101,14 @@ describe("LetterboxdScrapeSyncService", () => {
       }),
     };
 
-    service = new LetterboxdScrapeSyncService(
+    service = makeService({ configured: () => false });
+  });
+
+  function makeService(tmdb: {
+    configured: () => boolean;
+    searchMovie?: ReturnType<typeof vi.fn>;
+  }) {
+    return new LetterboxdScrapeSyncService(
       prisma as unknown as PrismaService,
       connect as unknown as LetterboxdConnectService,
       providers as unknown as ScraperProvidersService,
@@ -105,9 +116,9 @@ describe("LetterboxdScrapeSyncService", () => {
       catalog as unknown as CatalogService,
       enrichment as unknown as EnrichmentService,
       letterboxd as unknown as LetterboxdService,
-      { configured: () => false } as import("../../src/watch/tmdb/tmdb.service").TmdbService,
+      tmdb as import("../../src/watch/tmdb/tmdb.service").TmdbService,
     );
-  });
+  }
 
   it("imports new rows and stops when known entry is seen", async () => {
     const result = await service.syncUser("user-1", "username");
@@ -159,6 +170,31 @@ describe("LetterboxdScrapeSyncService", () => {
     expect(catalog.recordWatch).not.toHaveBeenCalled();
     expect(letterboxd.repairLetterboxdDuplicates).toHaveBeenCalledWith(
       "user-1",
+    );
+  });
+
+  it("passes a TMDB search id into upsertTitle when configured", async () => {
+    const searchMovie = vi.fn().mockResolvedValue({ id: 603 });
+    service = makeService({ configured: () => true, searchMovie });
+
+    const result = await service.syncUser("user-1", "username");
+
+    expect(result.imported).toBe(1);
+    expect(searchMovie).toHaveBeenCalledWith("The Matrix", 1999);
+    expect(catalog.upsertTitle).toHaveBeenCalledWith(
+      expect.objectContaining({ tmdbId: 603, name: "The Matrix" }),
+    );
+  });
+
+  it("continues with tmdbId null when searchMovie rejects", async () => {
+    const searchMovie = vi.fn().mockRejectedValue(new Error("TMDB down"));
+    service = makeService({ configured: () => true, searchMovie });
+
+    const result = await service.syncUser("user-1", "username");
+
+    expect(result.imported).toBe(1);
+    expect(catalog.upsertTitle).toHaveBeenCalledWith(
+      expect.objectContaining({ tmdbId: null, name: "The Matrix" }),
     );
   });
 });

@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  findTitleByName,
   namePrefixCandidates,
   namesLikelySame,
   yearsCompatible,
 } from "../../src/watch/catalog/title-match";
+import type { PrismaService } from "../../src/prisma/prisma.service";
 
 describe("yearsCompatible", () => {
   it("treats a missing year as compatible", () => {
@@ -40,5 +42,40 @@ describe("namePrefixCandidates", () => {
       "frieren beyond",
       "frieren beyond journeys",
     ]);
+  });
+});
+
+describe("findTitleByName", () => {
+  it("loads exact nameNormalized matches before applying the take limit", async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: "exact-1",
+        name: "Heat",
+        nameNormalized: "heat",
+        year: 1995,
+        tmdbId: 949,
+      },
+    ]);
+    const prisma = { title: { findMany } } as unknown as PrismaService;
+
+    const found = await findTitleByName(prisma, {
+      type: "movie",
+      name: "Heat",
+      year: 1995,
+    });
+
+    expect(found?.id).toBe("exact-1");
+    expect(findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({ nameNormalized: "heat" }),
+        orderBy: [
+          { tmdbId: { sort: "desc", nulls: "last" } },
+          { id: "asc" },
+        ],
+        take: 25,
+      }),
+    );
+    expect(findMany.mock.calls[0][0].where.OR).toBeUndefined();
   });
 });

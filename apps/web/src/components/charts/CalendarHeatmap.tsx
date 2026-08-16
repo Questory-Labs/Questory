@@ -52,6 +52,7 @@ export function CalendarHeatmap({
       <div
         className="overflow-x-auto"
         onMouseLeave={() => setHover(null)}
+        onScroll={() => setHover(null)}
       >
         <div
           role="img"

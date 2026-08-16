@@ -34,6 +34,10 @@ export function namePrefixCandidates(normalized: string): string[] {
 }
 
 const NAME_MATCH_TAKE = 25;
+const TITLE_MATCH_ORDER = [
+  { tmdbId: { sort: "desc" as const, nulls: "last" as const } },
+  { id: "asc" as const },
+];
 
 export async function findTitleByName(
   prisma: PrismaService,
@@ -48,22 +52,35 @@ export async function findTitleByName(
   const yearFilter =
     year == null ? {} : { year: { gte: year - 1, lte: year + 1 } };
 
-  const candidates = await prisma.title.findMany({
+  const exact = await prisma.title.findMany({
     where: {
       type: input.type,
+      nameNormalized,
       ...yearFilter,
-      OR: [
-        { nameNormalized },
-        ...(allowPrefix
-          ? [{ nameNormalized: { startsWith: `${nameNormalized} ` } }]
-          : []),
-        ...(allowPrefix && prefixes.length > 0
-          ? [{ nameNormalized: { in: prefixes } }]
-          : []),
-      ],
     },
+    orderBy: TITLE_MATCH_ORDER,
     take: NAME_MATCH_TAKE,
   });
+
+  let candidates = exact;
+  if (allowPrefix && exact.length < NAME_MATCH_TAKE) {
+    const rest = await prisma.title.findMany({
+      where: {
+        type: input.type,
+        ...yearFilter,
+        id: { notIn: exact.map((row) => row.id) },
+        OR: [
+          { nameNormalized: { startsWith: `${nameNormalized} ` } },
+          ...(prefixes.length > 0
+            ? [{ nameNormalized: { in: prefixes } }]
+            : []),
+        ],
+      },
+      orderBy: TITLE_MATCH_ORDER,
+      take: NAME_MATCH_TAKE - exact.length,
+    });
+    candidates = [...exact, ...rest];
+  }
 
   const matched = candidates.filter(
     (row) =>
@@ -78,7 +95,8 @@ export async function findTitleByName(
     if (bExact !== aExact) return bExact - aExact;
     const aTmdb = a.tmdbId != null ? 1 : 0;
     const bTmdb = b.tmdbId != null ? 1 : 0;
-    return bTmdb - aTmdb;
+    if (bTmdb !== aTmdb) return bTmdb - aTmdb;
+    return a.id.localeCompare(b.id);
   });
   return matched[0];
 }

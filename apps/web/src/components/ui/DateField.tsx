@@ -173,9 +173,16 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
   const today = dayKey(new Date());
   const monthIndex = cursor.getMonth();
   const year = cursor.getFullYear();
+  const prevMonthOutOfRange =
+    new Date(year, monthIndex - 1, 1).getFullYear() < YEAR_MIN;
+  const nextMonthOutOfRange =
+    new Date(year, monthIndex + 1, 1).getFullYear() > yearMax();
 
   function goMonth(delta: number) {
-    setCursor(new Date(year, monthIndex + delta, 1));
+    const next = new Date(year, monthIndex + delta, 1);
+    const nextYear = next.getFullYear();
+    if (nextYear < YEAR_MIN || nextYear > yearMax()) return;
+    setCursor(next);
     setPanel("days");
   }
 
@@ -219,8 +226,9 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
             <button
               type="button"
               aria-label="Previous month"
+              disabled={prevMonthOutOfRange}
               onClick={() => goMonth(-1)}
-              className="rounded px-1.5 py-0.5 text-[var(--muted)] hover:text-[var(--ink)]"
+              className="rounded px-1.5 py-0.5 text-[var(--muted)] hover:text-[var(--ink)] disabled:pointer-events-none disabled:opacity-40"
             >
               ‹
             </button>
@@ -257,8 +265,9 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
             <button
               type="button"
               aria-label="Next month"
+              disabled={nextMonthOutOfRange}
               onClick={() => goMonth(1)}
-              className="rounded px-1.5 py-0.5 text-[var(--muted)] hover:text-[var(--ink)]"
+              className="rounded px-1.5 py-0.5 text-[var(--muted)] hover:text-[var(--ink)] disabled:pointer-events-none disabled:opacity-40"
             >
               ›
             </button>

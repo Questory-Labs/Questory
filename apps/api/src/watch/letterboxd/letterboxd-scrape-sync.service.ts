@@ -5,6 +5,7 @@ import { ScraperProvidersService } from "../../scraper/scraper-providers.service
 import { ScraperEngineService } from "../../scraper/scraper-engine.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
+import { TMDB_REQUEST_PACE_MS } from "../tmdb/tmdb.constants";
 import { TmdbService } from "../tmdb/tmdb.service";
 import {
   letterboxdEquivKeyFromDedupeKey,
@@ -166,9 +167,15 @@ export class LetterboxdScrapeSyncService {
                   parsed.year,
                 );
                 tmdbId = hit?.id ?? null;
-              } catch {
+              } catch (err) {
+                this.logger.debug(
+                  `TMDB search failed for ${parsed.title}: ${
+                    err instanceof Error ? err.message : String(err)
+                  }`,
+                );
                 tmdbId = null;
               }
+              await new Promise((r) => setTimeout(r, TMDB_REQUEST_PACE_MS));
             }
 
             const title = await this.catalog.upsertTitle({

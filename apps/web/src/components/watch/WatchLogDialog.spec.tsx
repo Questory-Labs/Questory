@@ -116,4 +116,103 @@ describe("WatchLogDialog", () => {
     expect(screen.getByLabelText("Season")).toBeInTheDocument();
     expect(screen.getByLabelText("Episode")).toBeInTheDocument();
   });
+
+  it("rejects zero and negative episode numbers before submitting", async () => {
+    vi.mocked(watchFetch).mockResolvedValue({
+      items: [
+        {
+          id: "anilist:1",
+          name: "Frieren",
+          year: 2023,
+          type: "show",
+          posterUrl: null,
+          anilistId: 1,
+          sources: ["anilist"],
+        },
+      ],
+    });
+
+    wrap(<WatchLogDialog open onClose={() => undefined} />);
+    fireEvent.change(screen.getByPlaceholderText(/Movie, series/i), {
+      target: { value: "frieren" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /Frieren/ }));
+
+    fireEvent.change(screen.getByLabelText("Episode"), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.getByText("Enter a season and episode number"),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Episode"), {
+      target: { value: "-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.getByText("Enter a season and episode number"),
+    ).toBeInTheDocument();
+    expect(
+      vi.mocked(watchFetch).mock.calls.some((call) => call[0] === "/catalog/log"),
+    ).toBe(false);
+  });
+
+  it("ignores a stale search response that arrives out of order", async () => {
+    let resolveHeat!: (value: { items: unknown[] }) => void;
+    const heat = new Promise<{ items: unknown[] }>((resolve) => {
+      resolveHeat = resolve;
+    });
+
+    vi.mocked(watchFetch).mockImplementation(async (path) => {
+      const href = String(path);
+      if (href.includes("q=heat")) return heat as never;
+      if (href.includes("q=frieren")) {
+        return {
+          items: [
+            {
+              id: "anilist:1",
+              name: "Frieren",
+              year: 2023,
+              type: "show",
+              posterUrl: null,
+              anilistId: 1,
+              sources: ["anilist"],
+            },
+          ],
+        };
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+
+    wrap(<WatchLogDialog open onClose={() => undefined} />);
+    fireEvent.change(screen.getByPlaceholderText(/Movie, series/i), {
+      target: { value: "heat" },
+    });
+    await waitFor(() => expect(watchFetch).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByPlaceholderText(/Movie, series/i), {
+      target: { value: "frieren" },
+    });
+    expect(await screen.findByText("Frieren (2023)")).toBeInTheDocument();
+
+    resolveHeat({
+      items: [
+        {
+          id: "tmdb:949",
+          name: "Heat",
+          year: 1995,
+          type: "movie",
+          posterUrl: null,
+          tmdbId: 949,
+          sources: ["tmdb"],
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Frieren (2023)")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Heat (1995)")).not.toBeInTheDocument();
+  });
 });

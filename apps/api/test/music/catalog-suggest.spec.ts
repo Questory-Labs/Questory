@@ -82,6 +82,31 @@ describe("suggestCatalog", () => {
     ]);
   });
 
+  it("caps create-option results at take when 25 matches lack an exact name", async () => {
+    const prisma = {
+      artist: {
+        findMany: vi.fn().mockResolvedValue(
+          Array.from({ length: 25 }, (_, i) => ({
+            id: `a${i}`,
+            name: `Artist ${i}`,
+          })),
+        ),
+      },
+    } as unknown as PrismaService;
+
+    const result = await suggestCatalog(
+      prisma,
+      "user1",
+      "artist",
+      "query",
+      25,
+    );
+
+    expect(result.items).toHaveLength(25);
+    expect(result.items[0]).toEqual({ name: "query", isNew: true });
+    expect(result.items.some((item) => item.id === "a24")).toBe(false);
+  });
+
   it("queries albums by title instead of sampling listens", async () => {
     const releaseFindMany = vi.fn().mockResolvedValue([
       { id: "r1", title: "Bewitched" },

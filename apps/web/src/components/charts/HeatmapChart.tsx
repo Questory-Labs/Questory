@@ -47,6 +47,7 @@ export function HeatmapChart({
       <div
         className="overflow-x-auto"
         onMouseLeave={() => setHover(null)}
+        onScroll={() => setHover(null)}
       >
         <div
           role="img"

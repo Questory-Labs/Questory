@@ -28,7 +28,7 @@ export function WatchMediaPicker({
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`px-2.5 font-mono text-[11px] uppercase leading-none tracking-[0.12em] transition-colors ${
+            className={`min-h-6 px-2.5 font-mono text-[11px] uppercase leading-none tracking-[0.12em] transition-colors ${
               active
                 ? "bg-[var(--ink)] text-[var(--bg-0)]"
                 : "text-[var(--muted)] hover:text-[var(--ink)]"

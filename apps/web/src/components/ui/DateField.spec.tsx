@@ -19,6 +19,16 @@ describe("DateField", () => {
     expect(screen.queryByRole("dialog", { name: "Choose date" })).not.toBeInTheDocument();
   });
 
+  it("disables previous month when the adjacent month would leave the year range", () => {
+    const onChange = vi.fn();
+    render(<DateField label="Date" value="1900-01-16" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Date" }));
+    expect(screen.getByRole("button", { name: "Previous month" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
+    expect(screen.queryByRole("button", { name: "1899-12-01" })).not.toBeInTheDocument();
+  });
+
   it("pages months from the calendar header", () => {
     const onChange = vi.fn();
     render(<DateField label="Date" value="2026-08-16" onChange={onChange} />);

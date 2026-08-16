@@ -83,4 +83,38 @@ describe("WatchCatalogLogSchema", () => {
     });
     expect(parsed.success).toBe(false);
   });
+
+  it("rejects nonexistent calendar dates", () => {
+    expect(
+      WatchCatalogLogSchema.safeParse({
+        tmdbId: 1,
+        type: "movie",
+        watchedAt: "2023-02-29",
+      }).success,
+    ).toBe(false);
+    expect(
+      WatchCatalogLogSchema.safeParse({
+        tmdbId: 1,
+        type: "movie",
+        watchedAt: "2026-04-31",
+      }).success,
+    ).toBe(false);
+    expect(
+      WatchCatalogLogSchema.safeParse({
+        tmdbId: 1,
+        type: "movie",
+        watchedAt: "2026-13-01",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a valid leap day", () => {
+    expect(
+      WatchCatalogLogSchema.safeParse({
+        tmdbId: 1,
+        type: "movie",
+        watchedAt: "2024-02-29",
+      }).success,
+    ).toBe(true);
+  });
 });
