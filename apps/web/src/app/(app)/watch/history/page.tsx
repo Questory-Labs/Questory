@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
 import type { WatchRecentPage } from "@questorylabs/shared";
 import { Button, EmptyState, PageHeader, SkeletonListRows } from "@/components/ui";
+import { WatchAddButton } from "@/components/watch/WatchAddButton";
 import { formatDateTime } from "@/lib/dates";
 import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
 import { formatYourWatchRating, watchFetch } from "@/lib/watch";
@@ -28,13 +29,14 @@ export default function WatchHistoryPage() {
       <PageHeader
         title="History"
         description="Watch events across all connected sources."
+        actions={<WatchAddButton />}
       />
 
       {recent.empty && <SkeletonListRows />}
       {!recent.empty && (recent.value?.items.length ?? 0) === 0 && (
         <EmptyState
           title="No watch events yet"
-          description="Connect a source under Watch → Sources to start ingesting."
+          description="Add a watch, or connect a source under Watch → Sources to start ingesting."
         />
       )}
       {recent.value && recent.value.items.length > 0 && (

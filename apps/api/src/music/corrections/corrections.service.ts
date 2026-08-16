@@ -13,6 +13,7 @@ import {
 } from "../catalog/catalog.service";
 import { normalizeName, primaryArtistNorm } from "../lib/tokens";
 import { loadArtistCreditsByTrackId } from "./artist-credit";
+import { suggestCatalog } from "./catalog-suggest";
 
 type RuleKind = "track" | "album" | "artist";
 
@@ -152,124 +153,7 @@ export class CorrectionsService {
     query: string,
     limit = 10,
   ) {
-    const q = query.trim();
-    const take = Math.min(Math.max(limit, 1), 25);
-    const qNorm = q ? normalizeName(q) : "";
-
-    if (kind === "artist") {
-      const listens = await this.prisma.listen.findMany({
-        where: { userId },
-        distinct: ["trackId"],
-        select: {
-          track: {
-            select: {
-              artist: { select: { id: true, name: true, nameNormalized: true } },
-              featuredArtists: {
-                select: {
-                  artist: {
-                    select: { id: true, name: true, nameNormalized: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-        take: 500,
-      });
-      const seen = new Map<string, { id: string; name: string }>();
-      for (const l of listens) {
-        const primary = l.track.artist;
-        if (!qNorm || primary.nameNormalized.includes(qNorm)) {
-          seen.set(primary.id, { id: primary.id, name: primary.name });
-        }
-        for (const fa of l.track.featuredArtists) {
-          const a = fa.artist;
-          if (!qNorm || a.nameNormalized.includes(qNorm)) {
-            seen.set(a.id, { id: a.id, name: a.name });
-          }
-        }
-      }
-      const items: Array<{ id?: string; name: string; isNew?: boolean }> = [
-        ...[...seen.values()]
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .slice(0, take)
-          .map((a) => ({ id: a.id, name: a.name })),
-      ];
-      if (q && !items.some((i) => normalizeName(i.name) === qNorm)) {
-        items.unshift({ name: q, isNew: true });
-      }
-      return { items };
-    }
-
-    if (kind === "album") {
-      const listens = await this.prisma.listen.findMany({
-        where: {
-          userId,
-          track: {
-            releaseId: { not: null },
-            ...(qNorm
-              ? { release: { titleNormalized: { contains: qNorm } } }
-              : {}),
-          },
-        },
-        distinct: ["trackId"],
-        select: {
-          track: {
-            select: {
-              release: {
-                select: { id: true, title: true, titleNormalized: true },
-              },
-            },
-          },
-        },
-        take: 500,
-      });
-      const seen = new Map<string, { id: string; name: string }>();
-      for (const l of listens) {
-        const r = l.track.release;
-        if (!r) continue;
-        seen.set(r.id, { id: r.id, name: r.title });
-      }
-      const items: Array<{ id?: string; name: string; isNew?: boolean }> = [
-        ...[...seen.values()]
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .slice(0, take)
-          .map((a) => ({ id: a.id, name: a.name })),
-      ];
-      if (q && !items.some((i) => normalizeName(i.name) === qNorm)) {
-        items.unshift({ name: q, isNew: true });
-      }
-      return { items };
-    }
-
-    const listens = await this.prisma.listen.findMany({
-      where: {
-        userId,
-        ...(qNorm
-          ? { track: { titleNormalized: { contains: qNorm } } }
-          : {}),
-      },
-      distinct: ["trackId"],
-      select: {
-        track: { select: { id: true, title: true, titleNormalized: true } },
-      },
-      take: 500,
-    });
-    const seen = new Map<string, { id: string; name: string }>();
-    for (const l of listens) {
-      const t = l.track;
-      seen.set(t.id, { id: t.id, name: t.title });
-    }
-    const items: Array<{ id?: string; name: string; isNew?: boolean }> = [
-      ...[...seen.values()]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .slice(0, take)
-        .map((a) => ({ id: a.id, name: a.name })),
-    ];
-    if (q && !items.some((i) => normalizeName(i.name) === qNorm)) {
-      items.unshift({ name: q, isNew: true });
-    }
-    return { items };
+    return suggestCatalog(this.prisma, userId, kind, query, limit);
   }
 
   async getTrackCorrectionForm(userId: string, trackId: string) {

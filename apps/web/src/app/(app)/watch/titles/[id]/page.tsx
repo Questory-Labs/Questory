@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
-import { useState } from "react";
-import type { WatchRange, WatchTitleDetail } from "@questorylabs/shared";
+import type { WatchTitleDetail } from "@questorylabs/shared";
 import { EntityMetadataEdit } from "@/components/EntityMetadataEdit";
-import { WatchRangePicker } from "@/components/watch/WatchRangePicker";
 import { PageHeader, SkeletonDetailHeader, StateMessage } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatYourWatchRating, watchFetch } from "@/lib/watch";
@@ -22,14 +20,10 @@ export default function WatchTitlePage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const store = useStore();
-  const [range, setRange] = useState<WatchRange>("all");
 
   const detail = useResource({
-    id: ["watch-title", id, range],
-    load: () =>
-      watchFetch<WatchTitleDetail>(
-        `/analytics/titles/${id}?range=${range}`,
-      ),
+    id: ["watch-title", id],
+    load: () => watchFetch<WatchTitleDetail>(`/analytics/titles/${id}`),
     when: Boolean(id),
   });
 
@@ -58,7 +52,7 @@ export default function WatchTitlePage() {
         description={
           detail.value
             ? [
-                `${detail.value.eventCount} watches in range · first ${formatDate(detail.value.firstWatchAt)} · latest ${formatDate(detail.value.latestWatchAt)}`,
+                `${detail.value.eventCount} watches · first ${formatDate(detail.value.firstWatchAt)} · latest ${formatDate(detail.value.latestWatchAt)}`,
                 detail.value.userRating != null
                   ? formatYourWatchRating(detail.value.userRating)
                   : null,
@@ -68,21 +62,18 @@ export default function WatchTitlePage() {
             : undefined
         }
         actions={
-          <>
-            <WatchRangePicker value={range} onChange={setRange} />
-            {t ? (
-              <EntityMetadataEdit
-                initialDisplayName={t.displayName}
-                initialCoverUrl={t.posterUrl}
-                canonicalName={t.name}
-                coverLabel="Poster URL"
-                saving={save.busy}
-                onSave={async (values) => {
-                  await save.submitAsync(values);
-                }}
-              />
-            ) : null}
-          </>
+          t ? (
+            <EntityMetadataEdit
+              initialDisplayName={t.displayName}
+              initialCoverUrl={t.posterUrl}
+              canonicalName={t.name}
+              coverLabel="Poster URL"
+              saving={save.busy}
+              onSave={async (values) => {
+                await save.submitAsync(values);
+              }}
+            />
+          ) : null
         }
       />
 
@@ -148,7 +139,7 @@ export default function WatchTitlePage() {
 
             <section className="mt-8">
               <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                Recent watches
+                History
               </h2>
               {detail.value.recentEvents.length > 0 ? (
                 <ul className="mt-3 divide-y divide-[var(--line)]">
@@ -170,7 +161,7 @@ export default function WatchTitlePage() {
                 </ul>
               ) : (
                 <p className="mt-3 text-sm text-[var(--muted)]">
-                  No watches in this range.
+                  No watches yet.
                 </p>
               )}
             </section>

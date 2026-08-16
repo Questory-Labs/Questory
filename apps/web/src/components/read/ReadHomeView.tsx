@@ -1,60 +1,56 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
 import type {
   ReadBreakdownResponse,
   ReadInsights,
-  ReadRange,
   ReadTimeBucket,
 } from "@questorylabs/shared";
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
-import { ReadRangePicker } from "@/components/read/ReadRangePicker";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, Panel, SkeletonStatGrid, SkeletonTileGrid, StateMessage } from "@/components/ui";
 import { formatDeltaPct, formatShare, readFetch } from "@/lib/read";
 import { withTz } from "@/lib/dates";
 
 export function ReadHomeView() {
-  const [range, setRange] = useState<ReadRange>("week");
-
   const insights = useResource({
-    id: ["read-insights", range],
+    id: ["read-insights"],
     load: () =>
       readFetch<ReadInsights>(
-        withTz(`/analytics/insights?range=${range}`),
+        withTz(`/analytics/insights?range=all`),
       ),
   });
   const hour = useResource({
-    id: ["read-ts-hour", range],
+    id: ["read-ts-hour"],
     load: () =>
       readFetch<ReadTimeBucket[]>(
         withTz(
-          `/analytics/timeseries?granularity=hourOfDay&range=${range}`,
+          `/analytics/timeseries?granularity=hourOfDay&range=all`,
         ),
       ),
   });
   const dow = useResource({
-    id: ["read-ts-dow", range],
+    id: ["read-ts-dow"],
     load: () =>
       readFetch<ReadTimeBucket[]>(
         withTz(
-          `/analytics/timeseries?granularity=dayOfWeek&range=${range}`,
+          `/analytics/timeseries?granularity=dayOfWeek&range=all`,
         ),
       ),
   });
   const formats = useResource({
-    id: ["read-formats", range],
+    id: ["read-formats"],
     load: () =>
       readFetch<ReadBreakdownResponse>(
-        `/analytics/breakdown/formats?range=${range}&limit=10`,
+        `/analytics/breakdown/formats?range=all&limit=10`,
       ),
   });
   const sources = useResource({
-    id: ["read-sources", range],
+    id: ["read-sources"],
     load: () =>
       readFetch<ReadBreakdownResponse>(
-        `/analytics/breakdown/sources?range=${range}&limit=10`,
+        `/analytics/breakdown/sources?range=all&limit=10`,
       ),
   });
 
@@ -82,7 +78,6 @@ export function ReadHomeView() {
       <PageHeader
         title="Read"
         description="Manga, manhwa, and print analytics from AniList. Connect under Read → Sources."
-        actions={<ReadRangePicker value={range} onChange={setRange} />}
       />
 
       {insights.empty && !insights.value ? (

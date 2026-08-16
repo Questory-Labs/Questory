@@ -42,25 +42,43 @@ export const outboundHttp = new QHttp({
   retryDelay: 500,
 });
 
+/** Fetch `Response` only accepts 200–599. QHttp uses 0 for transport failures. */
+export function toFetchStatus(status: number): number {
+  if (Number.isInteger(status) && status >= 200 && status <= 599) return status;
+  return 503;
+}
+
+function fetchStatusText(status: number, raw: string | undefined): string {
+  const fallback = status === 503 ? "Service Unavailable" : "Error";
+  if (!raw) return fallback;
+  const cleaned = raw.replace(/[\r\n]+/g, " ").trim().slice(0, 80);
+  return cleaned || fallback;
+}
+
 function asResponse(result: QHttpResult): Response {
   if (result.response) return result.response;
+  const status = toFetchStatus(result.httpStatus);
   const body =
     result.data == null
-      ? result.error?.message ?? ""
+      ? result.error?.message ?? result.statusText ?? ""
       : typeof result.data === "string"
         ? result.data
         : JSON.stringify(result.data);
+  const statusText =
+    status === result.httpStatus
+      ? fetchStatusText(status, result.statusText)
+      : "Service Unavailable";
   if (typeof Response !== "undefined") {
     return new Response(body, {
-      status: result.httpStatus,
-      statusText: result.statusText,
+      status,
+      statusText,
       headers: result.headers,
     });
   }
   return {
-    ok: result.ok,
-    status: result.httpStatus,
-    statusText: result.statusText,
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
     headers: new Headers(result.headers),
     text: async () => body,
     json: async () => JSON.parse(body || "null"),

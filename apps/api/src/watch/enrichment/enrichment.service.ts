@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
+import { claimTmdbId } from "../catalog/title-merge";
 import { TmdbService } from "../tmdb/tmdb.service";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
@@ -126,35 +127,48 @@ export class EnrichmentService implements OnModuleInit {
         return;
       }
 
+      const canonicalId = await claimTmdbId(
+        this.prisma,
+        titleId,
+        title.type,
+        detail.id,
+      );
+      const canonical =
+        canonicalId === titleId
+          ? title
+          : await this.prisma.title.findUnique({ where: { id: canonicalId } });
+      if (!canonical) return;
+
       const year =
         this.tmdb.yearFromDate(detail.release_date) ??
         this.tmdb.yearFromDate(detail.first_air_date);
       const runtime =
-        this.tmdb.runtimeMinutes(detail) ?? title.runtimeMinutes ?? null;
+        this.tmdb.runtimeMinutes(detail) ?? canonical.runtimeMinutes ?? null;
 
       await this.prisma.title.update({
-        where: { id: titleId },
+        where: { id: canonicalId },
         data: {
           tmdbId: detail.id,
-          overview: detail.overview ?? title.overview,
+          overview: detail.overview ?? canonical.overview,
           runtimeMinutes: runtime,
-          year: year ?? title.year,
-          ...(title.imageManual
+          year: year ?? canonical.year,
+          ...(canonical.imageManual
             ? {}
             : {
                 posterUrl:
-                  this.tmdb.posterUrl(detail.poster_path) ?? title.posterUrl,
+                  this.tmdb.posterUrl(detail.poster_path) ?? canonical.posterUrl,
               }),
           backdropUrl:
-            this.tmdb.posterUrl(detail.backdrop_path) ?? title.backdropUrl,
-          originalLanguage: detail.original_language ?? title.originalLanguage,
-          imdbId: detail.imdb_id ?? title.imdbId,
+            this.tmdb.posterUrl(detail.backdrop_path) ?? canonical.backdropUrl,
+          originalLanguage:
+            detail.original_language ?? canonical.originalLanguage,
+          imdbId: detail.imdb_id ?? canonical.imdbId,
           metadataSyncedAt: new Date(),
         },
       });
 
       const genres = (detail.genres || []).map((g) => g.name);
-      if (genres.length) await this.catalog.linkGenres(titleId, genres, "tmdb");
+      if (genres.length) await this.catalog.linkGenres(canonicalId, genres, "tmdb");
 
       await this.prisma.titleEnrichmentJob.update({
         where: { id: job.id },

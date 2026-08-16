@@ -89,7 +89,7 @@ export default function MusicArtistPage() {
         }
         actions={
           <>
-            <MusicRangePicker value={range} onChange={setRange} />
+            <MusicRangePicker value={range} onChange={setRange} includeAll />
             {a ? (
               <MusicCorrectionEdit
                 kind="artist"

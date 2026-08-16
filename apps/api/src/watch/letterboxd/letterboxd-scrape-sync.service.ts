@@ -5,6 +5,7 @@ import { ScraperProvidersService } from "../../scraper/scraper-providers.service
 import { ScraperEngineService } from "../../scraper/scraper-engine.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
+import { TmdbService } from "../tmdb/tmdb.service";
 import {
   letterboxdEquivKeyFromDedupeKey,
   letterboxdWatchDedupeKey,
@@ -43,6 +44,7 @@ export class LetterboxdScrapeSyncService {
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
     private readonly letterboxd: LetterboxdService,
+    private readonly tmdb: TmdbService,
   ) {}
 
   async syncAll(): Promise<{
@@ -156,10 +158,24 @@ export class LetterboxdScrapeSyncService {
               continue;
             }
 
+            let tmdbId: number | null = null;
+            if (this.tmdb.configured()) {
+              try {
+                const hit = await this.tmdb.searchMovie(
+                  parsed.title,
+                  parsed.year,
+                );
+                tmdbId = hit?.id ?? null;
+              } catch {
+                tmdbId = null;
+              }
+            }
+
             const title = await this.catalog.upsertTitle({
               type: "movie",
               name: parsed.title,
               year: parsed.year,
+              tmdbId,
             });
 
             await this.catalog.recordWatch({

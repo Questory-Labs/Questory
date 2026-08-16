@@ -2,28 +2,35 @@
 
 import type { MusicRange } from "@questorylabs/shared";
 
-const RANGES: { value: MusicRange; label: string }[] = [
+const PERIOD_RANGES: { value: MusicRange; label: string }[] = [
   { value: "day", label: "Day" },
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
   { value: "year", label: "Year" },
-  { value: "all", label: "All" },
 ];
+
+const ALL_RANGE: { value: MusicRange; label: string } = {
+  value: "all",
+  label: "All",
+};
 
 export function MusicRangePicker({
   value,
   onChange,
+  includeAll = false,
 }: {
   value: MusicRange;
   onChange: (range: MusicRange) => void;
+  includeAll?: boolean;
 }) {
+  const ranges = includeAll ? [...PERIOD_RANGES, ALL_RANGE] : PERIOD_RANGES;
   return (
     <div
       className="inline-flex flex-wrap gap-1 rounded border border-[var(--line)] p-1"
       role="group"
       aria-label="Time range"
     >
-      {RANGES.map((r) => {
+      {ranges.map((r) => {
         const active = r.value === value;
         return (
           <button

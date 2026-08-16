@@ -8,6 +8,7 @@ import {
   zonedWeekday,
 } from "../../lib/timezone";
 import { UsersService } from "../../watch/users/users.service";
+import { TITLE_DETAIL_EVENTS_LIMIT } from "./analytics.constants";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type FormatFilter =
@@ -574,7 +575,7 @@ export class ReadAnalyticsService {
       this.prisma.readEvent.findMany({
         where: rangeWhere,
         orderBy: { readAt: "desc" },
-        take: 50,
+        take: TITLE_DETAIL_EVENTS_LIMIT,
       }),
       this.prisma.readListState.findFirst({
         where: { userId: user.id, readTitleId: titleId },

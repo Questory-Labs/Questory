@@ -105,6 +105,7 @@ describe("LetterboxdScrapeSyncService", () => {
       catalog as unknown as CatalogService,
       enrichment as unknown as EnrichmentService,
       letterboxd as unknown as LetterboxdService,
+      { configured: () => false } as import("../../src/watch/tmdb/tmdb.service").TmdbService,
     );
   });
 

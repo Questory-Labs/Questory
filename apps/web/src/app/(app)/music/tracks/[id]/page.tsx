@@ -203,7 +203,11 @@ export default function MusicTrackPage() {
         }
         actions={
           <>
-            <MusicRangePicker value={range} onChange={handleRangeChange} />
+            <MusicRangePicker
+              value={range}
+              onChange={handleRangeChange}
+              includeAll
+            />
             {t ? (
               <MusicCorrectionEdit
                 kind="track"

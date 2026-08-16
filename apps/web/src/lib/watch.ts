@@ -44,12 +44,15 @@ export function watchUrl(path: string) {
   return `${getWatchUrl()}${watchPath(path)}`;
 }
 
-export async function watchFetch<T>(
+export function watchFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
   return requestJson<T>(watchUrl(path), init);
 }
+
+/** Debounce for Watch log title search typeahead. */
+export const WATCH_LOG_SEARCH_DEBOUNCE_MS = 300;
 
 export function formatShare(count: number, total: number): string {
   if (total <= 0) return "—";

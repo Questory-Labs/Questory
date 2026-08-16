@@ -49,6 +49,19 @@ export function readToken(
   return value || fallback;
 }
 
+/** Center of `target` in `root`'s padding-box coordinates. */
+export function chartAnchorPoint(
+  target: HTMLElement,
+  root: HTMLElement,
+): { x: number; y: number } {
+  const targetRect = target.getBoundingClientRect();
+  const rootRect = root.getBoundingClientRect();
+  return {
+    x: targetRect.left - rootRect.left + targetRect.width / 2,
+    y: targetRect.top - rootRect.top,
+  };
+}
+
 export function useChartWidth(
   ref: RefObject<HTMLElement | null>,
   min = 320,

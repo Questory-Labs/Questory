@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { CHART_TOOLTIP_GAP_PX } from "@/lib/charts";
 import { HeatmapChart } from "./HeatmapChart";
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -31,7 +32,10 @@ const hourLabels = [
 ];
 
 describe("HeatmapChart", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("shows an empty state when maxValue is 0", () => {
     render(
@@ -61,5 +65,49 @@ describe("HeatmapChart", () => {
       screen.getByLabelText("Listening by day and hour"),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Fri 10pm: 12 listens")).toBeInTheDocument();
+  });
+
+  it("anchors the hover tooltip to the cell instead of the chart center", () => {
+    const rect = (left: number, top: number, width: number, height: number) =>
+      ({
+        x: left,
+        y: top,
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        toJSON() {},
+      }) as DOMRect;
+
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        if (this.getAttribute("aria-label") === "Fri 10pm: 12 listens") {
+          return rect(80, 40, 20, 14);
+        }
+        return rect(0, 0, 640, 120);
+      },
+    );
+
+    render(
+      <HeatmapChart
+        cells={[{ day: 4, hour: 22, value: 12 }]}
+        dayLabels={dayLabels}
+        hourLabels={hourLabels}
+        maxValue={12}
+      />,
+    );
+
+    fireEvent.mouseEnter(screen.getByLabelText("Fri 10pm: 12 listens"));
+
+    const tip = screen.getByRole("tooltip");
+    expect(tip).toHaveTextContent("Fri 10pm");
+    expect(tip).toHaveTextContent("12 listens");
+    expect(tip).toHaveStyle({
+      left: "90px",
+      top: `${40 - CHART_TOOLTIP_GAP_PX}px`,
+    });
+    expect(tip.className).not.toMatch(/left-1\/2/);
   });
 });
