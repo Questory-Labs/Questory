@@ -23,6 +23,7 @@ import {
   normalizeEmail,
 } from "./abuse/disposable-emails";
 import { isSignupOpen } from "./signup-policy";
+import { isEmailVerificationRequired } from "./verify-policy";
 
 @Injectable()
 export class AuthService {
@@ -143,6 +144,10 @@ export class AuthService {
     };
   }
 
+  async isVerificationRequired() {
+    return isEmailVerificationRequired(this.prisma);
+  }
+
   async register(emailRaw: string, password: string) {
     const open = await isSignupOpen(this.prisma);
     if (!open) {
@@ -187,7 +192,7 @@ export class AuthService {
     const email = normalizeEmail(emailRaw);
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    if (!user?.passwordHash) {
+    if (!user?.passwordHash || user.disabledAt) {
       await dummyPasswordVerify(password);
       throw new UnauthorizedException("Invalid email or password");
     }
@@ -217,11 +222,54 @@ export class AuthService {
     return { ...user, steamId };
   }
 
+  async markEmailVerified(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { emailVerifiedAt: new Date() },
+    });
+  }
+
+  async bumpSessionEpoch(userId: string): Promise<number> {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { sessionEpoch: { increment: 1 } },
+      select: { sessionEpoch: true },
+    });
+    return updated.sessionEpoch;
+  }
+
+  async setPassword(
+    userId: string,
+    password: string,
+    currentPassword?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException("Not authenticated");
+    if (user.passwordHash) {
+      if (!currentPassword) {
+        throw new BadRequestException("Current password is required");
+      }
+      const ok = await verifyPassword(user.passwordHash, currentPassword);
+      if (!ok) throw new UnauthorizedException("Invalid email or password");
+    }
+    const passwordHash = await hashPassword(password);
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        sessionEpoch: user.passwordHash ? { increment: 1 } : undefined,
+      },
+    });
+    const steamId = await this.accounts.getSteamId(userId);
+    return { ...updated, steamId };
+  }
+
   toPublicUser(user: {
     id: string;
     email?: string | null;
     isAdmin?: boolean;
     passwordHash?: string | null;
+    emailVerifiedAt?: Date | null;
     personaName: string;
     avatarUrl?: string | null;
     profileUrl?: string | null;
@@ -235,6 +283,7 @@ export class AuthService {
       email: user.email ?? null,
       isAdmin: isEffectiveAdmin(user),
       hasPassword: Boolean(user.passwordHash),
+      emailVerified: Boolean(user.emailVerifiedAt),
       personaName: user.personaName,
       avatarUrl: user.avatarUrl ?? null,
       profileUrl: user.profileUrl ?? null,

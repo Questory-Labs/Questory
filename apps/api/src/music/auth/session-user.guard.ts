@@ -9,8 +9,10 @@ import {
   SESSION_COOKIE_NAME,
   parseSessionCookie,
 } from "@questorylabs/shared/session";
+import { PrismaService } from "../../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
-import { resolveAppMode } from "../lib/runtime-config";
+import { allowsSoleUserFallback } from "../../lib/runtime-config";
+import { loadLiveSessionUser } from "../../auth/session-user";
 
 export type MusicAuthedRequest = Request & {
   musicUserId?: string;
@@ -18,7 +20,10 @@ export type MusicAuthedRequest = Request & {
 
 @Injectable()
 export class SessionUserGuard implements CanActivate {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<MusicAuthedRequest>();
@@ -26,12 +31,12 @@ export class SessionUserGuard implements CanActivate {
     const session = parseSessionCookie(raw);
 
     if (session) {
-      req.musicUserId = session.userId;
+      const user = await loadLiveSessionUser(this.prisma, session);
+      req.musicUserId = user.id;
       return true;
     }
 
-    const mode = resolveAppMode();
-    if (mode === "local" || mode === "selfhosted") {
+    if (allowsSoleUserFallback()) {
       const sole = await this.users.resolveSoleUser();
       if (sole) {
         req.musicUserId = sole.id;

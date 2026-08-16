@@ -95,6 +95,16 @@ describe("play-sessions list", () => {
       findMany: async () => [],
       upsert: async () => ({ id: "r1" }),
     },
+    user: {
+      findUnique: async ({ where: { id } }: { where: { id: string } }) => ({
+        id,
+        sessionEpoch: 0,
+        disabledAt: null,
+        emailVerifiedAt: new Date(),
+        email: `${id}@example.com`,
+        isAdmin: false,
+      }),
+    },
   };
 
   beforeAll(async () => {

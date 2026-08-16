@@ -9,6 +9,7 @@ import {
 } from "@questorylabs/shared/session";
 import { FamilyController } from "../../src/family/family.controller";
 import { FamilyService } from "../../src/family/family.service";
+import { liveSessionPrismaProvider } from "../live-session-prisma";
 
 describe("family validation", () => {
   let app: INestApplication;
@@ -31,6 +32,7 @@ describe("family validation", () => {
             gameDetail: async () => ({}),
           },
         },
+        liveSessionPrismaProvider(),
       ],
     }).compile();
     app = moduleRef.createNestApplication();

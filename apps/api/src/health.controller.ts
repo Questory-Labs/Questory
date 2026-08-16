@@ -11,43 +11,44 @@ import {
   isScrobblerInApi,
   isScrobblerWorkerProcess,
 } from "./music/scrobbler/scrobbler.constants";
-
-function coreHealth() {
-  const redis = resolveRedisConfig();
-  return {
-    ok: true as const,
-    mode: resolveAppMode(),
-    allowlistEnabled: isAllowlistEnabled(),
-    database: {
-      provider: resolveDbProvider(),
-      urlConfigured: Boolean(process.env.DATABASE_URL),
-    },
-    redis: {
-      configured: Boolean(redis.url),
-      mode: redis.mode,
-      forceInline: redis.forceInline,
-    },
-    sync: {
-      mode: resolveSyncMode(),
-    },
-    music: {
-      enabled: true,
-      scrobblers: { lastfm: isLastFmConfigured() },
-      scrobblerInApi: isScrobblerInApi(),
-      scrobblerProcess: isScrobblerWorkerProcess() ? "scrobbler" : "api",
-    },
-    watch: { enabled: true },
-    read: { enabled: true },
-  };
-}
+import { MailerService } from "./mail/mailer.service";
 
 @Controller({ path: "health", version: VERSION_NEUTRAL })
 export class HealthController {
+  constructor(private readonly mailer: MailerService) {}
+
   @Get()
   check() {
+    const redis = resolveRedisConfig();
+    const mail = this.mailer.status();
     return {
-      ...coreHealth(),
-      service: "questorylabs-api",
+      ok: true as const,
+      mode: resolveAppMode(),
+      allowlistEnabled: isAllowlistEnabled(),
+      database: {
+        provider: resolveDbProvider(),
+        urlConfigured: Boolean(process.env.DATABASE_URL),
+      },
+      redis: {
+        configured: Boolean(redis.url),
+        mode: redis.mode,
+        forceInline: redis.forceInline,
+      },
+      sync: {
+        mode: resolveSyncMode(),
+      },
+      mail: {
+        configured: mail.configured,
+        enabled: mail.active,
+      },
+      music: {
+        enabled: true,
+        scrobblers: { lastfm: isLastFmConfigured() },
+        scrobblerInApi: isScrobblerInApi(),
+        scrobblerProcess: isScrobblerWorkerProcess() ? "scrobbler" : "api",
+      },
+      watch: { enabled: true },
+      read: { enabled: true },
     };
   }
 }

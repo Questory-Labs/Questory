@@ -19,6 +19,13 @@ import { MigrationsService } from "./migrations/migrations.service";
 
 const PatchSettingsSchema = z.object({
   signupEnabled: z.boolean().optional(),
+  requireEmailVerification: z.boolean().optional(),
+  features: z
+    .object({
+      recommendations: z.boolean().optional(),
+      rewindAi: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const CreateUserSchema = z.object({
@@ -32,6 +39,12 @@ const PatchUserSchema = z.object({
   password: z.string().min(10).max(128).optional(),
   isAdmin: z.boolean().optional(),
   personaName: z.string().min(1).max(64).optional(),
+  disabled: z.boolean().optional(),
+});
+
+const PatchUserEntitlementSchema = z.object({
+  feature: z.enum(["recommendations", "rewindAi"]),
+  enabled: z.boolean(),
 });
 
 const TriggerCronSchema = z.object({
@@ -126,6 +139,19 @@ export class AdminController {
       return { error: "Invalid body" };
     }
     return this.admin.patchUser(id, parsed.data);
+  }
+
+  @Patch("users/:id/entitlements")
+  patchUserEntitlements(@Param("id") id: string, @Body() body: unknown) {
+    const parsed = PatchUserEntitlementSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.admin.setUserEntitlement(
+      id,
+      parsed.data.feature,
+      parsed.data.enabled,
+    );
   }
 
   @Delete("users/:id")

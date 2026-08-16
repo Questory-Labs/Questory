@@ -10,9 +10,14 @@ import { SteamAuthGuard, type SessionUser } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { EnterpriseProxyService } from "./enterprise-proxy.service";
 import { EnterpriseRateLimitService } from "./enterprise-rate-limit.service";
+import {
+  EntitlementGuard,
+  RequireEntitlement,
+} from "../entitlements/entitlement.guard";
 
 @Controller("enterprise")
-@UseGuards(SteamAuthGuard)
+@UseGuards(SteamAuthGuard, EntitlementGuard)
+@RequireEntitlement("recommendations")
 export class EnterpriseSettingsController {
   constructor(
     private readonly proxy: EnterpriseProxyService,

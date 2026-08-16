@@ -35,7 +35,14 @@ import {
   isSignupOpen,
   setSignupEnabled,
 } from "../auth/signup-policy";
+import {
+  getRequireEmailVerificationSetting,
+  setRequireEmailVerification,
+} from "../auth/verify-policy";
 import { normalizeEmail } from "../auth/abuse/disposable-emails";
+import { EntitlementService } from "../entitlements/entitlement.service";
+import { MailerService } from "../mail/mailer.service";
+import type { EntitlementFeature } from "@questorylabs/shared";
 
 @Injectable()
 export class AdminService {
@@ -52,6 +59,8 @@ export class AdminService {
     private readonly cost: CostService,
     private readonly accounts: AccountsService,
     private readonly catalog: CatalogService,
+    private readonly entitlements: EntitlementService,
+    private readonly mailer: MailerService,
     @Optional()
     @Inject(WATCH_CRON_SYNC)
     private readonly watchCron: WatchCronSync | null,
@@ -118,12 +127,47 @@ export class AdminService {
   async getSettings() {
     const signupEnabled = await getSignupEnabledSetting(this.prisma);
     const signupOpen = await isSignupOpen(this.prisma);
-    return { signupEnabled, signupOpen, abuse: this.abuse.getMetrics() };
+    const requireEmailVerification =
+      await getRequireEmailVerificationSetting(this.prisma);
+    const features = await this.entitlements.getInstanceFlags();
+    const mail = this.mailer.status();
+    return {
+      signupEnabled,
+      signupOpen,
+      requireEmailVerification: mail.active && requireEmailVerification,
+      mail: { configured: mail.configured, enabled: mail.active },
+      features,
+      abuse: this.abuse.getMetrics(),
+    };
   }
 
-  async patchSettings(body: { signupEnabled?: boolean }) {
+  async patchSettings(body: {
+    signupEnabled?: boolean;
+    requireEmailVerification?: boolean;
+    features?: { recommendations?: boolean; rewindAi?: boolean };
+  }) {
     if (typeof body.signupEnabled === "boolean") {
       await setSignupEnabled(this.prisma, body.signupEnabled);
+    }
+    if (typeof body.requireEmailVerification === "boolean") {
+      await setRequireEmailVerification(
+        this.prisma,
+        body.requireEmailVerification,
+      );
+    }
+    if (body.features) {
+      if (typeof body.features.recommendations === "boolean") {
+        await this.entitlements.setInstanceFeature(
+          "recommendations",
+          body.features.recommendations,
+        );
+      }
+      if (typeof body.features.rewindAi === "boolean") {
+        await this.entitlements.setInstanceFeature(
+          "rewindAi",
+          body.features.rewindAi,
+        );
+      }
     }
     return this.getSettings();
   }
@@ -139,6 +183,8 @@ export class AdminService {
         avatarUrl: true,
         createdAt: true,
         lastSyncedAt: true,
+        emailVerifiedAt: true,
+        disabledAt: true,
         accounts: {
           where: { provider: "steam" },
           select: { providerAccountId: true, displayName: true },
@@ -146,6 +192,7 @@ export class AdminService {
         },
       },
     });
+    const grants = await this.entitlements.grantsMap(users.map((u) => u.id));
     return {
       startFreshEnabled: isDevelopmentMode(),
       users: users.map((u) => ({
@@ -157,6 +204,12 @@ export class AdminService {
         steamId: u.accounts[0]?.providerAccountId ?? null,
         createdAt: u.createdAt.toISOString(),
         lastSyncedAt: u.lastSyncedAt?.toISOString() ?? null,
+        emailVerified: Boolean(u.emailVerifiedAt),
+        disabled: Boolean(u.disabledAt),
+        entitlements: grants.get(u.id) ?? {
+          recommendations: false,
+          rewindAi: false,
+        },
       })),
     };
   }
@@ -190,6 +243,7 @@ export class AdminService {
         passwordHash,
         personaName,
         isAdmin,
+        emailVerifiedAt: new Date(),
       },
     });
 
@@ -213,6 +267,7 @@ export class AdminService {
       password?: string;
       isAdmin?: boolean;
       personaName?: string;
+      disabled?: boolean;
     },
   ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
@@ -223,6 +278,8 @@ export class AdminService {
       passwordHash?: string;
       isAdmin?: boolean;
       personaName?: string;
+      sessionEpoch?: { increment: number };
+      disabledAt?: Date | null;
     } = {};
 
     if (typeof body.email === "string") {
@@ -233,6 +290,7 @@ export class AdminService {
         throw new BadRequestException("Password must be 10–128 characters");
       }
       data.passwordHash = await hashPassword(body.password);
+      data.sessionEpoch = { increment: 1 };
     }
     if (typeof body.isAdmin === "boolean") {
       if (user.isAdmin && !body.isAdmin) {
@@ -248,6 +306,12 @@ export class AdminService {
     if (typeof body.personaName === "string" && body.personaName.trim()) {
       data.personaName = body.personaName.trim().slice(0, 64);
     }
+    if (typeof body.disabled === "boolean") {
+      data.disabledAt = body.disabled ? new Date() : null;
+      if (body.disabled) {
+        data.sessionEpoch = { increment: 1 };
+      }
+    }
 
     const updated = await this.prisma.user.update({
       where: { id },
@@ -259,6 +323,24 @@ export class AdminService {
         email: updated.email,
         isAdmin: updated.isAdmin,
         personaName: updated.personaName,
+      },
+    };
+  }
+
+  async setUserEntitlement(
+    userId: string,
+    feature: EntitlementFeature,
+    enabled: boolean,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("User not found");
+    await this.entitlements.setUserEntitlement(userId, feature, enabled);
+    const entitlements = await this.entitlements.grantsMap([userId]);
+    return {
+      userId,
+      entitlements: entitlements.get(userId) ?? {
+        recommendations: false,
+        rewindAi: false,
       },
     };
   }

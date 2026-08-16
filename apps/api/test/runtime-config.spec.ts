@@ -15,4 +15,13 @@ describe("assertModeConfig", () => {
     process.env.DATABASE_URL = "file:./x.db";
     expect(() => assertModeConfig()).toThrow(/SESSION_SECRET/);
   });
+
+  it("requires SMTP when QUESTORY_CLOUD is set", () => {
+    process.env.APP_MODE = "local";
+    process.env.QUESTORY_CLOUD = "true";
+    delete process.env.SMTP_ENABLED;
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_FROM;
+    expect(() => assertModeConfig()).toThrow(/QUESTORY_CLOUD/);
+  });
 });

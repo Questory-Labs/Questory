@@ -15,6 +15,8 @@ import {
 } from "@questorylabs/shared/session";
 import { SteamAuthGuard } from "../../src/auth/auth.guard";
 import { CurrentUser } from "../../src/auth/current-user.decorator";
+import { PrismaService } from "../../src/prisma/prisma.service";
+import { liveSessionUser } from "../live-session-prisma";
 
 @Controller("probe")
 @UseGuards(SteamAuthGuard)
@@ -28,11 +30,30 @@ class ProbeController {
 describe("SteamAuthGuard", () => {
   let app: INestApplication;
   const secret = "test-session-secret-32chars!!";
+  const users = new Map([
+    ["u1", liveSessionUser("u1")],
+    ["disabled", { ...liveSessionUser("disabled"), disabledAt: new Date() }],
+    ["epoch", { ...liveSessionUser("epoch"), sessionEpoch: 4 }],
+  ]);
 
   beforeAll(async () => {
     process.env.SESSION_SECRET = secret;
     const moduleRef = await Test.createTestingModule({
       controllers: [ProbeController],
+      providers: [
+        {
+          provide: PrismaService,
+          useValue: {
+            user: {
+              findUnique: async ({
+                where: { id },
+              }: {
+                where: { id: string };
+              }) => users.get(id) ?? null,
+            },
+          },
+        },
+      ],
     }).compile();
     app = moduleRef.createNestApplication();
     app.enableVersioning({
@@ -67,6 +88,39 @@ describe("SteamAuthGuard", () => {
     const cookie = encodeSessionCookie(
       { userId: "u1", steamId: "76561198000000000" },
       "wrong-secret-value!!!!",
+    );
+    await request(app.getHttpServer())
+      .get("/v1/probe/me")
+      .set("Cookie", `${SESSION_COOKIE_NAME}=${cookie}`)
+      .expect(401);
+  });
+
+  it("rejects a missing user", async () => {
+    const cookie = encodeSessionCookie(
+      { userId: "gone", steamId: null },
+      secret,
+    );
+    await request(app.getHttpServer())
+      .get("/v1/probe/me")
+      .set("Cookie", `${SESSION_COOKIE_NAME}=${cookie}`)
+      .expect(401);
+  });
+
+  it("rejects a disabled user", async () => {
+    const cookie = encodeSessionCookie(
+      { userId: "disabled", steamId: null },
+      secret,
+    );
+    await request(app.getHttpServer())
+      .get("/v1/probe/me")
+      .set("Cookie", `${SESSION_COOKIE_NAME}=${cookie}`)
+      .expect(401);
+  });
+
+  it("rejects an epoch mismatch", async () => {
+    const cookie = encodeSessionCookie(
+      { userId: "epoch", steamId: null, epoch: 0 },
+      secret,
     );
     await request(app.getHttpServer())
       .get("/v1/probe/me")

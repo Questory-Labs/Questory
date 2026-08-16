@@ -11,9 +11,12 @@ import {
   VERSION_NEUTRAL,
 } from "@nestjs/common";
 import { Request, Response } from "express";
-import { AuthRegisterSchema, AuthCredentialsSchema } from "@questorylabs/shared";
+import { AuthRegisterSchema, AuthCredentialsSchema, AuthSetPasswordSchema } from "@questorylabs/shared";
 import { AuthService } from "./auth.service";
 import { AuthAbuseService } from "./abuse/auth-abuse.service";
+import { AuthMailService } from "./auth-mail.service";
+import { MailerService } from "../mail/mailer.service";
+import { EntitlementService } from "../entitlements/entitlement.service";
 import { clearSession, readSession, setSession } from "./session";
 import { SteamAuthGuard } from "./auth.guard";
 import { CurrentUser } from "./current-user.decorator";
@@ -21,12 +24,16 @@ import { openIdQueryFromRequest } from "./openid-query";
 import { currencyFromCountry } from "../lib/currency";
 import { isSteamIdAllowed } from "../lib/runtime-config";
 import { clientIpFromRequest } from "./abuse/client-ip";
+import { isMailerActive } from "../mail/smtp-config";
 
 @Controller({ path: "auth", version: VERSION_NEUTRAL })
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly abuse: AuthAbuseService,
+    private readonly mail: AuthMailService,
+    private readonly mailer: MailerService,
+    private readonly entitlements: EntitlementService,
   ) {}
 
   @Get("signup-status")
@@ -82,11 +89,22 @@ export class AuthController {
     await this.abuse.assertRegisterLimits(ip, email);
 
     const user = await this.auth.register(email, data.password);
+    if (isMailerActive()) {
+      try {
+        await this.mail.sendVerifyForUser(user.id);
+      } catch {
+        // Register still succeeds; user can resend from the verify wall.
+      }
+    } else {
+      await this.auth.markEmailVerified(user.id);
+      user.emailVerifiedAt = new Date();
+    }
     setSession(
       res,
       {
         userId: user.id,
         steamId: user.steamId,
+        epoch: user.sessionEpoch ?? 0,
       },
       req,
     );
@@ -142,6 +160,7 @@ export class AuthController {
         {
           userId: user.id,
           steamId: user.steamId,
+          epoch: user.sessionEpoch ?? 0,
         },
         req,
       );
@@ -190,6 +209,7 @@ export class AuthController {
         {
           userId: user.id,
           steamId: user.steamId,
+          epoch: user.sessionEpoch ?? 0,
         },
         req,
       );
@@ -204,16 +224,30 @@ export class AuthController {
 
   @Get("me")
   async me(@Req() req: Request) {
+    const mailActive = this.mailer.isActive();
+    const requireEmailVerification = await this.auth.isVerificationRequired();
     const session = readSession(req);
-    if (!session) return { user: null };
+    if (!session) {
+      return { user: null, mailActive, requireEmailVerification };
+    }
     const user = await this.auth.getUser(session.userId);
-    if (!user) return { user: null };
+    if (
+      !user ||
+      user.disabledAt ||
+      (session.epoch ?? 0) !== (user.sessionEpoch ?? 0)
+    ) {
+      return { user: null, mailActive, requireEmailVerification };
+    }
     const pub = this.auth.toPublicUser(user);
+    const entitlements = await this.entitlements.resolveForUser(user.id);
     return {
       user: {
         ...pub,
         currency: currencyFromCountry(pub.countryCode),
       },
+      mailActive,
+      requireEmailVerification,
+      entitlements,
     };
   }
 
@@ -222,6 +256,49 @@ export class AuthController {
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     clearSession(res, req);
     return { ok: true };
+  }
+
+  @Post("logout-all")
+  @HttpCode(200)
+  @UseGuards(SteamAuthGuard)
+  async logoutAll(
+    @CurrentUser() session: { userId: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.auth.bumpSessionEpoch(session.userId);
+    clearSession(res, req);
+    return { ok: true };
+  }
+
+  @Post("password")
+  @HttpCode(200)
+  @UseGuards(SteamAuthGuard)
+  async setPassword(
+    @CurrentUser() session: { userId: string; steamId: string | null },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body() body: unknown,
+  ) {
+    const parsed = AuthSetPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new UnauthorizedException("Invalid password");
+    }
+    const user = await this.auth.setPassword(
+      session.userId,
+      parsed.data.password,
+      parsed.data.currentPassword,
+    );
+    setSession(
+      res,
+      {
+        userId: user.id,
+        steamId: user.steamId,
+        epoch: user.sessionEpoch ?? 0,
+      },
+      req,
+    );
+    return { ok: true, user: this.auth.toPublicUser(user) };
   }
 
   @Get("session-check")

@@ -84,6 +84,22 @@ export function isAllowlistEnabled(): boolean {
   return resolveAllowedSteamIds().size > 0;
 }
 
+function isEnvTrue(value: string | undefined): boolean {
+  const v = (value || "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+/** Hosted Questory cloud (not self-host). Drives mail-required + per-user entitlements. */
+export function isQuestoryCloud(): boolean {
+  return isEnvTrue(process.env.QUESTORY_CLOUD);
+}
+
+/** Sole-user unauthenticated attach only in local/selfhosted. */
+export function allowsSoleUserFallback(): boolean {
+  const mode = resolveAppMode();
+  return mode === "local" || mode === "selfhosted";
+}
+
 function isWeakSessionSecret(secret: string | undefined): boolean {
   const value = (secret || "").trim();
   if (WEAK_SESSION_SECRETS.has(value)) return true;
@@ -166,6 +182,16 @@ export function assertModeConfig(): void {
     if (publicApi && isLocalhostUrl(publicApi)) {
       errors.push(
         "production should not use a localhost NEXT_PUBLIC_API_URL on the API host checklist",
+      );
+    }
+  }
+
+  if (isQuestoryCloud()) {
+    const smtpHost = (process.env.SMTP_HOST || "").trim();
+    const smtpFrom = (process.env.SMTP_FROM || "").trim();
+    if (!isEnvTrue(process.env.SMTP_ENABLED) || !smtpHost || !smtpFrom) {
+      errors.push(
+        "QUESTORY_CLOUD requires SMTP_ENABLED=true plus SMTP_HOST and SMTP_FROM",
       );
     }
   }

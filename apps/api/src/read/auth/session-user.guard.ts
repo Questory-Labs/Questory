@@ -10,8 +10,10 @@ import {
   SESSION_COOKIE_NAME,
   parseSessionCookie,
 } from "@questorylabs/shared/session";
+import { PrismaService } from "../../prisma/prisma.service";
 import { UsersService } from "../../watch/users/users.service";
 import { allowsSoleUserFallback } from "../../watch/lib/runtime-config";
+import { loadLiveSessionUser } from "../../auth/session-user";
 
 export type ReadAuthedRequest = Request & {
   readUserId?: string;
@@ -19,7 +21,10 @@ export type ReadAuthedRequest = Request & {
 
 @Injectable()
 export class ReadSessionUserGuard implements CanActivate {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<ReadAuthedRequest>();
@@ -32,7 +37,8 @@ export class ReadSessionUserGuard implements CanActivate {
       if (queryUserId && queryUserId !== session.userId) {
         throw new ForbiddenException("userId does not match session");
       }
-      req.readUserId = session.userId;
+      const user = await loadLiveSessionUser(this.prisma, session);
+      req.readUserId = user.id;
       return true;
     }
 

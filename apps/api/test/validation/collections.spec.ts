@@ -9,6 +9,7 @@ import {
 } from "@questorylabs/shared/session";
 import { CollectionsController } from "../../src/collections/collections.controller";
 import { CollectionsService } from "../../src/collections/collections.service";
+import { liveSessionPrismaProvider } from "../live-session-prisma";
 
 describe("collections validation", () => {
   let app: INestApplication;
@@ -30,6 +31,7 @@ describe("collections validation", () => {
             addGame: async () => ({}),
           },
         },
+        liveSessionPrismaProvider(),
       ],
     }).compile();
     app = moduleRef.createNestApplication();

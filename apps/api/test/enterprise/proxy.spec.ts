@@ -15,6 +15,7 @@ import { SteamAuthGuard } from "../../src/auth/auth.guard";
 import { EnterpriseProxyService } from "../../src/enterprise/enterprise-proxy.service";
 import { EnterpriseRateLimitService } from "../../src/enterprise/enterprise-rate-limit.service";
 import { CacheService } from "../../src/cache/cache.service";
+import { liveSessionPrismaProvider } from "../live-session-prisma";
 
 const SECRET = "enterprise-proxy-test-secret!!!!";
 
@@ -56,6 +57,7 @@ describe("Enterprise proxy", () => {
         EnterpriseProxyService,
         EnterpriseRateLimitService,
         CacheService,
+        liveSessionPrismaProvider(),
       ],
     }).compile();
     app = moduleRef.createNestApplication();

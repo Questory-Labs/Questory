@@ -1,5 +1,7 @@
 import { z } from "zod";
 export * from "./rewind";
+export * from "./entitlements";
+export * from "./auth-public";
 
 
 /** URI version segment for Nest apps (api / music / watch). */
@@ -35,6 +37,7 @@ export const UserSchema = z.object({
   email: z.string().nullable().optional(),
   isAdmin: z.boolean().optional(),
   hasPassword: z.boolean().optional(),
+  emailVerified: z.boolean().optional(),
   personaName: z.string(),
   avatarUrl: z.string().nullable(),
   profileUrl: z.string().nullable(),

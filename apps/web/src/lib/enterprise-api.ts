@@ -281,6 +281,7 @@ export type OtelTraceDetail = {
 /** Feature gate — proxied through the community API. */
 export async function fetchEnterpriseStatus(): Promise<{
   available: boolean;
+  entitled?: boolean;
   service?: { ok: boolean; ready?: boolean; model?: string };
 }> {
   return enterpriseRequest("/enterprise/status");

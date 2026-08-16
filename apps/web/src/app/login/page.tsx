@@ -12,6 +12,7 @@ import {
 } from "@/components/auth/AuthFormAbuseFields";
 import { AuthErrorToast } from "@/components/auth/AuthErrorToast";
 import {
+  fetchApiHealth,
   fetchLoginChallenge,
   formatAuthError,
   isChallengeKeepAliveError,
@@ -23,6 +24,7 @@ import {
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { LandingBackground } from "@/components/LandingBackground";
+import { MagicLinkForm } from "@/components/auth/MagicLinkForm";
 
 function safeNextPath(raw: string | null): string {
   if (!raw) return "/dashboard";
@@ -42,6 +44,7 @@ function LoginInner() {
   const store = useStore();
   const search = useSearchParams();
   const nextPath = safeNextPath(search.get("next"));
+  const linkError = search.get("error") === "invalid_link";
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
   const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +55,12 @@ function LoginInner() {
     load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
     retries: false,
   });
+  const health = useResource({
+    id: ["api-health"],
+    load: fetchApiHealth,
+    retries: false,
+  });
+  const mailActive = health.value?.mail?.enabled === true;
 
   useEffect(() => {
     if (me.value?.user) router.replace(nextPath);
@@ -141,6 +150,11 @@ function LoginInner() {
           Use your email and password. Steam and other services link from
           Connections after you sign in.
         </p>
+        {linkError ? (
+          <p className="mt-4 text-sm text-[var(--warm)]" role="alert">
+            That sign-in link is invalid or expired.
+          </p>
+        ) : null}
 
         <form onSubmit={onSubmit} className="relative mt-8 space-y-4" autoComplete="on">
           <AuthFormAbuseFields />
@@ -191,6 +205,22 @@ function LoginInner() {
             </Button>
           )}
         </form>
+        {mailActive ? (
+          <div className="mt-8 border-t border-[var(--line)] pt-6">
+            <h2 className="text-sm font-medium text-[var(--ink)]">
+              Sign in with email
+            </h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              We’ll send a one-time link. You can set a password after.
+            </p>
+            <MagicLinkForm />
+            <p className="mt-4 text-sm text-[var(--muted)]">
+              <Link href="/forgot" className="text-[var(--ink)] underline">
+                Forgot password?
+              </Link>
+            </p>
+          </div>
+        ) : null}
         <p className="mt-6 text-sm text-[var(--muted)]">
           No account?{" "}
           <Link href="/register" className="text-[var(--ink)] underline">

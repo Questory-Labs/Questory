@@ -59,6 +59,20 @@ describe("useEnterpriseEnabled", () => {
     expect(vi.mocked(fetchEnterpriseStatus)).toHaveBeenCalledTimes(1);
   });
 
+  it("is disabled when available but the user is not entitled", async () => {
+    process.env.ENTERPRISE = "true";
+    vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
+      available: true,
+      entitled: false,
+      service: { ok: true },
+    });
+
+    const { result } = renderHook(() => useEnterpriseEnabled(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.enabled).toBe(false);
+  });
+
   it("is disabled when the endpoint is unreachable", async () => {
     process.env.ENTERPRISE = "TRUE";
     vi.mocked(fetchEnterpriseStatus).mockResolvedValue({

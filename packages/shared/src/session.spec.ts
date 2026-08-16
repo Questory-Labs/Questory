@@ -20,11 +20,24 @@ describe("session cookies", () => {
     expect(parsed?.steamId).toBe("76561198000000000");
   });
 
-  it("round-trips email-only session with null steamId", () => {
-    const raw = encodeSessionCookie({ userId: "u2", steamId: null }, SECRET);
+  it("round-trips sessionEpoch (defaults missing epoch to 0)", () => {
+    const raw = encodeSessionCookie(
+      { userId: "u1", steamId: null, epoch: 3 },
+      SECRET,
+    );
     const parsed = parseSessionCookie(raw, SECRET);
-    expect(parsed?.userId).toBe("u2");
-    expect(parsed?.steamId).toBeNull();
+    expect(parsed?.epoch).toBe(3);
+
+    const legacyBody = Buffer.from(
+      JSON.stringify({
+        userId: "u1",
+        steamId: null,
+        exp: Date.now() + 60_000,
+      }),
+    ).toString("base64url");
+    const sig = signSessionBody(legacyBody, SECRET);
+    const legacy = parseSessionCookie(`${legacyBody}.${sig}`, SECRET);
+    expect(legacy?.epoch).toBe(0);
   });
 
   it("rejects tampered body", () => {

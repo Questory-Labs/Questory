@@ -37,7 +37,10 @@ function useEnterpriseEnabledState(): EnterpriseEnabledValue {
   });
 
   const available =
-    flagOn && status.value?.available === true && !status.failed;
+    flagOn &&
+    status.value?.available === true &&
+    status.value?.entitled !== false &&
+    !status.failed;
 
   return useMemo(
     () => ({

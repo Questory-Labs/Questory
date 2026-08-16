@@ -16,6 +16,7 @@ import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { VerifyWall } from "@/components/auth/VerifyWall";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 const ACCOUNT_LINKS = [
@@ -102,7 +103,9 @@ type MeResponse = {
     avatarUrl: string | null;
     countryCode?: string | null;
     currency?: string;
+    emailVerified?: boolean;
   } | null;
+  requireEmailVerification?: boolean;
 };
 
 function AccountMenu({
@@ -371,12 +374,15 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const user = me.value?.user ?? null;
   const authReady = me.ready || me.failed;
   const isAuthed = Boolean(user);
+  const needsVerify =
+    Boolean(me.value?.requireEmailVerification) &&
+    user?.emailVerified === false;
 
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = useResource({
     id: ["notifications-unread"],
     load: () => api<{ count: number }>("/notifications/unread-count"),
-    when: isAuthed,
+    when: isAuthed && !needsVerify,
     retries: false,
     refreshEvery: 30_000,
   });
@@ -447,6 +453,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         title="Checking session"
         logLine="quest log › auth_me — status: in_progress"
       />
+    );
+  }
+
+  if (needsVerify) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-0)]">
+        <VerifyWall email={user.email} />
+      </div>
     );
   }
 

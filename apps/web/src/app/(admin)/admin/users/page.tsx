@@ -3,20 +3,12 @@
 import { useResource } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { AdminAddUserDialog } from "@/components/admin/AdminAddUserDialog";
-import { AdminUserCard } from "@/components/admin/AdminUserCard";
+import { AdminUserCard, type AdminUser } from "@/components/admin/AdminUserCard";
 import { Button, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 
 type AdminUsersResponse = {
-  users: Array<{
-    id: string;
-    email: string | null;
-    isAdmin: boolean;
-    personaName: string;
-    steamId: string | null;
-    createdAt: string;
-    lastSyncedAt: string | null;
-  }>;
+  users: AdminUser[];
   startFreshEnabled?: boolean;
 };
 

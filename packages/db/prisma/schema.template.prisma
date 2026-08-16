@@ -17,6 +17,12 @@ model User {
   passwordHash String?
   /** App admin; also granted when email ∈ ADMIN_EMAILS. */
   isAdmin      Boolean   @default(false)
+  /** Set when the login email has been verified (or auto-verified). */
+  emailVerifiedAt DateTime?
+  /** Bumped to revoke all HMAC session cookies. */
+  sessionEpoch    Int       @default(0)
+  /** When set, the account cannot authenticate. */
+  disabledAt      DateTime?
   personaName  String
   avatarUrl    String?
   profileUrl   String?
@@ -59,6 +65,8 @@ model User {
   playSessionRules       UserPlaySessionRule[]
   qmonitorDeviceSessions  QmonitorDeviceSession[]
   qmonitorAuthCodes       QmonitorAuthCode[]
+  emailTokens             EmailToken[]
+  entitlements            UserEntitlement[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -66,6 +74,32 @@ model AppConfig {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+/** One-time hashed email tokens (verify / magic-link / password reset). */
+model EmailToken {
+  id         String    @id @default(cuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email      String
+  purpose    String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+}
+
+/** Per-user paid-feature grants (cloud). Feature is recommendations | rewindAi. */
+model UserEntitlement {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature   String
+  createdAt DateTime @default(now())
+
+  @@id([userId, feature])
+  @@index([feature])
 }
 
 /** One scraper integration (letterboxd, …). Sync uses the published iteration. */

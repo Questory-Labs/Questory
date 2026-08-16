@@ -3,7 +3,7 @@
 import { useAction, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
 import { Button, Dialog, Panel } from "@/components/ui";
-import { api } from "@/lib/api";
+import { AdminUserEntitlements } from "@/components/admin/AdminUserEntitlements";
 
 export type AdminUser = {
   id: string;
@@ -13,6 +13,12 @@ export type AdminUser = {
   steamId: string | null;
   createdAt: string;
   lastSyncedAt: string | null;
+  emailVerified?: boolean;
+  disabled?: boolean;
+  entitlements?: {
+    recommendations: boolean;
+    rewindAi: boolean;
+  };
 };
 
 type SyncTarget = "music" | "movie" | "read" | "catalog" | "price";
@@ -225,7 +231,15 @@ export function AdminUserCard({
             <div className="font-mono text-xs text-[var(--muted)]">
               {user.email || "no email"} · {user.isAdmin ? "admin" : "user"}
               {user.steamId ? ` · ${user.steamId}` : " · no steam"}
+              {user.disabled ? " · disabled" : ""}
             </div>
+            {user.entitlements ? (
+              <AdminUserEntitlements
+                userId={user.id}
+                entitlements={user.entitlements}
+                onMessage={onMessage}
+              />
+            ) : null}
 
             <div className="mt-2 font-mono text-xs">
               {SYNC_ACTIONS.map(({ target, label }, index) => (

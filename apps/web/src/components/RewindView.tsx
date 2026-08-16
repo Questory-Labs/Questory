@@ -14,7 +14,8 @@ import {
   isRewindAiGenerationAllowed,
   latestCompletedRewindMonth,
 } from "@questorylabs/shared";
-import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
+import { apiOnce } from "@/lib/api";
+import type { AuthMeResponse } from "@/lib/auth-api";
 import { generateCardTheme } from "@/lib/rewind-card-engine";
 import { parseInsightChunk, splitInsightContent } from "@/lib/rewind-ai-parser";
 import { RewindCarousel } from "@/components/rewind/RewindCarousel";
@@ -73,7 +74,12 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState<number | "all">(() => defaultRewindMonthForYear(currentYear));
   const [forceRedo, setForceRedo] = useState(false);
-  const { when: enterpriseEnabled } = useEnterpriseEnabled();
+  const me = useResource({
+    id: ["me"],
+    load: () => apiOnce<AuthMeResponse>("/auth/me"),
+    retries: false,
+  });
+  const rewindAiEnabled = me.value?.entitlements?.rewindAi === true;
 
   const fetcher =
     domain === "music" ? musicFetch : domain === "watch" ? watchFetch : readFetch;
@@ -102,7 +108,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
       }
       return result;
     },
-    when: enterpriseEnabled && aiGenerationAllowed,
+    when: rewindAiEnabled && aiGenerationAllowed,
   });
 
   const years = Array.from({ length: currentYear - 2010 + 1 }, (_, i) => 2010 + i).reverse();
@@ -184,7 +190,7 @@ export function RewindView({ domain }: { domain: "music" | "watch" | "read" }) {
       <div className="mt-8 space-y-6">
         
         {/* AI SECTION (Moved to top) */}
-        {enterpriseEnabled && (
+        {rewindAiEnabled && (
           <div className="pb-8 mb-8 border-b border-[var(--line)]">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">

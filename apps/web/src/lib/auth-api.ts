@@ -17,6 +17,18 @@ export type PublicUser = {
   profileUrl?: string | null;
   countryCode?: string | null;
   currency?: string;
+  hasPassword?: boolean;
+  emailVerified?: boolean;
+};
+
+export type AuthMeResponse = {
+  user: PublicUser | null;
+  mailActive?: boolean;
+  requireEmailVerification?: boolean;
+  entitlements?: {
+    recommendations: boolean;
+    rewindAi: boolean;
+  };
 };
 
 export function fetchRegisterChallenge() {
@@ -64,6 +76,50 @@ export async function loginAccount(body: {
 
 export function steamLinkUrl() {
   return `${apiOrigin()}/auth/steam`;
+}
+
+export function requestMagicLink(email: string) {
+  return apiOnce<{ ok: boolean }>("/auth/magic", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resendVerification() {
+  return api<{ ok: boolean }>("/auth/verify/resend", { method: "POST" });
+}
+
+export function requestPasswordReset(email: string) {
+  return apiOnce<{ ok: boolean }>("/auth/forgot", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(token: string, password: string) {
+  return apiOnce<{ ok: boolean }>("/auth/reset", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
+}
+
+export function setAccountPassword(body: {
+  password: string;
+  currentPassword?: string;
+}) {
+  return api<{ ok: boolean }>("/auth/password", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export type ApiHealth = {
+  ok?: boolean;
+  mail?: { configured?: boolean; enabled?: boolean };
+};
+
+export function fetchApiHealth() {
+  return apiOnce<ApiHealth>("/health");
 }
 
 export function parseApiError(err: unknown): { message: string; status?: number } {

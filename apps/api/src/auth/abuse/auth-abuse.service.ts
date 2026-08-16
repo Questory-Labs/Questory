@@ -26,6 +26,8 @@ const LIMITS = {
   loginIp: { max: 20, ttl: 900 },
   loginEmail: { max: 8, ttl: 900 },
   challengeIp: { max: 40, ttl: 900 },
+  mailIpHour: { max: 10, ttl: 3600 },
+  mailEmailHour: { max: 3, ttl: 3600 },
 } as const;
 
 type AbuseMetrics = {
@@ -259,6 +261,21 @@ export class AuthAbuseService {
       LIMITS.loginEmail.ttl,
     );
     await this.assertLoginLockout(ip, email);
+  }
+
+  async assertMailSendLimits(ip: string, email: string): Promise<void> {
+    const ipH = this.hashIp(ip);
+    const emailH = this.hashEmail(email);
+    await this.hitLimit(
+      `auth:mail:ip:h:${ipH}`,
+      LIMITS.mailIpHour.max,
+      LIMITS.mailIpHour.ttl,
+    );
+    await this.hitLimit(
+      `auth:mail:email:h:${emailH}`,
+      LIMITS.mailEmailHour.max,
+      LIMITS.mailEmailHour.ttl,
+    );
   }
 
   async recordLoginFailure(ip: string, email: string): Promise<void> {

@@ -7,6 +7,9 @@ import { api } from "@/lib/api";
 type Settings = {
   signupEnabled: boolean;
   signupOpen: boolean;
+  requireEmailVerification: boolean;
+  mail: { configured: boolean; enabled: boolean };
+  features: { recommendations: boolean; rewindAi: boolean };
   abuse: Record<string, number>;
 };
 
@@ -18,10 +21,10 @@ export default function AdminSettingsPage() {
   });
 
   const patch = useAction({
-    run: (signupEnabled: boolean) =>
+    run: (body: Record<string, unknown>) =>
       api("/admin/settings", {
         method: "PATCH",
-        body: JSON.stringify({ signupEnabled }),
+        body: JSON.stringify(body),
       }),
     onSuccess: () => {
       store.touch(["admin-settings"]);
@@ -36,7 +39,7 @@ export default function AdminSettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="Control public registration and review abuse counters."
+        description="Control public registration, mail, and paid features."
       />
 
       <Panel className="max-w-lg p-5">
@@ -50,17 +53,91 @@ export default function AdminSettingsPage() {
         <div className="mt-4 flex gap-2">
           <Button
             disabled={patch.busy || s?.signupEnabled === true}
-            onClick={() => patch.submit(true)}
+            onClick={() => patch.submit({ signupEnabled: true })}
           >
             Enable signup
           </Button>
           <Button
             variant="secondary"
             disabled={patch.busy || s?.signupEnabled === false}
-            onClick={() => patch.submit(false)}
+            onClick={() => patch.submit({ signupEnabled: false })}
           >
             Disable signup
           </Button>
+        </div>
+      </Panel>
+
+      <Panel className="mt-6 max-w-lg p-5">
+        <h2 className="font-display text-lg font-bold">Mail</h2>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          SMTP is{" "}
+          <strong>
+            {s?.mail.enabled
+              ? "active"
+              : s?.mail.configured
+                ? "configured but disabled"
+                : "not configured"}
+          </strong>
+          . Set SMTP_* env vars and SMTP_ENABLED=true to send verification and
+          magic-link mail.
+        </p>
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          Require email verification:{" "}
+          <strong>{s?.requireEmailVerification ? "on" : "off"}</strong>
+          {s && !s.mail.enabled ? " (inactive until mail is on)" : ""}.
+        </p>
+        <div className="mt-4 flex gap-2">
+          <Button
+            disabled={
+              patch.busy || !s?.mail.enabled || s.requireEmailVerification
+            }
+            onClick={() => patch.submit({ requireEmailVerification: true })}
+          >
+            Require verification
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={
+              patch.busy || !s?.mail.enabled || s?.requireEmailVerification === false
+            }
+            onClick={() => patch.submit({ requireEmailVerification: false })}
+          >
+            Don’t require
+          </Button>
+        </div>
+      </Panel>
+
+      <Panel className="mt-6 max-w-lg p-5">
+        <h2 className="font-display text-lg font-bold">Paid features</h2>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Instance kill-switches. Cloud still needs a per-user grant. Self-host
+          with QEngine serves these to everyone when the switch is on.
+        </p>
+        <div className="mt-4 space-y-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={s?.features.recommendations === true}
+              disabled={patch.busy || !s}
+              onChange={(e) =>
+                patch.submit({
+                  features: { recommendations: e.target.checked },
+                })
+              }
+            />
+            Recommendations
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={s?.features.rewindAi === true}
+              disabled={patch.busy || !s}
+              onChange={(e) =>
+                patch.submit({ features: { rewindAi: e.target.checked } })
+              }
+            />
+            Rewind AI
+          </label>
         </div>
       </Panel>
 

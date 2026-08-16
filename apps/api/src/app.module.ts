@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { resolve } from "node:path";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -32,6 +33,10 @@ import { HealthController, ApiHealthController } from "./health.controller";
 import { EnterpriseModule } from "./enterprise/enterprise.module";
 import { QmonitorModule } from "./qmonitor/qmonitor.module";
 import { TagsModule } from "./tags/tags.module";
+import { MailModule } from "./mail/mail.module";
+import { EntitlementsModule } from "./entitlements/entitlements.module";
+import { RateLimitGuard } from "./auth/rate-limit.guard";
+import { VerifiedGuard } from "./auth/verified.guard";
 
 const rootEnv = resolve(process.cwd(), "../../.env");
 const localEnv = resolve(process.cwd(), ".env");
@@ -46,6 +51,8 @@ const localEnv = resolve(process.cwd(), ".env");
     }),
     PrismaModule,
     CacheModule,
+    MailModule,
+    EntitlementsModule,
     SteamModule,
     AccountsModule,
     ApiKeysModule,
@@ -76,5 +83,9 @@ const localEnv = resolve(process.cwd(), ".env");
     QmonitorModule,
   ],
   controllers: [HealthController, ApiHealthController],
+  providers: [
+    { provide: APP_GUARD, useClass: RateLimitGuard },
+    { provide: APP_GUARD, useClass: VerifiedGuard },
+  ],
 })
 export class AppModule {}

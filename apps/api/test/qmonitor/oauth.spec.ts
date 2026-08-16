@@ -177,6 +177,16 @@ describe("qmonitor oauth token flow", () => {
       findUnique: async () => null,
       update: async () => ({}),
     },
+    user: {
+      findUnique: async ({ where: { id } }: { where: { id: string } }) => ({
+        id,
+        sessionEpoch: 0,
+        disabledAt: null,
+        emailVerifiedAt: new Date(),
+        email: `${id}@example.com`,
+        isAdmin: false,
+      }),
+    },
   };
 
   beforeAll(async () => {

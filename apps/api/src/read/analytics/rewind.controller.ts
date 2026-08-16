@@ -6,6 +6,10 @@ import { RewindInsightResponse, RewindStatsResponse } from '@questorylabs/shared
 import { ReadAnalyticsService } from './analytics.service';
 import { callRewindGenerate } from '../../lib/rewind-ai-client';
 import { assertRewindAiPeriodAllowed } from '../../lib/rewind-period';
+import {
+  EntitlementGuard,
+  RequireEntitlement,
+} from '../../entitlements/entitlement.guard';
 
 @Controller('read/analytics/rewind')
 @UseGuards(SteamAuthGuard)
@@ -29,6 +33,8 @@ export class RewindController {
   }
 
   @Get('ai')
+  @RequireEntitlement('rewindAi')
+  @UseGuards(EntitlementGuard)
   async getAi(
     @Req() req: Request,
     @Query('period') period: string,

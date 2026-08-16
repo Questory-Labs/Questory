@@ -21,9 +21,20 @@ export class AdminGuard implements CanActivate {
 
     const user = await this.prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, email: true, isAdmin: true },
+      select: {
+        id: true,
+        email: true,
+        isAdmin: true,
+        sessionEpoch: true,
+        disabledAt: true,
+      },
     });
-    if (!user) throw new UnauthorizedException("Not authenticated");
+    if (!user || user.disabledAt) {
+      throw new UnauthorizedException("Not authenticated");
+    }
+    if ((session.epoch ?? 0) !== user.sessionEpoch) {
+      throw new UnauthorizedException("Not authenticated");
+    }
 
     if (!isEffectiveAdmin(user)) {
       throw new ForbiddenException("Admin access required");

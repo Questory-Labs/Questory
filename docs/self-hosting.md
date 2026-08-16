@@ -278,7 +278,9 @@ Sign-up and sign-in use **email + password only**. Steam OpenID is link-only fro
 
 - `ADMIN_EMAILS` — comma-separated emails granted `isAdmin` on register/login (also checked at request time). The first user is **not** admin unless listed here.
 - Signup is always open while `count(isAdmin)=0`. After that, admins toggle signup in **Admin → Settings** (`AppConfig.signupEnabled`).
-- Abuse protection: signed challenges, honeypots, min form-fill time, IP/email rate limits, login lockout, Origin checks. Prefer Redis (`REDIS_URL`) for multi-instance rate limits.
+- Optional SMTP (`SMTP_ENABLED=true` plus `SMTP_HOST` / `SMTP_FROM`): email verification, magic-link sign-in, and password reset. Inactive when unset — password login works as today. Magic-link signup still respects the signup toggle (invite-only instances do not create unknown emails).
+- `QUESTORY_CLOUD=true` (hosted instance only): SMTP is required at boot; unverified users are walled; Recommendations and Rewind AI need an instance kill-switch **and** a per-user grant in Admin → Users. Self-host with QEngine keeps those features for everyone when the instance switch is on.
+- Abuse protection: signed challenges, honeypots, min form-fill time, IP/email rate limits, login lockout, Origin checks, plus a global API rate limit. Prefer Redis (`REDIS_URL`) for multi-instance rate limits.
 - `TRUST_PROXY=true` when behind a reverse proxy so client IP / rate limits use `X-Forwarded-For`.
 - `AUTH_BLOCKED_EMAIL_DOMAINS` — extra disposable domains to reject on signup.
 

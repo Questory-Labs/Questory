@@ -10,6 +10,7 @@ import {
 import { SyncController } from "../../src/sync/sync.controller";
 import { SyncService } from "../../src/sync/sync.service";
 import { CatalogService } from "../../src/steam/catalog.service";
+import { liveSessionPrismaProvider } from "../live-session-prisma";
 
 describe("sync privilege", () => {
   let app: INestApplication;
@@ -34,6 +35,7 @@ describe("sync privilege", () => {
             syncIncremental: async () => ({ ok: true }),
           },
         },
+        liveSessionPrismaProvider(),
       ],
     }).compile();
     app = moduleRef.createNestApplication();
