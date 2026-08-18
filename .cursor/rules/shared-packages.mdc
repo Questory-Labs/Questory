@@ -1,10 +1,10 @@
 ---
-description: Shared package and Prisma conventions — Zod schema layout, server-only subpaths, schema template
-globs: packages/**/*.ts,packages/**/*.prisma
+description: Shared package and Prisma conventions — Zod schema layout, server-only subpaths, schema template, UI library
+globs: packages/**/*.{ts,tsx,css,prisma}
 alwaysApply: false
 ---
 
-# Shared packages (`@questorylabs/shared`, `@questorylabs/db`)
+# Shared packages (`@questorylabs/shared`, `@questorylabs/ui`, `@questorylabs/db`)
 
 ## Zod schemas
 
@@ -16,6 +16,14 @@ alwaysApply: false
 
 Session and OAuth crypto stay in the `@questorylabs/shared/session` and `@questorylabs/shared/oauth-state` subpath exports. Never re-export them (or any Node-only code) from the browser-safe barrel `src/index.ts`.
 
+## UI (`packages/ui`, `@questorylabs/ui`)
+
+Generic React primitives and design tokens live here (`Button`, `Dialog`, `PageHeader`, `Panel`, `EmptyState`, `Skeleton*`, `HatchShadow`, `styles.css`). The package is consumed as source — Next apps must set `transpilePackages: ["@questorylabs/ui"]` and `@import "@questorylabs/ui/styles.css"`.
+
+- New generic UI goes in `packages/ui` with a colocated `*.spec.tsx`. Variant styling uses `cva` + `cn` (`clsx` + `tailwind-merge`); export the recipe (`buttonVariants`) next to the component. Do not hand-roll `Record<Variant, string>` maps.
+- Product-only chrome stays in the app (`QMark`, `StateMessage`, gates, domain views).
+- `apps/web/src/components/ui` re-exports this package so existing `@/components/ui` imports keep working.
+
 ## Prisma (`packages/db`)
 
 - Edit only `packages/db/prisma/schema.template.prisma`. The generated `schema.prisma` and Prisma client are build artifacts (`pnpm db:schema` / `db:generate`) — never edit or commit them, never fork per-app schemas.
@@ -23,4 +31,4 @@ Session and OAuth crypto stay in the `@questorylabs/shared/session` and `@questo
 
 ## Tests
 
-Every exported helper/schema gets a colocated `*.spec.ts` (see `session.spec.ts`, `pagination.spec.ts`). Run with `pnpm --filter @questorylabs/shared test`.
+Every exported helper/schema/component gets a colocated `*.spec.ts(x)` (see `session.spec.ts`, `pagination.spec.ts`, `Button.spec.tsx`). Run with `pnpm --filter @questorylabs/shared test` or `pnpm --filter @questorylabs/ui test`.

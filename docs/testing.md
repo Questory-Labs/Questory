@@ -10,6 +10,7 @@ pnpm test
 
 # Per package
 pnpm --filter @questorylabs/shared test
+pnpm --filter @questorylabs/ui test
 pnpm --filter @questorylabs/api test
 pnpm --filter @questorylabs/web test
 pnpm --filter @questorylabs/web test:e2e

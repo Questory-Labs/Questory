@@ -9,7 +9,7 @@
     "dev:apiscrobbler": "pnpm --filter @questorylabs/api run dev",
     "dev:api": "pnpm --filter @questorylabs/api run dev:http",
     "dev:web": "pnpm --filter @questorylabs/web run dev",
-    "build": "pnpm db:generate && pnpm --filter @questorylabs/db run build && pnpm --filter @questorylabs/shared run build && pnpm --filter @questorylabs/api --filter @questorylabs/web run build",
+    "build": "pnpm db:generate && pnpm --filter @questorylabs/db run build && pnpm --filter @questorylabs/shared run build && pnpm --filter @questorylabs/ui run build && pnpm --filter @questorylabs/api --filter @questorylabs/web run build",
     "db:schema": "node scripts/sync-prisma-schema.mjs",
     "db:generate": "pnpm db:schema && node scripts/prisma-generate-safe.mjs",
     "db:push": "node scripts/migrate-identity-accounts.mjs && pnpm db:schema && pnpm --filter @questorylabs/db exec prisma db push --accept-data-loss",

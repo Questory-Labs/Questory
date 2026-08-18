@@ -22,13 +22,13 @@ Soft-gated routes (`/music/*`, `/watch/*`, `/read/*`, `/recommendations`, `/admi
 
 ## Components and pages
 
-- Reuse `components/ui/*` primitives first (`Button`, `Dialog`, `EmptyState`, `PageHeader`, `Panel`, `StateMessage`, `OverflowMarquee`). New generic UI goes in `components/ui` (re-export from `ui/index.ts`); domain UI goes in `components/<domain>/`.
+- Reuse shared primitives first from `@questorylabs/ui` (`Button`, `Dialog`, `EmptyState`, `PageHeader`, `Panel`, `OverflowMarquee`). `components/ui` re-exports those plus app-only pieces (`StateMessage`, `QMark`). New generic UI goes in `packages/ui`; domain UI goes in `components/<domain>/`.
 - A `page.tsx` wires queries to components — keep it well under 400 lines. The 650–750 line music/watch settings pages are the anti-pattern; extract sections into components instead.
 - Before building a music/watch/read variant of an existing component (pickers, insights charts, detail pages), generalize the existing one and parameterize the domain — do not add another near-identical copy.
 
 ## Destructive actions require confirmation
 
-Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the action fires. Use the shared `Dialog` from `components/ui` with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `action.submit(...)`, and do not use `window.confirm` for new code.
+Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the action fires. Use `Dialog` from `@questorylabs/ui` (re-exported from `components/ui`) with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `action.submit(...)`, and do not use `window.confirm` for new code.
 
 ## Shared constants, not inline literals
 
@@ -36,7 +36,7 @@ Tunable constants (page sizes, limits, polling intervals, thresholds) live in a 
 
 ## Styling
 
-Tailwind v4 utility classes plus the CSS variables defined in `globals.css` (`--ink`, `--accent`, fonts). No new CSS modules (the only existing ones are legacy under `components/enterprise/`), no inline style objects for things Tailwind covers.
+Tailwind v4 utility classes plus the CSS variables from `@questorylabs/ui/styles.css` (`--ink`, `--accent`, fonts), imported by `globals.css`. No new CSS modules (the only existing ones are legacy under `components/enterprise/`), no inline style objects for things Tailwind covers.
 
 ## App Router
 

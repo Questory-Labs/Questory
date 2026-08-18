@@ -4,6 +4,7 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
+COPY packages/ui/package.json packages/ui/
 RUN pnpm install --frozen-lockfile
 
 FROM node:22-alpine AS build
@@ -26,6 +27,7 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY . .
 RUN pnpm --filter @questorylabs/shared build \
+  && pnpm --filter @questorylabs/ui build \
   && pnpm --filter @questorylabs/web run build
 
 FROM node:22-alpine AS runner
@@ -36,6 +38,7 @@ COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/web ./apps/web
 COPY --from=build /app/packages/shared ./packages/shared
+COPY --from=build /app/packages/ui ./packages/ui
 WORKDIR /app/apps/web
 EXPOSE 3000
 # Rewrite public/runtime-env.js from container env so pullable Hub images
