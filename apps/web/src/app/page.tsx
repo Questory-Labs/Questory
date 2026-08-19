@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useResource } from "@questorylabs/qhttp/react";
-import { api, apiOnce } from "@/lib/api";
 import { fetchSignupStatus } from "@/lib/auth-api";
+import { useUser } from "@/hooks/useUser";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BrandMark } from "@/components/BrandMark";
@@ -15,11 +15,7 @@ const enterEase = [0.22, 1, 0.36, 1] as const;
 
 export default function LandingPage() {
   const router = useRouter();
-  const me = useResource({
-    id: ["me"],
-    load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
-    retries: false,
-  });
+  const { isAuthenticated } = useUser();
   const signup = useResource({
     id: ["signup-status"],
     load: fetchSignupStatus,
@@ -27,8 +23,8 @@ export default function LandingPage() {
   });
 
   useEffect(() => {
-    if (me.value?.user) router.replace("/dashboard");
-  }, [me.value, router]);
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     document.documentElement.classList.add("landing-active");

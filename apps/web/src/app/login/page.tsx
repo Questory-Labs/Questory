@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
-import { useResource, useStore } from "@questorylabs/qhttp/react";
+import { useStore } from "@questorylabs/qhttp/react";
 import { sanitizeAppHref } from "@questorylabs/shared";
-import { apiOnce } from "@/lib/api";
+import { useUser } from "@/hooks/useUser";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
@@ -47,15 +47,11 @@ function LoginInner() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const me = useResource({
-    id: ["me"],
-    load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
-    retries: false,
-  });
+  const { isAuthenticated } = useUser();
 
   useEffect(() => {
-    if (me.value?.user) router.replace(nextPath);
-  }, [me.value, router, nextPath]);
+    if (isAuthenticated) router.replace(nextPath);
+  }, [isAuthenticated, router, nextPath]);
 
   const refreshChallenge = useCallback(async () => {
     setChallengeLoading(true);

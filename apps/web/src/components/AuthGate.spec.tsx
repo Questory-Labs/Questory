@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { AuthGate } from "./AuthGate";
+import { UserProvider } from "@/providers";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -17,7 +18,9 @@ import { apiOnce } from "@/lib/api";
 function wrap(ui: React.ReactNode) {
   const qc = new ResourceStore({ retries: false });
   return render(
-    <ResourceProvider store={qc}>{ui}</ResourceProvider>,
+    <ResourceProvider store={qc}>
+      <UserProvider>{ui}</UserProvider>
+    </ResourceProvider>,
   );
 }
 

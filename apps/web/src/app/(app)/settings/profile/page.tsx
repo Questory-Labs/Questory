@@ -2,10 +2,12 @@
 
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { useEffect, useState } from "react";
+import type { MeResponse } from "@questorylabs/shared";
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { getMusicUrl } from "@/lib/music";
 import { getWatchUrl } from "@/lib/watch";
@@ -16,28 +18,14 @@ type PriceRegion = {
   label: string;
 };
 
-type MeResponse = {
-  user: {
-    id: string;
-    personaName: string;
-    countryCode?: string | null;
-    priceRegionLocked?: boolean;
-    currency?: string;
-  } | null;
-};
-
 export default function ProfileSettingsPage() {
   const store = useStore();
   const music = useMusicEnabled();
   const watch = useWatchEnabled();
+  const { user } = useUser();
   const [countryCode, setCountryCode] = useState("IN");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const me = useResource({
-    id: ["me"],
-    load: () => api<MeResponse>("/auth/me"),
-  });
 
   const regions = useResource({
     id: ["price-regions"],
@@ -45,9 +33,9 @@ export default function ProfileSettingsPage() {
   });
 
   useEffect(() => {
-    const cc = me.value?.user?.countryCode;
+    const cc = user?.countryCode;
     if (cc) setCountryCode(cc.toUpperCase());
-  }, [me.value?.user?.countryCode]);
+  }, [user?.countryCode]);
 
   const save = useAction({
     run: async (nextCountry: string) => {
@@ -87,7 +75,7 @@ export default function ProfileSettingsPage() {
     (r) => r.countryCode === countryCode,
   );
   const dirty =
-    (me.value?.user?.countryCode || "").toUpperCase() !== countryCode;
+    (user?.countryCode || "").toUpperCase() !== countryCode;
 
   return (
     <>
@@ -101,7 +89,7 @@ export default function ProfileSettingsPage() {
           Price region
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          {me.value?.user?.priceRegionLocked
+          {user?.priceRegionLocked
             ? "Locked to your choice — Steam login will not change it."
             : "Currently following Steam account country until you save a choice."}
         </p>

@@ -11,18 +11,10 @@ import { api } from "@/lib/api";
 import { steamLinkUrl } from "@/lib/auth-api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useSyncJobs } from "@/hooks/useSyncJobs";
+import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import type { StoreAccountStatus } from "@questorylabs/shared";
-
-type MeResponse = {
-  user: {
-    id: string;
-    steamId: string | null;
-    email?: string | null;
-    personaName: string;
-  } | null;
-};
 
 function ConnectionsContent() {
   const params = useSearchParams();
@@ -31,17 +23,14 @@ function ConnectionsContent() {
   const music = useMusicEnabled();
   const watch = useWatchEnabled();
   const read = useReadEnabled();
+  const { user } = useUser();
 
-  const me = useResource({
-    id: ["me"],
-    load: () => api<MeResponse>("/auth/me"),
-  });
   const stores = useResource({
     id: ["stores"],
     load: () => api<StoreAccountStatus[]>("/stores"),
   });
 
-  const steamConnected = Boolean(me.value?.user?.steamId);
+  const steamConnected = Boolean(user?.steamId);
   const steamStatus = stores.value?.find((s) => s.store === "steam");
   const justLinked = linked === "steam";
   const sync = useSyncJobs({ enabled: steamConnected });
@@ -88,7 +77,7 @@ function ConnectionsContent() {
               </p>
               {steamConnected ? (
                 <p className="mt-2 font-mono text-xs text-[var(--faint)]">
-                  Linked · {me.value?.user?.steamId}
+                  Linked · {user?.steamId}
                   {steamStatus?.displayName
                     ? ` · ${steamStatus.displayName}`
                     : ""}

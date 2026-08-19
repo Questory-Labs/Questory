@@ -10,7 +10,7 @@ import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
 import {
   EnterpriseEnabledProvider,
   useEnterpriseEnabled,
-} from "./useEnterpriseEnabled";
+} from "./EnterpriseEnabledProvider";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new ResourceStore({ retries: false });

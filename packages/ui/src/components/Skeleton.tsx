@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "./cn";
+import { cn } from "../cn";
 
 export const skeletonVariants = cva(
   "motion-safe:animate-pulse rounded-md bg-[var(--line)]",

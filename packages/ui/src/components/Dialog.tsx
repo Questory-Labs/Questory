@@ -2,7 +2,7 @@
 
 import { useEffect, useId, type ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "./cn";
+import { cn } from "../cn";
 import { Button } from "./Button";
 
 export const dialogOverlayVariants = cva(

@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
-import { sanitizeAppHref } from "@questorylabs/shared";
+import { useAction, useStore } from "@questorylabs/qhttp/react";
+import type { User } from "@questorylabs/shared";
 import { BrandMark } from "@/components/BrandMark";
 import { LoadingPage } from "@/components/LoadingPage";
+import { NotificationBell } from "@/components/NotificationBell";
 import { SyncStatusBar } from "@/components/SyncStatusBar";
 import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearchProvider";
 import { HeaderSearch } from "@/components/search/HeaderSearch";
 import { useGlobalSearchShortcut } from "@/components/search/useGlobalSearchShortcut";
-import { api, apiOnce } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
+import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -92,26 +94,13 @@ const READ_NAV_GROUP = {
   ],
 };
 
-type MeResponse = {
-  user: {
-    id: string;
-    steamId: string | null;
-    email?: string | null;
-    isAdmin?: boolean;
-    personaName: string;
-    avatarUrl: string | null;
-    countryCode?: string | null;
-    currency?: string;
-  } | null;
-};
-
 function AccountMenu({
   user,
   onLogout,
   logoutPending,
   placement = "up",
 }: {
-  user: NonNullable<MeResponse["user"]>;
+  user: User;
   onLogout: () => void;
   logoutPending?: boolean;
   placement?: "up" | "down";
@@ -352,6 +341,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { enabled: showWatchNav } = useWatchEnabled();
   const { showReadNav } = useReadEnabled();
   const { enabled: showEnterpriseNav } = useEnterpriseEnabled();
+  const { user, authReady, isAuthenticated, failed } = useUser();
 
   const navGroups = useMemo(() => {
     const groups = [...BASE_NAV_GROUPS];
@@ -361,47 +351,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     if (showReadNav) groups.push(READ_NAV_GROUP);
     return groups;
   }, [showEnterpriseNav, showMusicNav, showWatchNav, showReadNav]);
-
-  const me = useResource({
-    id: ["me"],
-    load: () => apiOnce<MeResponse>("/auth/me"),
-    retries: false,
-  });
-
-  const user = me.value?.user ?? null;
-  const authReady = me.ready || me.failed;
-  const isAuthed = Boolean(user);
-
-  const [notifOpen, setNotifOpen] = useState(false);
-  const unread = useResource({
-    id: ["notifications-unread"],
-    load: () => api<{ count: number }>("/notifications/unread-count"),
-    when: isAuthed,
-    retries: false,
-    refreshEvery: 30_000,
-  });
-  const notifications = useResource({
-    id: ["notifications"],
-    load: () =>
-      api<
-        {
-          id: string;
-          title: string;
-          body: string;
-          href: string | null;
-          readAt: string | null;
-          createdAt: string;
-        }[]
-      >("/notifications"),
-    when: isAuthed && notifOpen,
-  });
-  const markRead = useAction({
-    run: () => api("/notifications/read", { method: "POST" }),
-    onSuccess: () => {
-      store.touch(["notifications"]);
-      store.touch(["notifications-unread"]);
-    },
-  });
 
   const logout = useAction({
     run: () => api("/auth/logout", { method: "POST" }),
@@ -413,8 +362,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authReady) return;
-    if (!isAuthed) router.replace("/login");
-  }, [authReady, isAuthed, router]);
+    if (!isAuthenticated) router.replace("/login");
+  }, [authReady, isAuthenticated, router]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -435,7 +384,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   // Soft gate: never paint app pages until /auth/me confirms a session.
   if (!authReady || !user) {
-    if (me.failed) {
+    if (failed) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
           Redirecting to sign in…
@@ -508,72 +457,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
             <HeaderSearch />
 
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setNotifOpen((v) => !v)}
-                className="inline-flex h-9 w-9 items-center justify-center border border-[var(--line)] text-[var(--muted)] transition hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
-                aria-label="Notifications"
-              >
-                <BellIcon />
-                {(unread.value?.count || 0) > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-[var(--accent)] px-1 font-mono text-[10px] text-[var(--bg-0)]">
-                    {unread.value?.count}
-                  </span>
-                )}
-              </button>
-              {notifOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] border border-[var(--line)] bg-[var(--bg-1)] shadow-xl">
-                  <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
-                    <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
-                      Alerts
-                    </span>
-                    <button
-                      type="button"
-                      className="text-[11px] text-[var(--accent)]"
-                      onClick={() => markRead.submit()}
-                    >
-                      Mark all read
-                    </button>
-                  </div>
-                  <ul className="max-h-72 overflow-y-auto">
-                    {(notifications.value || []).length === 0 && (
-                      <li className="px-3 py-4 text-sm text-[var(--muted)]">
-                        No deal alerts yet. Set wishlist targets to get notified.
-                      </li>
-                    )}
-                    {(notifications.value || []).map((n) => (
-                      <li
-                        key={n.id}
-                        className={`border-t border-[var(--line)] px-3 py-2.5 text-sm ${
-                          n.readAt ? "opacity-60" : ""
-                        }`}
-                      >
-                        {sanitizeAppHref(n.href) ? (
-                          <Link
-                            href={sanitizeAppHref(n.href)!}
-                            onClick={() => setNotifOpen(false)}
-                            className="block hover:text-[var(--accent)]"
-                          >
-                            <div className="font-medium">{n.title}</div>
-                            <div className="mt-0.5 text-xs text-[var(--muted)]">
-                              {n.body}
-                            </div>
-                          </Link>
-                        ) : (
-                          <>
-                            <div className="font-medium">{n.title}</div>
-                            <div className="mt-0.5 text-xs text-[var(--muted)]">
-                              {n.body}
-                            </div>
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            <NotificationBell />
 
             {user.avatarUrl ? (
               <div className="hidden items-center gap-2 border-l border-[var(--line)] pl-3 lg:hidden">
@@ -657,23 +541,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
       </div>
     </div>
-  );
-}
-
-function BellIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6 9a6 6 0 1 1 12 0c0 3.5 1.5 5 2 6H4c.5-1 2-2.5 2-6Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M10 19a2 2 0 0 0 4 0"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-    </svg>
   );
 }
 

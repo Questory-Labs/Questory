@@ -1,5 +1,4 @@
 export {
-  EnterpriseEnabledProvider,
   useEnterpriseEnabled,
   type EnterpriseEnabledValue,
-} from "./EnterpriseEnabledProvider";
+} from "@/providers/EnterpriseEnabledProvider";

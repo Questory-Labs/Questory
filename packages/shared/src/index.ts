@@ -39,8 +39,15 @@ export const UserSchema = z.object({
   avatarUrl: z.string().nullable(),
   profileUrl: z.string().nullable(),
   countryCode: z.string().nullable().optional(),
+  currency: z.string().optional(),
+  priceRegionLocked: z.boolean().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
+
+export const MeResponseSchema = z.object({
+  user: UserSchema.nullable(),
+});
+export type MeResponse = z.infer<typeof MeResponseSchema>;
 
 export const AuthChallengeKindSchema = z.enum(["register", "login"]);
 export type AuthChallengeKind = z.infer<typeof AuthChallengeKindSchema>;

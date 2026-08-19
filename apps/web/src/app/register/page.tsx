@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
-import { api, apiOnce } from "@/lib/api";
+import { useUser } from "@/hooks/useUser";
 import {
   AuthFormAbuseFields,
   readAbuseFields,
@@ -32,11 +32,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const me = useResource({
-    id: ["me"],
-    load: () => apiOnce<{ user: { id: string } | null }>("/auth/me"),
-    retries: false,
-  });
+  const { isAuthenticated } = useUser();
   const signup = useResource({
     id: ["signup-status"],
     load: fetchSignupStatus,
@@ -44,8 +40,8 @@ export default function RegisterPage() {
   });
 
   useEffect(() => {
-    if (me.value?.user) router.replace("/dashboard");
-  }, [me.value, router]);
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [isAuthenticated, router]);
 
   const refreshChallenge = useCallback(async () => {
     setChallengeLoading(true);

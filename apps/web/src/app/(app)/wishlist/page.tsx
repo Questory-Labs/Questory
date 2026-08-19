@@ -9,13 +9,7 @@ import { formatMoney } from "@/lib/money";
 import { WISHLIST_PAGE_SIZE } from "@/lib/pagination";
 import type { DealAlert, Store, WishlistItem } from "@questorylabs/shared";
 import { useEffect, useMemo, useState } from "react";
-
-type MeResponse = {
-  user: {
-    countryCode?: string | null;
-    currency?: string;
-  } | null;
-};
+import { useUser } from "@/hooks/useUser";
 
 type Recommendation = WishlistItem & { reasons?: string[] };
 
@@ -41,6 +35,7 @@ const STORE_CHIPS: { id: Store | "all"; label: string }[] = [
 
 export default function WishlistPage() {
   const store = useStore();
+  const { user } = useUser();
   const [storeFilter, setStoreFilter] = useState<Store | "all">("all");
   const [page, setPage] = useState(1);
 
@@ -48,10 +43,6 @@ export default function WishlistPage() {
     setPage(1);
   }, [storeFilter]);
 
-  const me = useResource({
-    id: ["me"],
-    load: () => api<MeResponse>("/auth/me"),
-  });
   const listPath = useMemo(() => {
     const p = new URLSearchParams();
     if (storeFilter !== "all") p.set("store", storeFilter);
@@ -73,7 +64,7 @@ export default function WishlistPage() {
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [target, setTarget] = useState("");
-  const currency = me.value?.user?.currency || "USD";
+  const currency = user?.currency || "USD";
 
   const update = useAction({
     run: ({

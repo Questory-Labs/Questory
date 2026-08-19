@@ -14,8 +14,6 @@ export type EnterpriseEnabledValue = {
   when: boolean;
   /** Service healthy behind the status payload. */
   serviceOk: boolean;
-  /** @deprecated use serviceOk */
-  engineOk: boolean;
   flagOn: boolean;
   isLoading: boolean;
   status: UseResourceResult<EnterpriseStatusData>;
@@ -44,7 +42,6 @@ function useEnterpriseEnabledState(): EnterpriseEnabledValue {
       enabled: available,
       when: available,
       serviceOk: available && status.value?.service?.ok === true,
-      engineOk: available && status.value?.service?.ok === true,
       flagOn,
       isLoading: flagOn && status.empty,
       status,

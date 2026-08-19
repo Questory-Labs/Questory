@@ -43,11 +43,16 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { api, apiOnce } from "@/lib/api";
+import { UserProvider } from "@/providers";
 import QmonitorAuthorizePage from "./page";
 
 function wrap(ui: React.ReactNode) {
   const store = new ResourceStore({ retries: false });
-  return render(<ResourceProvider store={store}>{ui}</ResourceProvider>);
+  return render(
+    <ResourceProvider store={store}>
+      <UserProvider>{ui}</UserProvider>
+    </ResourceProvider>,
+  );
 }
 
 describe("QmonitorAuthorizePage", () => {
