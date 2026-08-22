@@ -1,27 +1,18 @@
 "use client";
 
-import { GameShelf, GameShelfItem } from "@/components/GameShelf";
+import { GameShelf, GameShelfItem } from "@/modules/steam/trending/components/GameShelf";
 import { GameTile } from "@/components/GameTile";
 import { EmptyState, PageHeader } from "@questorylabs/ui";
 import { motion } from "framer-motion";
 import { formatHours, formatPeak, formatPlayers, friendAvatars, rankBadge } from "./steam.trending.utils";
-import { UseResourceResult } from "@questorylabs/qhttp/react";
-import { TrendingResponse } from "@questorylabs/shared";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
+import type { TrendingViewProps } from "./steam.trending.types";
 
-type FriendsShelf = TrendingResponse["friends"];
-type GlobalShelf = TrendingResponse["global"];
-type ChartShelf = NonNullable<TrendingResponse["concurrent"]>;
-
-type TrendingViewProps = {
-  friends: UseResourceResult<FriendsShelf>;
-  global: UseResourceResult<GlobalShelf>;
-  concurrent: UseResourceResult<ChartShelf>;
-  deck: UseResourceResult<ChartShelf>;
-  topReleases: UseResourceResult<ChartShelf>;
-  selectedAppId: number | null;
-  setSelectedAppId: (appId: number | null) => void;
-};
+const shelfError = (title: string) => (
+  <EmptyState
+    title={<span className="text-[var(--danger)]">{title}</span>}
+  />
+);
 
 export const TrendingView = (props: Record<string, unknown>) => {
   const { friends, global, concurrent, deck, topReleases, selectedAppId, setSelectedAppId } = props as TrendingViewProps;
@@ -49,7 +40,16 @@ export const TrendingView = (props: Record<string, unknown>) => {
       <GameShelf
         title="Among friends"
         description="Most played by your friends over the last two weeks"
-        loading={friends.empty}
+        failed={friends.failed}
+        empty={friends.empty}
+        error={shelfError(
+          "Could not load friend trending. Steam may be rate-limiting — try again shortly.",
+        )}
+        emptyContent={
+          friends.value && !friends.value.games.length ? (
+            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
+          ) : undefined
+        }
         meta={
           friends.value
             ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
@@ -64,22 +64,6 @@ export const TrendingView = (props: Record<string, unknown>) => {
             : friends.empty
               ? "sampling friends…"
               : undefined
-        }
-        empty={
-          friends.failed ? (
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load friend trending. Steam may be rate-limiting —
-                  try again shortly.
-                </span>
-              }
-            />
-          ) : !friends.empty &&
-            friends.value &&
-            !friends.value.games.length ? (
-            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
-          ) : undefined
         }
       >
         {(friends.value?.games || []).map((g, i) => (
@@ -101,26 +85,18 @@ export const TrendingView = (props: Record<string, unknown>) => {
       <GameShelf
         title="Playing now"
         description="Live concurrent players across Steam"
-        loading={concurrent.empty}
+        failed={concurrent.failed}
+        empty={concurrent.empty}
+        error={shelfError("Could not load concurrent charts.")}
+        emptyContent={
+          concurrent.value && !concurrent.value.games.length ? (
+            <EmptyState title="Concurrent chart unavailable right now." />
+          ) : undefined
+        }
         meta={
           concurrent.value?.meta.lastUpdate
             ? `updated ${new Date(concurrent.value.meta.lastUpdate).toLocaleTimeString()}`
             : undefined
-        }
-        empty={
-          concurrent.failed ? (
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load concurrent charts.
-                </span>
-              }
-            />
-          ) : !concurrent.empty &&
-            concurrent.value &&
-            !concurrent.value.games.length ? (
-            <EmptyState title="Concurrent chart unavailable right now." />
-          ) : undefined
         }
       >
         {(concurrent.value?.games || []).map((g, i) => (
@@ -146,26 +122,18 @@ export const TrendingView = (props: Record<string, unknown>) => {
       <GameShelf
         title="Global most played"
         description="Steam Charts weekly rollup — same source as the store charts page"
-        loading={global.empty}
+        failed={global.failed}
+        empty={global.empty}
+        error={shelfError("Could not load Steam Charts.")}
+        emptyContent={
+          global.value && !global.value.games.length ? (
+            <EmptyState title="Steam Charts unavailable right now." />
+          ) : undefined
+        }
         meta={
           global.value?.meta.rollupDate
             ? `week of ${new Date(global.value.meta.rollupDate).toLocaleDateString()}`
             : undefined
-        }
-        empty={
-          global.failed ? (
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load Steam Charts.
-                </span>
-              }
-            />
-          ) : !global.empty &&
-            global.value &&
-            !global.value.games.length ? (
-            <EmptyState title="Steam Charts unavailable right now." />
-          ) : undefined
         }
       >
         {(global.value?.games || []).map((g, i) => (
@@ -187,17 +155,11 @@ export const TrendingView = (props: Record<string, unknown>) => {
       <GameShelf
         title="Steam Deck most played"
         description="What Deck players are jumping into"
-        loading={deck.empty}
-        empty={
-          deck.failed ? (
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load Deck charts.
-                </span>
-              }
-            />
-          ) : !deck.empty && deck.value && !deck.value.games.length ? (
+        failed={deck.failed}
+        empty={deck.empty}
+        error={shelfError("Could not load Deck charts.")}
+        emptyContent={
+          deck.value && !deck.value.games.length ? (
             <EmptyState title="Deck chart unavailable right now." />
           ) : undefined
         }
@@ -221,19 +183,11 @@ export const TrendingView = (props: Record<string, unknown>) => {
           topReleases.value?.meta.pageName ||
           "Steam Charts curated new-release standouts"
         }
-        loading={topReleases.empty}
-        empty={
-          topReleases.failed ? (
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load top releases.
-                </span>
-              }
-            />
-          ) : !topReleases.empty &&
-            topReleases.value &&
-            !topReleases.value.games.length ? (
+        failed={topReleases.failed}
+        empty={topReleases.empty}
+        error={shelfError("Could not load top releases.")}
+        emptyContent={
+          topReleases.value && !topReleases.value.games.length ? (
             <EmptyState title="Top releases unavailable right now." />
           ) : undefined
         }

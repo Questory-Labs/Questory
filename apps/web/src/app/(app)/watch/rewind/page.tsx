@@ -1,12 +1,15 @@
 import { WatchGate } from "@/components/WatchGate";
-import { RewindView } from "@/components/RewindView";
+import { RewindController } from "@/modules/media/rewind/media.rewind.controller";
+import { RewindView } from "@/modules/media/rewind/media.rewind.view";
 
 export const metadata = { title: "Watch Rewind - Questory" };
 
-export default function WatchRewindPage() {
-  return (
-    <WatchGate>
-      <RewindView domain="watch" />
-    </WatchGate>
-  );
-}
+const WatchRewindPage = () => (
+  <WatchGate>
+    <RewindController domain="watch">
+      <RewindView />
+    </RewindController>
+  </WatchGate>
+);
+
+export default WatchRewindPage;

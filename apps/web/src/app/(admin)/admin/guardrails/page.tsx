@@ -1,27 +1,10 @@
-"use client";
+import { GuardrailsController } from "@/modules/enterprise/guardrails/enterprise.guardrails.controller";
+import { GuardrailsView } from "@/modules/enterprise/guardrails/enterprise.guardrails.view";
 
-import { GuardrailsSettings } from "@/components/enterprise/GuardrailsSettings";
-import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
+const AdminGuardrailsPage = () => (
+  <GuardrailsController>
+    <GuardrailsView />
+  </GuardrailsController>
+);
 
-/**
- * Admin LLM guardrail policy. Hidden from nav when QEngine is absent.
- */
-export default function AdminGuardrailsPage() {
-  const { enabled, isLoading } = useEnterpriseEnabled();
-
-  if (isLoading) {
-    return (
-      <p className="text-sm text-[var(--muted)]">Checking QEngine…</p>
-    );
-  }
-
-  if (!enabled) {
-    return (
-      <p className="text-sm text-[var(--muted)]">
-        QEngine guardrails are not available on this instance.
-      </p>
-    );
-  }
-
-  return <GuardrailsSettings />;
-}
+export default AdminGuardrailsPage;

@@ -1,33 +1,29 @@
 "use client";
 
-import { useSyncJobs } from "@/hooks/useSyncJobs";
 import { useUser } from "@/hooks/useUser";
-import { DashboardStats, PlayNextItem } from "@questorylabs/shared";
-import { UseResourceResult } from "@questorylabs/qhttp/react";
 import { formatMoney } from "@/lib/money";
-
-import { motion } from "framer-motion";
-import { EmptyState, PageHeader, SkeletonStatGrid, SkeletonTileGrid } from "@questorylabs/ui";
+import {
+  EmptyState,
+  PageHeader,
+  ResourceStatus,
+  SkeletonStatGrid,
+  SkeletonTileGrid,
+} from "@questorylabs/ui";
 import { StatCard } from "@/components/StatCard";
 import Link from "next/link";
 import { GameTile } from "@/components/GameTile";
-
-type DashboardViewProps = {
-  recentlyPlayed: DashboardStats["recentlyPlayed"];
-  nextUp: PlayNextItem[];
-  stats: UseResourceResult<DashboardStats>;
-  playNext: UseResourceResult<PlayNextItem[]>;
-  sync: ReturnType<typeof useSyncJobs>;
-};
+import { motion } from "framer-motion";
+import type { DashboardViewProps } from "./steam.dashboard.types";
 
 export const DashboardView = (props: Record<string, unknown>) => {
-  const { recentlyPlayed, nextUp, stats, playNext, sync } = props as DashboardViewProps;
+  const { recentlyPlayed, nextUp, stats, playNext, sync } =
+    props as DashboardViewProps;
   const { user } = useUser();
   const { active: syncing } = sync;
   const { personaName: name } = user ?? {};
   const { value } = stats ?? {};
   const isSteamLinked = Boolean(user?.steamId);
-  
+
   return (
     <>
       <section className="relative overflow-hidden">
@@ -77,12 +73,25 @@ export const DashboardView = (props: Record<string, unknown>) => {
             </span>
           ) : null}
         </div>
-        {stats.busy ? (
-          <>
-            <SkeletonStatGrid count={4} />
-            <SkeletonStatGrid count={4} className="mt-6" />
-          </>
-        ) : (
+        <ResourceStatus
+          failed={stats.failed}
+          empty={stats.empty}
+          loading={
+            <>
+              <SkeletonStatGrid count={4} />
+              <SkeletonStatGrid count={4} className="mt-6" />
+            </>
+          }
+          error={
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load dashboard stats.
+                </span>
+              }
+            />
+          }
+        >
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
@@ -150,7 +159,7 @@ export const DashboardView = (props: Record<string, unknown>) => {
               </div>
             </section>
           </>
-        )}
+        </ResourceStatus>
       </section>
 
       <section className="mt-12">
@@ -170,46 +179,62 @@ export const DashboardView = (props: Record<string, unknown>) => {
             Full library →
           </Link>
         </div>
-        {playNext.empty ? (
-          <SkeletonTileGrid count={4} />
-        ) : nextUp.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {nextUp.slice(0, 8).map((g, i) => (
-              <Link
-                key={g.appId}
-                href={`/library/${g.appId}`}
-                className="block h-full"
-              >
-                <GameTile
-                  name={g.name}
-                  headerImage={g.headerImage}
-                  meta={g.reasons.slice(0, 2).join(" · ") || `${Math.round(g.playtimeForever / 60)}h`}
-                  index={i}
-                />
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={
-              syncing
-                ? "Library sync is still running — play-next picks will show up shortly."
-                : isSteamLinked
-                  ? "Sync your library to get weekly play-next picks."
-                  : "Link Steam from Connections to sync your library."
-            }
-            description={
-                !isSteamLinked ? (
+        <ResourceStatus
+          failed={playNext.failed}
+          empty={playNext.empty}
+          loading={<SkeletonTileGrid count={4} />}
+          error={
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load play-next picks.
+                </span>
+              }
+            />
+          }
+        >
+          {nextUp.length ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {nextUp.slice(0, 8).map((g, i) => (
                 <Link
-                  href="/settings/connections"
-                  className="text-[var(--accent)] hover:underline"
+                  key={g.appId}
+                  href={`/library/${g.appId}`}
+                  className="block h-full"
                 >
-                  Open Connections
+                  <GameTile
+                    name={g.name}
+                    headerImage={g.headerImage}
+                    meta={
+                      g.reasons.slice(0, 2).join(" · ") ||
+                      `${Math.round(g.playtimeForever / 60)}h`
+                    }
+                    index={i}
+                  />
                 </Link>
-              ) : undefined
-            }
-          />
-        )}
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title={
+                syncing
+                  ? "Library sync is still running — play-next picks will show up shortly."
+                  : isSteamLinked
+                    ? "Sync your library to get weekly play-next picks."
+                    : "Link Steam from Connections to sync your library."
+              }
+              description={
+                !isSteamLinked ? (
+                  <Link
+                    href="/settings/connections"
+                    className="text-[var(--accent)] hover:underline"
+                  >
+                    Open Connections
+                  </Link>
+                ) : undefined
+              }
+            />
+          )}
+        </ResourceStatus>
       </section>
 
       <section className="mt-12">
@@ -230,44 +255,57 @@ export const DashboardView = (props: Record<string, unknown>) => {
           </Link>
         </div>
 
-        {stats.empty ? (
-          <SkeletonTileGrid count={4} />
-        ) : recentlyPlayed.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {recentlyPlayed.map((g, i) => (
-              <Link
-                key={g.appId}
-                href={`/library/${g.appId}`}
-                className="block h-full"
-              >
-                <GameTile
-                  name={g.name}
-                  headerImage={g.headerImage}
-                  meta={`${Math.round(g.playtimeForever / 60)}h played`}
-                  index={i}
-                />
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={
-              syncing
-                ? "Still pulling recent play sessions from Steam…"
-                : isSteamLinked
-                  ? "No recent play sessions yet."
-                  : "Link Steam from Connections to sync your library."
-            }
-            description={
-              <Link
-                href={isSteamLinked ? "/library" : "/settings/connections"}
-                className="text-[var(--accent)] hover:underline"
-              >
-                {isSteamLinked ? "Open library" : "Open Connections"}
-              </Link>
-            }
-          />
-        )}
+        <ResourceStatus
+          failed={stats.failed}
+          empty={stats.empty}
+          loading={<SkeletonTileGrid count={4} />}
+          error={
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load recent play sessions.
+                </span>
+              }
+            />
+          }
+        >
+          {recentlyPlayed?.length ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {recentlyPlayed.map((g, i) => (
+                <Link
+                  key={g.appId}
+                  href={`/library/${g.appId}`}
+                  className="block h-full"
+                >
+                  <GameTile
+                    name={g.name}
+                    headerImage={g.headerImage}
+                    meta={`${Math.round(g.playtimeForever / 60)}h played`}
+                    index={i}
+                  />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title={
+                syncing
+                  ? "Still pulling recent play sessions from Steam…"
+                  : isSteamLinked
+                    ? "No recent play sessions yet."
+                    : "Link Steam from Connections to sync your library."
+              }
+              description={
+                <Link
+                  href={isSteamLinked ? "/library" : "/settings/connections"}
+                  className="text-[var(--accent)] hover:underline"
+                >
+                  {isSteamLinked ? "Open library" : "Open Connections"}
+                </Link>
+              }
+            />
+          )}
+        </ResourceStatus>
       </section>
     </>
   );

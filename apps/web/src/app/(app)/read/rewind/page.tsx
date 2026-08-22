@@ -1,12 +1,15 @@
 import { ReadGate } from "@/components/ReadGate";
-import { RewindView } from "@/components/RewindView";
+import { RewindController } from "@/modules/media/rewind/media.rewind.controller";
+import { RewindView } from "@/modules/media/rewind/media.rewind.view";
 
 export const metadata = { title: "Read Rewind - Questory" };
 
-export default function ReadRewindPage() {
-  return (
-    <ReadGate>
-      <RewindView domain="read" />
-    </ReadGate>
-  );
-}
+const ReadRewindPage = () => (
+  <ReadGate>
+    <RewindController domain="read">
+      <RewindView />
+    </RewindController>
+  </ReadGate>
+);
+
+export default ReadRewindPage;

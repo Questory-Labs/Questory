@@ -1,0 +1,79 @@
+"use client";
+
+import Link from "next/link";
+import { MusicChip } from "@/components/music/MusicChip";
+import { MusicCover } from "@/components/music/MusicCover";
+import { OverflowMarquee } from "@/components/ui";
+import { formatListenRowTime } from "@/lib/music";
+import type { ListenDayGroup as DayGroup } from "@/lib/music";
+import type { MusicRecentListen } from "@questorylabs/shared";
+
+export const ListenDayGroup = ({
+  group,
+}: {
+  group: DayGroup<MusicRecentListen>;
+}) => (
+  <section>
+    <h2 className="mb-1 border-b border-[var(--line)] pb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+      {group.label}
+    </h2>
+    <ul className="divide-y divide-[var(--line)]">
+      {group.items.map((row) => (
+        <li key={row.id} className="flex items-start gap-3 py-3">
+          <MusicCover src={row.track.imageUrl} alt="" size="sm" />
+          <div className="min-w-0 flex-1">
+            <OverflowMarquee className="text-sm text-[var(--ink)]">
+              <Link
+                href={`/music/tracks/${row.track.id}`}
+                className="hover:text-[var(--accent)]"
+              >
+                {row.track.title}
+              </Link>
+              <span className="text-[var(--muted)]"> · </span>
+              {row.track.artistId ? (
+                <Link
+                  href={`/music/artists/${row.track.artistId}`}
+                  className="text-[var(--muted)] hover:text-[var(--accent)]"
+                >
+                  {row.track.artistName}
+                </Link>
+              ) : (
+                <span className="text-[var(--muted)]">
+                  {row.track.artistName}
+                </span>
+              )}
+            </OverflowMarquee>
+            {row.track.releaseTitle ? (
+              <OverflowMarquee className="mt-0.5 text-xs text-[var(--faint)]">
+                {row.track.releaseId ? (
+                  <Link
+                    href={`/music/albums/${row.track.releaseId}`}
+                    className="hover:text-[var(--accent)]"
+                  >
+                    {row.track.releaseTitle}
+                  </Link>
+                ) : (
+                  row.track.releaseTitle
+                )}
+              </OverflowMarquee>
+            ) : null}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className="font-mono text-[11px] text-[var(--faint)]">
+                {formatListenRowTime(row.listenedAt)}
+              </span>
+              {row.musicService ? (
+                <MusicChip>{row.musicService}</MusicChip>
+              ) : null}
+              {row.mediaPlayer ? (
+                <MusicChip>{row.mediaPlayer}</MusicChip>
+              ) : null}
+              {row.track.genres.slice(0, 2).map((g) => (
+                <MusicChip key={g}>{g}</MusicChip>
+              ))}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+);

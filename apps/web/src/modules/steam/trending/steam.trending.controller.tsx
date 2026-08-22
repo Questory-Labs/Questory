@@ -1,12 +1,8 @@
 import { api } from "@/lib/api";
 import { useResource } from "@questorylabs/qhttp/react";
-import { TrendingResponse } from "@questorylabs/shared";
 import { cloneElements } from "@questorylabs/ui";
 import { PropsWithChildren, useState } from "react";
-
-type FriendsShelf = TrendingResponse["friends"];
-type GlobalShelf = TrendingResponse["global"];
-type ChartShelf = NonNullable<TrendingResponse["concurrent"]>;
+import type { ChartShelf, FriendsShelf, GlobalShelf } from "./steam.trending.types";
 
 
 export const TrendingController = ({ children }: PropsWithChildren) => {

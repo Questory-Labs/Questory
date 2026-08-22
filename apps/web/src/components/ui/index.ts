@@ -6,6 +6,8 @@ export {
   OverflowMarquee,
   PageHeader,
   Panel,
+  QMark,
+  ResourceStatus,
   StarRating,
   Skeleton,
   SkeletonChart,
