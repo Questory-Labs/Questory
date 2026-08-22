@@ -5,25 +5,22 @@ import type { CurationJob, JobStatus } from "@/lib/enterprise-types";
 import styles from "../recommendations.module.css";
 
 const STAGES: { id: JobStatus; label: string }[] = [
-  { id: "scouting", label: "Scouting" },
-  { id: "ranking", label: "Ranking" },
-  { id: "validating", label: "Validating" },
-  { id: "composing", label: "Composing" },
+  { id: "scoring", label: "Scoring" },
+  { id: "extras", label: "Finding extras" },
+  { id: "writing", label: "Writing" },
 ];
 
 const STAGE_ORDER: Record<string, number> = {
   queued: 0,
-  scouting: 1,
-  ranking: 2,
-  validating: 3,
-  composing: 4,
-  done: 5,
-  failed: 5,
+  scoring: 1,
+  extras: 2,
+  writing: 3,
+  done: 4,
+  failed: 4,
 };
 
 /**
- * The wait experience: a stage stepper plus the job's live activity feed
- * (tool calls, web searches, validator verdicts) polled by the parent.
+ * Wait experience: a short stage stepper plus a live activity feed.
  */
 export const AgentProgress = ({
   job,
@@ -34,7 +31,6 @@ export const AgentProgress = ({
 }) => {
   const feedRef = useRef<HTMLDivElement>(null);
 
-  // Keep the newest activity line in view.
   useEffect(() => {
     const el = feedRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -64,11 +60,10 @@ export const AgentProgress = ({
 
       <div ref={feedRef} className={styles.progressFeed} role="log">
         {job.events.length === 0 && (
-          <p className={styles.progressLine}>Waking the curators…</p>
+          <p className={styles.progressLine}>Scoring your libraries…</p>
         )}
         {job.events.map((event, i) => (
           <p key={`${event.ts}-${i}`} className={styles.progressLine}>
-            <span className={styles.progressStage}>{event.stage}</span>
             {event.message}
           </p>
         ))}
@@ -85,4 +80,4 @@ export const AgentProgress = ({
       )}
     </div>
   );
-}
+};

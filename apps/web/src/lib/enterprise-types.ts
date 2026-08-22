@@ -8,7 +8,9 @@ export type RecommendationItemKind =
   | "track"
   | "movie"
   | "show"
-  | "manga";
+  | "manga"
+  | "external"
+  | "lifestyle";
 
 export type RecommendationItem = {
   kind: RecommendationItemKind;
@@ -22,10 +24,12 @@ export type RecommendationItem = {
   imageUrl?: string | null;
   score: number;
   reasons: string[];
-  /** One-line editorial blurb from the Composer (LLM mode only). */
+  /** One-line editorial blurb. */
   blurb?: string;
   /** Stable feedback key ("game:<id>" / "artist:<id>" / "title:<id>" / "read:<id>"). */
   itemKey?: string;
+  /** Outbound link for extra (not-in-library) cards. */
+  url?: string;
 };
 
 export type MlStatus = {
@@ -96,10 +100,9 @@ export type RecommendationGoalsResponse = {
 
 export type JobStatus =
   | "queued"
-  | "scouting"
-  | "ranking"
-  | "validating"
-  | "composing"
+  | "scoring"
+  | "extras"
+  | "writing"
   | "done"
   | "failed";
 

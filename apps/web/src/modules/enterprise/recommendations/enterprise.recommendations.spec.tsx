@@ -50,9 +50,9 @@ const installFetch = () => {
       if (url.includes("/v1/recommendations/curate/")) {
         return respond({
           jobId: "j1",
-          status: "scouting",
+          status: "scoring",
           events: [
-            { ts: 1, stage: "scout", message: "searching web for “cozy”" },
+            { ts: 1, stage: "scoring", message: "Scoring your libraries" },
           ],
         });
       }
@@ -117,8 +117,8 @@ describe("RecommendationsController", () => {
     });
 
     // The job poll renders the live progress view with activity events.
-    await screen.findByText("Scouting");
-    await screen.findByText(/searching web for/);
+    await screen.findByText("Scoring");
+    await screen.findByText("Scoring your libraries");
   });
 
   it("dismiss is optimistic: feedback fires and the card animates out", async () => {

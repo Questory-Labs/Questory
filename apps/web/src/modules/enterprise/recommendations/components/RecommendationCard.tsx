@@ -13,7 +13,9 @@ export const RecommendationCard = ({
 }: RecommendationCardProps) => {
   const portrait =
     item.kind === "movie" || item.kind === "show" || item.kind === "manga";
-  const canVote = Boolean(item.itemKey);
+  const extra = item.kind === "external" || item.kind === "lifestyle";
+  const canVote = Boolean(item.itemKey) && !extra;
+  const badge = KIND_LABELS[item.kind];
   return (
     <article className={styles.cardWrap} data-dismissed={dismissed}>
       <HatchShadow size="sm" faceClassName={`panel ${styles.card}`}>
@@ -32,10 +34,18 @@ export const RecommendationCard = ({
               {item.name.slice(0, 1).toUpperCase()}
             </div>
           )}
-          <span className={styles.kindBadge}>{KIND_LABELS[item.kind]}</span>
+          <span className={styles.kindBadge}>{badge}</span>
         </div>
         <div className={styles.cardBody}>
-          <h3 className={styles.cardName}>{item.name}</h3>
+          <h3 className={styles.cardName}>
+            {item.url ? (
+              <a href={item.url} target="_blank" rel="noopener noreferrer">
+                {item.name}
+              </a>
+            ) : (
+              item.name
+            )}
+          </h3>
           <div className={styles.scoreRow}>
             <div className={styles.scoreTrack}>
               <div

@@ -5,11 +5,11 @@ import type { CurationJob } from "@/lib/enterprise-types";
 
 const job: CurationJob = {
   jobId: "j1",
-  status: "ranking",
+  status: "extras",
   events: [
-    { ts: 1, stage: "scout", message: "searching web for “cozy roguelikes”" },
-    { ts: 2, stage: "scout", message: "scouted Dungeon Clawler" },
-    { ts: 3, stage: "ranker", message: "reading games stats" },
+    { ts: 1, stage: "scoring", message: "Scoring your libraries" },
+    { ts: 2, stage: "extras", message: "Looking for extras" },
+    { ts: 3, stage: "extras", message: "Added a few extra picks" },
   ],
 };
 
@@ -23,9 +23,9 @@ describe("AgentProgress", () => {
       (p) => p.textContent,
     );
     expect(lines).toEqual([
-      "scoutsearching web for “cozy roguelikes”",
-      "scoutscouted Dungeon Clawler",
-      "rankerreading games stats",
+      "Scoring your libraries",
+      "Looking for extras",
+      "Added a few extra picks",
     ]);
   });
 
@@ -33,10 +33,9 @@ describe("AgentProgress", () => {
     render(<AgentProgress job={job} />);
     const step = (label: string) =>
       screen.getByText(label).closest("li") as HTMLElement;
-    expect(step("Scouting").dataset.state).toBe("done");
-    expect(step("Ranking").dataset.state).toBe("active");
-    expect(step("Validating").dataset.state).toBe("pending");
-    expect(step("Composing").dataset.state).toBe("pending");
+    expect(step("Scoring").dataset.state).toBe("done");
+    expect(step("Finding extras").dataset.state).toBe("active");
+    expect(step("Writing").dataset.state).toBe("pending");
   });
 
   it("offers the heuristics escape hatch", () => {

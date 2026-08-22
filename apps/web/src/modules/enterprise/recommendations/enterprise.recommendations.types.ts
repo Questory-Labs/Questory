@@ -12,7 +12,7 @@ import type {
 export type RecsTab = RecommendationDomain | "all";
 
 export type CurateOptions = {
-  /** Clear cache and re-run the agentic pipeline. */
+  /** Clear cache and run a fresh job. */
   force: boolean;
 };
 

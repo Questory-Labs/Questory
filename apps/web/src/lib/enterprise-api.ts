@@ -79,12 +79,12 @@ export async function peekCurateCache(options: {
   });
 }
 
-/** Agentic path — starts (or joins a running) curation job. */
+/** Starts (or joins) a curation job. */
 export async function startCurationJob(options: {
   limit?: number;
   domains?: RecommendationDomain[];
   mood?: string;
-  /** Clear curated cache and re-run the agentic pipeline. */
+  /** Clear curated cache and run a fresh job. */
   force?: boolean;
 }): Promise<CurationJob> {
   return enterpriseRequest<CurationJob>("/recommendations/curate", {
