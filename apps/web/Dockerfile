@@ -25,6 +25,7 @@ ENV NEXT_PUBLIC_ENTERPRISE_URL=$NEXT_PUBLIC_ENTERPRISE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
 COPY . .
 RUN pnpm --filter @questorylabs/shared build \
   && pnpm --filter @questorylabs/ui build \
