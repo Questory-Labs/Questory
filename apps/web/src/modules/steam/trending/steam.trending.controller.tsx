@@ -1,3 +1,5 @@
+"use client";
+
 import { api } from "@/lib/api";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
