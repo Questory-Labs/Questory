@@ -1,4 +1,11 @@
+import type { MeResponse } from "@questorylabs/shared";
 import { api, apiOnce, apiOrigin } from "@/lib/api";
+
+export const ME_RESOURCE_ID = ["me"] as const;
+
+export function fetchMe() {
+  return apiOnce<MeResponse>("/auth/me");
+}
 
 export type AuthChallenge = {
   challengeId: string;

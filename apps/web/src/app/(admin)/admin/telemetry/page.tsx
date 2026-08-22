@@ -1,28 +1,10 @@
-"use client";
+import { TelemetryController } from "@/modules/enterprise/telemetry/enterprise.telemetry.controller";
+import { TelemetryView } from "@/modules/enterprise/telemetry/enterprise.telemetry.view";
 
-import { TelemetryDashboard } from "@/components/enterprise/TelemetryDashboard";
-import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
+const AdminTelemetryPage = () => (
+  <TelemetryController>
+    <TelemetryView />
+  </TelemetryController>
+);
 
-/**
- * Admin OTEL / AI usage dashboard. Hidden from nav when the private
- * enterprise API extension is absent.
- */
-export default function AdminTelemetryPage() {
-  const { enabled, isLoading } = useEnterpriseEnabled();
-
-  if (isLoading) {
-    return (
-      <p className="text-sm text-[var(--muted)]">Checking QEngine…</p>
-    );
-  }
-
-  if (!enabled) {
-    return (
-      <p className="text-sm text-[var(--muted)]">
-        QEngine telemetry is not available on this instance.
-      </p>
-    );
-  }
-
-  return <TelemetryDashboard />;
-}
+export default AdminTelemetryPage;

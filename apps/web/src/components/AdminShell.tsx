@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useResource } from "@questorylabs/qhttp/react";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
-import { api } from "@/lib/api";
+import { useUser } from "@/hooks/useUser";
 
 const BASE_NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -18,29 +17,12 @@ const BASE_NAV = [
   { href: "/admin/settings", label: "Settings" },
 ] as const;
 
-type MeResponse = {
-  user: {
-    id: string;
-    isAdmin?: boolean;
-    personaName: string;
-    email?: string | null;
-  } | null;
-};
-
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { when: enterpriseEnabled, isLoading: enterpriseLoading } =
     useEnterpriseEnabled();
-
-  const me = useResource({
-    id: ["me"],
-    load: () => api<MeResponse>("/auth/me"),
-    retries: false,
-  });
-
-  const user = me.value?.user ?? null;
-  const authReady = me.ready || me.failed;
+  const { user, authReady } = useUser();
 
   const showEnterpriseNav = enterpriseEnabled && !enterpriseLoading;
 

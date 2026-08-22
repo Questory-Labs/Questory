@@ -10,7 +10,15 @@ alwaysApply: false
 
 All API calls go through `@questorylabs/qhttp` (`lib/qhttp-client.ts`, domain wrappers `api`/`musicFetch`/`watchFetch`/`readFetch`, `auth-api`, `enterprise-api`) with `@questorylabs/qhttp/react` (`useResource`/`useAction`/`useLiveResource`/`useStore`). Never call raw `fetch()` in components. For live data use `useLiveResource` (or the thin `useSseBackedQuery` wrapper), not polling loops.
 
-**Loading UX:** full-page gates use `LoadingPage` + quotes; in-page first-load uses `Skeleton*` when `resource.empty`; background refetch uses `resource.refreshing`; errors use `StateMessage variant="error"` or `EmptyState`.
+**Loading UX:** full-page gates use `LoadingPage` + quotes. In-page resources use `ResourceStatus` from `@questorylabs/ui` with qHttp flags, **failed before empty**:
+
+- `resource.failed` → `StateMessage variant="error"` or danger `EmptyState`
+- `resource.empty` → first-load `Skeleton*`
+- ready (`!empty && !failed`) → content, or collection `EmptyState` when the value has no items
+- `resource.refreshing` → keep showing data; optional refreshing hint
+- `resource.busy` is **not** the first-load gate (that is `empty`). `useAction.busy` / `useAction.failed` gate mutation buttons and errors.
+
+Do not wait on every resource before painting the page — each section owns its own resource.
 
 ## Types come from shared
 
@@ -22,13 +30,33 @@ Soft-gated routes (`/music/*`, `/watch/*`, `/read/*`, `/recommendations`, `/admi
 
 ## Components and pages
 
-- Reuse `components/ui/*` primitives first (`Button`, `Dialog`, `EmptyState`, `PageHeader`, `Panel`, `StateMessage`, `OverflowMarquee`). New generic UI goes in `components/ui` (re-export from `ui/index.ts`); domain UI goes in `components/<domain>/`.
-- A `page.tsx` wires queries to components — keep it well under 400 lines. The 650–750 line music/watch settings pages are the anti-pattern; extract sections into components instead.
-- Before building a music/watch/read variant of an existing component (pickers, insights charts, detail pages), generalize the existing one and parameterize the domain — do not add another near-identical copy.
+Authenticated routes use controller + view:
+
+```
+app/(app)/<route>/page.tsx          # compose only
+  └── <Feature>Controller           # useResource / useAction / useState → cloneElements
+        └── <Feature>View           # presentational; ResourceStatus per section
+```
+
+Files live in `apps/web/src/modules/<domain>/<feature>/` as `<domain>.<feature>.controller.tsx` / `.view.tsx`, plus optional `.hooks.tsx`, `.types.ts`, `.constants.ts`, `.utils.ts`. Omit empty stubs. Prefer `const` arrows over `function` declarations in new and moved files.
+
+**Component placement**
+
+- Primitives (no domain knowledge) → `@questorylabs/ui` (`Button`, `Dialog`, `EmptyState`, `PageHeader`, `Panel`, `ResourceStatus`, `StateMessage`, `QMark`, skeletons). `components/ui` re-exports them; `StateMessage` there only injects the loading quote.
+- Shared by two or more features → `apps/web/src/components/` (optionally `components/<domain>/`).
+- One feature only → `modules/<domain>/<feature>/components/`. Promote to global `components/` if a second feature needs it; do not duplicate.
+
+Reuse primitives first. Do not put `GameTile` / `StatCard` in the UI package.
+
+A `page.tsx` only composes Controller + View — keep it tiny. Fat settings pages are the anti-pattern; extract sections into feature components.
+
+Before building a music/watch/read variant of an existing component (pickers, insights charts, detail pages), generalize the existing one and parameterize the domain — do not add another near-identical copy.
+
+Feature-local hooks, types, and constants colocate in the module. App-wide hooks (`useUser`, `useSyncJobs`) stay in `src/hooks/`. Shared API types stay in `@questorylabs/shared`. Page sizes stay in `lib/pagination.ts`.
 
 ## Destructive actions require confirmation
 
-Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the action fires. Use the shared `Dialog` from `components/ui` with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `action.submit(...)`, and do not use `window.confirm` for new code.
+Any action that deletes, overwrites, re-runs, or otherwise mutates existing data (delete user, run/retry a migration, trigger a sync that rewrites imports, discard a draft) must show a confirmation step before the action fires. Use `Dialog` from `@questorylabs/ui` (re-exported from `components/ui`) with a Cancel + confirm button pair — the `/admin/migrations` run/retry dialog is the reference pattern. Never wire a destructive `onClick` straight to `action.submit(...)`, and do not use `window.confirm` for new code.
 
 ## Shared constants, not inline literals
 
@@ -36,7 +64,7 @@ Tunable constants (page sizes, limits, polling intervals, thresholds) live in a 
 
 ## Styling
 
-Tailwind v4 utility classes plus the CSS variables defined in `globals.css` (`--ink`, `--accent`, fonts). No new CSS modules (the only existing ones are legacy under `components/enterprise/`), no inline style objects for things Tailwind covers.
+Tailwind v4 utility classes plus the CSS variables from `@questorylabs/ui/styles.css` (`--ink`, `--accent`, fonts), imported by `globals.css`. No new CSS modules (the only existing ones are legacy under `components/enterprise/`), no inline style objects for things Tailwind covers.
 
 ## App Router
 

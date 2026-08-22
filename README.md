@@ -188,6 +188,7 @@ apps/web                 Next.js 16 App Router UI
 apps/api                 NestJS API (Steam + music + watch + in-process cron)
 packages/db              Shared Prisma schema template + client
 packages/shared          Shared Zod schemas, session/oauth helpers
+packages/ui              Shared React primitives + design tokens
 docs/                    Documentation (self-hosting, testing)
 docker-compose.yml       Compose deployment profiles
 ```

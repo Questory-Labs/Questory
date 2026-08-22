@@ -30,6 +30,7 @@ Never relicense as MIT/Apache, strip notices, or imply commercial rights under t
 | `apps/api` | NestJS API (Steam + music + watch + in-process cron) |
 | `apps/web` | Next.js 16 App Router UI |
 | `packages/shared` | Zod schemas, session/oauth helpers (`@questorylabs/shared`) |
+| `packages/ui` | Shared React primitives + design tokens (`@questorylabs/ui`) |
 | `packages/db` | Shared Prisma schema template + client (`@questorylabs/db`) |
 | `docs/` | Self-hosting, testing |
 | `enterprise/` | Private QEngine (Rust Axum) mount; only `enterprise/README.md` is tracked |
@@ -63,8 +64,8 @@ Enforceable standards live in [.cursor/rules/](.cursor/rules/) and are the sourc
 |------|-------|--------|
 | `code-standards.mdc` | always applies | File size budgets, no music/watch/read module cloning, naming, test requirements |
 | `api-nest.mdc` | `apps/api` | Zod `safeParse` validation, HTTP-exception errors, guard/decorator selection, thin controllers |
-| `web-next.mdc` | `apps/web` | Fetch wrappers + React Query, shared types, feature gates, `components/ui` reuse, Tailwind |
-| `shared-packages.mdc` | `packages/` | Schema layout, server-only subpaths, Prisma template workflow |
+| `web-next.mdc` | `apps/web` | Fetch wrappers + React Query, shared types, feature gates, `@questorylabs/ui`, Tailwind |
+| `shared-packages.mdc` | `packages/` | Schema layout, server-only subpaths, Prisma template, UI package |
 
 Facts the rules assume:
 

@@ -1,6 +1,6 @@
 # Web UI style guide
 
-Canonical visual language for `apps/web`. Tokens live in [`apps/web/src/app/globals.css`](../apps/web/src/app/globals.css). Shared primitives live in `apps/web/src/components/ui/`.
+Canonical visual language for Questory web apps. Tokens and primitives live in [`packages/ui`](../packages/ui) (`@questorylabs/ui`). `apps/web` imports `@questorylabs/ui/styles.css` from [`globals.css`](../apps/web/src/app/globals.css) and re-exports primitives from `apps/web/src/components/ui/`.
 
 ## Brand / direction
 
@@ -38,7 +38,7 @@ Fonts (loaded in root layout): **Bricolage Grotesque** (display), **Figtree** (b
 | Page blurb | `mt-3 text-[var(--muted)]` |
 | Mono labels | `font-mono` + small uppercase tracking |
 
-Use [`PageHeader`](../apps/web/src/components/ui/PageHeader.tsx) for authenticated pages.
+Use [`PageHeader`](../packages/ui/src/PageHeader.tsx) for authenticated pages.
 
 ## Layout
 
@@ -53,7 +53,8 @@ Use [`PageHeader`](../apps/web/src/components/ui/PageHeader.tsx) for authenticat
 ### Panels
 
 - **Elevated (default)** — `HatchShadow` + `.panel` via `<Panel>`. Same surface as `StatCard`; use for content cards and charts.
-- **Outline** — `.panel-outline` or `<Panel elevated={false}>`. Use for dense lists, filters, and table shells.
+- **Accent** — `<Panel variant="accent">` (`.panel-accent`).
+- **Outline** — `<Panel variant="outline">` (`.panel-outline`, no hatch). Use for dense lists, filters, and table shells.
 
 ### Buttons
 

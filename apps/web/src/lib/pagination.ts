@@ -38,3 +38,6 @@ export const FAMILY_LIBRARY_PAGE_SIZE = 15;
 
 /** qMonitor local play sessions (`/sessions`). */
 export const PLAY_SESSIONS_PAGE_SIZE = 15;
+
+/** Steam library grid (`/library`). */
+export const LIBRARY_PAGE_SIZE = 48;

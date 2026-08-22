@@ -1,7 +1,10 @@
-"use client";
+import { ReadHomeController } from "@/modules/read/home/read.home.controller";
+import { ReadHomeView } from "@/modules/read/home/read.home.view";
 
-import { ReadHomeView } from "@/components/read/ReadHomeView";
+const ReadHomePage = () => (
+  <ReadHomeController>
+    <ReadHomeView />
+  </ReadHomeController>
+);
 
-export default function ReadHomePage() {
-  return <ReadHomeView />;
-}
+export default ReadHomePage;

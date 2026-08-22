@@ -3,18 +3,17 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useResource, useStore } from "@questorylabs/qhttp/react";
+import { useStore } from "@questorylabs/qhttp/react";
 import {
   QMONITOR_CLIENT_ID,
   QMONITOR_REDIRECT_URI,
   QMONITOR_SCOPE,
 } from "@questorylabs/shared";
-import { api, apiOnce } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useUser } from "@/hooks/useUser";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { LandingBackground } from "@/components/LandingBackground";
-
-type MeResponse = { user: { id: string; email?: string | null; personaName?: string } | null };
 
 function safeLoginNext(pathWithQuery: string): string {
   if (!pathWithQuery.startsWith("/oauth/qmonitor/authorize")) {
@@ -54,11 +53,7 @@ function AuthorizeInner() {
     query.code_challenge.length >= 43 &&
     query.device_id.length >= 16;
 
-  const me = useResource({
-    id: ["me"],
-    load: () => apiOnce<MeResponse>("/auth/me"),
-    retries: false,
-  });
+  const { user, isAuthenticated, isLoading } = useUser();
 
   const loginHref = useMemo(() => {
     const next = safeLoginNext(
@@ -68,13 +63,13 @@ function AuthorizeInner() {
   }, [search]);
 
   const ensurePending = useCallback(async () => {
-    if (!queryValid || !me.value?.user) return;
+    if (!queryValid || !user) return;
     const res = await api<{ pending: string }>("/oauth/qmonitor/pending", {
       method: "POST",
       body: JSON.stringify(query),
     });
     setPendingToken(res.pending);
-  }, [me.value?.user, query, queryValid]);
+  }, [user, query, queryValid]);
 
   useEffect(() => {
     void ensurePending().catch((err) => {
@@ -130,11 +125,11 @@ function AuthorizeInner() {
     );
   }
 
-  if (me.empty && me.busy) {
+  if (isLoading) {
     return <p className="mt-8 text-sm text-[var(--muted)]">Checking session…</p>;
   }
 
-  const loggedIn = Boolean(me.value?.user);
+  const loggedIn = isAuthenticated;
 
   return (
     <div className="mt-8 space-y-6">
@@ -171,7 +166,7 @@ function AuthorizeInner() {
           <p className="text-sm text-[var(--muted)]">
             Signed in as{" "}
             <span className="text-[var(--ink)]">
-              {me.value?.user?.email || me.value?.user?.personaName || "you"}
+              {user?.email || user?.personaName || "you"}
             </span>
           </p>
           <div className="flex flex-wrap gap-3">
