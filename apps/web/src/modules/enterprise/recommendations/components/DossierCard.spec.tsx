@@ -39,17 +39,17 @@ function renderCard() {
   );
 }
 
-async function openRefreshConfirm() {
+const openRefreshConfirm = async () => {
   const refresh = await screen.findByRole("button", {
     name: "Refresh taste fingerprint",
   });
   fireEvent.click(refresh);
   return refresh;
-}
+};
 
-function confirmRefresh() {
+const confirmRefresh = () => {
   fireEvent.click(screen.getByRole("button", { name: "Regenerate" }));
-}
+};
 
 describe("DossierCard", () => {
   beforeEach(() => {

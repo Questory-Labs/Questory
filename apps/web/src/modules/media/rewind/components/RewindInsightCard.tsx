@@ -18,6 +18,9 @@ export const RewindInsightCard = ({
   const segments = parseBoldSegments(text);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
+  const foregroundClass = theme.text
+    .split(/\s+/)
+    .find((token) => token.startsWith("text-"));
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -34,7 +37,7 @@ export const RewindInsightCard = ({
       className={`w-full h-full min-h-[12rem] sm:min-h-[14rem] md:min-h-[18rem] max-h-[min(70dvh,28rem)] flex flex-col relative overflow-hidden ${theme.container}`}
     >
       <RewindPattern spec={theme.pattern} />
-      <RewindDecoration kind={theme.decoration} />
+      <RewindDecoration kind={theme.decoration} className={foregroundClass} />
 
       <div className="relative z-10 flex flex-col h-full min-h-0">
         <div

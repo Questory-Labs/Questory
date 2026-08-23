@@ -4,11 +4,21 @@ const CornerBracket = ({ className }: { className: string }) => (
   <div className={`absolute w-8 h-8 ${className}`} />
 );
 
-export const RewindDecoration = ({ kind }: { kind: DecorationKind }) => {
+export const RewindDecoration = ({
+  kind,
+  className = "",
+}: {
+  kind: DecorationKind;
+  className?: string;
+}) => {
   if (kind === "none") return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none" data-rewind-decoration={kind} aria-hidden>
+    <div
+      className={`absolute inset-0 pointer-events-none ${className}`}
+      data-rewind-decoration={kind}
+      aria-hidden
+    >
       {kind === "vignette" ? (
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_30%,_rgba(0,0,0,0.9)_90%)]" />
       ) : null}

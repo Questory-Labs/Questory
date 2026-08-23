@@ -8,11 +8,15 @@ describe("RewindDecoration", () => {
 
   it("mounts a distinct node for every visible decoration", () => {
     for (const kind of DECORATION_KINDS) {
-      const { container } = render(<RewindDecoration kind={kind} />);
+      const { container } = render(
+        <RewindDecoration kind={kind} className="text-white" />,
+      );
       if (kind === "none") {
         expect(container.querySelector("[data-rewind-decoration]")).toBeNull();
       } else {
-        expect(container.querySelector(`[data-rewind-decoration="${kind}"]`)).toBeTruthy();
+        const node = container.querySelector(`[data-rewind-decoration="${kind}"]`);
+        expect(node).toBeTruthy();
+        expect(node).toHaveClass("text-white");
       }
       cleanup();
     }
