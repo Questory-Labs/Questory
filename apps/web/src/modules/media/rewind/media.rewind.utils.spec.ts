@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { REWIND_CAROUSEL_SIDE_SCALE } from "./media.rewind.constants";
+import {
+  REWIND_CAROUSEL_SIDE_SCALE,
+  REWIND_COVERFLOW_NEXT_MASK,
+  REWIND_COVERFLOW_PREV_MASK,
+} from "./media.rewind.constants";
 import type { RewindDomain } from "./media.rewind.types";
 import {
+  formatAiCards,
   generateCardTheme,
   getDomainIdentity,
+  getDomainThemes,
   parseBoldSegments,
   parseInsightChunk,
   resolveVariantIndex,
   rewindCoverflowOffset,
+  rewindCoverflowSlideMask,
   rewindCoverflowTransform,
   splitInsightContent,
 } from "./media.rewind.utils";
@@ -33,6 +40,14 @@ describe("rewindCoverflowTransform", () => {
     );
     expect(rewindCoverflowTransform(-1, false)).toContain("rotate(-");
     expect(rewindCoverflowTransform(1, true)).toContain("rotate(0deg)");
+  });
+});
+
+describe("rewindCoverflowSlideMask", () => {
+  it("leaves the front card unmasked and fades both neighbor sides", () => {
+    expect(rewindCoverflowSlideMask(0)).toBeUndefined();
+    expect(rewindCoverflowSlideMask(-1)).toBe(REWIND_COVERFLOW_PREV_MASK);
+    expect(rewindCoverflowSlideMask(1)).toBe(REWIND_COVERFLOW_NEXT_MASK);
   });
 });
 
@@ -108,7 +123,7 @@ describe("rewind-card-engine", () => {
       const identity = getDomainIdentity(domain);
       expect(identity.domain).toBe(domain);
       expect(identity.palette.accent).toMatch(/^#/);
-      expect(identity.patternPool.length).toBeGreaterThan(0);
+      expect(identity.patternPool.length).toBeGreaterThanOrEqual(12);
     }
   });
 
@@ -120,30 +135,76 @@ describe("rewind-card-engine", () => {
     }
   });
 
-  it("cycles variants by card index", () => {
+  it("keeps adjacent index themes distinct and wraps after the pool", () => {
     for (const domain of DOMAINS) {
+      const pool = getDomainThemes(domain);
+      expect(pool.length).toBeGreaterThanOrEqual(12);
       const themes = [0, 1, 2, 3].map((i) => generateCardTheme(domain, i));
-      expect(themes[0]).toEqual(themes[3]);
       expect(themes[0].container).not.toBe(themes[1].container);
+      expect(themes[0].container).not.toBe(themes[3].container);
+      expect(generateCardTheme(domain, 0)).toEqual(
+        generateCardTheme(domain, pool.length),
+      );
     }
   });
 
   it("maps known tags to preferred variants", () => {
     expect(resolveVariantIndex("music", 99, "topgenre")).toBe(0);
-    expect(resolveVariantIndex("watch", 99, "peaktime")).toBe(2);
-    expect(resolveVariantIndex("read", 99, "pageturner")).toBe(2);
+    expect(resolveVariantIndex("watch", 99, "peaktime")).toBe(3);
+    expect(resolveVariantIndex("read", 99, "pageturner")).toBe(9);
   });
 
-  it("every theme has required style fields", () => {
+  it("skips a tag hint when that variant is already used", () => {
+    const used = new Set([0]);
+    expect(resolveVariantIndex("music", 0, "topgenre", used)).toBe(1);
+  });
+
+  it("every theme has required style fields and unique looks", () => {
     for (const domain of DOMAINS) {
-      for (let i = 0; i < 3; i++) {
-        const theme = generateCardTheme(domain, i);
+      const themes = getDomainThemes(domain);
+      const containers = themes.map((theme) => theme.container);
+      const patterns = themes.map((theme) => theme.pattern.kind);
+      const decorations = themes.map((theme) => theme.decoration);
+      expect(new Set(containers).size).toBe(themes.length);
+      expect(new Set(patterns).size).toBe(themes.length);
+      expect(new Set(decorations).size).toBe(themes.length);
+      expect(new Set(getDomainIdentity(domain).patternPool).size).toBe(
+        themes.length,
+      );
+      for (const theme of themes) {
         expect(theme.container.length).toBeGreaterThan(0);
         expect(theme.title.length).toBeGreaterThan(0);
         expect(theme.text.length).toBeGreaterThan(0);
         expect(theme.highlight.length).toBeGreaterThan(0);
         expect(theme.pattern.kind).toBeTruthy();
+        expect(theme.decoration).not.toBe("none");
       }
     }
+  });
+
+  it("does not repeat themes in a six-card rewind", () => {
+    const content = [
+      "<topgenre>Genre.</topgenre>",
+      "<hourslistened>Hours.</hourslistened>",
+      "<uniquetitles>Titles.</uniquetitles>",
+      "<peaktime>Peak.</peaktime>",
+      "<vibecheck>Vibe.</vibecheck>",
+      "<musicpersona>Persona.</musicpersona>",
+    ].join("\n\n");
+    const cards = formatAiCards(content, "music");
+    expect(cards).toHaveLength(6);
+    const containers = cards.map((card) => card.theme.container);
+    expect(new Set(containers).size).toBe(6);
+  });
+
+  it("repeats a theme only after the domain pool is exhausted", () => {
+    const content = Array.from({ length: 13 }, (_, i) => `Chunk number ${i}`).join(
+      "\n\n",
+    );
+    const cards = formatAiCards(content, "watch");
+    expect(cards).toHaveLength(13);
+    const firstTwelve = cards.slice(0, 12).map((card) => card.theme.container);
+    expect(new Set(firstTwelve).size).toBe(12);
+    expect(cards[12]?.theme.container).toBe(cards[0]?.theme.container);
   });
 });

@@ -123,6 +123,38 @@ describe("RecommendationsView", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders a duplicate extra key only once", () => {
+    renderView({
+      recs: mockResource<RecommendationResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          available: true,
+          engine: "qengine/0.1.0",
+          items: [
+            {
+              kind: "game",
+              domain: "games",
+              name: "Steam Machine",
+              score: 0.45,
+              reasons: ["Popular in your region"],
+              itemKey: "ext:regional-new:steam-machine",
+            },
+            {
+              kind: "game",
+              domain: "games",
+              name: "Steam Machine",
+              score: 0.45,
+              reasons: ["Popular in your region"],
+              itemKey: "ext:regional-new:steam-machine",
+            },
+          ],
+        },
+      }),
+    });
+    expect(screen.getAllByText("Steam Machine")).toHaveLength(1);
+  });
+
   it("shows collection empty when ready with no items", () => {
     renderView({
       recs: mockResource<RecommendationResponse>({

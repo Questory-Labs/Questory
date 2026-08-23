@@ -15,9 +15,11 @@ import {
   REWIND_CAROUSEL_AUTOPLAY_MS,
   REWIND_CAROUSEL_SWIPE_PX,
   REWIND_CAROUSEL_TRANSITION_MS,
+  REWIND_COVERFLOW_VIEWPORT_MASK,
 } from "../media.rewind.constants";
 import {
   rewindCoverflowOffset,
+  rewindCoverflowSlideMask,
   rewindCoverflowTransform,
 } from "../media.rewind.utils";
 
@@ -161,6 +163,15 @@ export const RewindCarousel = ({ children }: { children: ReactNode }) => {
 
       <div
         className="overflow-x-clip px-2 sm:px-6 md:px-10 touch-pan-y"
+        data-rewind-fade={multi ? "viewport" : undefined}
+        style={
+          multi
+            ? {
+                WebkitMaskImage: REWIND_COVERFLOW_VIEWPORT_MASK,
+                maskImage: REWIND_COVERFLOW_VIEWPORT_MASK,
+              }
+            : undefined
+        }
         onPointerDown={onPointerDown}
         onPointerUp={endPointer}
         onPointerCancel={endPointer}
@@ -175,6 +186,7 @@ export const RewindCarousel = ({ children }: { children: ReactNode }) => {
             const offset = multi ? rewindCoverflowOffset(slideIndex, index, count) : 0;
             const visible = Math.abs(offset) <= 1;
             const slot = slotForOffset(offset);
+            const slideMask = multi ? rewindCoverflowSlideMask(offset) : undefined;
             return (
               <div
                 key={slideIndex}
@@ -193,6 +205,8 @@ export const RewindCarousel = ({ children }: { children: ReactNode }) => {
                         zIndex: offset === 0 ? 20 : visible ? 5 : 0,
                         pointerEvents: visible ? "auto" : "none",
                         transitionDuration: reducedMotion ? "0ms" : `${REWIND_CAROUSEL_TRANSITION_MS}ms`,
+                        WebkitMaskImage: slideMask,
+                        maskImage: slideMask,
                       }
                     : undefined
                 }

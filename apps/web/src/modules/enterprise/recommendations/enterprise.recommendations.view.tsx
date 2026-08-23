@@ -14,7 +14,10 @@ import type {
 import { RecommendationCard } from "./components/RecommendationCard";
 import { TABS } from "./enterprise.recommendations.constants";
 import type { RecommendationsViewProps } from "./enterprise.recommendations.types";
-import { itemReactKey } from "./enterprise.recommendations.utils";
+import {
+  itemReactKey,
+  uniqueRecommendationItems,
+} from "./enterprise.recommendations.utils";
 
 export const RecommendationsView = (props: Record<string, unknown>) => {
   const {
@@ -50,7 +53,7 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
     ? (curated as RecommendationResponse)
     : recs.value;
 
-  const visibleItems = (active?.items ?? []).filter(
+  const visibleItems = uniqueRecommendationItems(active?.items ?? []).filter(
     (item) =>
       !dismissed.has(item.itemKey ?? "") &&
       (tab === "all" || !showingCurated || item.domain === tab),

@@ -13,7 +13,7 @@ import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
 const fetchMock = vi.mocked(fetchDossier);
 const refreshMock = vi.mocked(refreshDossier);
 
-function dossierView(identity: string) {
+function dossierView(identity: string, extra?: { refreshing?: boolean; error?: string }) {
   return {
     available: true,
     dossier: {
@@ -26,6 +26,7 @@ function dossierView(identity: string) {
       keywords: ["roguelike"],
     },
     updatedAt: Date.now(),
+    ...extra,
   };
 }
 
@@ -62,22 +63,57 @@ describe("DossierCard", () => {
     expect(screen.getByText("A roguelike devotee.")).toBeInTheDocument();
   });
 
-  it("force-refresh swaps in the fresh dossier", async () => {
-    refreshMock.mockResolvedValue(dossierView("Now a cozy farmer."));
+  it("keeps refresh disabled and shows status while the job is running", async () => {
+    refreshMock.mockResolvedValue(
+      dossierView("A roguelike devotee.", { refreshing: true }),
+    );
     renderCard();
     const refresh = await screen.findByRole("button", {
       name: "Refresh taste fingerprint",
     });
     fireEvent.click(refresh);
     await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /your taste fingerprint/i }),
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Refreshing taste fingerprint" }),
+      ).toBeDisabled(),
     );
-    await screen.findByText("Now a cozy farmer.");
+    expect(
+      screen.getByText("Refreshing from your latest activity…"),
+    ).toBeInTheDocument();
   });
 
-  it("disables the refresh button while pending", async () => {
+  it("shows an error when refresh fails", async () => {
+    refreshMock.mockRejectedValue(new Error("llm not ready"));
+    renderCard();
+    const refresh = await screen.findByRole("button", {
+      name: "Refresh taste fingerprint",
+    });
+    fireEvent.click(refresh);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Couldn't refresh your taste fingerprint."),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Refresh taste fingerprint" }),
+    ).not.toBeDisabled();
+  });
+
+  it("shows a server-reported refresh error", async () => {
+    fetchMock.mockResolvedValue(
+      dossierView("A roguelike devotee.", {
+        error: "Couldn't refresh your taste fingerprint",
+      }),
+    );
+    renderCard();
+    await screen.findByRole("button", { name: "Refresh taste fingerprint" });
+    expect(
+      screen.getByText("Couldn't refresh your taste fingerprint"),
+    ).toBeInTheDocument();
+  });
+
+  it("disables the refresh button while the POST is pending", async () => {
     let resolve: (v: unknown) => void = () => {};
     refreshMock.mockImplementation(
       () =>

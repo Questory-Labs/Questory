@@ -118,7 +118,7 @@ export async function fetchDossier(): Promise<DossierView> {
   return enterpriseRequest<DossierView>("/enterprise/dossier");
 }
 
-/** Force a synchronous dossier regeneration; resolves with the fresh view. */
+/** Starts a background dossier regeneration; poll GET until `refreshing` clears. */
 export async function refreshDossier(): Promise<DossierView> {
   return enterpriseRequest<DossierView>("/enterprise/dossier/refresh", {
     method: "POST",

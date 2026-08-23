@@ -654,6 +654,17 @@
   }
 }
 
+.dossierStatus {
+  margin: 0 14px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dossierError {
+  composes: dossierStatus;
+  color: var(--danger);
+}
+
 .dossierBody {
   padding: 0 14px 14px;
 }

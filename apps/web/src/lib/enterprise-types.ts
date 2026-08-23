@@ -147,6 +147,8 @@ export type DossierView = {
   available: boolean;
   dossier?: Dossier;
   updatedAt?: number;
+  refreshing?: boolean;
+  error?: string;
 };
 
 /* ── user settings (location) ── */
