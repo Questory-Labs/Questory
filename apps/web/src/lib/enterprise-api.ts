@@ -10,6 +10,7 @@ import type {
   UserSettings,
 } from "@/lib/enterprise-types";
 import { api } from "@/lib/api";
+import { browserTimeZone } from "@/lib/dates";
 import { probeJsonSafe } from "@/lib/qhttp-client";
 import { getEnterpriseUrl } from "@/lib/runtime-env";
 
@@ -30,6 +31,7 @@ function clientContext(mood?: string): Record<string, unknown> {
     localHour: new Date().getHours(),
     // 0 = Monday … 6 = Sunday
     localWeekday: (new Date().getDay() + 6) % 7,
+    timeZone: browserTimeZone(),
     ...(mood ? { mood } : {}),
   };
 }
