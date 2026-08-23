@@ -79,12 +79,12 @@ export async function peekCurateCache(options: {
   });
 }
 
-/** Agentic path — starts (or joins a running) curation job. */
+/** Starts (or joins) a curation job. */
 export async function startCurationJob(options: {
   limit?: number;
   domains?: RecommendationDomain[];
   mood?: string;
-  /** Clear curated cache and re-run the agentic pipeline. */
+  /** Clear curated cache and run a fresh job. */
   force?: boolean;
 }): Promise<CurationJob> {
   return enterpriseRequest<CurationJob>("/recommendations/curate", {
@@ -118,7 +118,7 @@ export async function fetchDossier(): Promise<DossierView> {
   return enterpriseRequest<DossierView>("/enterprise/dossier");
 }
 
-/** Force a synchronous dossier regeneration; resolves with the fresh view. */
+/** Starts a background dossier regeneration; poll GET until `refreshing` clears. */
 export async function refreshDossier(): Promise<DossierView> {
   return enterpriseRequest<DossierView>("/enterprise/dossier/refresh", {
     method: "POST",

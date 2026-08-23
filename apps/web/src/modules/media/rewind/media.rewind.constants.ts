@@ -33,3 +33,15 @@ export const REWIND_CAROUSEL_SIDE_SHIFT = 0.3;
 
 /** Cover-flow move duration. */
 export const REWIND_CAROUSEL_TRANSITION_MS = 550;
+
+/** Softens overflow clipping of peeking neighbor cards. */
+export const REWIND_COVERFLOW_VIEWPORT_MASK =
+  "linear-gradient(to right, transparent 0%, black 14%, black 86%, transparent 100%)";
+
+/** Dissolves a left neighbor under the front card and into the page. */
+export const REWIND_COVERFLOW_PREV_MASK =
+  "linear-gradient(to right, transparent 0%, black 16%, black 58%, transparent 100%)";
+
+/** Dissolves a right neighbor under the front card and into the page. */
+export const REWIND_COVERFLOW_NEXT_MASK =
+  "linear-gradient(to left, transparent 0%, black 16%, black 58%, transparent 100%)";

@@ -9,18 +9,44 @@ export type RewindDomain = "music" | "watch" | "read";
 
 export type RewindMonth = number | "all";
 
-export type PatternKind =
-  | "checkerboard"
-  | "concentric-rings"
-  | "polka-dots"
-  | "film-bars"
-  | "ticket-stub"
-  | "scanlines"
-  | "paper-noise"
-  | "margin-line"
-  | "diagonal-stripes";
+export const PATTERN_KINDS = [
+  "checkerboard",
+  "concentric-rings",
+  "polka-dots",
+  "film-bars",
+  "ticket-stub",
+  "scanlines",
+  "paper-noise",
+  "margin-line",
+  "diagonal-stripes",
+  "halftone",
+  "waveform",
+  "vinyl-grooves",
+  "hex-grid",
+  "speed-lines",
+] as const;
 
-export type DecorationKind = "vignette" | "rec-badge" | "margin-line" | "none";
+export type PatternKind = (typeof PATTERN_KINDS)[number];
+
+export const DECORATION_KINDS = [
+  "vignette",
+  "rec-badge",
+  "margin-line",
+  "corner-brackets",
+  "orbit-ring",
+  "quote-marks",
+  "asterisk-burst",
+  "play-glyph",
+  "timestamp-osd",
+  "stamp-seal",
+  "binder-holes",
+  "washi-tape",
+  "neon-frame",
+  "laurel",
+  "none",
+] as const;
+
+export type DecorationKind = (typeof DECORATION_KINDS)[number];
 
 export type PatternSpec = {
   kind: PatternKind;

@@ -15,4 +15,6 @@ export const KIND_LABELS: Record<RecommendationItem["kind"], string> = {
   movie: "Movie",
   show: "Show",
   manga: "Manga",
+  external: "Extra",
+  lifestyle: "Break",
 };

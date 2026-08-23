@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { RewindCarousel } from "./RewindCarousel";
-import { REWIND_CAROUSEL_AUTOPLAY_MS } from "../media.rewind.constants";
+import {
+  REWIND_CAROUSEL_AUTOPLAY_MS,
+  REWIND_COVERFLOW_NEXT_MASK,
+  REWIND_COVERFLOW_PREV_MASK,
+} from "../media.rewind.constants";
 
 function slides(...labels: string[]) {
   return (
@@ -86,6 +90,18 @@ describe("RewindCarousel", () => {
     expect(document.querySelector('[data-slot="current"]')).toHaveTextContent("Beta");
   });
 
+  it("fades the viewport and neighbor card edges in a multi-slide coverflow", () => {
+    render(slides("Alpha", "Beta", "Gamma"));
+
+    expect(document.querySelector("[data-rewind-fade='viewport']")).toBeTruthy();
+    expect(document.querySelector("[data-slot='prev']")).toHaveStyle({
+      maskImage: REWIND_COVERFLOW_PREV_MASK,
+    });
+    expect(document.querySelector("[data-slot='next']")).toHaveStyle({
+      maskImage: REWIND_COVERFLOW_NEXT_MASK,
+    });
+  });
+
   it("hides arrows and dots and does not autoplay for a single slide", () => {
     const spy = vi.spyOn(window, "setInterval");
     render(slides("Only"));
@@ -96,6 +112,7 @@ describe("RewindCarousel", () => {
     expect(screen.queryByRole("button", { name: "Previous insight" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Next insight" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Go to insight/ })).toBeNull();
+    expect(document.querySelector("[data-rewind-fade='viewport']")).toBeNull();
     expect(
       spy.mock.calls.some(([, ms]) => ms === REWIND_CAROUSEL_AUTOPLAY_MS),
     ).toBe(false);

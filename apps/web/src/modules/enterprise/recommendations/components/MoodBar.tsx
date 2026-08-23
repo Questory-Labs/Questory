@@ -14,7 +14,7 @@ const CHIPS = [
 
 /**
  * Free-text mood input + quick chips. Submitting kicks off curation
- * (cache hit loads instantly; otherwise starts the agentic job).
+ * (cache hit loads instantly; otherwise starts the curate job).
  */
 export const MoodBar = ({
   busy,

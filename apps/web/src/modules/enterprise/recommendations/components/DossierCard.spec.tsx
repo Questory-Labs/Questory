@@ -13,7 +13,7 @@ import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
 const fetchMock = vi.mocked(fetchDossier);
 const refreshMock = vi.mocked(refreshDossier);
 
-function dossierView(identity: string) {
+function dossierView(identity: string, extra?: { refreshing?: boolean; error?: string }) {
   return {
     available: true,
     dossier: {
@@ -26,6 +26,7 @@ function dossierView(identity: string) {
       keywords: ["roguelike"],
     },
     updatedAt: Date.now(),
+    ...extra,
   };
 }
 
@@ -37,6 +38,18 @@ function renderCard() {
     </ResourceProvider>,
   );
 }
+
+const openRefreshConfirm = async () => {
+  const refresh = await screen.findByRole("button", {
+    name: "Refresh taste fingerprint",
+  });
+  fireEvent.click(refresh);
+  return refresh;
+};
+
+const confirmRefresh = () => {
+  fireEvent.click(screen.getByRole("button", { name: "Regenerate" }));
+};
 
 describe("DossierCard", () => {
   beforeEach(() => {
@@ -62,22 +75,63 @@ describe("DossierCard", () => {
     expect(screen.getByText("A roguelike devotee.")).toBeInTheDocument();
   });
 
-  it("force-refresh swaps in the fresh dossier", async () => {
-    refreshMock.mockResolvedValue(dossierView("Now a cozy farmer."));
+  it("opens a confirmation dialog and does not refresh until confirmed", async () => {
     renderCard();
-    const refresh = await screen.findByRole("button", {
-      name: "Refresh taste fingerprint",
-    });
-    fireEvent.click(refresh);
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /your taste fingerprint/i }),
-    );
-    await screen.findByText("Now a cozy farmer.");
+    await openRefreshConfirm();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("disables the refresh button while pending", async () => {
+  it("keeps refresh disabled and shows status while the job is running", async () => {
+    refreshMock.mockResolvedValue(
+      dossierView("A roguelike devotee.", { refreshing: true }),
+    );
+    renderCard();
+    await openRefreshConfirm();
+    confirmRefresh();
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Refreshing taste fingerprint" }),
+      ).toBeDisabled(),
+    );
+    expect(
+      screen.getByText("Refreshing from your latest activity…"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error when refresh fails", async () => {
+    refreshMock.mockRejectedValue(new Error("llm not ready"));
+    renderCard();
+    await openRefreshConfirm();
+    confirmRefresh();
+    await waitFor(() =>
+      expect(
+        screen.getByText("Couldn't refresh your taste fingerprint."),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Refresh taste fingerprint" }),
+    ).not.toBeDisabled();
+  });
+
+  it("shows a server-reported refresh error", async () => {
+    fetchMock.mockResolvedValue(
+      dossierView("A roguelike devotee.", {
+        error: "Couldn't refresh your taste fingerprint",
+      }),
+    );
+    renderCard();
+    await screen.findByRole("button", { name: "Refresh taste fingerprint" });
+    expect(
+      screen.getByText("Couldn't refresh your taste fingerprint"),
+    ).toBeInTheDocument();
+  });
+
+  it("disables the refresh button while the POST is pending", async () => {
     let resolve: (v: unknown) => void = () => {};
     refreshMock.mockImplementation(
       () =>
@@ -86,10 +140,8 @@ describe("DossierCard", () => {
         }) as never,
     );
     renderCard();
-    const refresh = await screen.findByRole("button", {
-      name: "Refresh taste fingerprint",
-    });
-    fireEvent.click(refresh);
+    const refresh = await openRefreshConfirm();
+    confirmRefresh();
     await waitFor(() => expect(refresh).toBeDisabled());
     resolve(dossierView("Fresh."));
     await waitFor(() => expect(refresh).not.toBeDisabled());

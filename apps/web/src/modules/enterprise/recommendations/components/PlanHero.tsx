@@ -3,7 +3,7 @@
 import type { Plan, RecommendationItem } from "@/lib/enterprise-types";
 import styles from "../recommendations.module.css";
 
-/** "Tonight's plan" hero card: the Composer's cross-domain session. */
+/** "Tonight's plan" hero card. */
 export const PlanHero = ({
   plan,
   items,

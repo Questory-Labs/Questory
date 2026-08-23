@@ -17,6 +17,7 @@ import type {
   RecommendationItem,
   RecommendationResponse,
 } from "@/lib/enterprise-types";
+import { JOB_POLL_MS } from "@/lib/polling";
 import type { CurateOptions, RecsTab } from "./enterprise.recommendations.types";
 
 export const RecommendationsController = ({ children }: PropsWithChildren) => {
@@ -59,7 +60,7 @@ export const RecommendationsController = ({ children }: PropsWithChildren) => {
     when: Boolean(jobId),
     refreshEvery: (value) => {
       const status = value?.status;
-      return status === "done" || status === "failed" ? false : 1500;
+      return status === "done" || status === "failed" ? false : JOB_POLL_MS;
     },
     retries: 1,
   });
