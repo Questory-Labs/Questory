@@ -39,6 +39,18 @@ function renderCard() {
   );
 }
 
+async function openRefreshConfirm() {
+  const refresh = await screen.findByRole("button", {
+    name: "Refresh taste fingerprint",
+  });
+  fireEvent.click(refresh);
+  return refresh;
+}
+
+function confirmRefresh() {
+  fireEvent.click(screen.getByRole("button", { name: "Regenerate" }));
+}
+
 describe("DossierCard", () => {
   beforeEach(() => {
     fetchMock.mockReset();
@@ -63,15 +75,23 @@ describe("DossierCard", () => {
     expect(screen.getByText("A roguelike devotee.")).toBeInTheDocument();
   });
 
+  it("opens a confirmation dialog and does not refresh until confirmed", async () => {
+    renderCard();
+    await openRefreshConfirm();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
   it("keeps refresh disabled and shows status while the job is running", async () => {
     refreshMock.mockResolvedValue(
       dossierView("A roguelike devotee.", { refreshing: true }),
     );
     renderCard();
-    const refresh = await screen.findByRole("button", {
-      name: "Refresh taste fingerprint",
-    });
-    fireEvent.click(refresh);
+    await openRefreshConfirm();
+    confirmRefresh();
     await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(
@@ -86,10 +106,8 @@ describe("DossierCard", () => {
   it("shows an error when refresh fails", async () => {
     refreshMock.mockRejectedValue(new Error("llm not ready"));
     renderCard();
-    const refresh = await screen.findByRole("button", {
-      name: "Refresh taste fingerprint",
-    });
-    fireEvent.click(refresh);
+    await openRefreshConfirm();
+    confirmRefresh();
     await waitFor(() =>
       expect(
         screen.getByText("Couldn't refresh your taste fingerprint."),
@@ -122,10 +140,8 @@ describe("DossierCard", () => {
         }) as never,
     );
     renderCard();
-    const refresh = await screen.findByRole("button", {
-      name: "Refresh taste fingerprint",
-    });
-    fireEvent.click(refresh);
+    const refresh = await openRefreshConfirm();
+    confirmRefresh();
     await waitFor(() => expect(refresh).toBeDisabled());
     resolve(dossierView("Fresh."));
     await waitFor(() => expect(refresh).not.toBeDisabled());

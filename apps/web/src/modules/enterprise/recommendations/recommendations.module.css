@@ -661,6 +661,7 @@
 }
 
 .dossierError {
+  /* stylelint-disable-next-line value-keyword-case -- CSS Modules composed class name */
   composes: dossierStatus;
   color: var(--danger);
 }

@@ -19,6 +19,15 @@ const STAGE_ORDER: Record<string, number> = {
   failed: 4,
 };
 
+const EMPTY_FEED: Record<JobStatus, string> = {
+  queued: "Getting ready…",
+  scoring: "Scoring your libraries…",
+  extras: "Finding extras…",
+  writing: "Writing…",
+  done: "Scoring your libraries…",
+  failed: "Scoring your libraries…",
+};
+
 /**
  * Wait experience: a short stage stepper plus a live activity feed.
  */
@@ -60,7 +69,7 @@ export const AgentProgress = ({
 
       <div ref={feedRef} className={styles.progressFeed} role="log">
         {job.events.length === 0 && (
-          <p className={styles.progressLine}>Scoring your libraries…</p>
+          <p className={styles.progressLine}>{EMPTY_FEED[job.status]}</p>
         )}
         {job.events.map((event, i) => (
           <p key={`${event.ts}-${i}`} className={styles.progressLine}>

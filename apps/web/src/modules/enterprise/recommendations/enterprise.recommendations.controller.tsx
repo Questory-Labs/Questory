@@ -17,8 +17,8 @@ import type {
   RecommendationItem,
   RecommendationResponse,
 } from "@/lib/enterprise-types";
+import { JOB_POLL_MS } from "@/lib/polling";
 import type { CurateOptions, RecsTab } from "./enterprise.recommendations.types";
-import { JOB_POLL_MS } from "./enterprise.recommendations.constants";
 
 export const RecommendationsController = ({ children }: PropsWithChildren) => {
   const store = useStore();

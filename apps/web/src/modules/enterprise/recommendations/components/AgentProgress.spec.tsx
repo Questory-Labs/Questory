@@ -38,6 +38,21 @@ describe("AgentProgress", () => {
     expect(step("Writing").dataset.state).toBe("pending");
   });
 
+  it("shows a status-specific placeholder when the feed is empty", () => {
+    const empty: CurationJob = { jobId: "j1", status: "scoring", events: [] };
+    const cases: [CurationJob["status"], string][] = [
+      ["queued", "Getting ready…"],
+      ["scoring", "Scoring your libraries…"],
+      ["extras", "Finding extras…"],
+      ["writing", "Writing…"],
+    ];
+    for (const [status, message] of cases) {
+      render(<AgentProgress job={{ ...empty, status }} />);
+      expect(screen.getByRole("log")).toHaveTextContent(message);
+      cleanup();
+    }
+  });
+
   it("offers the heuristics escape hatch", () => {
     const onShowHeuristics = vi.fn();
     render(<AgentProgress job={job} onShowHeuristics={onShowHeuristics} />);

@@ -51,16 +51,7 @@ export const RewindDecoration = ({ kind }: { kind: DecorationKind }) => {
       ) : null}
 
       {kind === "play-glyph" ? (
-        <div
-          className="absolute right-8 top-1/2 -translate-y-1/2 opacity-15"
-          style={{
-            width: 0,
-            height: 0,
-            borderTop: "2.5rem solid transparent",
-            borderBottom: "2.5rem solid transparent",
-            borderLeft: "4rem solid currentColor",
-          }}
-        />
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 opacity-15 w-0 h-0 border-y-[2.5rem] border-y-transparent border-l-[4rem] border-l-current" />
       ) : null}
 
       {kind === "timestamp-osd" ? (
@@ -82,13 +73,7 @@ export const RewindDecoration = ({ kind }: { kind: DecorationKind }) => {
       ) : null}
 
       {kind === "washi-tape" ? (
-        <div
-          className="absolute -top-2 right-10 h-8 w-28 rotate-12 opacity-40"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(-45deg, currentColor 0 6px, transparent 6px 12px)",
-          }}
-        />
+        <div className="absolute -top-2 right-10 h-8 w-28 rotate-12 opacity-40 bg-[repeating-linear-gradient(-45deg,_currentColor_0_6px,_transparent_6px_12px)]" />
       ) : null}
 
       {kind === "neon-frame" ? (

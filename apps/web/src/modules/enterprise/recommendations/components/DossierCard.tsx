@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
+import { Button, Dialog } from "@questorylabs/ui";
 import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
-import { JOB_POLL_MS } from "../enterprise.recommendations.constants";
+import { JOB_POLL_MS } from "@/lib/polling";
 import styles from "../recommendations.module.css";
 
 /** Collapsible "Your taste fingerprint" card from the dossier endpoint. */
 export const DossierCard = () => {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const store = useStore();
   const dossier = useResource({
     id: ["enterprise-dossier"],
@@ -34,6 +36,11 @@ export const DossierCard = () => {
       ? "Couldn't refresh your taste fingerprint."
       : dossier.value.error;
 
+  const confirmRefresh = () => {
+    setConfirmOpen(false);
+    void refresh.submitAsync().catch(() => undefined);
+  };
+
   return (
     <section className={styles.dossier}>
       <div className={styles.dossierHeader}>
@@ -49,9 +56,7 @@ export const DossierCard = () => {
         <button
           type="button"
           className={styles.dossierRefresh}
-          onClick={() => {
-            void refresh.submitAsync().catch(() => undefined);
-          }}
+          onClick={() => setConfirmOpen(true)}
           disabled={busy}
           aria-busy={busy}
           aria-label={
@@ -71,6 +76,23 @@ export const DossierCard = () => {
           </span>
         </button>
       </div>
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Refresh taste fingerprint?"
+      >
+        <p className="text-sm text-[var(--muted)]">
+          This will regenerate your taste fingerprint from your latest activity.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={confirmRefresh} disabled={busy}>
+            Regenerate
+          </Button>
+        </div>
+      </Dialog>
       {busy && (
         <p className={styles.dossierStatus} aria-live="polite">
           Refreshing from your latest activity…
