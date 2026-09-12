@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
-import type { UseResourceResult } from "@questorylabs/qhttp/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  ResourceProvider,
+  ResourceStore,
+  type UseResourceResult,
+} from "@questorylabs/qhttp/react";
 import type {
   FamilyInsights,
   FamilyLibrary,
@@ -11,6 +15,10 @@ import type { FamilyViewProps } from "./steam.family.types";
 
 vi.mock("@/components/FamilyGameSidebar", () => ({
   FamilyGameSidebar: () => null,
+}));
+
+vi.mock("@/lib/api", () => ({
+  api: vi.fn(),
 }));
 
 const reload = async () => undefined;
@@ -36,6 +44,7 @@ const member = {
   personaName: "Sam",
   librarySize: 5,
   isMe: true,
+  role: "owner",
 };
 
 const insightsValue: FamilyInsights = {
@@ -126,7 +135,8 @@ const defaults: FamilyViewProps = {
   addBusy: false,
   onAdd: noop,
   showImport: false,
-  onToggleImport: noop,
+  onOpenImport: noop,
+  onCloseImport: noop,
   importable: [],
   selected: new Set(),
   importFilter: "",
@@ -135,6 +145,7 @@ const defaults: FamilyViewProps = {
   toggleAll: noop,
   importBusy: false,
   onImportSelected: noop,
+  importError: null,
   activeMember: "all",
   setActiveMember: noop,
   gameSearch: "",
@@ -145,10 +156,18 @@ const defaults: FamilyViewProps = {
   setConflictsPage: noop,
   selectedAppId: null,
   setSelectedAppId: noop,
+  remainingSlots: 5,
+  familyAtCapacity: false,
 };
 
-const renderView = (patch: Partial<FamilyViewProps>) =>
-  render(<FamilyView {...({ ...defaults, ...patch } as FamilyViewProps)} />);
+const renderView = (patch: Partial<FamilyViewProps>) => {
+  const store = new ResourceStore({ retries: false });
+  return render(
+    <ResourceProvider store={store}>
+      <FamilyView {...({ ...defaults, ...patch } as FamilyViewProps)} />
+    </ResourceProvider>,
+  );
+};
 
 describe("FamilyView", () => {
   afterEach(cleanup);
@@ -174,6 +193,82 @@ describe("FamilyView", () => {
     expect(screen.getByText("Members")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.getByText("Portal")).toBeInTheDocument();
+  });
+
+  it("groups the steam id field with add member, not import", () => {
+    renderView({});
+    const input = screen.getByPlaceholderText("Add member SteamID64");
+    const add = screen.getByRole("button", { name: "Add member" });
+    const form = input.closest("form");
+    expect(form).not.toBeNull();
+    expect(add.closest("form")).toBe(form);
+    expect(
+      screen.getByRole("button", { name: "Import from friends" }).closest("form"),
+    ).toBeNull();
+  });
+
+  it("opens import from friends in a dialog", () => {
+    const onOpenImport = vi.fn();
+    renderView({
+      showImport: true,
+      onOpenImport,
+      importable: [{ steamId: "2", personaName: "Alex", avatarUrl: null }],
+    });
+    expect(
+      screen.getByRole("dialog", { name: "Import from friends" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alex")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Hide friends" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the import dialog from the toolbar button", () => {
+    const onOpenImport = vi.fn();
+    renderView({ onOpenImport });
+    fireEvent.click(screen.getByRole("button", { name: "Import from friends" }));
+    expect(onOpenImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables adding and importing when the family is full", () => {
+    renderView({
+      remainingSlots: 0,
+      familyAtCapacity: true,
+      steamId: "76561198000000002",
+    });
+    expect(screen.getByRole("button", { name: "Add member" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Import from friends" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Family is full (6 people, including you). Remove someone to add another.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a remove action for members who are not you", () => {
+    const friend = {
+      steamId: "2",
+      personaName: "Alex",
+      librarySize: 3,
+      isMe: false,
+      role: "member",
+    };
+    renderView({
+      members: [member, friend],
+      insights: resource<FamilyInsights>({
+        empty: false,
+        failed: false,
+        value: {
+          ...insightsValue,
+          memberCount: 2,
+          members: [member, friend],
+        },
+      }),
+    });
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getAllByText("Alex").length).toBeGreaterThan(0);
   });
 
   it("shows empty copy when ready with no members", () => {

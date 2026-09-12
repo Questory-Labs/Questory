@@ -11,7 +11,7 @@ export const WatchSettingsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         eyebrow="Watch"
         title="Sources"
         description="Connect a live source to keep Watch up to date. Letterboxd scrape sync uses admin-configured rules. Enrich with a CSV export below."

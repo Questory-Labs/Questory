@@ -137,6 +137,16 @@
   border-radius: var(--radius);
 }
 
+/*
+ * Modal surface. Must stay unlayered and after `.panel`: `--surface` is 4%
+ * alpha, and that rule beats Tailwind `bg-*` utilities (layers).
+ */
+.dialog-face {
+  background-color: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -218,6 +228,47 @@
 
 .btn-ghost-danger:hover:not(:disabled) {
   color: var(--ink);
+}
+
+/* Chrome divider — not `.nav-hatch` (that class is the active underline) */
+.chrome-hatch-rule {
+  height: 3px;
+  opacity: 0.6;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--hatch-strong),
+    var(--hatch-strong) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+}
+
+.field {
+  margin-top: 0.25rem;
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--line-strong);
+}
+
+.field-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.field-check input {
+  accent-color: var(--accent);
 }
 
 /* Page-header row: primary + segmented control share one height */

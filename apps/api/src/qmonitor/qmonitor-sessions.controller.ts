@@ -16,8 +16,10 @@ import {
 } from "@questorylabs/shared";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { parseTimeZone } from "../lib/timezone";
 import { PLAY_SESSIONS_PAGE_SIZE } from "./qmonitor.constants";
 import { QmonitorSessionRulesService } from "./qmonitor-session-rules.service";
+import { QmonitorSessionStatsService } from "./qmonitor-session-stats.service";
 import { QmonitorSessionsService } from "./qmonitor-sessions.service";
 
 @Controller("play-sessions")
@@ -26,6 +28,7 @@ export class QmonitorSessionsController {
   constructor(
     private readonly sessions: QmonitorSessionsService,
     private readonly rules: QmonitorSessionRulesService,
+    private readonly sessionStats: QmonitorSessionStatsService,
   ) {}
 
   @Get()
@@ -40,6 +43,14 @@ export class QmonitorSessionsController {
       throw new BadRequestException("Invalid page or pageSize");
     }
     return this.sessions.list(user.userId, page, pageSize);
+  }
+
+  @Get("stats")
+  stats(
+    @CurrentUser() user: { userId: string },
+    @Query("tz") tz?: string,
+  ) {
+    return this.sessionStats.stats(user.userId, parseTimeZone(tz));
   }
 
   @Get("game-suggest")

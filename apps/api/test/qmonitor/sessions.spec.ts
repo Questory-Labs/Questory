@@ -9,6 +9,7 @@ import {
 } from "@questorylabs/shared/session";
 import { QmonitorSessionsController } from "../../src/qmonitor/qmonitor-sessions.controller";
 import { QmonitorSessionRulesService } from "../../src/qmonitor/qmonitor-session-rules.service";
+import { QmonitorSessionStatsService } from "../../src/qmonitor/qmonitor-session-stats.service";
 import { QmonitorSessionsService } from "../../src/qmonitor/qmonitor-sessions.service";
 import { PrismaService } from "../../src/prisma/prisma.service";
 
@@ -104,6 +105,7 @@ describe("play-sessions list", () => {
       providers: [
         QmonitorSessionsService,
         QmonitorSessionRulesService,
+        QmonitorSessionStatsService,
         { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
@@ -123,6 +125,10 @@ describe("play-sessions list", () => {
 
   it("rejects unauthenticated requests", async () => {
     await request(app.getHttpServer()).get("/v1/play-sessions").expect(401);
+  });
+
+  it("rejects unauthenticated stats", async () => {
+    await request(app.getHttpServer()).get("/v1/play-sessions/stats").expect(401);
   });
 
   it("rejects invalid page params", async () => {

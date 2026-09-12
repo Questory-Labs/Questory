@@ -1,7 +1,6 @@
 ---
 description: Next.js web app conventions — fetch wrappers, React Query, gates, UI reuse, Tailwind
-globs: apps/web/**/*.ts,apps/web/**/*.tsx
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Next.js web conventions

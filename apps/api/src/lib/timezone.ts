@@ -130,3 +130,24 @@ export function computeStreakDays(
   }
   return streak;
 }
+
+/** Local calendar day keys, oldest first, ending on `now` in `timeZone`. */
+export function zonedDayKeysEndingToday(
+  timeZone: string,
+  count: number,
+  now = new Date(),
+): string[] {
+  const n = Math.max(0, Math.floor(count));
+  const keys: string[] = [];
+  let { year, month, day } = zonedParts(now, timeZone);
+  for (let i = 0; i < n; i += 1) {
+    keys.push(
+      `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    );
+    const prev = new Date(Date.UTC(year, month - 1, day - 1));
+    year = prev.getUTCFullYear();
+    month = prev.getUTCMonth() + 1;
+    day = prev.getUTCDate();
+  }
+  return keys.reverse();
+}

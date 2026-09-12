@@ -2,6 +2,10 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { resolveDisplayCurrency } from "../lib/currency";
 import { parseStringArray } from "../lib/json-arrays";
+import {
+  PLAY_NEXT_DEFAULT_LIMIT,
+  RECENTLY_PLAYED_TAKE,
+} from "./dashboard.constants";
 
 @Injectable()
 export class DashboardService {
@@ -25,7 +29,7 @@ export class DashboardService {
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.libraryEntry.count({ where: { userId, hidden: false } }),
       this.prisma.libraryEntry.aggregate({
-        where: { userId },
+        where: { userId, hidden: false },
         _sum: { playtimeForever: true },
       }),
       this.prisma.libraryEntry.count({
@@ -36,7 +40,7 @@ export class DashboardService {
       this.prisma.libraryEntry.findMany({
         where: { userId, lastPlayedAt: { not: null } },
         orderBy: { lastPlayedAt: "desc" },
-        take: 8,
+        take: RECENTLY_PLAYED_TAKE,
         include: { game: true },
       }),
       // Prefer an in-flight job so dashboard "syncing" isn't stuck on a finished
@@ -145,7 +149,7 @@ export class DashboardService {
   }
 
   /** Weekly play-next ranking from backlog + affinity + Deck/review signals. */
-  async playNext(userId: string, limit = 12) {
+  async playNext(userId: string, limit = PLAY_NEXT_DEFAULT_LIMIT) {
     const library = await this.prisma.libraryEntry.findMany({
       where: { userId, hidden: false },
       include: { game: true },

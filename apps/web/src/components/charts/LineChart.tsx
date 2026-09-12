@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import { ChartGrid, ChartHoverCard } from "./ChartGrid";
 import {
   buildLineLayout,
   chartHeightClass,
   defaultXLabel,
-  readToken,
+  monotoneAreaPath,
+  monotoneLinePath,
   useChartWidth,
 } from "./chart-utils";
 import type { ChartSize, SketchDatum } from "./types";
@@ -34,8 +36,7 @@ export function LineChart({
   xLabelAngle?: number;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const sketchRef = useRef<SVGGElement>(null);
+  const fillId = useId().replace(/:/g, "");
   const [hover, setHover] = useState<number | null>(null);
   const width = useChartWidth(rootRef);
 
@@ -43,85 +44,6 @@ export function LineChart({
     const w = width > 0 ? width : 720;
     return buildLineLayout(data, w, { size, xMode });
   }, [data, width, size, xMode]);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    const layer = sketchRef.current;
-    const root = rootRef.current;
-    if (!svg || !layer || data.length < 2 || layout.width <= 0) return;
-
-    let cancelled = false;
-    const { pad, width: chartW } = layout;
-
-    void import("roughjs/bin/rough").then(({ default: rough }) => {
-      if (cancelled) return;
-
-      layer.replaceChildren();
-      const rc = rough.svg(svg);
-      const accent = readToken(root, "--accent", "#7dd3c0");
-      const faint = readToken(root, "--faint", "#777168");
-      const grid = readToken(root, "--line", "rgba(242, 239, 232, 0.12)");
-
-      for (const tick of layout.yTicks) {
-        const y =
-          pad.top + layout.plotH - (tick / layout.yMax) * layout.plotH;
-        layer.appendChild(
-          rc.line(pad.left, y, chartW - pad.right, y, {
-            stroke: grid,
-            strokeWidth: 1,
-            roughness: 0.9,
-          }),
-        );
-      }
-
-      layer.appendChild(
-        rc.line(pad.left, pad.top - 6, pad.left, layout.baseline + 6, {
-          stroke: faint,
-          strokeWidth: 1.5,
-          roughness: 1.4,
-        }),
-      );
-      layer.appendChild(
-        rc.line(
-          pad.left - 4,
-          layout.baseline,
-          chartW - pad.right + 4,
-          layout.baseline,
-          {
-            stroke: faint,
-            strokeWidth: 1.5,
-            roughness: 1.4,
-          },
-        ),
-      );
-
-      layer.appendChild(
-        rc.path(layout.areaPath, {
-          fill: accent,
-          fillStyle: "hachure",
-          fillWeight: 0.7,
-          hachureAngle: -45,
-          hachureGap: 5,
-          stroke: accent,
-          strokeWidth: 0.8,
-          roughness: 1.8,
-        }),
-      );
-
-      layer.appendChild(
-        rc.curve(layout.curvePts, {
-          stroke: accent,
-          strokeWidth: 2.4,
-          roughness: 2,
-          bowing: 1.2,
-        }),
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [data, layout]);
 
   if (data.length < 2) {
     return (
@@ -134,11 +56,12 @@ export function LineChart({
   const { pad } = layout;
   const active = hover != null ? layout.points[hover] : null;
   const xLabelY = layout.baseline + (xLabelAngle !== 0 ? 12 : 16);
+  const lineD = monotoneLinePath(layout.points);
+  const areaD = monotoneAreaPath(layout.points, layout.baseline);
 
   return (
     <div ref={rootRef} className="relative w-full" data-sketch-chart>
       <svg
-        ref={svgRef}
         viewBox={`0 0 ${chartW} ${H}`}
         className={`w-full select-none ${chartHeightClass(size)}`}
         role="img"
@@ -146,7 +69,30 @@ export function LineChart({
         onMouseLeave={() => setHover(null)}
         preserveAspectRatio="none"
       >
-        <g ref={sketchRef} />
+        <defs>
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <ChartGrid
+          width={chartW}
+          pad={pad}
+          plotH={layout.plotH}
+          yTicks={layout.yTicks}
+          yMax={layout.yMax}
+          baseline={layout.baseline}
+        />
+        <path d={areaD} fill={`url(#${fillId})`} />
+        <path
+          d={lineD}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="1.75"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
 
         {layout.yTicks.map((tick) => {
           const y =
@@ -207,34 +153,29 @@ export function LineChart({
               y2={layout.baseline}
               stroke="var(--accent)"
               strokeWidth="1"
-              strokeDasharray="4 4"
-              opacity="0.45"
+              strokeDasharray="3 4"
+              opacity="0.5"
+              vectorEffect="non-scaling-stroke"
             />
             <circle
               cx={active.x}
               cy={active.y}
-              r="5"
-              fill="var(--bg-0)"
+              r="3.5"
+              fill="var(--bg-1)"
               stroke="var(--accent)"
-              strokeWidth="2"
+              strokeWidth="1.75"
             />
           </>
         ) : null}
       </svg>
 
       {active ? (
-        <div
-          className="pointer-events-none absolute top-1 rounded border border-[var(--line-strong)] bg-[var(--bg-0)] px-3 py-2 font-mono text-[10px] text-[var(--ink)]"
-          style={{
-            left: `${Math.min(Math.max((active.x / chartW) * 100, 14), 86)}%`,
-            transform: "translateX(-50%)",
-          }}
-        >
+        <ChartHoverCard xPct={(active.x / chartW) * 100}>
           <div className="text-[var(--muted)]">{formatXLabel(active.label)}</div>
           <div className="mt-0.5 text-[var(--accent)]">
             {formatValue(active.value)} {valueLabel}
           </div>
-        </div>
+        </ChartHoverCard>
       ) : null}
     </div>
   );

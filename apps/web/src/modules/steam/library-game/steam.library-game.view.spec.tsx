@@ -119,10 +119,12 @@ describe("LibraryGameView", () => {
   });
 
   it("renders the game header when the entry is ready", () => {
-    renderView({});
+    const { container } = renderView({});
     expect(screen.getByRole("heading", { name: "Portal" })).toBeInTheDocument();
     expect(screen.getByText("Your playtime")).toBeInTheDocument();
     expect(screen.getByText("game details")).toBeInTheDocument();
+    const cover = container.querySelector(".aspect-\\[460\\/215\\]")?.parentElement;
+    expect(cover?.className).not.toContain("grow");
   });
 
   it("shows a detail error without hiding the entry header", () => {

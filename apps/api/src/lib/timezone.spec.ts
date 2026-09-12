@@ -7,6 +7,7 @@ import {
   zonedHour,
   zonedIsoWeekKey,
   zonedWeekday,
+  zonedDayKeysEndingToday,
 } from "./timezone";
 
 describe("parseTimeZone", () => {
@@ -69,5 +70,25 @@ describe("computeStreakDays", () => {
     const now = new Date("2026-07-29T12:00:00.000Z");
     const dates = [new Date("2026-07-27T12:00:00.000Z")];
     expect(computeStreakDays(dates, tz, now)).toBe(0);
+  });
+});
+
+describe("zonedDayKeysEndingToday", () => {
+  it("returns oldest-first local days ending today", () => {
+    const now = new Date("2026-01-15T12:00:00.000Z");
+    expect(zonedDayKeysEndingToday("UTC", 3, now)).toEqual([
+      "2026-01-13",
+      "2026-01-14",
+      "2026-01-15",
+    ]);
+  });
+
+  it("crosses a month boundary in Asia/Kolkata", () => {
+    // 2026-02-01 01:30 IST = 2026-01-31T20:00:00Z
+    const now = new Date("2026-01-31T20:00:00.000Z");
+    expect(zonedDayKeysEndingToday("Asia/Kolkata", 2, now)).toEqual([
+      "2026-01-31",
+      "2026-02-01",
+    ]);
   });
 });

@@ -2,9 +2,10 @@
 
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import { formatMoney } from "@/lib/money";
+import { FAMILY_MEMBER_LIMIT } from "@questorylabs/shared";
 import { Button, PageHeader } from "@questorylabs/ui";
 import { FamilyConflictsSection } from "./components/FamilyConflictsSection";
-import { FamilyImportPanel } from "./components/FamilyImportPanel";
+import { FamilyImportDialog } from "./components/FamilyImportDialog";
 import { FamilyInsightsSection } from "./components/FamilyInsightsSection";
 import { FamilyLibrarySection } from "./components/FamilyLibrarySection";
 import type { FamilyViewProps } from "./steam.family.types";
@@ -22,7 +23,8 @@ export const FamilyView = (props: Record<string, unknown>) => {
     addBusy,
     onAdd,
     showImport,
-    onToggleImport,
+    onOpenImport,
+    onCloseImport,
     importable,
     selected,
     importFilter,
@@ -31,6 +33,7 @@ export const FamilyView = (props: Record<string, unknown>) => {
     toggleAll,
     importBusy,
     onImportSelected,
+    importError,
     activeMember,
     setActiveMember,
     gameSearch,
@@ -41,6 +44,8 @@ export const FamilyView = (props: Record<string, unknown>) => {
     setConflictsPage,
     selectedAppId,
     setSelectedAppId,
+    remainingSlots,
+    familyAtCapacity,
   } = props as FamilyViewProps;
 
   const currency = insights.value?.currency || "USD";
@@ -49,57 +54,66 @@ export const FamilyView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Family Dashboard"
         description="Browse shareable family games by member, with ownership and price stats"
       />
 
       <div className="flex flex-wrap items-center gap-2">
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="flex min-w-0 flex-nowrap items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (steamId.trim()) onAdd();
+            if (!familyAtCapacity && steamId.trim()) onAdd();
           }}
         >
           <input
             value={steamId}
             onChange={(e) => setSteamId(e.target.value)}
             placeholder="Add member SteamID64"
-            className="h-9 min-w-[260px] rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 text-sm"
+            className="field mt-0 h-9 w-[260px] max-w-full shrink"
           />
           <Button
             type="submit"
-            disabled={addBusy || !steamId.trim()}
-            className="h-9"
+            disabled={addBusy || familyAtCapacity || !steamId.trim()}
+            className="h-9 shrink-0"
           >
             {addBusy ? "Adding…" : "Add member"}
           </Button>
         </form>
         <Button
           variant="secondary"
-          onClick={onToggleImport}
-          className="h-9"
+          onClick={onOpenImport}
+          disabled={familyAtCapacity}
+          className="h-9 shrink-0"
         >
-          {showImport ? "Hide friends" : "Import from friends"}
+          Import from friends
         </Button>
       </div>
+      <p className="mt-2 text-xs text-[var(--muted)]">
+        {familyAtCapacity
+          ? `Family is full (${FAMILY_MEMBER_LIMIT} people, including you). Remove someone to add another.`
+          : `${FAMILY_MEMBER_LIMIT} people max, including you. ${remainingSlots} slot${remainingSlots === 1 ? "" : "s"} left.`}
+      </p>
       {addError && (
         <p className="mt-2 text-sm text-[var(--danger)]">{addError}</p>
       )}
 
-      {showImport ? (
-        <FamilyImportPanel
-          friends={friends}
-          importable={importable}
-          selected={selected}
-          importFilter={importFilter}
-          setImportFilter={setImportFilter}
-          toggle={toggle}
-          toggleAll={toggleAll}
-          importBusy={importBusy}
-          onImportSelected={onImportSelected}
-        />
-      ) : null}
+      <FamilyImportDialog
+        open={showImport}
+        onClose={onCloseImport}
+        friends={friends}
+        importable={importable}
+        selected={selected}
+        importFilter={importFilter}
+        setImportFilter={setImportFilter}
+        toggle={toggle}
+        toggleAll={toggleAll}
+        importBusy={importBusy}
+        onImportSelected={onImportSelected}
+        importError={importError}
+        remainingSlots={remainingSlots}
+      />
 
       <FamilyInsightsSection
         insights={insights}

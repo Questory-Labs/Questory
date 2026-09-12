@@ -41,7 +41,7 @@ export const MusicChartsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Top charts"
         description={total > 0 ? `${rangeLabel} · ${total} ${kind}` : rangeLabel}
         actions={<MusicRangePicker value={range} onChange={onRangeChange} />}

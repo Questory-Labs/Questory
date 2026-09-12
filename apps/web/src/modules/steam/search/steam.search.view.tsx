@@ -17,6 +17,7 @@ export const SearchView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Search"
         description={q ? `Results for “${q}”` : "Search your library and media"}
       />

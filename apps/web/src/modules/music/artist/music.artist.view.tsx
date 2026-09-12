@@ -52,7 +52,7 @@ export const MusicArtistView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         eyebrow="Artist"
         title={title}
         description={

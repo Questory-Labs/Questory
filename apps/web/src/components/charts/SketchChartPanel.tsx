@@ -1,16 +1,18 @@
 "use client";
 
 import { Panel } from "@/components/ui";
+import { BarChart } from "./BarChart";
 import { LineChart } from "./LineChart";
 import type { ChartSize, SketchDatum } from "./types";
 
-export function SketchChartPanel({
+export const SketchChartPanel = ({
   title,
   data,
   valueLabel,
   emptyMessage = "No data yet.",
   ariaLabel,
   size = "md",
+  variant = "line",
   xLabelAngle,
   formatXLabel,
   formatValue,
@@ -23,16 +25,18 @@ export function SketchChartPanel({
   emptyMessage?: string;
   ariaLabel?: string;
   size?: ChartSize;
+  variant?: "line" | "bar";
   xLabelAngle?: number;
   formatXLabel?: (label: string) => string;
   formatValue?: (n: number) => string;
   formatYTick?: (n: number) => string;
   className?: string;
-}) {
+}) => {
   const chartData: SketchDatum[] = data.map((d) => ({
     label: d.label,
     value: d.count,
   }));
+  const Chart = variant === "bar" ? BarChart : LineChart;
 
   return (
     <Panel className={className ?? "p-4"}>
@@ -43,16 +47,20 @@ export function SketchChartPanel({
         <p className="mt-3 text-sm text-[var(--muted)]">{emptyMessage}</p>
       ) : (
         <div className="mt-3">
-          <LineChart
+          <Chart
             data={chartData}
             valueLabel={valueLabel}
             ariaLabel={ariaLabel ?? title}
             size={size}
-            xLabelAngle={xLabelAngle ?? (data.length > 12 ? -40 : 0)}
+            xLabelAngle={
+              xLabelAngle ?? (variant === "bar" ? undefined : data.length > 12 ? -40 : 0)
+            }
             formatXLabel={formatXLabel ?? ((l) => l)}
+            formatValue={formatValue}
+            formatYTick={formatYTick}
           />
         </div>
       )}
     </Panel>
   );
-}
+};

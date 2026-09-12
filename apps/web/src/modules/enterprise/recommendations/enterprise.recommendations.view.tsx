@@ -64,12 +64,12 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Recommendations"
         description="What to play, watch, and listen to next — scored from your library, listening history, and watchlists."
       />
       <section>
-        <div className={styles.worldStrip}>
+        <div className="panel-outline mb-5 px-4 py-3 text-sm text-[var(--muted)]">
           {worldSummary ? (
             <span>{worldSummary}</span>
           ) : (

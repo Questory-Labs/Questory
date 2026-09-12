@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../cn";
+import { HatchShadow } from "./HatchShadow";
 import {
   dateFieldCellVariants,
   dateFieldDayVariants,
@@ -213,11 +214,12 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
         <CalendarIcon />
       </button>
       {open ? (
-        <div
-          role="dialog"
-          aria-label="Choose date"
-          className="absolute right-0 z-20 mt-1 w-[16.5rem] rounded border border-[var(--line)] bg-[var(--bg-1)] p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        <HatchShadow
+          size="sm"
+          className="absolute right-0 z-20 mt-1 w-[16.5rem]"
+          faceClassName="panel bg-[var(--bg-1)] p-2.5"
         >
+        <div role="dialog" aria-label="Choose date">
           <div className="mb-2 flex items-center gap-1">
             <button
               type="button"
@@ -336,6 +338,7 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
             </div>
           ) : null}
         </div>
+        </HatchShadow>
       ) : null}
     </div>
   );

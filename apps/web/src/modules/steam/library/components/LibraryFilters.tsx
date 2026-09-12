@@ -1,5 +1,7 @@
 "use client";
 
+import { Panel } from "@questorylabs/ui";
+
 export const LibraryFilters = ({
   genre,
   unplayed,
@@ -19,14 +21,17 @@ export const LibraryFilters = ({
   onMultiplayerChange: (value: boolean) => void;
   onDeckChange: (value: boolean) => void;
 }) => (
-  <div className="mb-6 flex flex-wrap gap-3 text-sm">
-    <input
-      value={genre}
-      onChange={(e) => onGenreChange(e.target.value)}
-      placeholder="Genre"
-      className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-1.5"
-    />
-    <label className="flex items-center gap-2 text-[var(--muted)]">
+  <Panel variant="outline" className="mb-6 flex flex-wrap items-end gap-4 p-3">
+    <label className="min-w-[10rem] text-sm">
+      <span className="text-[var(--muted)]">Genre</span>
+      <input
+        value={genre}
+        onChange={(e) => onGenreChange(e.target.value)}
+        placeholder="Any"
+        className="field"
+      />
+    </label>
+    <label className="field-check">
       <input
         type="checkbox"
         checked={unplayed}
@@ -34,7 +39,7 @@ export const LibraryFilters = ({
       />
       Unplayed
     </label>
-    <label className="flex items-center gap-2 text-[var(--muted)]">
+    <label className="field-check">
       <input
         type="checkbox"
         checked={multiplayer}
@@ -42,7 +47,7 @@ export const LibraryFilters = ({
       />
       Multiplayer
     </label>
-    <label className="flex items-center gap-2 text-[var(--muted)]">
+    <label className="field-check">
       <input
         type="checkbox"
         checked={deck}
@@ -50,5 +55,5 @@ export const LibraryFilters = ({
       />
       Deck ready
     </label>
-  </div>
+  </Panel>
 );

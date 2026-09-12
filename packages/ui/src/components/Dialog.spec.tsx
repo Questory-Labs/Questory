@@ -37,6 +37,30 @@ describe("Dialog", () => {
         Body
       </Dialog>,
     );
-    expect(screen.getByRole("dialog", { name: "Wide" })).toHaveClass("max-w-xl");
+    const dialog = screen.getByRole("dialog", { name: "Wide" });
+    expect(dialog.closest(".hatch-shadow")).toHaveClass("max-w-xl");
+  });
+
+  it("uses a hatch overlay instead of glass blur", () => {
+    render(
+      <Dialog open onClose={() => undefined} title="Confirm">
+        Body
+      </Dialog>,
+    );
+    const close = screen.getByRole("button", { name: "Close dialog" });
+    expect(close.className).not.toContain("backdrop-blur");
+    expect(close.className).toContain("hatch-fill");
+    expect(screen.getByRole("dialog").closest(".hatch-shadow")).toBeTruthy();
+  });
+
+  it("uses an opaque dialog face, not the translucent panel wash", () => {
+    render(
+      <Dialog open onClose={() => undefined} title="Confirm">
+        Body
+      </Dialog>,
+    );
+    const face = screen.getByRole("dialog").closest(".hatch-face");
+    expect(face).toHaveClass("dialog-face");
+    expect(face).not.toHaveClass("panel");
   });
 });

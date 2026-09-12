@@ -10,22 +10,17 @@ import type {
   TrendingResponse,
   TrendingShelf,
 } from "@questorylabs/shared";
-
-/** Cap how many friends we hit Steam for on a single trending build. */
-const MAX_FRIENDS = 200;
-/** Parallel Steam recently-played fetches. */
-const FRIEND_CONCURRENCY = 4;
-/** Delay between launching friend fetches (rate-limit cushion). */
-const FRIEND_STAGGER_MS = 180;
-/** Games pulled per friend from GetRecentlyPlayedGames. */
-const RECENT_PER_FRIEND = 12;
-/** Aggregate friends shelf cache. */
-const FRIENDS_CACHE_TTL = 1200;
-/** How many friends shown as avatars on a tile. */
-const SAMPLE_FRIENDS = 3;
-const FRIENDS_TOP_N = 16;
-const GLOBAL_TOP_N = 20;
-const CHART_TOP_N = 20;
+import {
+  CHART_TOP_N,
+  FRIEND_CONCURRENCY,
+  FRIEND_STAGGER_MS,
+  FRIENDS_CACHE_TTL,
+  FRIENDS_TOP_N,
+  GLOBAL_TOP_N,
+  MAX_FRIENDS,
+  RECENT_PER_FRIEND,
+  SAMPLE_FRIENDS,
+} from "./trending.constants";
 
 type FriendAgg = {
   appId: number;

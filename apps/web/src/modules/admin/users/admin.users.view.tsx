@@ -16,7 +16,7 @@ export const AdminUsersView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Users"
         description={
           startFreshEnabled

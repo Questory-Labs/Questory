@@ -17,6 +17,7 @@ export const CollectionsView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Collections"
         description="Smart shelves plus your custom lists"
       />
@@ -32,7 +33,7 @@ export const CollectionsView = (props: Record<string, unknown>) => {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="New custom collection"
-          className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm"
+          className="field mt-0"
         />
         <Button type="submit" variant="primary" disabled={create.busy}>
           Create

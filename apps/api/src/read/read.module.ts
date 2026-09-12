@@ -11,6 +11,7 @@ import { ReadMalModule } from "./mal/mal.module";
 import { ReadShikimoriModule } from "./shikimori/shikimori.module";
 import { ReadSyncStatusController } from "./sync-status.controller";
 import { ReadOpenLibraryModule } from "./openlibrary/openlibrary.module";
+import { ReadTrendingModule } from "./trending/trending.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ReadOpenLibraryModule } from "./openlibrary/openlibrary.module";
     ReadShikimoriModule,
     ReadOpenLibraryModule,
     WatchAnilistModule,
+    ReadTrendingModule,
   ],
   controllers: [ReadSyncStatusController],
 })

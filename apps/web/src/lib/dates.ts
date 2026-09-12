@@ -23,6 +23,24 @@ export function formatDate(iso: string | null | undefined): string {
   });
 }
 
+/** Relative last-played: just now / 3h ago / 2d ago, then a short date. */
+export function formatRelativePlayed(
+  iso: string | null | undefined,
+  now = new Date(),
+): string {
+  if (!iso) return "—";
+  const at = new Date(iso);
+  const deltaMs = Math.max(0, now.getTime() - at.getTime());
+  const mins = Math.floor(deltaMs / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days}d ago`;
+  return formatDate(iso);
+}
+
 export function formatDateTime(
   iso: string | null | undefined,
   now = new Date(),

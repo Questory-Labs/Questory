@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 /**
- * Steam header capsule (460×215) that always covers its box.
- * Add `grow` when the parent is a stretched flex/grid cell so art fills leftover height.
+ * Steam header capsule (460×215). Keep the intrinsic ratio — never `grow` in
+ * stretched grids; leftover height crops the art.
  */
 export function GameCover({
   src,

@@ -18,18 +18,14 @@ describe("LandingView", () => {
 
   it("shows a Sign in link", () => {
     renderView({});
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    const links = screen.getAllByRole("link", { name: "Sign in" });
+    expect(links[0]).toHaveAttribute("href", "/login");
   });
 
   it("shows Create account when showRegister is true", () => {
     renderView({ showRegister: true });
-    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
-      "href",
-      "/register",
-    );
+    const links = screen.getAllByRole("link", { name: "Create account" });
+    expect(links[0]).toHaveAttribute("href", "/register");
   });
 
   it("hides Create account when showRegister is false", () => {
@@ -37,5 +33,15 @@ describe("LandingView", () => {
     expect(
       screen.queryByRole("link", { name: "Create account" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("numbers the four domains", () => {
+    renderView({});
+    expect(screen.getByText("/01")).toBeInTheDocument();
+    expect(screen.getByText("/02")).toBeInTheDocument();
+    expect(screen.getByText("/03")).toBeInTheDocument();
+    expect(screen.getByText("/04")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Music" })).toBeInTheDocument();
   });
 });

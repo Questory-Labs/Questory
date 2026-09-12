@@ -9,7 +9,7 @@ import {
   SkeletonListRows,
   SkeletonStatGrid,
 } from "@questorylabs/ui";
-import { memberLabel } from "../steam.family.utils";
+import { FamilyMembersTable } from "./FamilyMembersTable";
 
 export const FamilyInsightsSection = ({
   insights,
@@ -73,74 +73,11 @@ export const FamilyInsightsSection = ({
                 title="No members yet. Import friends or add a SteamID64 above."
               />
             ) : (
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--line)] text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
-                    <th className="px-4 py-3 font-medium">Member</th>
-                    <th className="px-3 py-3 font-medium tabular-nums">Games</th>
-                    <th className="px-3 py-3 font-medium tabular-nums">Shared</th>
-                    <th className="px-3 py-3 font-medium tabular-nums">Unique</th>
-                    <th className="px-3 py-3 font-medium tabular-nums">Value</th>
-                    <th className="px-3 py-3 font-medium tabular-nums">
-                      Wishlist gaps
-                    </th>
-                    <th className="px-3 py-3 font-medium tabular-nums">Unplayed</th>
-                    <th className="px-3 py-3 font-medium tabular-nums">Hours</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(d?.members || []).map((m) => (
-                    <tr
-                      key={m.steamId}
-                      className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--bg-2)]"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {m.avatarUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={m.avatarUrl}
-                              alt=""
-                              className="h-7 w-7 rounded-full"
-                            />
-                          ) : (
-                            <span className="h-7 w-7 rounded-full bg-[var(--bg-2)]" />
-                          )}
-                          <span className="truncate font-medium">
-                            {memberLabel(m)}
-                          </span>
-                          {d?.suggestedPurchaser?.steamId === m.steamId && (
-                            <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--accent)]">
-                              &bull;
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.librarySize}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.sharedCount ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.uniqueCount ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.trackedSpend != null ? money(m.trackedSpend) : "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.wishlistGaps ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.unusedCount ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
-                        {m.playtimeHours != null ? `${m.playtimeHours}h` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <FamilyMembersTable
+                members={d?.members || []}
+                suggestedPurchaserSteamId={d?.suggestedPurchaser?.steamId}
+                money={money}
+              />
             )}
           </section>
         </>

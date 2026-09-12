@@ -2,56 +2,45 @@
 
 import { useEffect, useState, type PropsWithChildren } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
-import type { CostRoiPage, CostSummary } from "@questorylabs/shared";
+import type {
+  CostRoiPage,
+  CostRoiSort,
+  CostRoiValueFilter,
+  CostSummary,
+} from "@questorylabs/shared";
 import { cloneElements } from "@questorylabs/ui";
 import { api } from "@/lib/api";
 import { COST_ROI_PAGE_SIZE } from "@/lib/pagination";
-import type { ValueTab } from "./steam.cost.types";
 
 export const CostController = ({ children }: PropsWithChildren) => {
-  const [bestTab, setBestTab] = useState<ValueTab>("paid");
-  const [worstTab, setWorstTab] = useState<ValueTab>("paid");
-  const [bestPage, setBestPage] = useState(1);
-  const [worstPage, setWorstPage] = useState(1);
+  const [sort, setSort] = useState<CostRoiSort>("best");
+  const [valueTab, setValueTab] = useState<CostRoiValueFilter>("paid");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    setBestPage(1);
-  }, [bestTab]);
-
-  useEffect(() => {
-    setWorstPage(1);
-  }, [worstTab]);
+    setPage(1);
+  }, [sort, valueTab]);
 
   const summary = useResource({
     id: ["cost-summary"],
     load: () => api<CostSummary>("/cost/summary"),
   });
-  const bestRoi = useResource({
-    id: ["cost-roi", "best", bestTab, bestPage],
+  const roi = useResource({
+    id: ["cost-roi", sort, valueTab, page],
     load: () =>
       api<CostRoiPage>(
-        `/cost/roi?sort=best&value=${bestTab}&page=${bestPage}&pageSize=${COST_ROI_PAGE_SIZE}`,
-      ),
-  });
-  const worstRoi = useResource({
-    id: ["cost-roi", "worst", worstTab, worstPage],
-    load: () =>
-      api<CostRoiPage>(
-        `/cost/roi?sort=worst&value=${worstTab}&page=${worstPage}&pageSize=${COST_ROI_PAGE_SIZE}`,
+        `/cost/roi?sort=${sort}&value=${valueTab}&page=${page}&pageSize=${COST_ROI_PAGE_SIZE}`,
       ),
   });
 
   return cloneElements(children, {
     summary,
-    bestRoi,
-    worstRoi,
-    bestTab,
-    setBestTab,
-    worstTab,
-    setWorstTab,
-    bestPage,
-    setBestPage,
-    worstPage,
-    setWorstPage,
+    roi,
+    sort,
+    setSort,
+    valueTab,
+    setValueTab,
+    page,
+    setPage,
   });
 };

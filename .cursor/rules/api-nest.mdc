@@ -1,7 +1,6 @@
 ---
 description: NestJS API conventions — Zod validation, guards, error handling, thin controllers
-globs: apps/api/**/*.ts
-alwaysApply: false
+alwaysApply: true
 ---
 
 # NestJS API conventions

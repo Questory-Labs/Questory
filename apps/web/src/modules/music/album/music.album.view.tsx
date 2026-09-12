@@ -61,7 +61,7 @@ export const MusicAlbumView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         eyebrow="Album"
         title={title}
         description={

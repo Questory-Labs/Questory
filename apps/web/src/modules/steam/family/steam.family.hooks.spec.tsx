@@ -59,6 +59,56 @@ describe("useFamilyImportSelection", () => {
     expect(result.current.selected.size).toBe(0);
   });
 
+  it("does not select more friends than remaining slots", () => {
+    const { result } = renderHook(() =>
+      useFamilyImportSelection(friends, new Set(), 1),
+    );
+    act(() => {
+      result.current.toggle("1");
+      result.current.toggle("2");
+    });
+    expect([...result.current.selected]).toEqual(["1"]);
+  });
+
+  it("toggleAll only fills remaining slots", () => {
+    const { result } = renderHook(() =>
+      useFamilyImportSelection(friends, new Set(), 2),
+    );
+    act(() => {
+      result.current.toggleAll();
+    });
+    expect(result.current.selected.size).toBe(2);
+  });
+
+  it("drops selected friends who are already family members", () => {
+    const { result, rerender } = renderHook(
+      ({ memberIds }: { memberIds: Set<string> }) =>
+        useFamilyImportSelection(friends, memberIds, 5),
+      { initialProps: { memberIds: new Set<string>() } },
+    );
+    act(() => {
+      result.current.toggle("2");
+    });
+    expect(result.current.selected.has("2")).toBe(true);
+    rerender({ memberIds: new Set(["2"]) });
+    expect(result.current.selected.has("2")).toBe(false);
+    expect(result.current.importable.map((f) => f.steamId)).toEqual([
+      "1",
+      "3",
+    ]);
+  });
+
+  it("treats padded steam ids as already in the family", () => {
+    const padded: Friend[] = [
+      { steamId: " 2 ", personaName: "Bob", avatarUrl: null },
+      { steamId: "3", personaName: "Carol", avatarUrl: null },
+    ];
+    const { result } = renderHook(() =>
+      useFamilyImportSelection(padded, new Set(["2"])),
+    );
+    expect(result.current.importable.map((f) => f.steamId)).toEqual(["3"]);
+  });
+
   it("reset clears the selected set and filter", () => {
     const { result } = renderHook(() =>
       useFamilyImportSelection(friends, new Set()),

@@ -48,14 +48,11 @@ export const LibraryGameView = (props: Record<string, unknown>) => {
       >
         {e ? (
           <>
-            <div className="mt-4 grid gap-6 lg:grid-cols-[1.2fr_1fr] lg:items-stretch">
-              <Panel
-                wrapperClassName="h-full min-h-0"
-                className="flex h-full min-h-0 flex-col overflow-hidden"
-              >
+            <div className="mt-4 grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
+              <Panel className="overflow-hidden">
                 <GameCover
                   src={e.game.headerImage || d?.headerImage || null}
-                  className="min-h-0 w-full grow"
+                  className="w-full"
                 />
               </Panel>
               <div>
@@ -197,6 +194,7 @@ export const LibraryGameView = (props: Record<string, unknown>) => {
                         linkFriends
                         friendLimit={24}
                         chartSize="lg"
+                        playtimeHours={Math.round((e.playtimeForever / 60) * 10) / 10}
                         className="space-y-8"
                         beforeFriends={
                           e.ownerships && e.ownerships.length === 1 ? (
