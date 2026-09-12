@@ -1,6 +1,11 @@
 import { withApiVersion } from "@questorylabs/shared";
 import { getApiUrl } from "@/lib/runtime-env";
-import { requestJson, requestJsonOnce } from "@/lib/qhttp-client";
+import {
+  mapQHttpError,
+  requestJson,
+  requestJsonOnce,
+  sessionHttp,
+} from "@/lib/qhttp-client";
 
 function apiPath(path: string) {
   return withApiVersion(path, ["/auth", "/health", "/oauth", "/webhooks"]);
@@ -19,6 +24,19 @@ export async function apiOnce<T>(
   init: RequestInit = {},
 ): Promise<T> {
   return requestJsonOnce<T>(`${getApiUrl()}${apiPath(path)}`, init);
+}
+
+export async function apiBlob(path: string): Promise<Blob> {
+  try {
+    const result = await sessionHttp
+      .clone()
+      .setUrl(`${getApiUrl()}${apiPath(path)}`)
+      .setResponseType("blob")
+      .request<Blob>({ method: "GET" });
+    return result.data;
+  } catch (err) {
+    throw mapQHttpError(err);
+  }
 }
 
 /** @deprecated Steam is link-only via Connections; use steamLinkUrl from auth-api. */

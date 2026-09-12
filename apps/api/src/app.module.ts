@@ -30,6 +30,7 @@ import { ReadModule } from "./read/read.module";
 import { ShellModule } from "./shell/shell.module";
 import { HealthController, ApiHealthController } from "./health.controller";
 import { EnterpriseModule } from "./enterprise/enterprise.module";
+import { ProfileDataModule } from "./profile-data/profile-data.module";
 import { QmonitorModule } from "./qmonitor/qmonitor.module";
 import { TagsModule } from "./tags/tags.module";
 
@@ -74,6 +75,7 @@ const localEnv = resolve(process.cwd(), ".env");
     EnterpriseModule,
     TagsModule,
     QmonitorModule,
+    ProfileDataModule,
   ],
   controllers: [HealthController, ApiHealthController],
 })

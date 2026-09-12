@@ -90,6 +90,7 @@ services:
       DATABASE_URL: file:/data/questorylabs.db
       REDIS_URL: ""
       USE_INLINE_SYNC: "true"
+      PROFILE_EXPORT_DIR: /data/profile-exports
     volumes:
       - sqlite_data:/data
     ports:
@@ -114,6 +115,9 @@ services:
       DATABASE_URL: postgresql://questorylabs:questorylabs@postgres:5432/questorylabs
       REDIS_URL: redis://redis:6379
       USE_INLINE_SYNC: "false"
+      PROFILE_EXPORT_DIR: /data/profile-exports
+    volumes:
+      - profile_exports:/data/profile-exports
     ports:
       - "4000:4000"
 
@@ -168,3 +172,4 @@ volumes:
   postgres_data:
   redis_data:
   sqlite_data:
+  profile_exports:

@@ -4,7 +4,7 @@ import type {
   UseActionResult,
   UseResourceResult,
 } from "@questorylabs/qhttp/react";
-import type { MeResponse, User } from "@questorylabs/shared";
+import type { MeResponse, ProfileExportStatus, ProfileImportJob, User } from "@questorylabs/shared";
 import { ProfileSettingsView } from "./steam.settings-profile.view";
 import type {
   PriceRegion,
@@ -44,6 +44,30 @@ const idleSave = {
   input: undefined,
 } as unknown as UseActionResult<MeResponse, string>;
 
+const idleVoid = {
+  ...idleSave,
+} as unknown as UseActionResult<void, void>;
+
+const idleExport = {
+  ...idleSave,
+} as unknown as UseActionResult<ProfileExportStatus, void>;
+
+const idleImport = {
+  ...idleSave,
+} as unknown as UseActionResult<ProfileImportJob, File>;
+
+const noneExport: ProfileExportStatus = {
+  status: "none",
+  inProgress: false,
+  downloadReady: false,
+  fileName: null,
+  byteSize: null,
+  expiresAt: null,
+  lastError: null,
+  createdAt: null,
+  completedAt: null,
+};
+
 const regions: PriceRegion[] = [
   { countryCode: "IN", currency: "INR", label: "India (INR)" },
   { countryCode: "US", currency: "USD", label: "United States (USD)" },
@@ -77,6 +101,24 @@ const renderView = (patch: Partial<ProfileSettingsViewProps>) =>
         user,
         showMusic: false,
         showWatch: false,
+        exportStatus: resource<ProfileExportStatus>({
+          empty: false,
+          failed: false,
+          value: noneExport,
+        }),
+        generateExport: idleExport,
+        downloadExport: idleVoid,
+        importJob: resource<ProfileImportJob | null>({
+          empty: false,
+          failed: false,
+          value: null,
+        }),
+        importFile: null,
+        importConfirmOpen: false,
+        onPickImportFile: () => undefined,
+        onOpenImportConfirm: () => undefined,
+        onCloseImportConfirm: () => undefined,
+        runImport: idleImport,
         ...patch,
       } as ProfileSettingsViewProps)}
     />,

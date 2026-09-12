@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { SyncService } from "../sync/sync.service";
 import { CatalogService } from "../steam/catalog.service";
+import { ProfileExportService } from "../profile-data/profile-export.service";
 
 const CATALOG_LOCK_KEY = "steam:catalog:sync:lock";
 const STUCK_JOB_MS = 60 * 60 * 1000;
@@ -16,6 +17,7 @@ export class InternalCronService {
     private readonly cache: CacheService,
     private readonly sync: SyncService,
     private readonly catalog: CatalogService,
+    private readonly profileExports: ProfileExportService,
   ) {}
 
   syncCatalog(opts: { forceFull?: boolean; maxPages?: number }) {
@@ -49,7 +51,8 @@ export class InternalCronService {
     this.logger.log(
       `Daily library sync: users=${steamAccounts.length} enqueued=${enqueued} failed=${failed}`,
     );
-    return { users: steamAccounts.length, enqueued, failed };
+    const purged = await this.profileExports.purgeExpired();
+    return { users: steamAccounts.length, enqueued, failed, ...purged };
   }
 
   async syncPricesDaily() {

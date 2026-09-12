@@ -1,5 +1,6 @@
 import { z } from "zod";
 export * from "./rewind";
+export * from "./profile-archive";
 
 
 /** URI version segment for Nest apps (api / music / watch). */
