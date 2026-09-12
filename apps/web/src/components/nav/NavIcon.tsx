@@ -71,5 +71,26 @@ const glyph = (name: NavIconName) => {
       return <path d="M3 3.5h4.5v9H3zM8.5 3.5H13v9H8.5M8 4v8" />;
     case "recs":
       return <path d="M8 2.5 9.7 6.2 13.5 6.6 10.8 9.3 11.5 13 8 11.1 4.5 13l.7-3.7L2.5 6.6l3.8-.4z" />;
+    case "listening":
+      return <path d="M4 12.5V8M8 12.5V3.5M12 12.5V6.5" />;
+    case "charts":
+      return <path d="M3.5 12.5V8M7.5 12.5V4M11.5 12.5V6.5M2.5 12.5h11" />;
+    case "history":
+      return (
+        <>
+          <path d="M6.5 4.5h7M6.5 8h7M6.5 11.5h7" />
+          <path d="M3.2 4.5h1.6M3.2 8h1.6M3.2 11.5h1.6" />
+        </>
+      );
+    case "rewind":
+      return <path d="M7.5 4.5 3.5 8l4 3.5M12.5 4.5 8.5 8l4 3.5" />;
+    case "sources":
+      return (
+        <>
+          <circle cx="5" cy="8" r="2.2" />
+          <circle cx="11" cy="8" r="2.2" />
+          <path d="M7.2 8h1.6" />
+        </>
+      );
   }
 };

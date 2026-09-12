@@ -321,4 +321,56 @@ describe("DashboardView", () => {
     expect(screen.getByText("Hades")).toBeInTheDocument();
     expect(screen.getByText("Recent activity")).toBeInTheDocument();
   });
+
+  it("packs media glance into the steam grid without a stray chapters tile", () => {
+    renderView({
+      showMusic: true,
+      showWatch: true,
+      showRead: true,
+      musicInsights: resource({
+        empty: false,
+        failed: false,
+        value: {
+          range: "week",
+          periodListens: 158,
+          listeningMinutes: 260,
+          compare: { previousListens: 150, deltaPct: 2.6 },
+        },
+      }),
+      watchInsights: resource({
+        empty: false,
+        failed: false,
+        value: {
+          periodWatches: 7,
+          movieWatches: 7,
+          showWatches: 0,
+          compare: { previousWatches: 3, deltaPct: 133.3 },
+        },
+      }),
+      readInsights: resource({
+        empty: false,
+        failed: false,
+        value: {
+          periodEvents: 21,
+          chaptersLogged: 2959,
+          compare: { previousEvents: 12, deltaPct: 75 },
+        },
+      }),
+    });
+    expect(screen.getByText("Friends")).toBeInTheDocument();
+    expect(screen.getByText("Listens")).toBeInTheDocument();
+    expect(screen.getByText("Last 7 days · +2.6% vs prior")).toBeInTheDocument();
+    expect(screen.getByText("Listening time")).toBeInTheDocument();
+    expect(screen.getByText("Last 7 days")).toBeInTheDocument();
+    expect(screen.getByText("Watches")).toBeInTheDocument();
+    expect(
+      screen.getByText("Last 7 days · 7 movies · +133.3% vs prior"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/0 TV/)).not.toBeInTheDocument();
+    expect(screen.getByText("Read events")).toBeInTheDocument();
+    expect(
+      screen.getByText("Last 7 days · 2959 chapters · +75% vs prior"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Chapters logged")).not.toBeInTheDocument();
+  });
 });

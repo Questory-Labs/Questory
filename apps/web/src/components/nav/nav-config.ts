@@ -15,7 +15,12 @@ export type NavIconName =
   | "music"
   | "watch"
   | "read"
-  | "recs";
+  | "recs"
+  | "listening"
+  | "charts"
+  | "history"
+  | "rewind"
+  | "sources";
 
 const STEAM_GROUPS: NavGroup[] = [
   {
@@ -54,28 +59,28 @@ export const ACCOUNT_LINKS = [
   },
 ] as const;
 
-export const MUSIC_SUBNAV = [
-  { href: "/music", label: "Home" },
-  { href: "/music/listening", label: "Listening" },
-  { href: "/music/charts", label: "Charts" },
-  { href: "/music/rewind", label: "Rewind" },
-  { href: "/music/settings", label: "Sources" },
-] as const;
+export const MUSIC_SUBNAV: NavItem[] = [
+  { href: "/music", label: "Home", icon: "music" },
+  { href: "/music/listening", label: "Listening", icon: "listening" },
+  { href: "/music/charts", label: "Charts", icon: "charts" },
+  { href: "/music/rewind", label: "Rewind", icon: "rewind" },
+  { href: "/music/settings", label: "Sources", icon: "sources" },
+];
 
-export const WATCH_SUBNAV = [
-  { href: "/watch", label: "Home" },
-  { href: "/watch/history", label: "History" },
-  { href: "/watch/rewind", label: "Rewind" },
-  { href: "/watch/settings", label: "Sources" },
-] as const;
+export const WATCH_SUBNAV: NavItem[] = [
+  { href: "/watch", label: "Home", icon: "watch" },
+  { href: "/watch/history", label: "History", icon: "history" },
+  { href: "/watch/rewind", label: "Rewind", icon: "rewind" },
+  { href: "/watch/settings", label: "Sources", icon: "sources" },
+];
 
-export const READ_SUBNAV = [
-  { href: "/read", label: "Home" },
-  { href: "/read/library", label: "Library" },
-  { href: "/read/history", label: "History" },
-  { href: "/read/rewind", label: "Rewind" },
-  { href: "/read/settings", label: "Sources" },
-] as const;
+export const READ_SUBNAV: NavItem[] = [
+  { href: "/read", label: "Home", icon: "read" },
+  { href: "/read/library", label: "Library", icon: "library" },
+  { href: "/read/history", label: "History", icon: "history" },
+  { href: "/read/rewind", label: "Rewind", icon: "rewind" },
+  { href: "/read/settings", label: "Sources", icon: "sources" },
+];
 
 export const buildNavGroups = (flags: {
   music?: boolean;
@@ -93,11 +98,9 @@ export const buildNavGroups = (flags: {
       items: [{ href: "/recommendations", label: "Recommendations", icon: "recs" }],
     });
   }
-  const media: NavItem[] = [];
-  if (flags.music) media.push({ href: "/music", label: "Music", icon: "music" });
-  if (flags.watch) media.push({ href: "/watch", label: "Watch", icon: "watch" });
-  if (flags.read) media.push({ href: "/read", label: "Read", icon: "read" });
-  if (media.length) groups.push({ label: "Media", items: media });
+  if (flags.music) groups.push({ label: "Music", items: MUSIC_SUBNAV });
+  if (flags.watch) groups.push({ label: "Watch", items: WATCH_SUBNAV });
+  if (flags.read) groups.push({ label: "Read", items: READ_SUBNAV });
   return groups;
 };
 

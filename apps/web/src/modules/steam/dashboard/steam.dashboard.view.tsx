@@ -185,14 +185,16 @@ export const DashboardView = (props: Record<string, unknown>) => {
         stats={stats}
         sync={sync}
         extra={
-          <GlanceMediaCards
-            showMusic={showMusic}
-            showWatch={showWatch}
-            showRead={showRead}
-            musicInsights={musicInsights}
-            watchInsights={watchInsights}
-            readInsights={readInsights}
-          />
+          showMusic || showWatch || showRead ? (
+            <GlanceMediaCards
+              showMusic={showMusic}
+              showWatch={showWatch}
+              showRead={showRead}
+              musicInsights={musicInsights}
+              watchInsights={watchInsights}
+              readInsights={readInsights}
+            />
+          ) : undefined
         }
       />
 

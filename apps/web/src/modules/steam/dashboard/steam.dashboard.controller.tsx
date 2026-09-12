@@ -8,6 +8,7 @@ import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { api } from "@/lib/api";
 import {
+  DASHBOARD_INSIGHTS_RANGE,
   DASHBOARD_PLAY_NEXT_LIMIT,
   DASHBOARD_RECS_LIMIT,
   DASHBOARD_SNIPPET_SIZE,
@@ -54,7 +55,9 @@ export const DashboardController = ({ children }: PropsWithChildren) => {
   const musicInsights = useResource({
     id: ["dashboard-music-insights"],
     load: () =>
-      musicFetch<MusicInsights>(withTz("/analytics/insights?range=week")),
+      musicFetch<MusicInsights>(
+        withTz(`/analytics/insights?range=${DASHBOARD_INSIGHTS_RANGE}`),
+      ),
     when: showMusicNav,
   });
   const musicRecent = useResource({
@@ -69,7 +72,9 @@ export const DashboardController = ({ children }: PropsWithChildren) => {
   const watchInsights = useResource({
     id: ["dashboard-watch-insights"],
     load: () =>
-      watchFetch<WatchInsights>(withTz("/analytics/insights?range=week")),
+      watchFetch<WatchInsights>(
+        withTz(`/analytics/insights?range=${DASHBOARD_INSIGHTS_RANGE}`),
+      ),
     when: showWatchNav,
   });
   const watchRecent = useResource({
@@ -84,7 +89,9 @@ export const DashboardController = ({ children }: PropsWithChildren) => {
   const readInsights = useResource({
     id: ["dashboard-read-insights"],
     load: () =>
-      readFetch<ReadInsights>(withTz("/analytics/insights?range=week")),
+      readFetch<ReadInsights>(
+        withTz(`/analytics/insights?range=${DASHBOARD_INSIGHTS_RANGE}`),
+      ),
     when: showReadNav,
   });
   const readRecent = useResource({

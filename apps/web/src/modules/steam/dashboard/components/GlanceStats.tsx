@@ -34,7 +34,7 @@ export const GlanceStats = ({
       <ResourceStatus
         failed={stats.failed}
         empty={stats.empty}
-        loading={<SkeletonStatGrid count={8} />}
+        loading={<SkeletonStatGrid count={extra ? 12 : 8} />}
         error={
           <EmptyState
             title={
@@ -45,7 +45,13 @@ export const GlanceStats = ({
           />
         }
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={
+            extra
+              ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+              : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          }
+        >
           <StatCard
             label="Cost / hour"
             value={
@@ -93,11 +99,9 @@ export const GlanceStats = ({
             value={value?.activeFriends ?? "—"}
             href="/friends"
           />
+          {extra}
         </div>
       </ResourceStatus>
-      {extra ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{extra}</div>
-      ) : null}
     </section>
   );
 };

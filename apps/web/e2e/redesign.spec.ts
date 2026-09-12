@@ -561,14 +561,16 @@ test.describe("redesign authed", () => {
     await expect(page.locator("[style*='opacity: 0']")).toHaveCount(0);
   });
 
-  test("music subnav is a tablist on interiors", async ({ page }) => {
+  test("music pages live in the primary nav", async ({ page }) => {
     await mockRedesignApi(page);
     await page.goto("/music/listening");
-    await expect(page.getByRole("tablist")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("tab", { name: "Listening" })).toHaveAttribute(
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav.getByRole("link", { name: "Listening" })).toHaveAttribute(
       "aria-current",
       "page",
+      { timeout: 15_000 },
     );
+    await expect(nav.getByRole("link", { name: "Charts" })).toBeVisible();
   });
 
   test("app routes render at desktop and ~390px", async ({ page }) => {

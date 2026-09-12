@@ -2,30 +2,37 @@ import { describe, expect, it } from "vitest";
 import { buildNavGroups } from "./nav-config";
 
 describe("buildNavGroups", () => {
-  it("keeps Steam destinations and one /music rail item — never /music/listening", () => {
+  it("expands music, watch, and read like Steam — not a 3-link Media bucket", () => {
     const groups = buildNavGroups({ music: true, watch: true, read: true });
+    const labels = groups.map((g) => g.label);
+    expect(labels).not.toContain("Media");
+    expect(labels).toEqual(
+      expect.arrayContaining(["Your games", "Music", "Watch", "Read"]),
+    );
     const hrefs = groups.flatMap((g) => g.items.map((i) => i.href));
     expect(hrefs).toEqual(
       expect.arrayContaining([
         "/dashboard",
         "/library",
-        "/wishlist",
-        "/cost",
-        "/friends",
-        "/trending",
-        "/collections",
-        "/sessions",
-        "/family",
-        "/multiplayer",
         "/music",
+        "/music/listening",
+        "/music/charts",
         "/watch",
+        "/watch/history",
         "/read",
+        "/read/library",
       ]),
     );
-    expect(hrefs.filter((h) => h === "/music")).toHaveLength(1);
-    expect(hrefs).not.toContain("/music/listening");
-    expect(hrefs).not.toContain("/watch/history");
-    expect(hrefs).not.toContain("/read/library");
+    expect(groups.find((g) => g.label === "Music")?.items.map((i) => i.icon)).toEqual([
+      "music",
+      "listening",
+      "charts",
+      "rewind",
+      "sources",
+    ]);
+    expect(
+      groups.find((g) => g.label === "Watch")?.items.map((i) => i.icon),
+    ).toEqual(["watch", "history", "rewind", "sources"]);
   });
 
   it("hides media and recs when flags are off", () => {
