@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { CALENDAR_HEATMAP_MAX_WEEKS } from "@/lib/charts";
+import {
+  CALENDAR_HEATMAP_MAX_WEEKS,
+  CHART_X_TICK_MIN_GAP_PX,
+} from "@/lib/charts";
 import type { ChartPadding, ChartSize, LinePoint, SketchDatum } from "./types";
 
 export const CHART_HEIGHT: Record<ChartSize, number> = {
@@ -124,6 +127,34 @@ export function pickXTickIndices(length: number, targetCount = 7): number[] {
   return idx;
 }
 
+/**
+ * First + last, then interiors only when their x is at least `minGap` from
+ * the previous chosen tick. Time-mode series cluster at the right edge;
+ * index sampling would stack those labels.
+ */
+export function pickXTickIndicesByPixel(
+  xs: number[],
+  minGap = CHART_X_TICK_MIN_GAP_PX,
+): number[] {
+  if (xs.length === 0) return [];
+  if (xs.length === 1) return [0];
+  const last = xs.length - 1;
+  const chosen: number[] = [0];
+  for (let i = 1; i < last; i += 1) {
+    if (xs[i] - xs[chosen[chosen.length - 1]] >= minGap) {
+      chosen.push(i);
+    }
+  }
+  const prev = chosen[chosen.length - 1];
+  if (xs[last] - xs[prev] < minGap) {
+    if (chosen.length === 1) chosen.push(last);
+    else chosen[chosen.length - 1] = last;
+  } else {
+    chosen.push(last);
+  }
+  return chosen;
+}
+
 export function buildLineLayout(
   data: SketchDatum[],
   width: number,
@@ -200,7 +231,11 @@ export function buildLineLayout(
     "Z",
   ].join(" ");
 
-  const xTickIdx = new Set(pickXTickIndices(data.length));
+  const xTickIdx = new Set(
+    options.xMode === "time"
+      ? pickXTickIndicesByPixel(points.map((p) => p.x))
+      : pickXTickIndices(data.length),
+  );
 
   return {
     points,

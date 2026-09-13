@@ -36,6 +36,7 @@ export const HistoryChart = ({
   label,
   size = "sm",
   formatValue,
+  formatYTick,
   valueLabel = "",
 }: {
   history: { date: string; [k: string]: string | number }[];
@@ -43,6 +44,7 @@ export const HistoryChart = ({
   label: string;
   size?: "sm" | "lg";
   formatValue?: (n: number) => string;
+  formatYTick?: (n: number) => string;
   valueLabel?: string;
 }) => {
   const data = history.map((h) => ({
@@ -63,6 +65,7 @@ export const HistoryChart = ({
         xMode="time"
         valueLabel={valueLabel}
         formatValue={formatValue}
+        formatYTick={formatYTick}
       />
     </div>
   );

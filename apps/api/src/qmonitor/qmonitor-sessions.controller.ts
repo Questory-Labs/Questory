@@ -36,13 +36,24 @@ export class QmonitorSessionsController {
     @CurrentUser() user: { userId: string },
     @Query("page") pageRaw?: string,
     @Query("pageSize") pageSizeRaw?: string,
+    @Query("gameId") gameIdRaw?: string,
   ) {
     const page = parsePageParam(pageRaw, 1);
     const pageSize = parsePageSizeParam(pageSizeRaw, PLAY_SESSIONS_PAGE_SIZE);
     if (page == null || pageSize == null) {
       throw new BadRequestException("Invalid page or pageSize");
     }
-    return this.sessions.list(user.userId, page, pageSize);
+    const gameId =
+      typeof gameIdRaw === "string" ? gameIdRaw.trim() : "";
+    if (gameIdRaw != null && gameIdRaw !== "" && !gameId) {
+      throw new BadRequestException("Invalid gameId");
+    }
+    return this.sessions.list(
+      user.userId,
+      page,
+      pageSize,
+      gameId || undefined,
+    );
   }
 
   @Get("stats")

@@ -9,6 +9,9 @@ export const HEATMAP_HOUR_TICK_STEP = 3;
 /** Gap between a hovered chart cell and its tooltip, in px. */
 export const CHART_TOOLTIP_GAP_PX = 8;
 
+/** Minimum pixel gap between time-mode X-axis labels. */
+export const CHART_X_TICK_MIN_GAP_PX = 72;
+
 /** Space between week columns inside a month. */
 export const CALENDAR_WEEK_GAP_CLASS = "ml-0.5";
 

@@ -37,4 +37,26 @@ describe("LineChart", () => {
     expect(svg.querySelectorAll("path").length).toBeGreaterThanOrEqual(2);
     expect(container.innerHTML).not.toContain("rough");
   });
+
+  it("sizes the svg to the layout height so labels are not stretched", () => {
+    render(
+      <LineChart
+        data={[
+          { label: "2026-01-01", value: 100 },
+          { label: "2026-06-01", value: 1_200_000 },
+        ]}
+        ariaLabel="Players"
+        size="lg"
+        xMode="time"
+        formatYTick={(n) =>
+          n >= 10_000
+            ? `${(n / 1_000_000).toFixed(1)}M`
+            : n.toLocaleString()
+        }
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Players" });
+    expect(svg.getAttribute("style")).toContain("height: 288px");
+    expect(svg.className).not.toContain("h-64");
+  });
 });

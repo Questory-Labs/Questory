@@ -112,7 +112,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           />
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Primary">
+        <nav
+          className="min-h-0 flex-1 overflow-y-auto px-2 [--nav-sticky-bg:var(--bg-0)]"
+          aria-label="Primary"
+        >
           <NavLinks pathname={pathname} groups={navGroups} />
         </nav>
 
@@ -180,7 +183,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Mobile">
+              <nav
+                className="min-h-0 flex-1 overflow-y-auto px-2 [--nav-sticky-bg:var(--bg-1)]"
+                aria-label="Mobile"
+              >
                 <NavLinks
                   pathname={pathname}
                   groups={navGroups}

@@ -22,6 +22,7 @@
   --surface-2: #2c2c34;
   --paper: #141416;
   --radius: 8px;
+  --header-control-height: 2rem;
   --shadow-offset: 6px;
   --shadow-offset-sm: 4px;
   --shadow-offset-lg: 10px;
@@ -145,6 +146,19 @@
   background-color: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+
+/* Same opacity rule as `.dialog-face`: unlayered so `.panel`'s 4% wash cannot win. */
+.date-field-face {
+  background-color: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.625rem;
+}
+
+.hatch-face.dialog-face {
+  /* DateField (and other popovers) must paint outside the padded body. */
+  overflow: visible;
 }
 
 .btn {
@@ -275,21 +289,16 @@
 .header-controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  align-items: center;
   gap: 0.5rem;
 }
-.header-controls > .btn {
-  height: 2.25rem;
-  padding-block: 0;
-}
-.header-controls > [role="group"] {
-  display: inline-flex;
-  align-items: stretch;
-  height: 2.25rem;
+
+.header-control {
   box-sizing: border-box;
+  height: var(--header-control-height);
 }
-.header-controls > [role="group"] > button {
-  height: auto;
+
+.header-control.btn {
   padding-block: 0;
 }
 

@@ -22,4 +22,12 @@ describe("NavLinks", () => {
     );
     expect(screen.getByText("Music")).toBeInTheDocument();
   });
+
+  it("makes group labels sticky so they pin while their section scrolls", () => {
+    render(<NavLinks pathname="/cost" groups={buildNavGroups({})} />);
+    expect(screen.getByRole("heading", { name: "Your games" })).toHaveClass(
+      "sticky",
+      "top-0",
+    );
+  });
 });

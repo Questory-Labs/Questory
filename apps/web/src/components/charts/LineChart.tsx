@@ -4,7 +4,6 @@ import { useId, useMemo, useRef, useState } from "react";
 import { ChartGrid, ChartHoverCard } from "./ChartGrid";
 import {
   buildLineLayout,
-  chartHeightClass,
   defaultXLabel,
   monotoneAreaPath,
   monotoneLinePath,
@@ -63,7 +62,8 @@ export function LineChart({
     <div ref={rootRef} className="relative w-full" data-sketch-chart>
       <svg
         viewBox={`0 0 ${chartW} ${H}`}
-        className={`w-full select-none ${chartHeightClass(size)}`}
+        className="w-full select-none"
+        style={{ height: H }}
         role="img"
         aria-label={ariaLabel}
         onMouseLeave={() => setHover(null)}

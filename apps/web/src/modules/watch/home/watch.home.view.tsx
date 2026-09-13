@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { GaugeChart } from "@/components/charts/GaugeChart";
 import { HourDowSources } from "@/components/media/HourDowSources";
 import { MediaHomeSlots } from "@/components/media/MediaHomeSlots";
 import { StatCard } from "@/components/StatCard";
@@ -92,17 +91,11 @@ export const WatchHomeView = (props: Record<string, unknown>) => {
                 />
                 <StatCard label="New titles" value={d.newTitles} />
                 <StatCard label="Unique titles" value={d.uniqueTitles} />
-                <Panel size="sm" className="p-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                    Coverage
-                  </p>
-                  <GaugeChart
-                    value={d.runtimeCoverage}
-                    max={100}
-                    ariaLabel="Runtime coverage"
-                    label={`${d.runtimeCoverage}%`}
-                  />
-                </Panel>
+                <StatCard
+                  label="Coverage"
+                  value={`${d.runtimeCoverage}%`}
+                  hint="watches with runtime"
+                />
               </div>
               {media === "all" ? (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">

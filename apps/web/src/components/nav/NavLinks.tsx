@@ -22,12 +22,12 @@ export const NavLinks = ({
   }, [pathname, groups]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 py-4">
       {groups.map((group) => (
-        <div key={group.label}>
-          <div className="font-mono mb-1.5 px-2.5 text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+        <section key={group.label}>
+          <h2 className="sticky top-0 z-10 bg-[var(--nav-sticky-bg,var(--bg-0))] px-2.5 pb-1.5 pt-1 font-mono text-[10px] font-normal uppercase tracking-[0.18em] text-[var(--faint)]">
             {group.label}
-          </div>
+          </h2>
           <ul className="space-y-0.5">
             {group.items.map((item) => {
               const active = isActive(pathname, item.href, allHrefs);
@@ -38,7 +38,7 @@ export const NavLinks = ({
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
-                    className={`flex items-center gap-2.5 px-2.5 py-2 text-sm transition ${
+                    className={`flex scroll-mt-8 items-center gap-2.5 px-2.5 py-2 text-sm transition ${
                       active
                         ? "bg-[var(--accent-dim)] text-[var(--ink)]"
                         : "text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
@@ -51,7 +51,7 @@ export const NavLinks = ({
               );
             })}
           </ul>
-        </div>
+        </section>
       ))}
     </div>
   );

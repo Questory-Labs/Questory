@@ -23,8 +23,15 @@ describe("play-sessions list", () => {
 
   const prismaMock = {
     playSession: {
-      count: async ({ where }: { where: { userId: string } }) =>
-        where.userId === userId ? 1 : 0,
+      count: async ({
+        where,
+      }: {
+        where: { userId: string; gameId?: string };
+      }) => {
+        if (where.userId !== userId) return 0;
+        if (where.gameId && where.gameId !== "g1") return 0;
+        return 1;
+      },
       findFirst: async ({
         where,
       }: {
@@ -50,11 +57,12 @@ describe("play-sessions list", () => {
         skip,
         take,
       }: {
-        where: { userId: string };
+        where: { userId: string; gameId?: string };
         skip?: number;
         take?: number;
       }) => {
         if (where.userId !== userId) return [];
+        if (where.gameId && where.gameId !== "g1") return [];
         if (typeof skip === "number" && skip >= 1) return [];
         const rows = [
           {
@@ -177,6 +185,30 @@ describe("play-sessions list", () => {
           },
         },
       ],
+    });
+  });
+
+  it("filters sessions by gameId", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    const hit = await request(app.getHttpServer())
+      .get("/v1/play-sessions?gameId=g1")
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(hit.body.total).toBe(1);
+    expect(hit.body.items[0].gameId).toBe("g1");
+
+    const miss = await request(app.getHttpServer())
+      .get("/v1/play-sessions?gameId=other-game")
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(miss.body).toEqual({
+      total: 0,
+      page: 1,
+      pageSize: 15,
+      items: [],
     });
   });
 

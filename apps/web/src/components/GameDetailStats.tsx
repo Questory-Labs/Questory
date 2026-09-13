@@ -3,17 +3,17 @@
 import type { GameDetail } from "@questorylabs/shared";
 import type { ReactNode } from "react";
 import { GameDetailCatalog } from "./game-detail/GameDetailCatalog";
+import { GAME_DETAIL_FRIEND_LIMIT } from "./game-detail/game-detail.constants";
+import { GameFriendsSection } from "./game-detail/game-friends-section";
+import { GamePlayersSection } from "./game-detail/game-market";
 import {
   Chip,
-  HistoryChart,
-  OwnerRow,
   SectionTitle,
   deckLabel,
-  formatPlayers,
   formatReleaseDate,
 } from "./game-detail/game-detail-shared";
 
-export { OwnerRow, SectionTitle };
+export { OwnerRow, SectionTitle } from "./game-detail/game-detail-shared";
 
 /**
  * Shared rich game stats used by the family/multiplayer sidebar and the
@@ -24,7 +24,7 @@ export function GameDetailStats({
   showActions = true,
   showFriends = true,
   linkFriends = false,
-  friendLimit = 12,
+  friendLimit = GAME_DETAIL_FRIEND_LIMIT,
   chartSize = "sm",
   playtimeHours,
   beforeFriends,
@@ -41,7 +41,6 @@ export function GameDetailStats({
   className?: string;
 }) {
   const d = detail;
-  const online = d.onlinePlayers;
   const releaseLabel = formatReleaseDate(d.releaseDate);
   const deck = deckLabel(d.deckStatus);
 
@@ -71,64 +70,7 @@ export function GameDetailStats({
         </div>
       )}
 
-      <section>
-        <SectionTitle>Players online</SectionTitle>
-        {online &&
-        (online.current != null ||
-          online.peakAllTime != null ||
-          online.history.length > 0) ? (
-          <>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="panel-outline px-2 py-3">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
-                  Now
-                </div>
-                <div className="mt-1 text-sm font-semibold text-[var(--accent)]">
-                  {formatPlayers(online.current)}
-                </div>
-              </div>
-              <div className="panel-outline px-2 py-3">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
-                  24h peak
-                </div>
-                <div className="mt-1 text-sm font-semibold">
-                  {formatPlayers(online.peak24h)}
-                </div>
-              </div>
-              <div className="panel-outline px-2 py-3">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
-                  All-time
-                </div>
-                <div className="mt-1 text-sm font-semibold">
-                  {formatPlayers(online.peakAllTime)}
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <HistoryChart
-                history={online.history}
-                valueKey="players"
-                label="Concurrent players history"
-                size={chartSize}
-                valueLabel="players"
-                formatValue={(n) => formatPlayers(n) ?? String(n)}
-              />
-            </div>
-            <a
-              href={`https://steamcharts.com/app/${d.appId}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block font-mono text-[11px] text-[var(--accent)] hover:underline"
-            >
-              SteamCharts →
-            </a>
-          </>
-        ) : (
-          <p className="text-sm text-[var(--muted)]">
-            No concurrent player data yet.
-          </p>
-        )}
-      </section>
+      <GamePlayersSection detail={d} chartSize={chartSize} />
 
       {d.minPlayers != null && d.maxPlayers != null && (
         <section>
@@ -180,26 +122,11 @@ export function GameDetailStats({
       {beforeFriends}
 
       {showFriends && (
-        <section>
-          <SectionTitle>Friends who own it</SectionTitle>
-          {d.friendOwners.length ? (
-            <div className="divide-y divide-[var(--line)]">
-              {d.friendOwners.slice(0, friendLimit).map((o) => (
-                <OwnerRow
-                  key={o.steamId}
-                  personaName={o.personaName}
-                  avatarUrl={o.avatarUrl}
-                  playtimeHours={o.playtimeHours}
-                  href={linkFriends ? `/friends/${o.steamId}` : undefined}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--muted)]">
-              No synced friends own this yet.
-            </p>
-          )}
-        </section>
+        <GameFriendsSection
+          detail={d}
+          linkFriends={linkFriends}
+          friendLimit={friendLimit}
+        />
       )}
 
       <GameDetailCatalog

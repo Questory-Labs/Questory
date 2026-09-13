@@ -19,6 +19,19 @@ describe("DateField", () => {
     expect(screen.queryByRole("dialog", { name: "Choose date" })).not.toBeInTheDocument();
   });
 
+  it("overlays the calendar in a wrapper so HatchShadow can stay position relative", () => {
+    render(<DateField label="Date" value="2026-08-16" onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Date" }));
+
+    const popover = screen.getByRole("dialog", { name: "Choose date" });
+    const shadow = popover.closest(".hatch-shadow");
+    expect(shadow?.parentElement).toHaveClass("absolute");
+    expect(shadow).not.toHaveClass("absolute");
+    expect(popover.closest(".hatch-face")).toHaveClass("date-field-face");
+    expect(popover.closest(".hatch-face")).not.toHaveClass("panel");
+    expect(screen.getByText("Sa")).toBeInTheDocument();
+  });
+
   it("disables previous month when the adjacent month would leave the year range", () => {
     const onChange = vi.fn();
     render(<DateField label="Date" value="1900-01-16" onChange={onChange} />);

@@ -1,6 +1,5 @@
 "use client";
 
-import { GaugeChart } from "@/components/charts/GaugeChart";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { MediaHomeSlots } from "@/components/media/MediaHomeSlots";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
@@ -8,7 +7,6 @@ import { NowPlayingPanel } from "@/components/music/NowPlayingPanel";
 import { StatCard } from "@/components/StatCard";
 import {
   PageHeader,
-  Panel,
   ResourceStatus,
   SkeletonStatGrid,
   SkeletonTileGrid,
@@ -92,17 +90,11 @@ export const MusicHomeView = (props: Record<string, unknown>) => {
               />
               <StatCard label="New artists" value={d.newArtists} />
               <StatCard label="Unique artists" value={d.uniqueArtists} />
-              <Panel size="sm" className="p-3">
-                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                  Coverage
-                </p>
-                <GaugeChart
-                  value={d.durationCoverage}
-                  max={100}
-                  ariaLabel="Duration coverage"
-                  label={`${d.durationCoverage}%`}
-                />
-              </Panel>
+              <StatCard
+                label="Coverage"
+                value={`${d.durationCoverage}%`}
+                hint="listens with duration"
+              />
             </div>
           ) : null}
         </ResourceStatus>

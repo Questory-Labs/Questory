@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Panel } from "@/components/ui/Panel";
+import { Panel } from "@/components/ui";
 
 /** Compact metric tile — hatch-elevated Panel. No prestige/lg size. */
 export function StatCard({

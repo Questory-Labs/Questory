@@ -11,7 +11,7 @@ Keep every new file under ~400 lines; split by concern before crossing it. Do no
 
 ## Never clone a module for a new domain
 
-Music/watch/read features must NOT be built by copy-pasting a sibling domain's code. The codebase already suffers from triplicated `musicFetch`/`watchFetch`/`readFetch`, three `runtime-config.ts` copies, and line-for-line duplicate `MusicRangePicker`/`WatchRangePicker`. When you need a domain variant:
+Music/watch/read features must NOT be built by copy-pasting a sibling domain's code. The codebase already suffers from triplicated `musicFetch`/`watchFetch`/`readFetch` and three `runtime-config.ts` copies. When you need a domain variant:
 
 1. Extract the shared logic into a generic helper/component (parameterize the domain).
 2. Make each domain a thin wrapper over it.
