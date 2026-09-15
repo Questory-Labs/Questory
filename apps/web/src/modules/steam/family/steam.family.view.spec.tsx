@@ -301,4 +301,28 @@ describe("FamilyView", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("renders library tiles when owner lists are missing", () => {
+    renderView({
+      library: resource<FamilyLibrary>({
+        empty: false,
+        failed: false,
+        value: {
+          ...libraryValue,
+          items: [
+            {
+              appId: 10,
+              name: "Portal",
+              headerImage: null,
+              ownerCount: 1,
+              familyPlaytimeHours: 3,
+              currentPrice: null,
+              lowestPrice: null,
+            },
+          ],
+        } as FamilyLibrary,
+      }),
+    });
+    expect(screen.getByText("Portal")).toBeInTheDocument();
+  });
 });

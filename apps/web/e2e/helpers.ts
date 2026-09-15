@@ -3,6 +3,15 @@ import type { Page, Route } from "@playwright/test";
 /** Match both localhost and 127.0.0.1 (CI sets NEXT_PUBLIC_API_URL to the latter). */
 export const API = /https?:\/\/(?:localhost|127\.0\.0\.1):4000\//;
 
+/** Pathname of a mocked API URL (`/v1/library`, `/health`, …). */
+export function apiPathname(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return "";
+  }
+}
+
 export type E2EUser = {
   id: string;
   steamId: string | null;

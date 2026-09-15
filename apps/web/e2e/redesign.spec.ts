@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { API, mockAuthedApi } from "./helpers";
+import { API, apiPathname, mockAuthedApi } from "./helpers";
 
 const DASHBOARD_STATS = {
   librarySize: 10,
@@ -197,15 +197,42 @@ async function mockUnauthed(page: Page) {
   });
 }
 
+const MEDIA_RUNTIME_FLAGS = {
+  NEXT_PUBLIC_ENABLE_MUSIC: "true",
+  NEXT_PUBLIC_ENABLE_WATCH: "true",
+  NEXT_PUBLIC_ENABLE_READ: "true",
+} as const;
+
+/** Keep media flags on after `/runtime-env.js` assigns `window.__QUESTORY_RUNTIME__`. */
 async function enableMediaFlags(page: Page) {
-  await page.addInitScript(() => {
-    window.__QUESTORY_RUNTIME__ = {
-      ...(window.__QUESTORY_RUNTIME__ ?? {}),
-      NEXT_PUBLIC_ENABLE_MUSIC: "true",
-      NEXT_PUBLIC_ENABLE_WATCH: "true",
-      NEXT_PUBLIC_ENABLE_READ: "true",
-    };
+  await page.route("**/runtime-env.js", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: `window.__QUESTORY_RUNTIME__=Object.assign(window.__QUESTORY_RUNTIME__||{},${JSON.stringify(
+        MEDIA_RUNTIME_FLAGS,
+      )});\n`,
+    });
   });
+  await page.addInitScript((flags) => {
+    const merge = (value: unknown) => ({
+      ...(value && typeof value === "object"
+        ? (value as Record<string, string>)
+        : {}),
+      ...flags,
+    });
+    let current = merge(window.__QUESTORY_RUNTIME__);
+    Object.defineProperty(window, "__QUESTORY_RUNTIME__", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return current;
+      },
+      set(value) {
+        current = merge(value);
+      },
+    });
+  }, MEDIA_RUNTIME_FLAGS);
 }
 
 function json(route: { fulfill: (r: object) => Promise<void> }, body: unknown) {
@@ -221,6 +248,7 @@ async function mockRedesignApi(page: Page, user: { isAdmin?: boolean } = {}) {
   await mockAuthedApi(
     page,
     async (url, route) => {
+    const path = apiPathname(url);
     if (url.includes("/health")) {
       await json(route, {
         ok: true,
@@ -355,7 +383,31 @@ async function mockRedesignApi(page: Page, user: { isAdmin?: boolean } = {}) {
       });
       return true;
     }
-    if (url.includes("/library?")) {
+    if (path === "/v1/family/insights") {
+      await json(route, {
+        memberCount: 0,
+        totalUniqueGames: 0,
+        overlapCount: 0,
+        duplicatePurchases: 0,
+        familyValue: 0,
+        suggestedPurchaser: null,
+        members: [],
+        conflicts: [],
+      });
+      return true;
+    }
+    if (path === "/v1/family/library") {
+      await json(route, {
+        total: 0,
+        page: 1,
+        pageSize: 15,
+        meSteamId: "76561198000000000",
+        members: [],
+        items: [],
+      });
+      return true;
+    }
+    if (path === "/v1/library") {
       await json(route, LIBRARY_LIST);
       return true;
     }
