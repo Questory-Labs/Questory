@@ -114,15 +114,3 @@ export function resolveBangumiRedirectUri(): string {
     `http://localhost:${port}/v1/watch/bangumi/callback`
   ).trim();
 }
-
-export function isApiSecretRequired(): boolean {
-  const mode = resolveAppMode();
-  if (mode === "local") {
-    return Boolean((process.env.WATCH_API_SECRET || "").trim());
-  }
-  return true;
-}
-
-export function resolveWatchApiSecret(): string {
-  return (process.env.WATCH_API_SECRET || "").trim();
-}

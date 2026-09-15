@@ -8,7 +8,7 @@ import { MANGA_PROVIDERS, READ_ANILIST } from "./read.settings.constants";
 
 export const ReadSettingsView = () => (
   <>
-    <PageHeader
+    <PageHeader size="sm"
       title="Sources"
       description="Connect anime/manga list providers to sync manga into Read. Anime from the same connections syncs into Watch."
     />

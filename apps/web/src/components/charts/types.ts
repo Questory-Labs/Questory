@@ -45,9 +45,3 @@ export type HeatmapCell = {
   hour: number;
   value: number;
 };
-
-export type ScatterPoint = {
-  x: number;
-  y: number;
-  label?: string;
-};

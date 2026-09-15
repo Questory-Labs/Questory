@@ -25,6 +25,7 @@ function prefixReadPath(path: string): string {
     path.startsWith("/bangumi") ||
     path.startsWith("/kitsu") ||
     path.startsWith("/sync-status") ||
+    path.startsWith("/trending") ||
     path.startsWith("/read/")
   ) {
     if (path.startsWith("/read/")) return path;

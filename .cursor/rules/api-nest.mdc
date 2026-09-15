@@ -1,7 +1,6 @@
 ---
 description: NestJS API conventions — Zod validation, guards, error handling, thin controllers
-globs: apps/api/**/*.ts
-alwaysApply: false
+alwaysApply: true
 ---
 
 # NestJS API conventions
@@ -46,7 +45,7 @@ Only Nest HTTP exceptions (`BadRequestException`, `UnauthorizedException`, `NotF
 | Music session | music `SessionUserGuard` | `@CurrentMusicUser()` |
 | Watch session | watch `SessionUserGuard` | `@CurrentWatchUser()` |
 | Read session | `ReadSessionUserGuard` | `@CurrentReadUserId()` |
-| Cron / internal | `CronSecretGuard` / `ApiSecretGuard` | — |
+| Cron / internal | `CronSecretGuard` | — |
 
 Sole-user fallback decisions must go through `allowsSoleUserFallback()` (watch/lib/runtime-config.ts) — never re-implement inline `mode === "local" || mode === "selfhosted"` checks.
 

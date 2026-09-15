@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -10,11 +11,13 @@ import {
 } from "@nestjs/common";
 import { z } from "zod";
 import {
+  FAMILY_MEMBER_LIMIT,
   parsePageParam,
   parsePageSizeParam,
   SteamId64Schema,
 } from "@questorylabs/shared";
 import { FamilyService } from "./family.service";
+import { FamilyMembersService } from "./family-members.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { FAMILY_LIBRARY_PAGE_SIZE } from "./family.constants";
@@ -24,13 +27,16 @@ const AddMemberSchema = z.object({
 });
 
 const ImportMembersSchema = z.object({
-  steamIds: z.array(SteamId64Schema).max(50),
+  steamIds: z.array(SteamId64Schema).max(FAMILY_MEMBER_LIMIT),
 });
 
 @Controller("family")
 @UseGuards(SteamAuthGuard)
 export class FamilyController {
-  constructor(private readonly family: FamilyService) {}
+  constructor(
+    private readonly family: FamilyService,
+    private readonly members: FamilyMembersService,
+  ) {}
 
   @Get()
   get(@CurrentUser() user: { userId: string }) {
@@ -51,7 +57,7 @@ export class FamilyController {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.family.addMember(user.userId, parsed.data.steamId);
+    return this.members.addMember(user.userId, parsed.data.steamId);
   }
 
   @Post("members/import")
@@ -63,7 +69,19 @@ export class FamilyController {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.family.importFromFriends(user.userId, parsed.data.steamIds);
+    return this.members.importFromFriends(user.userId, parsed.data.steamIds);
+  }
+
+  @Delete("members/:steamId")
+  removeMember(
+    @CurrentUser() user: { userId: string },
+    @Param("steamId") steamId: string,
+  ) {
+    const parsed = SteamId64Schema.safeParse(steamId);
+    if (!parsed.success) {
+      throw new BadRequestException("SteamID64 must be a 17-digit number");
+    }
+    return this.members.removeMember(user.userId, parsed.data);
   }
 
   @Get("insights")

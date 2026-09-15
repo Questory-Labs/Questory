@@ -181,12 +181,12 @@ export function useShellSyncStatus(opts?: {
   const data = query.value;
 
   const steamStages: SyncStage[] = useMemo(() => {
-    const byType = latestByType(data?.steam.jobs ?? []);
+    const byType = latestByType(data?.steam?.jobs ?? []);
     return SYNC_STAGES.map((stage) => ({
       ...stage,
       job: byType.get(stage.type as SyncStageType) ?? null,
     }));
-  }, [data?.steam.jobs]);
+  }, [data?.steam?.jobs]);
 
   const steamActive = Boolean(data?.steam.active);
   const steamDoneCount = steamStages.filter(
@@ -205,13 +205,13 @@ export function useShellSyncStatus(opts?: {
   const watchStatus = data?.watch ?? null;
   const watchActive = Boolean(watchStatus?.active);
   const watchLetterboxd = watchStatus?.letterboxd ?? null;
-  const watchTraktSyncing = Boolean(watchStatus?.trakt.syncing);
-  const watchAnilistSyncing = Boolean(watchStatus?.anilist.syncing);
+  const watchTraktSyncing = Boolean(watchStatus?.trakt?.syncing);
+  const watchAnilistSyncing = Boolean(watchStatus?.anilist?.syncing);
   const watchAnimeListSyncing = Boolean(
-    watchStatus?.mal.syncing ||
-      watchStatus?.kitsu.syncing ||
-      watchStatus?.bangumi.syncing ||
-      watchStatus?.shikimori.syncing,
+    watchStatus?.mal?.syncing ||
+      watchStatus?.kitsu?.syncing ||
+      watchStatus?.bangumi?.syncing ||
+      watchStatus?.shikimori?.syncing,
   );
 
   const readStatus = data?.read ?? null;
@@ -293,12 +293,12 @@ export function useShellSyncStatus(opts?: {
     read: {
       active: readActive,
       status: readStatus,
-      anilistSyncing: Boolean(readStatus?.anilist.syncing),
+      anilistSyncing: Boolean(readStatus?.anilist?.syncing),
       animeListSyncing: Boolean(
-        readStatus?.mal.syncing ||
-          readStatus?.kitsu.syncing ||
-          readStatus?.bangumi.syncing ||
-          readStatus?.shikimori.syncing,
+        readStatus?.mal?.syncing ||
+          readStatus?.kitsu?.syncing ||
+          readStatus?.bangumi?.syncing ||
+          readStatus?.shikimori?.syncing,
       ),
     },
   };

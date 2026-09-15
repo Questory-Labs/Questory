@@ -14,7 +14,7 @@ export const AdminCronView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Cron"
         description="Scheduler status, manual triggers, and recent run history."
       />

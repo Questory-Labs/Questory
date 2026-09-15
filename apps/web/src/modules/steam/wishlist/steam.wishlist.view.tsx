@@ -47,6 +47,7 @@ export const WishlistView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Wishlist"
         description={
           list.value

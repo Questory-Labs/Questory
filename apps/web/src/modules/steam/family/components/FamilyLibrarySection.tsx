@@ -152,7 +152,7 @@ export const FamilyLibrarySection = ({
                             ? ` · low ${money(item.lowestPrice)}`
                             : ""
                         }`
-                      : item.owners
+                      : (item.owners ?? [])
                           .slice(0, 2)
                           .map((o) =>
                             o.isMe ? `${o.personaName} (me)` : o.personaName,

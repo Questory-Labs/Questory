@@ -10,7 +10,7 @@ export const AdminSettingsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Settings"
         description="Control public registration and review abuse counters."
       />

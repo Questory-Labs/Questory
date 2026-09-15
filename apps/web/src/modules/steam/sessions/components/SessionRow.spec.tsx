@@ -47,4 +47,22 @@ describe("SessionRow", () => {
     expect(screen.getByText(/Permanently delete this play session/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Delete session?" })).toBeInTheDocument();
   });
+
+  it("puts duration on the row and keeps assign as a ghost control", () => {
+    wrap(<SessionRow item={item} dayMaxSecs={3600} />);
+    expect(screen.getByText("1h")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assign" })).toHaveClass("btn-ghost");
+    expect(screen.queryByText("Unmatched")).not.toBeInTheDocument();
+  });
+
+  it("marks sessions that are not linked to a library game", () => {
+    wrap(
+      <SessionRow
+        item={{ ...item, gameId: null, game: null, title: "unknown.exe" }}
+      />,
+    );
+    expect(screen.getByText("unknown.exe")).toBeInTheDocument();
+    expect(screen.getByText("Unmatched")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "unknown.exe" })).not.toBeInTheDocument();
+  });
 });

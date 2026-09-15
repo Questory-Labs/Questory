@@ -22,6 +22,7 @@ import { TraktService } from "./trakt/trakt.service";
 import { UsersModule } from "./users/users.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { ManualModule } from "./manual/manual.module";
+import { WatchTrendingModule } from "./trending/trending.module";
 import { WATCH_CRON_SYNC, type WatchCronSync } from "../cron/watch-cron.token";
 
 @Module({
@@ -42,6 +43,7 @@ import { WATCH_CRON_SYNC, type WatchCronSync } from "../cron/watch-cron.token";
     AnalyticsModule,
     InternalModule,
     ManualModule,
+    WatchTrendingModule,
   ],
   providers: [
     {

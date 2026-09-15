@@ -22,6 +22,7 @@
   --surface-2: #2c2c34;
   --paper: #141416;
   --radius: 8px;
+  --header-control-height: 2rem;
   --shadow-offset: 6px;
   --shadow-offset-sm: 4px;
   --shadow-offset-lg: 10px;
@@ -137,6 +138,29 @@
   border-radius: var(--radius);
 }
 
+/*
+ * Modal surface. Must stay unlayered and after `.panel`: `--surface` is 4%
+ * alpha, and that rule beats Tailwind `bg-*` utilities (layers).
+ */
+.dialog-face {
+  background-color: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* Same opacity rule as `.dialog-face`: unlayered so `.panel`'s 4% wash cannot win. */
+.date-field-face {
+  background-color: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.625rem;
+}
+
+.hatch-face.dialog-face {
+  /* DateField (and other popovers) must paint outside the padded body. */
+  overflow: visible;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -220,25 +244,61 @@
   color: var(--ink);
 }
 
+/* Chrome divider — not `.nav-hatch` (that class is the active underline) */
+.chrome-hatch-rule {
+  height: 3px;
+  opacity: 0.6;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--hatch-strong),
+    var(--hatch-strong) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+}
+
+.field {
+  margin-top: 0.25rem;
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--line-strong);
+}
+
+.field-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.field-check input {
+  accent-color: var(--accent);
+}
+
 /* Page-header row: primary + segmented control share one height */
 .header-controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  align-items: center;
   gap: 0.5rem;
 }
-.header-controls > .btn {
-  height: 2.25rem;
-  padding-block: 0;
-}
-.header-controls > [role="group"] {
-  display: inline-flex;
-  align-items: stretch;
-  height: 2.25rem;
+
+.header-control {
   box-sizing: border-box;
+  height: var(--header-control-height);
 }
-.header-controls > [role="group"] > button {
-  height: auto;
+
+.header-control.btn {
   padding-block: 0;
 }
 

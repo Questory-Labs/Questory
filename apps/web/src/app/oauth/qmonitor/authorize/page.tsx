@@ -12,7 +12,7 @@ import {
 import { api } from "@/lib/api";
 import { useUser } from "@/hooks/useUser";
 import { BrandMark } from "@/components/BrandMark";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui";
 import { LandingBackground } from "@/components/LandingBackground";
 
 function safeLoginNext(pathWithQuery: string): string {

@@ -31,6 +31,7 @@ export const ConnectionsView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Connections"
         description="Link Steam and other services to your account. Sign-in stays email and password only."
       />

@@ -3,13 +3,17 @@
 import { useState, type PropsWithChildren } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { PlaySessionPage } from "@questorylabs/shared";
+import type { PlaySessionPage, PlaySessionStats } from "@questorylabs/shared";
 import { api } from "@/lib/api";
-import { groupByLocalDay } from "@/lib/dates";
+import { groupByLocalDay, withTz } from "@/lib/dates";
 import { PLAY_SESSIONS_PAGE_SIZE } from "@/lib/pagination";
 
 export const SessionsController = ({ children }: PropsWithChildren) => {
   const [page, setPage] = useState(1);
+  const stats = useResource({
+    id: ["play-sessions", "stats"],
+    load: () => api<PlaySessionStats>(withTz("/play-sessions/stats")),
+  });
   const sessions = useResource({
     id: ["play-sessions", page],
     load: () =>
@@ -21,5 +25,5 @@ export const SessionsController = ({ children }: PropsWithChildren) => {
   const items = sessions.value?.items ?? [];
   const dayGroups = groupByLocalDay(items, (s) => s.endedAt);
 
-  return cloneElements(children, { sessions, page, setPage, dayGroups });
+  return cloneElements(children, { sessions, stats, page, setPage, dayGroups });
 };

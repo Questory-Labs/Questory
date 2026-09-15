@@ -43,6 +43,7 @@ export const LibraryView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Library"
         description={
           sync.active
@@ -59,7 +60,7 @@ export const LibraryView = (props: Record<string, unknown>) => {
               setQ(e.target.value);
             }}
             placeholder="Search games"
-            className="rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none"
+            className="field mt-0 w-56"
           />
         }
       />

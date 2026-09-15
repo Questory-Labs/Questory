@@ -1,7 +1,6 @@
 ---
 description: Shared package and Prisma conventions — Zod schema layout, server-only subpaths, schema template, UI library
-globs: packages/**/*.{ts,tsx,css,prisma}
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Shared packages (`@questorylabs/shared`, `@questorylabs/ui`, `@questorylabs/db`)

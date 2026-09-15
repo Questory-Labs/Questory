@@ -1,18 +1,21 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { Panel } from "@/components/ui/Panel";
+import { Panel } from "@/components/ui";
 
-/** Compact metric tile — hatch-elevated Panel shared across Steam, Music, and Watch. */
+/** Compact metric tile — hatch-elevated Panel. No prestige/lg size. */
 export function StatCard({
   label,
   value,
   hint,
   href,
+  sparkline,
   className = "",
 }: {
   label: string;
   value: string | number;
   hint?: string;
   href?: string;
+  sparkline?: ReactNode;
   /** @deprecated No-op; kept for call-site compatibility. */
   delay?: number;
   className?: string;
@@ -32,8 +35,11 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <div className="mt-1 truncate text-xl tabular-nums text-[var(--ink)]">
-        {value}
+      <div className="mt-1 flex items-end justify-between gap-3">
+        <div className="truncate text-xl tabular-nums text-[var(--ink)]">
+          {value}
+        </div>
+        {sparkline ? <div className="shrink-0 pb-0.5">{sparkline}</div> : null}
       </div>
       {hint ? (
         <div className="mt-1 text-[11px] leading-snug text-[var(--muted)]">
@@ -45,6 +51,7 @@ export function StatCard({
 
   return (
     <Panel
+      size="sm"
       wrapperClassName={`h-full ${className}`.trim()}
       className={`group h-full p-3 hover:border-[var(--line-strong)] ${
         href ? "cursor-pointer" : ""

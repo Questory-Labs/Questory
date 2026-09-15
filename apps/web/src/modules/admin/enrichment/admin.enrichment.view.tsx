@@ -21,7 +21,7 @@ export const AdminEnrichmentView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Enrichment"
         description="MusicBrainz, TMDB, and Steam metadata job queues."
         actions={

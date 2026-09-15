@@ -57,11 +57,7 @@ body::after {
   mix-blend-mode: overlay;
 }
 
-/* Landing motion + full-viewport blend grain fights the compositor — mute on / */
-html.landing-active body::after {
-  opacity: 0;
-  mix-blend-mode: normal;
-}
+/* Fine paper grain stays on landing — NEXCRA grain steal is not muted */
 
 a {
   color: inherit;

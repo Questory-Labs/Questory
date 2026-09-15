@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../cn";
+import { HatchShadow } from "./HatchShadow";
 import {
   dateFieldCellVariants,
   dateFieldDayVariants,
@@ -197,7 +198,7 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
   }
 
   return (
-    <div ref={rootRef} className="relative min-w-0">
+    <div ref={rootRef} className={cn("relative min-w-0", open && "z-30")}>
       {label ? (
         <span className="text-xs text-[var(--muted)]">{label}</span>
       ) : null}
@@ -213,128 +214,135 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
         <CalendarIcon />
       </button>
       {open ? (
-        <div
-          role="dialog"
-          aria-label="Choose date"
-          className="absolute right-0 z-20 mt-1 w-[16.5rem] rounded border border-[var(--line)] bg-[var(--bg-1)] p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
-        >
-          <div className="mb-2 flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Previous month"
-              disabled={prevMonthOutOfRange}
-              onClick={() => goMonth(-1)}
-              className={dateFieldNavButtonVariants()}
-            >
-              ‹
-            </button>
-            <div className="flex min-w-0 flex-1 justify-center gap-1">
-              <button
-                type="button"
-                aria-label="Choose month"
-                aria-expanded={panel === "months"}
-                onClick={() => setPanel((current) => (current === "months" ? "days" : "months"))}
-                className={dateFieldSwitchVariants({ active: panel === "months" })}
-              >
-                {MONTHS[monthIndex]}
-                <Chevron open={panel === "months"} />
-              </button>
-              <button
-                type="button"
-                aria-label="Choose year"
-                aria-expanded={panel === "years"}
-                onClick={() => setPanel((current) => (current === "years" ? "days" : "years"))}
-                className={dateFieldSwitchVariants({
-                  active: panel === "years",
-                  tabular: true,
-                })}
-              >
-                {year}
-                <Chevron open={panel === "years"} />
-              </button>
-            </div>
-            <button
-              type="button"
-              aria-label="Next month"
-              disabled={nextMonthOutOfRange}
-              onClick={() => goMonth(1)}
-              className={dateFieldNavButtonVariants()}
-            >
-              ›
-            </button>
-          </div>
-          {panel === "months" ? (
-            <div className="grid grid-cols-3 gap-1">
-              {MONTHS.map((name, index) => (
+        <div className="absolute top-full right-0 z-20 mt-1 w-[16.5rem]">
+          <HatchShadow size="sm" faceClassName="date-field-face">
+            <div role="dialog" aria-label="Choose date">
+              <div className="mb-2 flex items-center gap-1">
                 <button
-                  key={name}
                   type="button"
-                  aria-label={MONTH_NAMES[index]}
-                  onClick={() => pickMonth(index)}
-                  className={dateFieldCellVariants({ active: index === monthIndex })}
+                  aria-label="Previous month"
+                  disabled={prevMonthOutOfRange}
+                  onClick={() => goMonth(-1)}
+                  className={dateFieldNavButtonVariants()}
                 >
-                  {name}
+                  ‹
                 </button>
-              ))}
-            </div>
-          ) : null}
-          {panel === "years" ? (
-            <div ref={yearListRef} className="grid max-h-[13.5rem] grid-cols-3 gap-1 overflow-y-auto pr-0.5">
-              {years.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  aria-label={`Year ${item}`}
-                  data-selected={item === year ? "true" : undefined}
-                  onClick={() => pickYear(item)}
-                  className={cn(
-                    dateFieldCellVariants({ active: item === year }),
-                    "tabular-nums",
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {panel === "days" ? (
-            <div className="grid grid-cols-7 gap-px text-center">
-              {WEEKDAYS.map((day) => (
-                <span
-                  key={day}
-                  className="py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]"
-                >
-                  {day}
-                </span>
-              ))}
-              {cells.map((key, index) =>
-                key ? (
+                <div className="flex min-w-0 flex-1 justify-center gap-1">
                   <button
-                    key={key}
                     type="button"
-                    aria-label={key}
-                    aria-current={key === today ? "date" : undefined}
-                    onClick={() => {
-                      onChange(key);
-                      setOpen(false);
-                    }}
-                    className={dateFieldDayVariants({
-                      state:
-                        key === value
-                          ? "selected"
-                          : key === today
-                            ? "today"
-                            : "idle",
+                    aria-label="Choose month"
+                    aria-expanded={panel === "months"}
+                    onClick={() =>
+                      setPanel((current) => (current === "months" ? "days" : "months"))
+                    }
+                    className={dateFieldSwitchVariants({ active: panel === "months" })}
+                  >
+                    {MONTHS[monthIndex]}
+                    <Chevron open={panel === "months"} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Choose year"
+                    aria-expanded={panel === "years"}
+                    onClick={() =>
+                      setPanel((current) => (current === "years" ? "days" : "years"))
+                    }
+                    className={dateFieldSwitchVariants({
+                      active: panel === "years",
+                      tabular: true,
                     })}
                   >
-                    {parseDay(key).getDate()}
+                    {year}
+                    <Chevron open={panel === "years"} />
                   </button>
-                ) : (
-                  <span key={`empty-${index}`} className="h-7" />
-                ),
-              )}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Next month"
+                  disabled={nextMonthOutOfRange}
+                  onClick={() => goMonth(1)}
+                  className={dateFieldNavButtonVariants()}
+                >
+                  ›
+                </button>
+              </div>
+              {panel === "months" ? (
+                <div className="grid grid-cols-3 gap-1">
+                  {MONTHS.map((name, index) => (
+                    <button
+                      key={name}
+                      type="button"
+                      aria-label={MONTH_NAMES[index]}
+                      onClick={() => pickMonth(index)}
+                      className={dateFieldCellVariants({ active: index === monthIndex })}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {panel === "years" ? (
+                <div
+                  ref={yearListRef}
+                  className="grid max-h-[13.5rem] grid-cols-3 gap-1 overflow-y-auto pr-0.5"
+                >
+                  {years.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      aria-label={`Year ${item}`}
+                      data-selected={item === year ? "true" : undefined}
+                      onClick={() => pickYear(item)}
+                      className={cn(
+                        dateFieldCellVariants({ active: item === year }),
+                        "tabular-nums",
+                      )}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {panel === "days" ? (
+                <div className="grid grid-cols-7 gap-px text-center">
+                  {WEEKDAYS.map((day) => (
+                    <span
+                      key={day}
+                      className="py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]"
+                    >
+                      {day}
+                    </span>
+                  ))}
+                  {cells.map((key, index) =>
+                    key ? (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-label={key}
+                        aria-current={key === today ? "date" : undefined}
+                        onClick={() => {
+                          onChange(key);
+                          setOpen(false);
+                        }}
+                        className={dateFieldDayVariants({
+                          state:
+                            key === value
+                              ? "selected"
+                              : key === today
+                                ? "today"
+                                : "idle",
+                        })}
+                      >
+                        {parseDay(key).getDate()}
+                      </button>
+                    ) : (
+                      <span key={`empty-${index}`} className="h-7" />
+                    ),
+                  )}
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          </HatchShadow>
         </div>
       ) : null}
     </div>

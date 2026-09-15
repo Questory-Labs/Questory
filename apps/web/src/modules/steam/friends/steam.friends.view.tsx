@@ -23,6 +23,7 @@ export const FriendsView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Friends"
         description={
           <>
@@ -59,36 +60,32 @@ export const FriendsView = (props: Record<string, unknown>) => {
         }
       >
         {list.length ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Panel variant="outline" className="divide-y divide-[var(--line)]">
             {list.map((f) => (
-              <Panel
+              <Link
                 key={f.steamId}
-                className="cursor-pointer transition hover:border-[var(--accent)]"
+                href={`/friends/${f.steamId}`}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-2)]"
               >
-                <Link
-                  href={`/friends/${f.steamId}`}
-                  className="flex items-center gap-3 p-4"
-                >
-                  {f.avatarUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={f.avatarUrl}
-                      alt=""
-                      className="h-12 w-12 rounded-full"
-                    />
-                  )}
-                  <div>
-                    <div className="font-medium">{f.personaName}</div>
-                    <div className="text-xs text-[var(--muted)]">
-                      {f.libraryCached
-                        ? "Library cached · Compare"
-                        : "Compare (no library cache)"}
-                    </div>
+                {f.avatarUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={f.avatarUrl}
+                    alt=""
+                    className="h-10 w-10 rounded-full"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="font-medium">{f.personaName}</div>
+                  <div className="text-xs text-[var(--muted)]">
+                    {f.libraryCached
+                      ? "Library cached · Compare"
+                      : "Compare (no library cache)"}
                   </div>
-                </Link>
-              </Panel>
+                </div>
+              </Link>
             ))}
-          </div>
+          </Panel>
         ) : (
           <EmptyState title="No friends synced yet. Make sure your Steam friends list is public." />
         )}

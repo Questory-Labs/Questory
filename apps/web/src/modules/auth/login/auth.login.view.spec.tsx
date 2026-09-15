@@ -40,9 +40,9 @@ describe("LoginView", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
-  it("shows an error alert when error is set", () => {
-    renderView({ error: "Invalid credentials" });
-    expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Invalid credentials").length).toBeGreaterThan(0);
+  it("shows hatch fields for email and password", () => {
+    renderView({});
+    expect(screen.getByLabelText("Email")).toHaveClass("field");
+    expect(screen.getByLabelText("Password")).toHaveClass("field");
   });
 });

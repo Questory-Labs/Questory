@@ -33,7 +33,7 @@ export const ReadLibraryView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Library"
         description="Your manga and print list from AniList."
       />

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { CALENDAR_HEATMAP_MAX_WEEKS } from "@/lib/charts";
+import {
+  CALENDAR_HEATMAP_MAX_WEEKS,
+  CHART_X_TICK_MIN_GAP_PX,
+} from "@/lib/charts";
 import type { ChartPadding, ChartSize, LinePoint, SketchDatum } from "./types";
 
 export const CHART_HEIGHT: Record<ChartSize, number> = {
@@ -103,6 +106,55 @@ export type LineLayout = {
   pad: ChartPadding;
 };
 
+/** First + last, with enough stride that the last day does not sit on its neighbor. */
+export function pickXTickIndices(length: number, targetCount = 7): number[] {
+  if (length <= 0) return [];
+  if (length === 1) return [0];
+  const step = Math.max(
+    1,
+    Math.round((length - 1) / Math.max(targetCount - 1, 1)),
+  );
+  const idx: number[] = [];
+  for (let i = 0; i < length; i += step) idx.push(i);
+  const last = length - 1;
+  if (idx[idx.length - 1] !== last) {
+    if (last - idx[idx.length - 1] < step) {
+      idx[idx.length - 1] = last;
+    } else {
+      idx.push(last);
+    }
+  }
+  return idx;
+}
+
+/**
+ * First + last, then interiors only when their x is at least `minGap` from
+ * the previous chosen tick. Time-mode series cluster at the right edge;
+ * index sampling would stack those labels.
+ */
+export function pickXTickIndicesByPixel(
+  xs: number[],
+  minGap = CHART_X_TICK_MIN_GAP_PX,
+): number[] {
+  if (xs.length === 0) return [];
+  if (xs.length === 1) return [0];
+  const last = xs.length - 1;
+  const chosen: number[] = [0];
+  for (let i = 1; i < last; i += 1) {
+    if (xs[i] - xs[chosen[chosen.length - 1]] >= minGap) {
+      chosen.push(i);
+    }
+  }
+  const prev = chosen[chosen.length - 1];
+  if (xs[last] - xs[prev] < minGap) {
+    if (chosen.length === 1) chosen.push(last);
+    else chosen[chosen.length - 1] = last;
+  } else {
+    chosen.push(last);
+  }
+  return chosen;
+}
+
 export function buildLineLayout(
   data: SketchDatum[],
   width: number,
@@ -179,10 +231,11 @@ export function buildLineLayout(
     "Z",
   ].join(" ");
 
-  const xTickIdx = new Set<number>();
-  const step = Math.max(1, Math.round((data.length - 1) / 6));
-  for (let i = 0; i < data.length; i += step) xTickIdx.add(i);
-  xTickIdx.add(data.length - 1);
+  const xTickIdx = new Set(
+    options.xMode === "time"
+      ? pickXTickIndicesByPixel(points.map((p) => p.x))
+      : pickXTickIndices(data.length),
+  );
 
   return {
     points,
@@ -204,6 +257,120 @@ export function chartHeightClass(size: ChartSize): string {
   if (size === "sm") return "h-36";
   if (size === "md") return "h-56";
   return "h-64 sm:h-72";
+}
+
+/** Monotone cubic (Fritsch–Carlson) — smooth without overshooting peaks. */
+export function monotoneLinePath(
+  points: Array<{ x: number; y: number }>,
+): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+
+  const n = points.length;
+  const dx: number[] = [];
+  const dy: number[] = [];
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i += 1) {
+    dx[i] = points[i + 1].x - points[i].x;
+    dy[i] = points[i + 1].y - points[i].y;
+    slope[i] = dx[i] === 0 ? 0 : dy[i] / dx[i];
+  }
+
+  const tan = new Array<number>(n).fill(0);
+  tan[0] = slope[0];
+  tan[n - 1] = slope[n - 2];
+  for (let i = 1; i < n - 1; i += 1) {
+    tan[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+  }
+
+  for (let i = 0; i < n - 1; i += 1) {
+    if (Math.abs(slope[i]) < 1e-12) {
+      tan[i] = 0;
+      tan[i + 1] = 0;
+    } else {
+      const a = tan[i] / slope[i];
+      const b = tan[i + 1] / slope[i];
+      const s = a * a + b * b;
+      if (s > 9) {
+        const t = 3 / Math.sqrt(s);
+        tan[i] = t * a * slope[i];
+        tan[i + 1] = t * b * slope[i];
+      }
+    }
+  }
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < n - 1; i += 1) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const c = dx[i] / 3;
+    d += ` C ${p0.x + c} ${p0.y + tan[i] * c}, ${p1.x - c} ${p1.y + tan[i + 1] * c}, ${p1.x} ${p1.y}`;
+  }
+  return d;
+}
+
+export function monotoneAreaPath(
+  points: Array<{ x: number; y: number }>,
+  baseline: number,
+): string {
+  if (points.length === 0) return "";
+  const line = monotoneLinePath(points);
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `${line} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`;
+}
+
+export function polarPoint(cx: number, cy: number, r: number, angle: number) {
+  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+}
+
+export function describeArc(
+  cx: number,
+  cy: number,
+  r: number,
+  start: number,
+  end: number,
+  reverse = false,
+) {
+  const s = polarPoint(cx, cy, r, start);
+  const e = polarPoint(cx, cy, r, end);
+  const large = Math.abs(end - start) > Math.PI ? 1 : 0;
+  const sweep = reverse ? 0 : 1;
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} ${sweep} ${e.x} ${e.y}`;
+}
+
+/**
+ * Closed donut wedge. A single subpath — never start the inner arc with `M`,
+ * or the hole fills and slices gap.
+ */
+export function donutSlicePath(
+  cx: number,
+  cy: number,
+  innerRadius: number,
+  outerRadius: number,
+  start: number,
+  end: number,
+): string {
+  const sweep = end - start;
+  if (sweep >= Math.PI * 2 - 1e-6) {
+    const mid = start + Math.PI;
+    return `${donutSlicePath(cx, cy, innerRadius, outerRadius, start, mid)} ${donutSlicePath(cx, cy, innerRadius, outerRadius, mid, start + Math.PI * 2)}`;
+  }
+  const large = sweep > Math.PI ? 1 : 0;
+  const p0 = polarPoint(cx, cy, outerRadius, start);
+  const p1 = polarPoint(cx, cy, outerRadius, end);
+  const p2 = polarPoint(cx, cy, innerRadius, end);
+  const p3 = polarPoint(cx, cy, innerRadius, start);
+  return [
+    `M ${p0.x} ${p0.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${large} 1 ${p1.x} ${p1.y}`,
+    `L ${p2.x} ${p2.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${large} 0 ${p3.x} ${p3.y}`,
+    "Z",
+  ].join(" ");
 }
 
 export const HEATMAP_LEVEL_CLASS = [

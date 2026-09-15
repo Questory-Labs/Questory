@@ -94,5 +94,8 @@ describe("MusicHomeView", () => {
     renderView();
     expect(screen.getByText("Listens")).toBeInTheDocument();
     expect(screen.getByText("9")).toBeInTheDocument();
+    expect(screen.getByText("Coverage")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Duration coverage" })).not.toBeInTheDocument();
   });
 });

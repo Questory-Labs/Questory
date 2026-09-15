@@ -3,17 +3,24 @@
 import { useMemo, useState, type PropsWithChildren } from "react";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { FamilyInsights, FamilyLibrary } from "@questorylabs/shared";
+import type { FamilyInsights, FamilyLibrary, FamilyMemberSummary } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { fetchAllFriends } from "@/lib/friends";
 import { FAMILY_LIBRARY_PAGE_SIZE } from "@/lib/pagination";
 import { useFamilyImportSelection } from "./steam.family.hooks";
-import { parseApiError } from "./steam.family.utils";
+import {
+  normalizeSteamId,
+  parseApiError,
+  remainingFamilySlots,
+} from "./steam.family.utils";
+
+const EMPTY_MEMBERS: FamilyMemberSummary[] = [];
 
 export const FamilyController = ({ children }: PropsWithChildren) => {
   const store = useStore();
   const [steamId, setSteamId] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [activeMember, setActiveMember] = useState("all");
   const [gameSearch, setGameSearch] = useState("");
@@ -59,11 +66,19 @@ export const FamilyController = ({ children }: PropsWithChildren) => {
     when: showImport,
   });
 
-  const members = insights.value?.members || library.value?.members || [];
-  const memberIds = useMemo(
-    () => new Set(members.map((m) => m.steamId)),
-    [members],
-  );
+  const members =
+    insights.value?.members || library.value?.members || EMPTY_MEMBERS;
+  const memberCount = insights.value?.memberCount ?? members.length;
+  const remainingSlots = remainingFamilySlots(memberCount);
+  const familyAtCapacity = remainingSlots <= 0;
+  const memberIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of members) {
+      const id = normalizeSteamId(m.steamId);
+      if (id) ids.add(id);
+    }
+    return ids;
+  }, [members]);
 
   const {
     selected,
@@ -73,7 +88,11 @@ export const FamilyController = ({ children }: PropsWithChildren) => {
     toggle,
     toggleAll,
     reset,
-  } = useFamilyImportSelection(friends.value?.friends || [], memberIds);
+  } = useFamilyImportSelection(
+    friends.value?.friends || [],
+    memberIds,
+    remainingSlots,
+  );
 
   const invalidateFamily = () => {
     store.touch(["family-insights"]);
@@ -103,10 +122,11 @@ export const FamilyController = ({ children }: PropsWithChildren) => {
     onSuccess: () => {
       reset();
       setShowImport(false);
+      setImportError(null);
       setAddError(null);
       invalidateFamily();
     },
-    onError: (err: Error) => setAddError(parseApiError(err)),
+    onError: (err: Error) => setImportError(parseApiError(err)),
   });
 
   return cloneElements(children, {
@@ -124,7 +144,14 @@ export const FamilyController = ({ children }: PropsWithChildren) => {
     addBusy: add.busy,
     onAdd: () => add.submit(),
     showImport,
-    onToggleImport: () => setShowImport((v) => !v),
+    onOpenImport: () => {
+      setImportError(null);
+      setShowImport(true);
+    },
+    onCloseImport: () => {
+      if (importFriends.busy) return;
+      setShowImport(false);
+    },
     importable,
     selected,
     importFilter,
@@ -133,6 +160,7 @@ export const FamilyController = ({ children }: PropsWithChildren) => {
     toggleAll,
     importBusy: importFriends.busy,
     onImportSelected: () => importFriends.submit([...selected]),
+    importError,
     activeMember,
     setActiveMember: (id: string) => {
       setActiveMember(id);
@@ -149,5 +177,7 @@ export const FamilyController = ({ children }: PropsWithChildren) => {
     setConflictsPage,
     selectedAppId,
     setSelectedAppId,
+    remainingSlots,
+    familyAtCapacity,
   });
 };

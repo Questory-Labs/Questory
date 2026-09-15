@@ -1,7 +1,7 @@
 "use client";
 
+import { ListPager } from "@/components/ListPager";
 import { COST_ROI_PAGE_SIZE } from "@/lib/pagination";
-import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type { CostRoiPage } from "@questorylabs/shared";
 import {
   EmptyState,
@@ -10,12 +10,12 @@ import {
   SkeletonListRows,
   SkeletonStatGrid,
 } from "@questorylabs/ui";
-import { CostMixCharts } from "./components/CostMixCharts";
-import { CostSummaryStats } from "./components/CostSummaryStats";
-import { RoiList } from "./components/RoiList";
-import { RoiPagination } from "./components/RoiPagination";
-import { ValueTabs } from "./components/ValueTabs";
-import type { CostViewProps, ValueTab } from "./steam.cost.types";
+import { CostGameList } from "./components/CostGameList";
+import { CostHero } from "./components/CostHero";
+import { CostIdleList } from "./components/CostIdleList";
+import { CostRanking } from "./components/CostRanking";
+import type { CostViewProps } from "./steam.cost.types";
+import { roiEmptyMessage } from "./steam.cost.utils";
 
 const dangerEmpty = (title: string) => (
   <EmptyState
@@ -23,45 +23,31 @@ const dangerEmpty = (title: string) => (
   />
 );
 
-const roiEmptyMessage = (
-  roi: UseResourceResult<CostRoiPage>,
-  tab: ValueTab,
-) =>
-  (roi.value?.total ?? 0) === 0
-    ? "Price data will appear after the next store sync."
-    : `No ${tab} games with playtime to rank.`;
-
-const roiTotalPages = (roi: UseResourceResult<CostRoiPage>) =>
-  Math.max(
-    1,
-    Math.ceil(
-      (roi.value?.total ?? 0) / (roi.value?.pageSize ?? COST_ROI_PAGE_SIZE),
-    ),
-  );
-
 export const CostView = (props: Record<string, unknown>) => {
   const {
     summary,
-    bestRoi,
-    worstRoi,
-    bestTab,
-    setBestTab,
-    worstTab,
-    setWorstTab,
-    bestPage,
-    setBestPage,
-    worstPage,
-    setWorstPage,
+    roi,
+    sort,
+    setSort,
+    valueTab,
+    setValueTab,
+    page,
+    setPage,
   } = props as CostViewProps;
 
   const s = summary.value;
   const currency = s?.currency || "USD";
+  const roiPage: CostRoiPage | undefined = roi.value;
+  const rankOffset =
+    ((roiPage?.page ?? page) - 1) * (roiPage?.pageSize ?? COST_ROI_PAGE_SIZE);
 
   return (
     <>
       <PageHeader
-        title="Cost Analytics"
-        description="Estimate-only library value from store / ITAD prices — not what you spent. Steam does not expose purchase history; we never ask you to enter prices."
+        size="sm"
+        eyebrow="Estimates"
+        title="Library cost"
+        description="What the shelf is worth at current prices, and which games actually pay off."
       />
 
       <ResourceStatus
@@ -70,69 +56,40 @@ export const CostView = (props: Record<string, unknown>) => {
         loading={<SkeletonStatGrid count={4} />}
         error={dangerEmpty("Could not load cost summary.")}
       >
-        {s ? (
-          <>
-            <CostSummaryStats summary={s} />
-            <CostMixCharts summary={s} />
-          </>
-        ) : null}
+        {s ? <CostHero summary={s} /> : null}
       </ResourceStatus>
 
-      <section className="mt-10">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <h2 className="font-display text-2xl font-bold tracking-tight">
-            Best value (lowest cost/hour)
-          </h2>
-          <ValueTabs value={bestTab} onChange={setBestTab} />
-        </div>
-        <ResourceStatus
-          failed={bestRoi.failed}
-          empty={bestRoi.empty}
-          loading={<SkeletonListRows />}
-          error={dangerEmpty("Could not load best value rankings.")}
-        >
-          <>
-            <RoiList
-              rows={bestRoi.value?.items ?? []}
-              currency={currency}
-              emptyMessage={roiEmptyMessage(bestRoi, bestTab)}
-            />
-            <RoiPagination
-              page={bestPage}
-              totalPages={roiTotalPages(bestRoi)}
-              onPageChange={setBestPage}
-            />
-          </>
-        </ResourceStatus>
-      </section>
+      {s ? <CostIdleList summary={s} /> : null}
 
-      <section className="mt-10">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <h2 className="font-display text-2xl font-bold tracking-tight">
-            Least value (highest cost/hour)
-          </h2>
-          <ValueTabs value={worstTab} onChange={setWorstTab} />
-        </div>
+      <CostRanking
+        sort={sort}
+        setSort={setSort}
+        valueTab={valueTab}
+        setValueTab={setValueTab}
+      >
         <ResourceStatus
-          failed={worstRoi.failed}
-          empty={worstRoi.empty}
+          failed={roi.failed}
+          empty={roi.empty}
           loading={<SkeletonListRows />}
-          error={dangerEmpty("Could not load least value rankings.")}
+          error={dangerEmpty("Could not load value rankings.")}
         >
           <>
-            <RoiList
-              rows={worstRoi.value?.items ?? []}
+            <CostGameList
+              rows={roiPage?.items ?? []}
               currency={currency}
-              emptyMessage={roiEmptyMessage(worstRoi, worstTab)}
+              emptyMessage={roiEmptyMessage(roiPage?.total ?? 0, valueTab)}
+              rankOffset={rankOffset}
             />
-            <RoiPagination
-              page={worstPage}
-              totalPages={roiTotalPages(worstRoi)}
-              onPageChange={setWorstPage}
+            <ListPager
+              page={page}
+              total={roiPage?.total ?? 0}
+              pageSize={roiPage?.pageSize ?? COST_ROI_PAGE_SIZE}
+              disabled={roi.refreshing}
+              onPageChange={setPage}
             />
           </>
         </ResourceStatus>
-      </section>
+      </CostRanking>
     </>
   );
 };

@@ -20,7 +20,8 @@ export type FamilyViewProps = {
   addBusy: boolean;
   onAdd: () => void;
   showImport: boolean;
-  onToggleImport: () => void;
+  onOpenImport: () => void;
+  onCloseImport: () => void;
   importable: Friend[];
   selected: Set<string>;
   importFilter: string;
@@ -29,6 +30,7 @@ export type FamilyViewProps = {
   toggleAll: () => void;
   importBusy: boolean;
   onImportSelected: () => void;
+  importError: string | null;
   activeMember: string;
   setActiveMember: (id: string) => void;
   gameSearch: string;
@@ -39,4 +41,6 @@ export type FamilyViewProps = {
   setConflictsPage: Dispatch<SetStateAction<number>>;
   selectedAppId: number | null;
   setSelectedAppId: (appId: number | null) => void;
+  remainingSlots: number;
+  familyAtCapacity: boolean;
 };

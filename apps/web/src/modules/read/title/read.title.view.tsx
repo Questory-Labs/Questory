@@ -20,7 +20,7 @@ export const ReadTitleView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         eyebrow={t?.format ?? "Title"}
         title={title}
         description={

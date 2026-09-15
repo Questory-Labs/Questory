@@ -19,5 +19,11 @@ export default defineConfig({
         url: "http://127.0.0.1:3000",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        env: {
+          ...process.env,
+          NEXT_PUBLIC_ENABLE_MUSIC: "true",
+          NEXT_PUBLIC_ENABLE_WATCH: "true",
+          NEXT_PUBLIC_ENABLE_READ: "true",
+        },
       },
 });

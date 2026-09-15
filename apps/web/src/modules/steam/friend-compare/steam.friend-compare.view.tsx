@@ -17,7 +17,7 @@ export const FriendCompareView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title={d?.friend.personaName || "Friend"}
         description={
           <>

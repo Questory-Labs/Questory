@@ -20,7 +20,7 @@ export const WatchTitleView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         eyebrow={t?.type === "show" ? "Show" : "Movie"}
         title={title}
         description={

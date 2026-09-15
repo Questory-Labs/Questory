@@ -95,116 +95,6 @@ export class FamilyService {
     return group;
   }
 
-  async addMember(userId: string, steamId: string) {
-    const id = steamId.trim();
-    if (!/^\d{17}$/.test(id)) {
-      throw new BadRequestException("SteamID64 must be a 17-digit number");
-    }
-
-    const group = await this.getOrCreate(userId);
-    const [summary] = await this.steam.getPlayerSummaries([id]);
-    return this.upsertMember(
-      group.id,
-      id,
-      {
-        personaName: summary?.personaname || id,
-        avatarUrl: summary?.avatarfull || null,
-      },
-      { syncLibrary: true },
-    );
-  }
-
-  /** Import selected Steam friends into the family group (must already be friendships). */
-  async importFromFriends(userId: string, steamIds: string[]) {
-    const ids = [
-      ...new Set((steamIds || []).map((s) => s.trim()).filter(Boolean)),
-    ];
-    if (!ids.length) {
-      throw new BadRequestException("Select at least one friend");
-    }
-    if (ids.length > 25) {
-      throw new BadRequestException("Import at most 25 friends at a time");
-    }
-    if (ids.some((id) => !/^\d{17}$/.test(id))) {
-      throw new BadRequestException("All SteamIDs must be 17-digit numbers");
-    }
-
-    const group = await this.getOrCreate(userId);
-    const friends = await this.prisma.friendship.findMany({
-      where: { userId, friendSteamId: { in: ids } },
-    });
-    const friendMap = new Map(friends.map((f) => [f.friendSteamId, f]));
-
-    const added: Awaited<ReturnType<typeof this.upsertMember>>[] = [];
-    const skipped: string[] = [];
-
-    for (const steamId of ids) {
-      const friend = friendMap.get(steamId);
-      if (!friend) {
-        skipped.push(steamId);
-        continue;
-      }
-      // Skip full library pull here — friends-sync cache + insights refresh cover it.
-      const member = await this.upsertMember(
-        group.id,
-        steamId,
-        {
-          personaName: friend.personaName,
-          avatarUrl: friend.avatarUrl,
-          userId: friend.friendUserId,
-        },
-        { syncLibrary: false },
-      );
-      added.push(member);
-    }
-
-    return {
-      added: added.length,
-      skipped: skipped.length,
-      members: added,
-    };
-  }
-
-  private async upsertMember(
-    groupId: string,
-    steamId: string,
-    profile: {
-      personaName: string;
-      avatarUrl: string | null;
-      userId?: string | null;
-    },
-    opts: { syncLibrary: boolean },
-  ) {
-    const existingUser =
-      profile.userId != null
-        ? { id: profile.userId }
-        : await this.accounts.findUserBySteamId(steamId);
-
-    const member = await this.prisma.familyMember.upsert({
-      where: { groupId_steamId: { groupId, steamId } },
-      create: {
-        groupId,
-        steamId,
-        userId: existingUser?.id,
-        personaName: profile.personaName,
-        avatarUrl: profile.avatarUrl,
-        role: "member",
-      },
-      update: {
-        userId: existingUser?.id,
-        personaName: profile.personaName,
-        avatarUrl: profile.avatarUrl,
-      },
-    });
-
-    // Non-users need a library cache; users already sync via LibraryEntry.
-    if (!existingUser && opts.syncLibrary) {
-      await this.cacheMemberLibrary(steamId);
-    }
-
-    return member;
-  }
-
   private isFallbackName(personaName: string, steamId: string) {
     return (
       personaName === steamId ||
@@ -278,7 +168,7 @@ export class FamilyService {
   }
 
   /** Fetch full owned-games list into FriendLibraryCache (not the friends-sync 200 cap). */
-  private async cacheMemberLibrary(steamId: string): Promise<number> {
+  async cacheMemberLibrary(steamId: string): Promise<number> {
     const owned = await this.steam.getOwnedGames(steamId);
     if (!owned.length) return 0;
 

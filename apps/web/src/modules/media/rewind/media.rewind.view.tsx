@@ -38,7 +38,7 @@ export const RewindView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title={`${domainTitle} Rewind`}
         description={`Your top insights for ${period}.`}
         actions={

@@ -4,8 +4,9 @@ import type { PropsWithChildren } from "react";
 import { useParams } from "next/navigation";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { GameDetail, LibraryEntry } from "@questorylabs/shared";
+import type { GameDetail, LibraryEntry, PlaySessionPage } from "@questorylabs/shared";
 import { api } from "@/lib/api";
+import { LIBRARY_GAME_SESSIONS_PAGE_SIZE } from "@/lib/pagination";
 
 export const LibraryGameController = ({ children }: PropsWithChildren) => {
   const params = useParams<{ gameId: string }>();
@@ -24,5 +25,14 @@ export const LibraryGameController = ({ children }: PropsWithChildren) => {
     when: appId != null && appId > 0,
   });
 
-  return cloneElements(children, { gameId, entry, detail });
+  const sessions = useResource({
+    id: ["play-sessions", "library-game", gameId],
+    load: () =>
+      api<PlaySessionPage>(
+        `/play-sessions?gameId=${encodeURIComponent(gameId)}&page=1&pageSize=${LIBRARY_GAME_SESSIONS_PAGE_SIZE}`,
+      ),
+    when: Boolean(gameId),
+  });
+
+  return cloneElements(children, { gameId, entry, detail, sessions });
 };
