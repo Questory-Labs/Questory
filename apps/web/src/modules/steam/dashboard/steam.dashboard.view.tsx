@@ -47,7 +47,7 @@ export const DashboardView = (props: Record<string, unknown>) => {
   const name = user?.personaName?.trim();
   const isSteamLinked = user ? user.steamId != null : true;
   const value = stats.value;
-  const syncing = sync.syncing;
+  const syncing = sync.active;
   const continueGame = recentlyPlayed?.[0] ?? null;
   const occupancy = dashboardOccupancy({
     steamLinked: isSteamLinked,

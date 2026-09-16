@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
+import { MULTER_SECURITY_LIMITS } from "../../lib/multer.constants";
 import { LetterboxdService } from "./letterboxd.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
@@ -30,7 +31,7 @@ export class ImportsController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
-      limits: { fileSize: 20 * 1024 * 1024 },
+      limits: { fileSize: 20 * 1024 * 1024, ...MULTER_SECURITY_LIMITS },
     }),
   )
   async letterboxdImport(

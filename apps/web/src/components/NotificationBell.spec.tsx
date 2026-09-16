@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { AppNotification } from "@questorylabs/shared";
+import { mockResource } from "@/test/resource-mock";
 import { NotificationBell } from "./NotificationBell";
 
 const sample: AppNotification = {
@@ -47,11 +48,18 @@ describe("NotificationBell", () => {
   it("shows the unread badge and opens the list", () => {
     vi.mocked(useNotifications).mockReturnValue({
       unreadCount: 3,
+      unread: mockResource({
+        empty: false,
+        failed: false,
+        value: { count: 3 },
+      }),
       items: [],
+      list: mockResource({ empty: false, failed: false, value: [] }),
       listOpen: false,
       setListOpen,
       markAllRead,
-    } as ReturnType<typeof useNotifications>);
+      markReadBusy: false,
+    });
 
     render(<NotificationBell />);
 
@@ -65,11 +73,18 @@ describe("NotificationBell", () => {
   it("renders alerts and marks them read", () => {
     vi.mocked(useNotifications).mockReturnValue({
       unreadCount: 1,
+      unread: mockResource({
+        empty: false,
+        failed: false,
+        value: { count: 1 },
+      }),
       items: [sample],
+      list: mockResource({ empty: false, failed: false, value: [sample] }),
       listOpen: true,
       setListOpen,
       markAllRead,
-    } as ReturnType<typeof useNotifications>);
+      markReadBusy: false,
+    });
 
     render(<NotificationBell />);
 

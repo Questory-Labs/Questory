@@ -43,7 +43,7 @@
     "dotenv": "^17.4.2",
     "fflate": "^0.8.3",
     "ioredis": "^5.6.0",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "pg": "^8.22.0",
     "playwright": "^1.62.1",
     "reflect-metadata": "^0.2.2",
@@ -66,6 +66,6 @@
     "supertest": "^7.1.4",
     "typescript": "^5.8.2",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.11"
   }
 }

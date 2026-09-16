@@ -15,6 +15,7 @@ import { mkdirSync } from "fs";
 import { rm } from "fs/promises";
 import { diskStorage } from "multer";
 import { join } from "path";
+import { MULTER_SECURITY_LIMITS } from "../../lib/multer.constants";
 import { CurrentMusicUser } from "../auth/current-music-user.decorator";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { ImportsService } from "./imports.service";
@@ -60,7 +61,7 @@ export class ImportsController {
           cb(null, name);
         },
       }),
-      limits: { fileSize: 120 * 1024 * 1024 },
+      limits: { fileSize: 120 * 1024 * 1024, ...MULTER_SECURITY_LIMITS },
     }),
   )
   async upload(
