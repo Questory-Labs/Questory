@@ -17,11 +17,9 @@ vi.mock("@/lib/music", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/music")>();
   return {
     ...actual,
-    musicFetch: vi.fn().mockResolvedValue({}),
-    fetchMusicHealth: vi.fn().mockResolvedValue({
-      ok: true,
-      service: "questorylabs-music",
-      lastfmConfigured: false,
+    musicFetch: vi.fn().mockResolvedValue({
+      nativeScrobbling: false,
+      lastfm: { configured: false, connected: false, username: null, lastSyncedAt: null, lastError: null },
     }),
   };
 });

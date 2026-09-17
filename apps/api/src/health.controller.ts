@@ -1,41 +1,14 @@
 import { Controller, Get, VERSION_NEUTRAL } from "@nestjs/common";
-import {
-  isAllowlistEnabled,
-  resolveAppMode,
-  resolveDbProvider,
-  resolveRedisConfig,
-  resolveSyncMode,
-} from "./lib/runtime-config";
-import { isLastFmConfigured } from "./music/lib/runtime-config";
-import {
-  isScrobblerInApi,
-  isScrobblerWorkerProcess,
-} from "./music/scrobbler/scrobbler.constants";
 
+/**
+ * Public liveness + feature soft-gates. Do not add mode, database, Redis,
+ * allowlist, or credential-configured flags — those belong on authenticated
+ * admin/settings surfaces.
+ */
 function coreHealth() {
-  const redis = resolveRedisConfig();
   return {
     ok: true as const,
-    mode: resolveAppMode(),
-    allowlistEnabled: isAllowlistEnabled(),
-    database: {
-      provider: resolveDbProvider(),
-      urlConfigured: Boolean(process.env.DATABASE_URL),
-    },
-    redis: {
-      configured: Boolean(redis.url),
-      mode: redis.mode,
-      forceInline: redis.forceInline,
-    },
-    sync: {
-      mode: resolveSyncMode(),
-    },
-    music: {
-      enabled: true,
-      scrobblers: { lastfm: isLastFmConfigured() },
-      scrobblerInApi: isScrobblerInApi(),
-      scrobblerProcess: isScrobblerWorkerProcess() ? "scrobbler" : "api",
-    },
+    music: { enabled: true },
     watch: { enabled: true },
     read: { enabled: true },
   };

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, localDayKey, withTz } from "./dates";
+import {
+  formatCalendarRange,
+  formatDateTime,
+  localDayKey,
+  withTz,
+} from "./dates";
 
 describe("withTz", () => {
   it("appends tz to paths without a query", () => {
@@ -19,6 +24,22 @@ describe("localDayKey", () => {
   it("uses local calendar components", () => {
     const d = new Date(2026, 6, 29, 1, 15, 0);
     expect(localDayKey(d.toISOString())).toBe("2026-07-29");
+  });
+});
+
+describe("formatCalendarRange", () => {
+  it("formats YYYY-MM-DD as local calendar days", () => {
+    const formatted = formatCalendarRange("2026-09-07", "2026-09-13");
+    const start = new Date(2026, 8, 7).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+    const end = new Date(2026, 8, 13).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    expect(formatted).toBe(`${start} – ${end}`);
   });
 });
 

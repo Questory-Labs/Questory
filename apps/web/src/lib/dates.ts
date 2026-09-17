@@ -23,6 +23,47 @@ export function formatDate(iso: string | null | undefined): string {
   });
 }
 
+function parseYmd(ymd: string): { year: number; month: number; day: number; date: Date } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return { year, month, day, date: new Date(year, month - 1, day) };
+}
+
+/** `YYYY-MM-DD` as a local calendar day (no UTC midnight shift). */
+export function formatCalendarDay(ymd: string): string {
+  const parsed = parseYmd(ymd);
+  if (!parsed) return formatDate(ymd);
+  return parsed.date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Inclusive calendar range, e.g. `Sep 7 – Sep 13, 2026`. */
+export function formatCalendarRange(from: string, to: string): string {
+  const start = parseYmd(from);
+  const end = parseYmd(to);
+  if (!start || !end) {
+    return `${formatCalendarDay(from)} – ${formatCalendarDay(to)}`;
+  }
+  const sameYear = start.year === end.year;
+  const fromLabel = start.date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  const toLabel = end.date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${fromLabel} – ${toLabel}`;
+}
+
 /** Relative last-played: just now / 3h ago / 2d ago, then a short date. */
 export function formatRelativePlayed(
   iso: string | null | undefined,

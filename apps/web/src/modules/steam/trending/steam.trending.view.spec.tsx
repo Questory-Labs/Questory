@@ -74,7 +74,7 @@ const chart = resource({
 describe("TrendingView", () => {
   afterEach(() => cleanup());
 
-  it("leads with global most played and keeps friends last", () => {
+  it("renders friend play, then worldwide steam charts", () => {
     render(
       <TrendingView
         {...({
@@ -95,11 +95,11 @@ describe("TrendingView", () => {
     const headings = screen.getAllByRole("heading").map((el) => el.textContent);
     expect(headings[0]).toBe("Trending");
     expect(headings.slice(1, 6)).toEqual([
+      "Among friends",
       "Global most played",
       "Playing now",
       "Top releases",
       "Steam Deck most played",
-      "Among friends",
     ]);
   });
 
@@ -142,7 +142,7 @@ describe("TrendingView", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows a danger empty state when the weekly digest fails", () => {
+  it("keeps charts visible when the trending insight fails", () => {
     render(
       <TrendingView
         {...({
@@ -161,6 +161,60 @@ describe("TrendingView", () => {
         } as Record<string, unknown>)}
       />,
     );
-    expect(screen.getByText("Could not load weekly overlap.")).toBeInTheDocument();
+    expect(screen.queryByText("Last week vs the world")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trending insight")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Global most played" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides heuristic overlap so shelves are not duplicated", () => {
+    render(
+      <TrendingView
+        {...({
+          friends,
+          global: steamShelf(),
+          concurrent: chart,
+          deck: chart,
+          topReleases: chart,
+          showMusic: false,
+          showWatch: false,
+          showRead: false,
+          showEnterprise: true,
+          digest: resource({
+            empty: false,
+            failed: false,
+            value: {
+              cached: true,
+              generating: false,
+              result: {
+                weekId: "2026-W37",
+                from: "2026-09-07",
+                to: "2026-09-13",
+                headline: "3 titles from your last month are on the public charts",
+                body: "You spent time on these recently, and they showed up on worldwide charts.",
+                llmPolished: false,
+                items: [
+                  {
+                    domain: "games",
+                    name: "Counter-Strike 2",
+                    reason: "You spent time on this in the last month — it's also on Steam Charts.",
+                    chartLabel: "Steam Charts",
+                  },
+                ],
+              },
+            },
+          }),
+          selectedAppId: null,
+          setSelectedAppId: () => undefined,
+        } as Record<string, unknown>)}
+      />,
+    );
+    expect(screen.queryByText("Counter-Strike 2")).not.toBeInTheDocument();
+    expect(screen.queryByText(/3 titles from your last month/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Trending insight")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Global most played" }),
+    ).toBeInTheDocument();
   });
 });

@@ -8,7 +8,7 @@ import { formatHours, formatPeak, formatPlayers, friendAvatars, rankBadge } from
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import type { TrendingViewProps } from "./steam.trending.types";
 import { MediaWorldShelves } from "./components/MediaWorldShelves";
-import { WeeklyDigestHero } from "./components/WeeklyDigestHero";
+import { TrendingInsightHero } from "./components/TrendingInsightHero";
 
 const shelfError = (title: string) => (
   <EmptyState
@@ -51,12 +51,57 @@ export const TrendingView = (props: Record<string, unknown>) => {
             size="sm"
             eyebrow="What's hot"
             title="Trending"
-            description="Global charts first. Friends last. Enabled media shelves are world rankings, not your recap."
+            description="Worldwide public charts. What your friends played sits at the bottom."
           />
         </motion.div>
       </section>
 
-      {showEnterprise && digest ? <WeeklyDigestHero digest={digest} /> : null}
+      {showEnterprise && digest ? <TrendingInsightHero digest={digest} /> : null}
+
+      <GameShelf
+        title="Among friends"
+        description="Most played by your friends over the last two weeks"
+        failed={friends.failed}
+        empty={friends.empty}
+        error={shelfError(
+          "Could not load friend trending. Steam may be rate-limiting — try again shortly.",
+        )}
+        emptyContent={
+          friends.value && !friends.value.games?.length ? (
+            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
+          ) : undefined
+        }
+        meta={
+          friends.value
+            ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
+                friends.value.meta.truncated
+                  ? ` · sampled ${friends.value.meta.friendsSampled}/${friends.value.meta.friendsTotal}`
+                  : ""
+              }${friends.value.meta.cached ? " · cached" : ""}${
+                friends.refreshing && friends.value.meta.cached
+                  ? " · refreshing"
+                  : ""
+              }`
+            : friends.empty
+              ? "sampling friends…"
+              : undefined
+        }
+      >
+        {(friends.value?.games || []).map((g, i) => (
+          <GameShelfItem key={g.appId}>
+            <GameTile
+              name={g.name}
+              headerImage={g.headerImage}
+              index={i}
+              onClick={() => setSelectedAppId(g.appId)}
+              meta={`${g.friendCount} friend${
+                (g.friendCount || 0) === 1 ? "" : "s"
+              } · ${formatHours(g.totalPlaytimeMinutes || 0)} combined`}
+              badge={friendAvatars(g)}
+            />
+          </GameShelfItem>
+        ))}
+      </GameShelf>
 
       <GameShelf
         title="Global most played"
@@ -189,51 +234,6 @@ export const TrendingView = (props: Record<string, unknown>) => {
         watch={watch}
         read={read}
       />
-
-      <GameShelf
-        title="Among friends"
-        description="Most played by your friends over the last two weeks"
-        failed={friends.failed}
-        empty={friends.empty}
-        error={shelfError(
-          "Could not load friend trending. Steam may be rate-limiting — try again shortly.",
-        )}
-        emptyContent={
-          friends.value && !friends.value.games?.length ? (
-            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
-          ) : undefined
-        }
-        meta={
-          friends.value
-            ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
-                friends.value.meta.truncated
-                  ? ` · sampled ${friends.value.meta.friendsSampled}/${friends.value.meta.friendsTotal}`
-                  : ""
-              }${friends.value.meta.cached ? " · cached" : ""}${
-                friends.refreshing && friends.value.meta.cached
-                  ? " · refreshing"
-                  : ""
-              }`
-            : friends.empty
-              ? "sampling friends…"
-              : undefined
-        }
-      >
-        {(friends.value?.games || []).map((g, i) => (
-          <GameShelfItem key={g.appId}>
-            <GameTile
-              name={g.name}
-              headerImage={g.headerImage}
-              index={i}
-              onClick={() => setSelectedAppId(g.appId)}
-              meta={`${g.friendCount} friend${
-                (g.friendCount || 0) === 1 ? "" : "s"
-              } · ${formatHours(g.totalPlaytimeMinutes || 0)} combined`}
-              badge={friendAvatars(g)}
-            />
-          </GameShelfItem>
-        ))}
-      </GameShelf>
 
       <FamilyGameSidebar
         appId={selectedAppId}

@@ -16,6 +16,7 @@ export const WeeklyDigestItemSchema = z.object({
 });
 export type WeeklyDigestItem = z.infer<typeof WeeklyDigestItemSchema>;
 
+/** Charts-through-taste thesis. weekId/from/to are labels, not the product window. */
 export const WeeklyDigestSchema = z.object({
   weekId: z.string(),
   from: z.string(),
@@ -34,7 +35,7 @@ export const WeeklyDigestViewSchema = z.object({
 });
 export type WeeklyDigestView = z.infer<typeof WeeklyDigestViewSchema>;
 
-/** Nest → QEngine weekly-digest POST body. Extra context keys are allowed. */
+/** Nest → QEngine trending-insight POST body. Extra context keys are allowed. */
 export const WeeklyDigestRequestSchema = z.object({
   context: z
     .object({

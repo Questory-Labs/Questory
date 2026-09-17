@@ -91,7 +91,7 @@ pnpm docker:prod -- --build
 Web: `http://localhost:3000` (or your `WEB_ORIGIN`)  
 API: `http://localhost:4000` (or your public API URL) — Steam, music, watch, and optional in-process cron
 
-`GET /health` on the API reports `mode`, database provider, Redis/sync mode, whether the Steam allowlist is enabled (not the IDs), and `music.enabled` / `watch.enabled` / `read.enabled` for the web soft-gates.
+`GET /health` on the API is a public liveness probe (`ok`, `service`) plus `music.enabled` / `watch.enabled` / `read.enabled` for the web soft-gates. It does not report app mode, database, Redis, allowlist, or whether third-party keys are configured.
 
 **One database:** Steam, music, watch, and read all use the same `DATABASE_URL` (SQLite file volume or Postgres `questorylabs`). Schema lives in `packages/db`. Identity is a shared `User` row (Steam OpenID, music ingest token, Trakt/AniList connections).
 

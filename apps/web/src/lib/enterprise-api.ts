@@ -107,7 +107,7 @@ export async function getCurationJob(jobId: string): Promise<CurationJob> {
   );
 }
 
-/** Peek weekly digest cache (previous ISO week). Does not generate. */
+/** Peek trending-insight cache. Does not generate. */
 export async function peekWeeklyDigest(): Promise<WeeklyDigestView> {
   return enterpriseRequest<WeeklyDigestView>(
     "/recommendations/weekly-digest/cache",
@@ -118,7 +118,7 @@ export async function peekWeeklyDigest(): Promise<WeeklyDigestView> {
   );
 }
 
-/** Start background weekly-digest generate; returns immediately. */
+/** Start background trending-insight generate; returns immediately. */
 export async function startWeeklyDigest(): Promise<WeeklyDigestView> {
   return enterpriseRequest<WeeklyDigestView>("/recommendations/weekly-digest", {
     method: "POST",
@@ -300,10 +300,10 @@ export type OtelTraceDetail = {
   spans?: OtelSpan[];
 };
 
-/** Feature gate — proxied through the community API. */
+/** Feature gate — proxied through the community API. Availability only. */
 export async function fetchEnterpriseStatus(): Promise<{
   available: boolean;
-  service?: { ok: boolean; ready?: boolean; model?: string };
+  service?: { ok: boolean };
 }> {
   return enterpriseRequest("/enterprise/status");
 }
