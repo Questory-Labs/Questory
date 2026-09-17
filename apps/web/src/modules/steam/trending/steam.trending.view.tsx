@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { formatHours, formatPeak, formatPlayers, friendAvatars, rankBadge } from "./steam.trending.utils";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
 import type { TrendingViewProps } from "./steam.trending.types";
+import { MediaWorldShelves } from "./components/MediaWorldShelves";
+import { WeeklyDigestHero } from "./components/WeeklyDigestHero";
 
 const shelfError = (title: string) => (
   <EmptyState
@@ -15,7 +17,23 @@ const shelfError = (title: string) => (
 );
 
 export const TrendingView = (props: Record<string, unknown>) => {
-  const { friends, global, concurrent, deck, topReleases, selectedAppId, setSelectedAppId } = props as TrendingViewProps;
+  const {
+    friends,
+    global,
+    concurrent,
+    deck,
+    topReleases,
+    showMusic = false,
+    showWatch = false,
+    showRead = false,
+    showEnterprise = false,
+    music,
+    watch,
+    read,
+    digest,
+    selectedAppId,
+    setSelectedAppId,
+  } = props as TrendingViewProps;
 
   return (
     <>
@@ -30,53 +48,44 @@ export const TrendingView = (props: Record<string, unknown>) => {
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           <PageHeader
+            size="sm"
             eyebrow="What's hot"
             title="Trending"
-            description="Friends activity, live concurrent charts, Steam Deck picks, and top new releases — pulled from Steam's chart APIs."
+            description="Global charts first. Friends last. Enabled media shelves are world rankings, not your recap."
           />
         </motion.div>
       </section>
 
+      {showEnterprise && digest ? <WeeklyDigestHero digest={digest} /> : null}
+
       <GameShelf
-        title="Among friends"
-        description="Most played by your friends over the last two weeks"
-        failed={friends.failed}
-        empty={friends.empty}
-        error={shelfError(
-          "Could not load friend trending. Steam may be rate-limiting — try again shortly.",
-        )}
+        title="Global most played"
+        description="Steam Charts weekly rollup — same source as the store charts page"
+        failed={global.failed}
+        empty={global.empty}
+        error={shelfError("Could not load Steam Charts.")}
         emptyContent={
-          friends.value && !friends.value.games.length ? (
-            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
+          global.value && !global.value.games?.length ? (
+            <EmptyState title="Steam Charts unavailable right now." />
           ) : undefined
         }
         meta={
-          friends.value
-            ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
-                friends.value.meta.truncated
-                  ? ` · sampled ${friends.value.meta.friendsSampled}/${friends.value.meta.friendsTotal}`
-                  : ""
-              }${friends.value.meta.cached ? " · cached" : ""}${
-                friends.refreshing && friends.value.meta.cached
-                  ? " · refreshing"
-                  : ""
-              }`
-            : friends.empty
-              ? "sampling friends…"
-              : undefined
+          global.value?.meta.rollupDate
+            ? `week of ${new Date(global.value.meta.rollupDate).toLocaleDateString()}`
+            : undefined
         }
       >
-        {(friends.value?.games || []).map((g, i) => (
+        {(global.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
               headerImage={g.headerImage}
               index={i}
               onClick={() => setSelectedAppId(g.appId)}
-              meta={`${g.friendCount} friend${
-                (g.friendCount || 0) === 1 ? "" : "s"
-              } · ${formatHours(g.totalPlaytimeMinutes || 0)} combined`}
-              badge={friendAvatars(g)}
+              meta={
+                g.peakPlayers != null ? formatPeak(g.peakPlayers) : undefined
+              }
+              corner={rankBadge(g)}
             />
           </GameShelfItem>
         ))}
@@ -89,7 +98,7 @@ export const TrendingView = (props: Record<string, unknown>) => {
         empty={concurrent.empty}
         error={shelfError("Could not load concurrent charts.")}
         emptyContent={
-          concurrent.value && !concurrent.value.games.length ? (
+          concurrent.value && !concurrent.value.games?.length ? (
             <EmptyState title="Concurrent chart unavailable right now." />
           ) : undefined
         }
@@ -120,32 +129,27 @@ export const TrendingView = (props: Record<string, unknown>) => {
       </GameShelf>
 
       <GameShelf
-        title="Global most played"
-        description="Steam Charts weekly rollup — same source as the store charts page"
-        failed={global.failed}
-        empty={global.empty}
-        error={shelfError("Could not load Steam Charts.")}
+        title="Top releases"
+        description={
+          topReleases.value?.meta.pageName ||
+          "Steam Charts curated new-release standouts"
+        }
+        failed={topReleases.failed}
+        empty={topReleases.empty}
+        error={shelfError("Could not load top releases.")}
         emptyContent={
-          global.value && !global.value.games.length ? (
-            <EmptyState title="Steam Charts unavailable right now." />
+          topReleases.value && !topReleases.value.games?.length ? (
+            <EmptyState title="Top releases unavailable right now." />
           ) : undefined
         }
-        meta={
-          global.value?.meta.rollupDate
-            ? `week of ${new Date(global.value.meta.rollupDate).toLocaleDateString()}`
-            : undefined
-        }
       >
-        {(global.value?.games || []).map((g, i) => (
+        {(topReleases.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
               headerImage={g.headerImage}
               index={i}
               onClick={() => setSelectedAppId(g.appId)}
-              meta={
-                g.peakPlayers != null ? formatPeak(g.peakPlayers) : undefined
-              }
               corner={rankBadge(g)}
             />
           </GameShelfItem>
@@ -159,7 +163,7 @@ export const TrendingView = (props: Record<string, unknown>) => {
         empty={deck.empty}
         error={shelfError("Could not load Deck charts.")}
         emptyContent={
-          deck.value && !deck.value.games.length ? (
+          deck.value && !deck.value.games?.length ? (
             <EmptyState title="Deck chart unavailable right now." />
           ) : undefined
         }
@@ -177,29 +181,55 @@ export const TrendingView = (props: Record<string, unknown>) => {
         ))}
       </GameShelf>
 
+      <MediaWorldShelves
+        showMusic={showMusic}
+        showWatch={showWatch}
+        showRead={showRead}
+        music={music}
+        watch={watch}
+        read={read}
+      />
+
       <GameShelf
-        title="Top releases"
-        description={
-          topReleases.value?.meta.pageName ||
-          "Steam Charts curated new-release standouts"
-        }
-        failed={topReleases.failed}
-        empty={topReleases.empty}
-        error={shelfError("Could not load top releases.")}
+        title="Among friends"
+        description="Most played by your friends over the last two weeks"
+        failed={friends.failed}
+        empty={friends.empty}
+        error={shelfError(
+          "Could not load friend trending. Steam may be rate-limiting — try again shortly.",
+        )}
         emptyContent={
-          topReleases.value && !topReleases.value.games.length ? (
-            <EmptyState title="Top releases unavailable right now." />
+          friends.value && !friends.value.games?.length ? (
+            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
           ) : undefined
         }
+        meta={
+          friends.value
+            ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
+                friends.value.meta.truncated
+                  ? ` · sampled ${friends.value.meta.friendsSampled}/${friends.value.meta.friendsTotal}`
+                  : ""
+              }${friends.value.meta.cached ? " · cached" : ""}${
+                friends.refreshing && friends.value.meta.cached
+                  ? " · refreshing"
+                  : ""
+              }`
+            : friends.empty
+              ? "sampling friends…"
+              : undefined
+        }
       >
-        {(topReleases.value?.games || []).map((g, i) => (
+        {(friends.value?.games || []).map((g, i) => (
           <GameShelfItem key={g.appId}>
             <GameTile
               name={g.name}
               headerImage={g.headerImage}
               index={i}
               onClick={() => setSelectedAppId(g.appId)}
-              corner={rankBadge(g)}
+              meta={`${g.friendCount} friend${
+                (g.friendCount || 0) === 1 ? "" : "s"
+              } · ${formatHours(g.totalPlaytimeMinutes || 0)} combined`}
+              badge={friendAvatars(g)}
             />
           </GameShelfItem>
         ))}

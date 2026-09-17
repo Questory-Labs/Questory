@@ -1,6 +1,8 @@
 import { z } from "zod";
 export * from "./rewind";
 export * from "./profile-archive";
+export * from "./media-trending";
+export * from "./weekly-digest";
 
 
 /** URI version segment for Nest apps (api / music / watch). */
@@ -339,6 +341,9 @@ export const CollectionSchema = z.object({
   description: z.string().nullable().optional(),
 });
 export type Collection = z.infer<typeof CollectionSchema>;
+
+/** Steam Family Sharing-style cap: owner plus five others. */
+export const FAMILY_MEMBER_LIMIT = 6;
 
 export const FamilyMemberSummarySchema = z.object({
   steamId: z.string(),
@@ -1615,6 +1620,9 @@ export {
   PlaySessionGameSuggestItemSchema,
   PlaySessionGameSuggestPageSchema,
   PlaySessionDeleteResultSchema,
+  PlaySessionDayBucketSchema,
+  PlaySessionTopGameSchema,
+  PlaySessionStatsSchema,
   type QmonitorSessionWebhook,
   type QmonitorAuthorizeQuery,
   type QmonitorTokenRequest,
@@ -1630,6 +1638,9 @@ export {
   type PlaySessionGameSuggestItem,
   type PlaySessionGameSuggestPage,
   type PlaySessionDeleteResult,
+  type PlaySessionDayBucket,
+  type PlaySessionTopGame,
+  type PlaySessionStats,
 } from "./qmonitor";
 
 export * from "./music-scrobbler";

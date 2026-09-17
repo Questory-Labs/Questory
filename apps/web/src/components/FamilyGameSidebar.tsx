@@ -79,10 +79,10 @@ export function FamilyGameSidebar({
       <button
         type="button"
         aria-label="Close game details"
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[var(--bg-0)]/75 hatch-fill"
         onClick={onClose}
       />
-      <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[var(--line)] bg-[var(--bg-1)] shadow-[-12px_0_40px_rgba(0,0,0,0.45)]">
+      <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[var(--line)] bg-[var(--bg-1)]">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
           <div className="min-w-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">

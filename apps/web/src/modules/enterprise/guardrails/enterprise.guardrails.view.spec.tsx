@@ -17,7 +17,7 @@ const idleSave = {
   error: null,
   value: undefined,
   input: undefined,
-} as UseActionResult<GuardrailSettings, GuardrailSettings>;
+} as unknown as UseActionResult<GuardrailSettings, GuardrailSettings>;
 
 const settingsValue: GuardrailSettings = {
   categories: { profanity: "mask", illegal_activity: "block" },

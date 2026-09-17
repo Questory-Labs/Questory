@@ -20,7 +20,7 @@ export const StoresSettingsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Stores"
         description="Steam powers sync today. Epic and GOG appear in library filters and badges; account import will land when the data sources are solid enough."
       />

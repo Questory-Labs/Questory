@@ -21,7 +21,7 @@ export const AdminMigrationsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Migrations"
         description="One-off data repairs for existing imports. Run once after deploy, or retry if a migration failed."
       />

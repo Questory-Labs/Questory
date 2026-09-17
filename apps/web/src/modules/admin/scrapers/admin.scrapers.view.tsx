@@ -22,7 +22,7 @@ export const AdminScrapersView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Scrapers"
         description="One scraper per provider. Draft, validate, and publish iterations."
       />

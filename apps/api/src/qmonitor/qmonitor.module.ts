@@ -5,6 +5,7 @@ import { QmonitorOauthController } from "./qmonitor-oauth.controller";
 import { QmonitorOauthService } from "./qmonitor-oauth.service";
 import { QmonitorIngestService } from "./qmonitor-ingest.service";
 import { QmonitorSessionRulesService } from "./qmonitor-session-rules.service";
+import { QmonitorSessionStatsService } from "./qmonitor-session-stats.service";
 import { QmonitorSessionsController } from "./qmonitor-sessions.controller";
 import { QmonitorSessionsService } from "./qmonitor-sessions.service";
 import { QmonitorWebhookController } from "./qmonitor-webhook.controller";
@@ -20,6 +21,7 @@ import { QmonitorWebhookController } from "./qmonitor-webhook.controller";
     QmonitorOauthService,
     QmonitorIngestService,
     QmonitorSessionRulesService,
+    QmonitorSessionStatsService,
     QmonitorSessionsService,
   ],
   exports: [

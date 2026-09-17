@@ -19,7 +19,10 @@ export const panelFaceVariants = cva("", {
 export type PanelVariantProps = VariantProps<typeof panelFaceVariants>;
 export type PanelVariant = NonNullable<PanelVariantProps["variant"]>;
 
-/** Hatch-elevated `.panel` — shared surface for StatCard, charts, and list rows. */
+/**
+ * Surfaces: `elevated` (default hatch) / `accent` / `outline` (no hatch).
+ * Size maps to hatch offset: heroes `lg`, KPIs `sm`, lists `outline`.
+ */
 export function Panel({
   className,
   faceClassName,

@@ -32,7 +32,7 @@ for (const key of keys) {
 mkdirSync(dirname(outFile), { recursive: true });
 writeFileSync(
   outFile,
-  `window.__QUESTORY_RUNTIME__=${JSON.stringify(env)};\n`,
+  `window.__QUESTORY_RUNTIME__=Object.assign(window.__QUESTORY_RUNTIME__||{},${JSON.stringify(env)});\n`,
   "utf8",
 );
 console.log(`Wrote ${outFile} (${Object.keys(env).length} keys)`);

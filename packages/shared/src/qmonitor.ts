@@ -164,3 +164,37 @@ export const PlaySessionDeleteResultSchema = z.object({
 export type PlaySessionDeleteResult = z.infer<
   typeof PlaySessionDeleteResultSchema
 >;
+
+export const PlaySessionDayBucketSchema = z.object({
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  durationSecs: z.number().int().nonnegative(),
+  sessionCount: z.number().int().nonnegative(),
+});
+export type PlaySessionDayBucket = z.infer<typeof PlaySessionDayBucketSchema>;
+
+export const PlaySessionTopGameSchema = z.object({
+  key: z.string().min(1),
+  gameId: z.string().nullable(),
+  name: z.string(),
+  headerImage: z.string().nullable(),
+  appId: z.number().int().nullable(),
+  durationSecs: z.number().int().nonnegative(),
+  sessionCount: z.number().int().nonnegative(),
+});
+export type PlaySessionTopGame = z.infer<typeof PlaySessionTopGameSchema>;
+
+export const PlaySessionStatsSchema = z.object({
+  sessionCount: z.number().int().nonnegative(),
+  totalDurationSecs: z.number().int().nonnegative(),
+  avgDurationSecs: z.number().int().nonnegative(),
+  weekDurationSecs: z.number().int().nonnegative(),
+  weekSessionCount: z.number().int().nonnegative(),
+  unmatchedCount: z.number().int().nonnegative(),
+  uniqueGames: z.number().int().nonnegative(),
+  lastPlayedAt: z.string().nullable(),
+  windowDays: z.number().int().positive(),
+  weekDays: z.number().int().positive(),
+  byDay: z.array(PlaySessionDayBucketSchema),
+  topGames: z.array(PlaySessionTopGameSchema),
+});
+export type PlaySessionStats = z.infer<typeof PlaySessionStatsSchema>;

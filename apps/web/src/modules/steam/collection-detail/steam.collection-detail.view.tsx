@@ -20,7 +20,7 @@ export const CollectionDetailView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title={collection.value?.name || "Collection"}
         description={
           collection.value

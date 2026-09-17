@@ -93,6 +93,16 @@ describe("WatchHomeView", () => {
     renderView();
     expect(screen.getByText("Watching time")).toBeInTheDocument();
     expect(screen.getByText("2h")).toBeInTheDocument();
+    expect(screen.getByText("Coverage")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Runtime coverage" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toHaveClass(
+      "btn-sm",
+      "header-control",
+    );
+    expect(screen.getByRole("group", { name: "Media type" })).toHaveClass(
+      "header-control",
+    );
   });
 });
 

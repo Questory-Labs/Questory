@@ -1,0 +1,7 @@
+export const GAME_DETAIL_TAG_LIMIT = 18;
+export const GAME_DETAIL_FEATURE_LIMIT = 14;
+export const GAME_DETAIL_ACHIEVEMENT_LIMIT = 8;
+export const GAME_DETAIL_NEWS_LIMIT = 4;
+export const GAME_DETAIL_DLC_LIMIT = 8;
+export const GAME_DETAIL_PACKAGE_LIMIT = 6;
+export const GAME_DETAIL_FRIEND_LIMIT = 12;

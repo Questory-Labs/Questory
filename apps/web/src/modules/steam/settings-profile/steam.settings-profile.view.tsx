@@ -43,6 +43,7 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Profile"
         description="Set your Steam store price region. This controls Cost, wishlist deals, library value, and family pricing — pick India for INR."
       />
@@ -80,7 +81,7 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
                 value={countryCode}
                 onChange={(e) => onCountryChange(e.target.value)}
                 disabled={save.busy}
-                className="mt-1.5 w-full rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                className="field"
               >
                 {(regions.value || DEFAULT_PRICE_REGIONS).map((r) => (
                   <option key={r.countryCode} value={r.countryCode}>

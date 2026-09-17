@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { GameCover } from "@/components/GameCover";
 import { HatchShadow } from "@/components/HatchShadow";
 import type { ReactNode } from "react";
@@ -9,7 +8,6 @@ export function GameTile({
   name,
   headerImage,
   meta,
-  index = 0,
   badge,
   corner,
   onClick,
@@ -17,6 +15,7 @@ export function GameTile({
   name: string;
   headerImage: string | null;
   meta?: string;
+  /** @deprecated Unused; kept so existing call sites compile. */
   index?: number;
   badge?: ReactNode;
   /** Small chip overlaid on the poster (e.g. player count). */
@@ -26,24 +25,18 @@ export function GameTile({
   const body = (
     <HatchShadow
       size="sm"
-      className="h-full"
-      faceClassName={`group panel flex h-full flex-col hover:border-[var(--line-strong)] ${
+      faceClassName={`group panel flex flex-col hover:border-[var(--line-strong)] ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
       <GameCover
         src={headerImage}
-        className="min-h-0 w-full grow"
-        imgClassName="transition duration-500 group-hover:scale-[1.03]"
+        className="w-full"
+        imgClassName="transition duration-500 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
       >
         {corner ? (
           <div className="pointer-events-none absolute top-2 right-2 z-[1]">
             {corner}
-          </div>
-        ) : null}
-        {badge ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2.5 pb-2 pt-8">
-            {badge}
           </div>
         ) : null}
       </GameCover>
@@ -51,6 +44,7 @@ export function GameTile({
         <div className="truncate text-sm font-medium text-[var(--ink)]">
           {name}
         </div>
+        {badge ? <div className="mt-1.5">{badge}</div> : null}
         {meta && (
           <div className="font-mono mt-1 text-[11px] text-[var(--muted)]">
             {meta}
@@ -60,28 +54,17 @@ export function GameTile({
     </HatchShadow>
   );
 
-  return (
-    <motion.div
-      className="h-full"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.4,
-        delay: 0.08 + Math.min(index, 12) * 0.04,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-    >
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          className="block h-full w-full text-left"
-        >
-          {body}
-        </button>
-      ) : (
-        body
-      )}
-    </motion.div>
-  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="block w-full text-left"
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return body;
 }

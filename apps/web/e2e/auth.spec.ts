@@ -34,7 +34,7 @@ test.describe("auth soft gates", () => {
   test("landing shows email sign in", async ({ page }) => {
     await mockUnauthed(page);
     await page.goto("/");
-    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible({
+    await expect(page.getByRole("link", { name: "Sign in" }).first()).toBeVisible({
       timeout: 15_000,
     });
     await expect(

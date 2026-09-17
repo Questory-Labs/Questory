@@ -47,7 +47,7 @@ const idleToggle = {
   error: null,
   value: undefined,
   input: undefined,
-} as UseActionResult<ScraperProviderDetail, boolean>;
+} as unknown as UseActionResult<ScraperProviderDetail, boolean>;
 
 const summary: ScraperProviderSummary = {
   key: "letterboxd",

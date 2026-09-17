@@ -8,6 +8,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
 import { ImportsModule } from "./imports/imports.module";
 import { PlayingNowModule } from "./playing-now/playing-now.module";
 import { ScrobblerModule } from "./scrobbler/scrobbler.module";
+import { MusicTrendingModule } from "./trending/trending.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ScrobblerModule } from "./scrobbler/scrobbler.module";
     AnalyticsModule,
     ImportsModule,
     ScrobblerModule,
+    MusicTrendingModule,
   ],
 })
 export class MusicModule {}

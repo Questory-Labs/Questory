@@ -3,8 +3,14 @@ import {
   buildCalendarGrid,
   buildLineLayout,
   chartAnchorPoint,
+  donutSlicePath,
+  pickXTickIndices,
+  pickXTickIndicesByPixel,
   heatmapLevel,
+  monotoneAreaPath,
+  monotoneLinePath,
 } from "./chart-utils";
+import { CHART_X_TICK_MIN_GAP_PX } from "@/lib/charts";
 
 describe("buildLineLayout", () => {
   it("returns an empty layout when data is empty", () => {
@@ -30,6 +36,94 @@ describe("buildLineLayout", () => {
     expect(layout.points).toHaveLength(2);
     expect(layout.areaPath.startsWith("M ")).toBe(true);
     expect(layout.areaPath.endsWith("Z")).toBe(true);
+  });
+
+  it("does not put consecutive labels on a 14-day bar chart", () => {
+    const data = Array.from({ length: 14 }, (_, i) => ({
+      label: `2026-09-${String(i + 1).padStart(2, "0")}`,
+      value: 1,
+    }));
+    const ticks = [...buildLineLayout(data, 400, { type: "bar", size: "md" }).xTickIdx].sort(
+      (a, b) => a - b,
+    );
+    expect(ticks[ticks.length - 1]).toBe(13);
+    expect(ticks.includes(12) && ticks.includes(13)).toBe(false);
+  });
+});
+
+describe("pickXTickIndices", () => {
+  it("keeps the last day off its neighbor on a 14-day bar axis", () => {
+    const ticks = pickXTickIndices(14);
+    expect(ticks[0]).toBe(0);
+    expect(ticks[ticks.length - 1]).toBe(13);
+    expect(ticks[ticks.length - 1] - ticks[ticks.length - 2]).toBeGreaterThanOrEqual(
+      2,
+    );
+  });
+
+  it("labels every point when the series is short", () => {
+    expect(pickXTickIndices(1)).toEqual([0]);
+    expect(pickXTickIndices(2)).toEqual([0, 1]);
+  });
+});
+
+describe("pickXTickIndicesByPixel", () => {
+  it("keeps first and last even when they sit closer than the gap", () => {
+    expect(pickXTickIndicesByPixel([0, 20], 72)).toEqual([0, 1]);
+  });
+
+  it("drops interiors that sit inside the min gap", () => {
+    expect(pickXTickIndicesByPixel([0, 10, 20, 200], 72)).toEqual([0, 3]);
+  });
+});
+
+describe("buildLineLayout time-mode ticks", () => {
+  it("does not stack x-ticks on a dense right-hand cluster", () => {
+    const start = Date.parse("2026-01-01T00:00:00Z");
+    const daily = Array.from({ length: 120 }, (_, i) => ({
+      label: new Date(start + i * 86_400_000).toISOString().slice(0, 10),
+      value: 100_000 + i * 1_000,
+    }));
+    const cluster = Array.from({ length: 24 }, (_, i) => ({
+      label: new Date(start + 119 * 86_400_000 + i * 3_600_000).toISOString(),
+      value: 1_100_000 + i * 5_000,
+    }));
+    const layout = buildLineLayout([...daily, ...cluster], 720, {
+      xMode: "time",
+      size: "lg",
+    });
+    const xs = [...layout.xTickIdx]
+      .map((i) => layout.points[i].x)
+      .sort((a, b) => a - b);
+    expect(xs[0]).toBe(layout.points[0].x);
+    expect(xs[xs.length - 1]).toBe(layout.points[layout.points.length - 1].x);
+    for (let i = 1; i < xs.length; i += 1) {
+      expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(CHART_X_TICK_MIN_GAP_PX);
+    }
+  });
+});
+
+describe("monotoneLinePath", () => {
+  it("uses a cubic through three points without overshooting a peak", () => {
+    const d = monotoneLinePath([
+      { x: 0, y: 10 },
+      { x: 10, y: 0 },
+      { x: 20, y: 10 },
+    ]);
+    expect(d.startsWith("M 0 10")).toBe(true);
+    expect(d).toContain(" C ");
+    expect(d.endsWith("20 10")).toBe(true);
+  });
+
+  it("closes an area back to the baseline", () => {
+    const area = monotoneAreaPath(
+      [
+        { x: 0, y: 4 },
+        { x: 10, y: 2 },
+      ],
+      20,
+    );
+    expect(area).toContain("L 10 20 L 0 20 Z");
   });
 });
 
@@ -88,5 +182,14 @@ describe("buildCalendarGrid", () => {
     }
 
     expect(buildCalendarGrid(days)).toHaveLength(53);
+  });
+});
+
+describe("donutSlicePath", () => {
+  it("closes a wedge as one subpath", () => {
+    const d = donutSlicePath(100, 100, 40, 70, 0, Math.PI / 2);
+    expect(d.startsWith("M ")).toBe(true);
+    expect(d.endsWith("Z")).toBe(true);
+    expect(d.match(/M /g)).toHaveLength(1);
   });
 });

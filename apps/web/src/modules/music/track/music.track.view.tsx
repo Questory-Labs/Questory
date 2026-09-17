@@ -78,7 +78,7 @@ export const MusicTrackView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         eyebrow="Track"
         title={title}
         description={

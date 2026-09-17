@@ -10,11 +10,15 @@ export class QmonitorSessionsService {
     userId: string,
     page = 1,
     pageSize = 15,
+    gameId?: string,
   ): Promise<PlaySessionPage> {
     const take = Math.min(Math.max(pageSize, 1), 100);
     const safePage = Math.max(page, 1);
     const skip = (safePage - 1) * take;
-    const where = { userId };
+    const where = {
+      userId,
+      ...(gameId ? { gameId } : {}),
+    };
 
     const [total, rows] = await Promise.all([
       this.prisma.playSession.count({ where }),

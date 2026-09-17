@@ -1,3 +1,15 @@
+import { FAMILY_MEMBER_LIMIT } from "@questorylabs/shared";
+
+export const normalizeSteamId = (id: string) => String(id ?? "").trim();
+
+export const remainingFamilySlots = (memberCount: number) =>
+  Math.max(0, FAMILY_MEMBER_LIMIT - memberCount);
+
+export const canRemoveFamilyMember = (m: {
+  role?: string;
+  isMe?: boolean;
+}) => m.role !== "owner" && !m.isMe;
+
 export const parseApiError = (err: Error) => {
   try {
     const parsed = JSON.parse(err.message) as { message?: string | string[] };

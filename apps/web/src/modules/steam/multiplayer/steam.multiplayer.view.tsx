@@ -24,6 +24,7 @@ export const MultiplayerView = (props: Record<string, unknown>) => {
     <>
       <div className="flex flex-col lg:h-[calc(100dvh-7.5rem)] lg:overflow-hidden">
         <PageHeader
+          size="sm"
           title="Multiplayer Planner"
           description="Find multiplayer games for your group — strict library match, filters, or trending suggestions"
           className="shrink-0"

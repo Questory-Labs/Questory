@@ -38,7 +38,11 @@ export class TmdbService {
   }
 
   /** Support both v4 bearer and legacy api_key query. */
-  private async get<T>(path: string, query: Record<string, string> = {}): Promise<T | null> {
+  private async get<T>(
+    path: string,
+    query: Record<string, string> = {},
+    opts?: { retries?: number },
+  ): Promise<T | null> {
     const key = resolveTmdbApiKey();
     if (!key) return null;
 
@@ -49,11 +53,15 @@ export class TmdbService {
     if (!useBearer) url.searchParams.set("api_key", key);
 
     try {
-      const res = await providerFetch(url, {
-        headers: useBearer
-          ? this.headers()
-          : { Accept: "application/json" },
-      });
+      const res = await providerFetch(
+        url,
+        {
+          headers: useBearer
+            ? this.headers()
+            : { Accept: "application/json" },
+        },
+        opts?.retries != null ? { retries: opts.retries } : undefined,
+      );
       if (!res.ok) {
         const detail = (await res.text()).slice(0, 180);
         this.logger.warn(
@@ -129,6 +137,23 @@ export class TmdbService {
     if (detail.runtime != null && detail.runtime > 0) return detail.runtime;
     const episode = detail.episode_run_time?.find((n) => n != null && n > 0);
     return episode ?? null;
+  }
+
+  /**
+   * TMDB `/trending/all/week` — rolling last-7-days half-life, not a calendar week.
+   * Empty list when unconfigured; `null` when the request fails (caller must not cache).
+   */
+  async trendingWeek(limit = 20): Promise<TmdbMovie[] | null> {
+    if (!this.configured()) return [];
+    const data = await this.get<{ results?: TmdbMovie[] }>(
+      "/trending/all/week",
+      {},
+      { retries: 1 },
+    );
+    if (data == null) return null;
+    return (data.results ?? [])
+      .filter((hit) => hit.media_type === "movie" || hit.media_type === "tv")
+      .slice(0, limit);
   }
 
   posterUrl(path?: string | null) {

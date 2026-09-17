@@ -9,6 +9,7 @@ import {
 } from "@questorylabs/shared/session";
 import { FamilyController } from "../../src/family/family.controller";
 import { FamilyService } from "../../src/family/family.service";
+import { FamilyMembersService } from "../../src/family/family-members.service";
 
 describe("family validation", () => {
   let app: INestApplication;
@@ -24,11 +25,17 @@ describe("family validation", () => {
           useValue: {
             getGroup: async () => ({}),
             getOrCreate: async () => ({}),
-            addMember: async () => ({}),
-            importFromFriends: async () => ({}),
             insights: async () => ({}),
             library: async () => ({}),
             gameDetail: async () => ({}),
+          },
+        },
+        {
+          provide: FamilyMembersService,
+          useValue: {
+            addMember: async () => ({}),
+            importFromFriends: async () => ({}),
+            removeMember: async () => ({ ok: true }),
           },
         },
       ],
@@ -74,5 +81,36 @@ describe("family validation", () => {
       .set("Cookie", cookie())
       .send({ steamId: "76561198000000000" })
       .expect(201);
+  });
+
+  it("rejects a non-SteamID64 member delete", async () => {
+    await request(app.getHttpServer())
+      .delete("/v1/family/members/not-a-steam-id")
+      .set("Cookie", cookie())
+      .expect(400);
+  });
+
+  it("accepts a SteamID64 member delete", async () => {
+    await request(app.getHttpServer())
+      .delete("/v1/family/members/76561198000000000")
+      .set("Cookie", cookie())
+      .expect(200);
+  });
+
+  it("rejects importing more than the family member cap", async () => {
+    const steamIds = [
+      "76561198000000000",
+      "76561198000000001",
+      "76561198000000002",
+      "76561198000000003",
+      "76561198000000004",
+      "76561198000000005",
+      "76561198000000006",
+    ];
+    await request(app.getHttpServer())
+      .post("/v1/family/members/import")
+      .set("Cookie", cookie())
+      .send({ steamIds })
+      .expect(400);
   });
 });

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,6 +12,7 @@ import { SteamAuthGuard, type SessionUser } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { EnterpriseProxyService } from "./enterprise-proxy.service";
 import { EnterpriseRateLimitService } from "./enterprise-rate-limit.service";
+import { WeeklyDigestRequestSchema } from "@questorylabs/shared";
 
 @Controller("recommendations")
 @UseGuards(SteamAuthGuard)
@@ -90,6 +92,41 @@ export class EnterpriseRecommendationsController {
       method: "POST",
       path: "/v1/recommendations/feedback",
       body,
+    });
+  }
+
+  @Post("weekly-digest/cache")
+  async weeklyDigestCache(
+    @CurrentUser() user: SessionUser,
+    @Body() body: unknown,
+  ) {
+    const parsed = WeeklyDigestRequestSchema.safeParse(body ?? {});
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.rateLimit.assertAllowed(user.userId, "recommendations");
+    return this.proxy.forward({
+      userId: user.userId,
+      isAdmin: false,
+      method: "POST",
+      path: "/v1/recommendations/weekly-digest/cache",
+      body: parsed.data,
+    });
+  }
+
+  @Post("weekly-digest")
+  async weeklyDigest(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+    const parsed = WeeklyDigestRequestSchema.safeParse(body ?? {});
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.rateLimit.assertAllowed(user.userId, "llm");
+    return this.proxy.forward({
+      userId: user.userId,
+      isAdmin: false,
+      method: "POST",
+      path: "/v1/recommendations/weekly-digest",
+      body: parsed.data,
     });
   }
 }

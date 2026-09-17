@@ -68,7 +68,7 @@ export const FamilyConflictsSection = ({
                 >
                   <span>{c.name}</span>
                   <span className="text-[var(--muted)]">
-                    {c.owners.map((o) => o.personaName).join(", ")}
+                    {(c.owners ?? []).map((o) => o.personaName).join(", ")}
                   </span>
                 </button>
               ))}

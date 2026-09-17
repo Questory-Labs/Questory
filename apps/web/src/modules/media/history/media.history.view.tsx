@@ -28,7 +28,7 @@ export const MediaHistoryView = <TItem,>({
 
   return (
     <>
-      <PageHeader title={title} description={description} actions={actions} />
+      <PageHeader size="sm" title={title} description={description} actions={actions} />
 
       <ResourceStatus
         failed={recent.failed}

@@ -26,6 +26,7 @@ export const MusicListeningView = (props: Record<string, unknown>) => {
   return (
     <>
       <PageHeader
+        size="sm"
         title="Listening"
         description={
           total > 0 ? `${total.toLocaleString()} scrobbles` : "Recent scrobbles."

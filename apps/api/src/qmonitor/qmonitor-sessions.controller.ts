@@ -16,8 +16,10 @@ import {
 } from "@questorylabs/shared";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { parseTimeZone } from "../lib/timezone";
 import { PLAY_SESSIONS_PAGE_SIZE } from "./qmonitor.constants";
 import { QmonitorSessionRulesService } from "./qmonitor-session-rules.service";
+import { QmonitorSessionStatsService } from "./qmonitor-session-stats.service";
 import { QmonitorSessionsService } from "./qmonitor-sessions.service";
 
 @Controller("play-sessions")
@@ -26,6 +28,7 @@ export class QmonitorSessionsController {
   constructor(
     private readonly sessions: QmonitorSessionsService,
     private readonly rules: QmonitorSessionRulesService,
+    private readonly sessionStats: QmonitorSessionStatsService,
   ) {}
 
   @Get()
@@ -33,13 +36,32 @@ export class QmonitorSessionsController {
     @CurrentUser() user: { userId: string },
     @Query("page") pageRaw?: string,
     @Query("pageSize") pageSizeRaw?: string,
+    @Query("gameId") gameIdRaw?: string,
   ) {
     const page = parsePageParam(pageRaw, 1);
     const pageSize = parsePageSizeParam(pageSizeRaw, PLAY_SESSIONS_PAGE_SIZE);
     if (page == null || pageSize == null) {
       throw new BadRequestException("Invalid page or pageSize");
     }
-    return this.sessions.list(user.userId, page, pageSize);
+    const gameId =
+      typeof gameIdRaw === "string" ? gameIdRaw.trim() : "";
+    if (gameIdRaw != null && gameIdRaw !== "" && !gameId) {
+      throw new BadRequestException("Invalid gameId");
+    }
+    return this.sessions.list(
+      user.userId,
+      page,
+      pageSize,
+      gameId || undefined,
+    );
+  }
+
+  @Get("stats")
+  stats(
+    @CurrentUser() user: { userId: string },
+    @Query("tz") tz?: string,
+  ) {
+    return this.sessionStats.stats(user.userId, parseTimeZone(tz));
   }
 
   @Get("game-suggest")

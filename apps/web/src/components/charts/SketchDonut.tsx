@@ -1,28 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { readToken } from "./chart-utils";
+import { useMemo } from "react";
+import { donutSlicePath } from "./chart-utils";
 import type { DonutDatum } from "./types";
 
-const DEFAULT_COLORS = ["#7dd3c0", "#8a7f9a", "#5bb8a8", "#c4a35a", "#c47c6c"];
+const DEFAULT_COLORS = [
+  "var(--accent)",
+  "#8a7f9a",
+  "#5bb8a8",
+  "#c4a35a",
+  "#c47c6c",
+];
 
-export function SketchDonut({
+export const SketchDonut = ({
   data,
-  ariaLabel = "Donut chart",
+  ariaLabel,
   formatValue = (n) => n.toLocaleString(),
   innerRadius = 52,
   outerRadius = 84,
+  center,
+  centerCaption,
 }: {
   data: DonutDatum[];
-  ariaLabel?: string;
+  ariaLabel: string;
   formatValue?: (n: number) => string;
   innerRadius?: number;
   outerRadius?: number;
-}) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const sketchRef = useRef<SVGGElement>(null);
-
+  center?: string;
+  centerCaption?: string;
+}) => {
   const total = useMemo(
     () => data.reduce((sum, d) => sum + d.value, 0),
     [data],
@@ -44,83 +50,70 @@ export function SketchDonut({
     });
   }, [data, total]);
 
-  useEffect(() => {
-    const svg = svgRef.current;
-    const layer = sketchRef.current;
-    const root = rootRef.current;
-    if (!svg || !layer || segments.length === 0) return;
-
-    let cancelled = false;
-
-    void import("roughjs/bin/rough").then(({ default: rough }) => {
-      if (cancelled) return;
-
-      layer.replaceChildren();
-      const rc = rough.svg(svg);
-      const accent = readToken(root, "--accent", "#7dd3c0");
-
-      for (const seg of segments) {
-        const path = describeArc(cx, cy, outerRadius, seg.start, seg.end);
-        const innerPath = describeArc(cx, cy, innerRadius, seg.end, seg.start, true);
-        const d = `${path} L ${polar(cx, cy, innerRadius, seg.end).x} ${polar(cx, cy, innerRadius, seg.end).y} ${innerPath} Z`;
-
-        layer.appendChild(
-          rc.path(d, {
-            fill: seg.color ?? accent,
-            fillStyle: "hachure",
-            fillWeight: 0.8,
-            hachureAngle: 60,
-            hachureGap: 4,
-            stroke: seg.color ?? accent,
-            strokeWidth: 1,
-            roughness: 1.6,
-          }),
-        );
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [segments, cx, cy, innerRadius, outerRadius]);
-
   if (data.length === 0 || total <= 0) {
     return <p className="text-xs text-[var(--muted)]">No data yet.</p>;
   }
 
   return (
-    <div ref={rootRef} className="flex justify-center">
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-center">
       <svg
-        ref={svgRef}
         viewBox={`0 0 ${size} ${size}`}
-        className="h-56 w-full max-w-[240px]"
+        className="h-44 w-44 shrink-0 sm:h-52 sm:w-52"
         role="img"
         aria-label={ariaLabel}
       >
         <title>
           {data.map((d) => `${d.name}: ${formatValue(d.value)}`).join(", ")}
         </title>
-        <g ref={sketchRef} />
+        {segments.map((seg) => (
+          <path
+            key={seg.name}
+            d={donutSlicePath(cx, cy, innerRadius, outerRadius, seg.start, seg.end)}
+            fill={seg.color}
+            stroke={seg.color}
+            strokeWidth="1"
+          />
+        ))}
+        {center ? (
+          <>
+            <text
+              x={cx}
+              y={centerCaption ? cy - 2 : cy + 5}
+              textAnchor="middle"
+              fill="var(--ink)"
+              fontSize="20"
+              fontWeight="700"
+            >
+              {center}
+            </text>
+            {centerCaption ? (
+              <text
+                x={cx}
+                y={cy + 16}
+                textAnchor="middle"
+                fill="var(--muted)"
+                fontSize="10"
+              >
+                {centerCaption}
+              </text>
+            ) : null}
+          </>
+        ) : null}
       </svg>
+      <ul className="space-y-2 text-sm">
+        {segments.map((seg) => (
+          <li key={seg.name} className="flex items-center gap-3">
+            <span
+              className="h-2 w-2 shrink-0 rounded-sm"
+              style={{ background: seg.color }}
+              aria-hidden
+            />
+            <span className="font-medium text-[var(--ink)]">
+              {seg.name}: {formatValue(seg.value)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
-}
-
-function polar(cx: number, cy: number, r: number, angle: number) {
-  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
-}
-
-function describeArc(
-  cx: number,
-  cy: number,
-  r: number,
-  start: number,
-  end: number,
-  reverse = false,
-) {
-  const s = polar(cx, cy, r, start);
-  const e = polar(cx, cy, r, end);
-  const large = end - start > Math.PI ? 1 : 0;
-  const sweep = reverse ? 0 : 1;
-  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} ${sweep} ${e.x} ${e.y}`;
-}
+};

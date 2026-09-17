@@ -9,6 +9,7 @@ import type {
   RecommendationGoalsResponse,
   UserSettings,
 } from "@/lib/enterprise-types";
+import type { WeeklyDigestView } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { browserTimeZone } from "@/lib/dates";
 import { probeJsonSafe } from "@/lib/qhttp-client";
@@ -104,6 +105,25 @@ export async function getCurationJob(jobId: string): Promise<CurationJob> {
   return enterpriseRequest<CurationJob>(
     `/recommendations/curate/${encodeURIComponent(jobId)}`,
   );
+}
+
+/** Peek weekly digest cache (previous ISO week). Does not generate. */
+export async function peekWeeklyDigest(): Promise<WeeklyDigestView> {
+  return enterpriseRequest<WeeklyDigestView>(
+    "/recommendations/weekly-digest/cache",
+    {
+      method: "POST",
+      body: JSON.stringify({ context: clientContext() }),
+    },
+  );
+}
+
+/** Start background weekly-digest generate; returns immediately. */
+export async function startWeeklyDigest(): Promise<WeeklyDigestView> {
+  return enterpriseRequest<WeeklyDigestView>("/recommendations/weekly-digest", {
+    method: "POST",
+    body: JSON.stringify({ context: clientContext() }),
+  });
 }
 
 export async function sendFeedback(

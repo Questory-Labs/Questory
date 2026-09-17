@@ -67,5 +67,6 @@ jobs:
         run: pnpm --filter @questorylabs/web test:e2e
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:4000
-          NEXT_PUBLIC_ENABLE_MUSIC: "false"
-          NEXT_PUBLIC_ENABLE_WATCH: "false"
+          NEXT_PUBLIC_ENABLE_MUSIC: "true"
+          NEXT_PUBLIC_ENABLE_WATCH: "true"
+          NEXT_PUBLIC_ENABLE_READ: "true"

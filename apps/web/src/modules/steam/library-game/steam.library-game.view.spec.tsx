@@ -1,18 +1,12 @@
-import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
-import type { GameDetail, LibraryEntry } from "@questorylabs/shared";
+import type { GameDetail, LibraryEntry, PlaySessionPage } from "@questorylabs/shared";
 import { LibraryGameView } from "./steam.library-game.view";
 import type { LibraryGameViewProps } from "./steam.library-game.types";
 
 vi.mock("@/components/TagsEditor", () => ({
   TagsEditor: () => null,
-}));
-
-vi.mock("@/components/GameDetailStats", () => ({
-  GameDetailStats: () => <div>game details</div>,
-  SectionTitle: ({ children }: { children: ReactNode }) => <h3>{children}</h3>,
 }));
 
 const reload = async () => undefined;
@@ -35,10 +29,10 @@ const resource = <T,>(
 const entryValue: LibraryEntry = {
   id: "entry-1",
   playtimeForever: 180,
+  playtime2Weeks: 30,
+  lastPlayedAt: "2026-09-11T12:00:00.000Z",
   stores: ["steam"],
-  ownerships: [
-    { store: "steam", playtimeForever: 180, listing: null },
-  ],
+  ownerships: [{ store: "steam", playtimeForever: 180, listing: null }],
   game: {
     id: "game-1",
     appId: 400,
@@ -47,8 +41,8 @@ const entryValue: LibraryEntry = {
     genres: ["Puzzle"],
     categories: [],
     tags: [],
-    developers: [],
-    publishers: [],
+    developers: ["Valve"],
+    publishers: ["Valve"],
     currentPrice: 9.99,
   },
 };
@@ -60,8 +54,8 @@ const detailValue: GameDetail = {
   genres: ["Puzzle"],
   categories: [],
   tags: [],
-  developers: [],
-  publishers: [],
+  developers: ["Valve"],
+  publishers: ["Valve"],
   minPlayers: null,
   maxPlayers: null,
   youOwn: true,
@@ -79,7 +73,14 @@ const detailValue: GameDetail = {
   hltb: null,
 };
 
-const renderView = (patch: Partial<LibraryGameViewProps>) =>
+const emptySessions: PlaySessionPage = {
+  total: 0,
+  page: 1,
+  pageSize: 8,
+  items: [],
+};
+
+const renderView = (patch: Partial<LibraryGameViewProps> = {}) =>
   render(
     <LibraryGameView
       {...({
@@ -93,6 +94,11 @@ const renderView = (patch: Partial<LibraryGameViewProps>) =>
           empty: false,
           failed: false,
           value: detailValue,
+        }),
+        sessions: resource<PlaySessionPage>({
+          empty: false,
+          failed: false,
+          value: emptySessions,
         }),
         ...patch,
       } as LibraryGameViewProps)}
@@ -119,10 +125,13 @@ describe("LibraryGameView", () => {
   });
 
   it("renders the game header when the entry is ready", () => {
-    renderView({});
+    const { container } = renderView({});
     expect(screen.getByRole("heading", { name: "Portal" })).toBeInTheDocument();
     expect(screen.getByText("Your playtime")).toBeInTheDocument();
-    expect(screen.getByText("game details")).toBeInTheDocument();
+    expect(screen.getByText("3h")).toBeInTheDocument();
+    expect(screen.getByText("HowLongToBeat")).toBeInTheDocument();
+    const cover = container.querySelector(".aspect-\\[460\\/215\\]")?.parentElement;
+    expect(cover?.className).not.toContain("grow");
   });
 
   it("shows a detail error without hiding the entry header", () => {
@@ -133,6 +142,40 @@ describe("LibraryGameView", () => {
     expect(
       screen.getByText("Could not load enriched game stats."),
     ).toBeInTheDocument();
-    expect(screen.queryByText("game details")).not.toBeInTheDocument();
+    expect(screen.queryByText("Players online")).not.toBeInTheDocument();
+  });
+
+  it("shows qMonitor sessions without waiting on Steam detail", () => {
+    renderView({
+      detail: resource<GameDetail>({ empty: true, failed: true }),
+      sessions: resource<PlaySessionPage>({
+        empty: false,
+        failed: false,
+        value: {
+          total: 1,
+          page: 1,
+          pageSize: 8,
+          items: [
+            {
+              id: "ps1",
+              title: "Portal",
+              source: "steam",
+              appId: 400,
+              gameId: "game-1",
+              startedAt: "2026-09-11T11:00:00.000Z",
+              endedAt: "2026-09-11T12:00:00.000Z",
+              durationSecs: 3600,
+              exe: null,
+              hostOs: "windows",
+              hostName: "pc",
+              game: null,
+            },
+          ],
+        },
+      }),
+    });
+    expect(screen.getByText("Recent sessions")).toBeInTheDocument();
+    expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "All sessions →" })).toBeInTheDocument();
   });
 });

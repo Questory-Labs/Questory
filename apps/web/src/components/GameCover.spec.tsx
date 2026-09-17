@@ -21,4 +21,11 @@ describe("GameCover", () => {
     expect(screen.getByText("No art")).toBeInTheDocument();
     expect(document.querySelector("img")).toBeNull();
   });
+
+  it("does not stretch with grow by default", () => {
+    const { container } = render(
+      <GameCover src="https://cdn.example/header.jpg" alt="Apex Legends" />,
+    );
+    expect(container.firstElementChild?.className).not.toContain("grow");
+  });
 });

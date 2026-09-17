@@ -15,7 +15,7 @@ export const AdminHomeView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader
+      <PageHeader size="sm"
         title="Admin dashboard"
         description="Instance health, users, sync queues, and recent cron activity."
       />

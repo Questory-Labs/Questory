@@ -39,4 +39,10 @@ describe("runtime-env", () => {
     process.env.NEXT_PUBLIC_ENTERPRISE_URL = "http://192.168.1.111:4030/";
     expect(getEnterpriseUrl()).toBe("http://192.168.1.111:4030");
   });
+
+  it("falls through to process.env when the runtime object has no key", () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4000";
+    window.__QUESTORY_RUNTIME__ = {};
+    expect(getApiUrl()).toBe("http://localhost:4000");
+  });
 });

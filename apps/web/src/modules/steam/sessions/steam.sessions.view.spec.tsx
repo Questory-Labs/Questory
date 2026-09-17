@@ -5,7 +5,7 @@ import {
   ResourceStore,
   type UseResourceResult,
 } from "@questorylabs/qhttp/react";
-import type { PlaySessionItem, PlaySessionPage } from "@questorylabs/shared";
+import type { PlaySessionItem, PlaySessionPage, PlaySessionStats } from "@questorylabs/shared";
 import { SessionsView } from "./steam.sessions.view";
 import type { SessionsViewProps } from "./steam.sessions.types";
 
@@ -53,6 +53,44 @@ const populated: PlaySessionPage = {
   items: [item],
 };
 
+const emptyStats: PlaySessionStats = {
+  sessionCount: 0,
+  totalDurationSecs: 0,
+  avgDurationSecs: 0,
+  weekDurationSecs: 0,
+  weekSessionCount: 0,
+  unmatchedCount: 0,
+  uniqueGames: 0,
+  lastPlayedAt: null,
+  windowDays: 14,
+  weekDays: 7,
+  byDay: [],
+  topGames: [],
+};
+
+const populatedStats: PlaySessionStats = {
+  ...emptyStats,
+  sessionCount: 1,
+  totalDurationSecs: 3600,
+  avgDurationSecs: 3600,
+  weekDurationSecs: 3600,
+  weekSessionCount: 1,
+  uniqueGames: 1,
+  lastPlayedAt: item.endedAt,
+  byDay: [{ day: "2026-01-01", durationSecs: 3600, sessionCount: 1 }],
+  topGames: [
+    {
+      key: "g1",
+      gameId: "g1",
+      name: "Dota 2",
+      headerImage: null,
+      appId: 570,
+      durationSecs: 3600,
+      sessionCount: 1,
+    },
+  ],
+};
+
 const renderView = (patch: Partial<SessionsViewProps>) => {
   const store = new ResourceStore({ retries: false });
   return render(
@@ -63,6 +101,11 @@ const renderView = (patch: Partial<SessionsViewProps>) => {
             empty: false,
             failed: false,
             value: populated,
+          }),
+          stats: resource<PlaySessionStats>({
+            empty: false,
+            failed: false,
+            value: populatedStats,
           }),
           page: 1,
           setPage: () => undefined,
@@ -82,6 +125,7 @@ describe("SessionsView", () => {
   it("shows skeletons when sessions are empty", () => {
     renderView({
       sessions: resource<PlaySessionPage>({ empty: true, failed: false }),
+      stats: resource<PlaySessionStats>({ empty: true, failed: false }),
       dayGroups: [],
     });
     expect(screen.queryByText("No sessions yet")).not.toBeInTheDocument();
@@ -98,7 +142,8 @@ describe("SessionsView", () => {
 
   it("renders a session row when ready", () => {
     renderView({});
-    expect(screen.getByText("Dota 2")).toBeInTheDocument();
+    expect(screen.getByText("Played")).toBeInTheDocument();
+    expect(screen.getAllByText("Dota 2").length).toBeGreaterThan(0);
   });
 
   it("shows collection empty when ready with no sessions", () => {
@@ -108,8 +153,22 @@ describe("SessionsView", () => {
         failed: false,
         value: { total: 0, page: 1, pageSize: 15, items: [] },
       }),
+      stats: resource<PlaySessionStats>({
+        empty: false,
+        failed: false,
+        value: emptyStats,
+      }),
       dayGroups: [],
     });
     expect(screen.getByText("No sessions yet")).toBeInTheDocument();
+    expect(screen.queryByText("Played")).not.toBeInTheDocument();
+  });
+
+  it("shows a stats error without hiding the list", () => {
+    renderView({
+      stats: resource<PlaySessionStats>({ empty: true, failed: true }),
+    });
+    expect(screen.getByText("Could not load session stats.")).toBeInTheDocument();
+    expect(screen.getByText("Dota 2")).toBeInTheDocument();
   });
 });

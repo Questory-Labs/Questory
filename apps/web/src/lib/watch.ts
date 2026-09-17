@@ -27,6 +27,7 @@ function prefixWatchPath(path: string): string {
     path.startsWith("/kitsu") ||
     path.startsWith("/letterboxd") ||
     path.startsWith("/sync-status") ||
+    path.startsWith("/trending") ||
     path.startsWith("/watch/")
   ) {
     if (path.startsWith("/watch/")) return path;

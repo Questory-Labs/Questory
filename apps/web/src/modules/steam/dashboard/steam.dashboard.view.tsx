@@ -1,312 +1,252 @@
 "use client";
 
 import { useUser } from "@/hooks/useUser";
-import { formatMoney } from "@/lib/money";
+import { DASHBOARD_ACTIVITY_LIMIT } from "@/lib/dashboard";
 import {
   EmptyState,
   PageHeader,
   ResourceStatus,
-  SkeletonStatGrid,
-  SkeletonTileGrid,
+  SkeletonTile,
 } from "@questorylabs/ui";
-import { StatCard } from "@/components/StatCard";
 import Link from "next/link";
-import { GameTile } from "@/components/GameTile";
-import { motion } from "framer-motion";
+import { dashboardOccupancy } from "./dashboard-occupancy";
+import {
+  collectActivityItems,
+  gameContinueCaption,
+  mergeDashboardActivity,
+} from "./dashboard-activity";
 import type { DashboardViewProps } from "./steam.dashboard.types";
+import { ActivityFeed } from "./components/ActivityFeed";
+import { ContinueHero } from "./components/ContinueHero";
+import { GlanceMediaCards } from "./components/GlanceMediaCards";
+import { GlanceStats } from "./components/GlanceStats";
+import { LibraryMix } from "./components/LibraryMix";
+import { PlayNextSection } from "./components/PlayNextSection";
+import { RecsSnippet } from "./components/RecsSnippet";
 
 export const DashboardView = (props: Record<string, unknown>) => {
-  const { recentlyPlayed, nextUp, stats, playNext, sync } =
-    props as DashboardViewProps;
+  const {
+    recentlyPlayed,
+    nextUp,
+    stats,
+    playNext,
+    sync,
+    showMusic = false,
+    showWatch = false,
+    showRead = false,
+    showEnterprise = false,
+    musicInsights,
+    musicRecent,
+    watchInsights,
+    watchRecent,
+    readInsights,
+    readRecent,
+    recs,
+  } = props as DashboardViewProps;
   const { user } = useUser();
-  const { active: syncing } = sync;
-  const { personaName: name } = user ?? {};
-  const { value } = stats ?? {};
-  const isSteamLinked = Boolean(user?.steamId);
+  const name = user?.personaName?.trim();
+  const isSteamLinked = user ? user.steamId != null : true;
+  const value = stats.value;
+  const syncing = sync.active;
+  const continueGame = recentlyPlayed?.[0] ?? null;
+  const occupancy = dashboardOccupancy({
+    steamLinked: isSteamLinked,
+    statsFailed: stats.failed,
+    statsEmpty: stats.empty,
+    hasContinue: Boolean(continueGame),
+    playNextFailed: playNext.failed,
+    playNextEmpty: playNext.empty,
+  });
+  const isHome = showMusic || showWatch || showRead;
+
+  const playNextRows = (nextUp ?? []).filter(
+    (g) => g.appId !== continueGame?.appId,
+  );
+  const featured = playNextRows[0];
+  const restPicks = playNextRows.slice(1);
+
+  const activity = mergeDashboardActivity(
+    collectActivityItems({
+      recentlyPlayed: recentlyPlayed ?? [],
+      continueAppId: isHome ? undefined : continueGame?.appId,
+      showMusic,
+      showWatch,
+      showRead,
+      musicItems: musicRecent?.value?.items,
+      watchItems: watchRecent?.value?.items,
+      readItems: readRecent?.value?.items,
+    }),
+    DASHBOARD_ACTIVITY_LIMIT,
+  );
+
+  const activityFailed =
+    (showMusic && Boolean(musicRecent?.failed)) ||
+    (showWatch && Boolean(watchRecent?.failed)) ||
+    (showRead && Boolean(readRecent?.failed));
+
+  const enabledNames = [
+    "Steam",
+    showMusic ? "music" : null,
+    showWatch ? "watch" : null,
+    showRead ? "read" : null,
+  ].filter(Boolean);
 
   return (
     <>
-      <section className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 opacity-60 gen-orb"
-          aria-hidden
-        />
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <PageHeader
-            eyebrow="Library overview"
-            title={
-              name ? (
-                <>
-                  Hey, <span className="text-[var(--accent)]">{name}</span>
-                </>
-              ) : (
-                "Dashboard"
-              )
-            }
+      <PageHeader
+        size="sm"
+        eyebrow={
+          showMusic || showWatch || showRead || showEnterprise
+            ? "Home"
+            : "Library overview"
+        }
+        title={
+          name ? (
+            <>
+              Hey, <span className="text-[var(--accent)]">{name}</span>
+            </>
+          ) : (
+            "Dashboard"
+          )
+        }
+        description={
+          syncing ? (
+            <>
+              Syncing Steam data
+              {sync.current ? ` · ${sync.current.label}` : ""}
+              {` · ${sync.doneCount}/${sync.total}`}. Stats will fill in as jobs
+              finish.
+            </>
+          ) : showMusic || showWatch || showRead || showEnterprise ? (
+            <>This week across {enabledNames.join(", ")}.</>
+          ) : (
+            <>Continue, mix, and cost — not eight equal tiles.</>
+          )
+        }
+      />
+
+      {occupancy.statsError ? null : isHome ? (
+        occupancy.showUnlinked ? (
+          <EmptyState
+            title="Link Steam from Connections to sync your library."
             description={
-              syncing ? (
-                <>
-                  Syncing Steam data
-                  {sync.current ? ` · ${sync.current.label}` : ""}
-                  {` · ${sync.doneCount}/${sync.total}`}. Stats will fill in as
-                  jobs finish.
-                </>
-              ) : (
-                <>Playtime, backlog, and wishlist signals in one place.</>
-              )
+              <Link
+                href="/settings/connections"
+                className="text-[var(--accent)] hover:underline"
+              >
+                Open Connections
+              </Link>
             }
           />
-        </motion.div>
-      </section>
+        ) : null
+      ) : occupancy.continueSkeleton ? (
+        <SkeletonTile className="max-w-xl" />
+      ) : occupancy.showContinue && continueGame ? (
+        <ContinueHero
+          href={`/library/${continueGame.appId}`}
+          name={continueGame.name}
+          headerImage={continueGame.headerImage}
+          caption={gameContinueCaption(
+            continueGame.lastPlayedAt,
+            continueGame.playtimeForever,
+          )}
+        />
+      ) : occupancy.showUnlinked ? (
+        <EmptyState
+          title="Link Steam from Connections to sync your library."
+          description={
+            <Link
+              href="/settings/connections"
+              className="text-[var(--accent)] hover:underline"
+            >
+              Open Connections
+            </Link>
+          }
+        />
+      ) : null}
 
-      <section aria-label="Key stats">
-        <div className="mb-3 flex items-end justify-between gap-4">
-          <h2 className="font-display text-lg font-semibold">At a glance</h2>
-          {syncing ? (
-            <span className="font-mono text-[11px] text-[var(--warm)]">
-              {sync.doneCount}/{sync.total}
-              {sync.current ? ` · ${sync.current.label.toLowerCase()}` : " · syncing"}
-            </span>
+      <div
+        className={
+          showEnterprise ? "grid items-start gap-8 lg:grid-cols-2" : undefined
+        }
+      >
+        <PlayNextSection
+          occupancy={occupancy}
+          playNextEmpty={playNext.empty}
+          featured={featured}
+          restPicks={restPicks}
+          syncing={syncing}
+          steamLinked={isSteamLinked}
+        />
+        {showEnterprise && recs ? <RecsSnippet recs={recs} /> : null}
+      </div>
+
+      <GlanceStats
+        stats={stats}
+        sync={sync}
+        extra={
+          showMusic || showWatch || showRead ? (
+            <GlanceMediaCards
+              showMusic={showMusic}
+              showWatch={showWatch}
+              showRead={showRead}
+              musicInsights={musicInsights}
+              watchInsights={watchInsights}
+              readInsights={readInsights}
+            />
+          ) : undefined
+        }
+      />
+
+      {showMusic || showWatch || showRead ? (
+        <section className="mt-10">
+          <h2 className="mb-3 font-display text-xl font-bold tracking-tight">
+            Recent activity
+          </h2>
+          {activityFailed ? (
+            <EmptyState
+              title={
+                <span className="text-[var(--danger)]">
+                  Could not load some recent activity.
+                </span>
+              }
+            />
           ) : null}
-        </div>
-        <ResourceStatus
-          failed={stats.failed}
-          empty={stats.empty}
-          loading={
-            <>
-              <SkeletonStatGrid count={4} />
-              <SkeletonStatGrid count={4} className="mt-6" />
-            </>
-          }
-          error={
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load dashboard stats.
-                </span>
-              }
-            />
-          }
-        >
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard
-                label="Library"
-                value={value?.librarySize ?? "—"}
-                href="/library"
-                delay={0}
-              />
-              <StatCard
-                label="Playtime"
-                value={value ? `${value.totalPlaytimeHours}h` : "—"}
-                href="/library"
-                delay={0.04}
-              />
-              <StatCard
-                label="Unplayed"
-                value={value?.unplayedCount ?? "—"}
-                hint="Still waiting in the queue"
-                href="/library"
-                delay={0.08}
-              />
-              <StatCard
-                label="Wishlist"
-                value={value?.wishlistCount ?? "—"}
-                href="/wishlist"
-                delay={0.12}
-              />
-            </div>
-
-            <section className="mt-6" aria-label="More stats">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                  label="Friends"
-                  value={value?.activeFriends ?? "—"}
-                  href="/friends"
-                  delay={0.16}
-                />
-                <StatCard
-                  label="Cost / hour"
-                  value={
-                    value?.costPerHour != null
-                      ? formatMoney(value.costPerHour, value.currency || "USD")
-                      : "—"
-                  }
-                  hint={
-                    value?.lifetimeAtCurrent
-                      ? `Library ~${formatMoney(value.lifetimeAtCurrent, value.currency || "USD")}`
-                      : "See Cost for library value"
-                  }
-                  href="/cost"
-                  delay={0.2}
-                />
-                <StatCard
-                  label="Near completion"
-                  value={value?.nearCompletionCount ?? 0}
-                  hint="≥80% achievements (sampled)"
-                  delay={0.24}
-                />
-                <StatCard
-                  label="Deal signals"
-                  value={value?.currentSalesCount ?? 0}
-                  href="/wishlist"
-                  delay={0.28}
-                />
-              </div>
-            </section>
-          </>
-        </ResourceStatus>
-      </section>
-
-      <section className="mt-12">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="font-display text-2xl font-bold tracking-tight">
-              Play next
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Backlog picks from genres you play, Deck fit, and forgotten gems
-            </p>
-          </div>
-          <Link
-            href="/library"
-            className="shrink-0 text-sm text-[var(--muted)] transition hover:text-[var(--accent)]"
-          >
-            Full library →
-          </Link>
-        </div>
-        <ResourceStatus
-          failed={playNext.failed}
-          empty={playNext.empty}
-          loading={<SkeletonTileGrid count={4} />}
-          error={
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load play-next picks.
-                </span>
-              }
-            />
-          }
-        >
-          {nextUp.length ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {nextUp.slice(0, 8).map((g, i) => (
-                <Link
-                  key={g.appId}
-                  href={`/library/${g.appId}`}
-                  className="block h-full"
-                >
-                  <GameTile
-                    name={g.name}
-                    headerImage={g.headerImage}
-                    meta={
-                      g.reasons.slice(0, 2).join(" · ") ||
-                      `${Math.round(g.playtimeForever / 60)}h`
-                    }
-                    index={i}
-                  />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title={
-                syncing
-                  ? "Library sync is still running — play-next picks will show up shortly."
-                  : isSteamLinked
-                    ? "Sync your library to get weekly play-next picks."
-                    : "Link Steam from Connections to sync your library."
-              }
-              description={
-                !isSteamLinked ? (
-                  <Link
-                    href="/settings/connections"
-                    className="text-[var(--accent)] hover:underline"
-                  >
-                    Open Connections
-                  </Link>
-                ) : undefined
-              }
-            />
+          {activity.length ? (
+            <ActivityFeed items={activity} />
+          ) : activityFailed ? null : (
+            <p className="text-sm text-[var(--muted)]">No recent activity yet.</p>
           )}
-        </ResourceStatus>
-      </section>
-
-      <section className="mt-12">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="font-display text-2xl font-bold tracking-tight">
-              Recently played
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Pick up where you left off
-            </p>
-          </div>
-          <Link
-            href="/library"
-            className="shrink-0 text-sm text-[var(--muted)] transition hover:text-[var(--accent)]"
+        </section>
+      ) : (
+        <section className="mt-10">
+          <h2 className="mb-3 font-display text-xl font-bold tracking-tight">
+            Recently played
+          </h2>
+          <ResourceStatus
+            failed={stats.failed}
+            empty={stats.empty}
+            loading={<SkeletonTile className="max-w-xl" />}
+            error={
+              <EmptyState
+                title={
+                  <span className="text-[var(--danger)]">
+                    Could not load recent play sessions.
+                  </span>
+                }
+              />
+            }
           >
-            Full library →
-          </Link>
-        </div>
+            {activity.length ? (
+              <ActivityFeed items={activity} />
+            ) : (
+              <p className="text-sm text-[var(--muted)]">No other recent sessions.</p>
+            )}
+          </ResourceStatus>
+        </section>
+      )}
 
-        <ResourceStatus
-          failed={stats.failed}
-          empty={stats.empty}
-          loading={<SkeletonTileGrid count={4} />}
-          error={
-            <EmptyState
-              title={
-                <span className="text-[var(--danger)]">
-                  Could not load recent play sessions.
-                </span>
-              }
-            />
-          }
-        >
-          {recentlyPlayed?.length ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {recentlyPlayed.map((g, i) => (
-                <Link
-                  key={g.appId}
-                  href={`/library/${g.appId}`}
-                  className="block h-full"
-                >
-                  <GameTile
-                    name={g.name}
-                    headerImage={g.headerImage}
-                    meta={`${Math.round(g.playtimeForever / 60)}h played`}
-                    index={i}
-                  />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title={
-                syncing
-                  ? "Still pulling recent play sessions from Steam…"
-                  : isSteamLinked
-                    ? "No recent play sessions yet."
-                    : "Link Steam from Connections to sync your library."
-              }
-              description={
-                <Link
-                  href={isSteamLinked ? "/library" : "/settings/connections"}
-                  className="text-[var(--accent)] hover:underline"
-                >
-                  {isSteamLinked ? "Open library" : "Open Connections"}
-                </Link>
-              }
-            />
-          )}
-        </ResourceStatus>
-      </section>
+      {value && value.librarySize > 0 ? <LibraryMix value={value} /> : null}
     </>
   );
 };

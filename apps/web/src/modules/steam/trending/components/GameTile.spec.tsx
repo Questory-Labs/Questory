@@ -21,4 +21,21 @@ describe("GameTile", () => {
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(screen.getByText("No art")).toBeInTheDocument();
   });
+
+  it("does not stretch the cover with grow", () => {
+    const { container } = render(
+      <GameTile name="Apex Legends" headerImage="https://cdn.example/apex.jpg" />,
+    );
+    const cover = container.querySelector(".aspect-\\[460\\/215\\]")?.parentElement;
+    expect(cover?.className).not.toContain("grow");
+  });
+
+  it("skips entrance motion and cover zoom when reduced-motion is set", () => {
+    const { container } = render(
+      <GameTile name="Apex Legends" headerImage="https://cdn.example/apex.jpg" />,
+    );
+    const img = container.querySelector("img");
+    expect(img?.className).toContain("motion-reduce:group-hover:scale-100");
+    expect(container.querySelector("[style*='opacity']")).toBeNull();
+  });
 });

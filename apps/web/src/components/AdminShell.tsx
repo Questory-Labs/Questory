@@ -4,18 +4,21 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingPage } from "@/components/LoadingPage";
+import { NavIcon } from "@/components/nav/NavIcon";
+import { isActive } from "@/components/nav/nav-config";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useUser } from "@/hooks/useUser";
+import type { NavIconName } from "@/components/nav/nav-config";
 
-const BASE_NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/cron", label: "Cron" },
-  { href: "/admin/migrations", label: "Migrations" },
-  { href: "/admin/enrichment", label: "Enrichment" },
-  { href: "/admin/scrapers", label: "Scrapers" },
-  { href: "/admin/settings", label: "Settings" },
-] as const;
+const BASE_NAV: { href: string; label: string; icon: NavIconName }[] = [
+  { href: "/admin", label: "Dashboard", icon: "dashboard" },
+  { href: "/admin/users", label: "Users", icon: "friends" },
+  { href: "/admin/cron", label: "Cron", icon: "sessions" },
+  { href: "/admin/migrations", label: "Migrations", icon: "collections" },
+  { href: "/admin/enrichment", label: "Enrichment", icon: "library" },
+  { href: "/admin/scrapers", label: "Scrapers", icon: "trending" },
+  { href: "/admin/settings", label: "Settings", icon: "cost" },
+];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -30,12 +33,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     ...BASE_NAV.slice(0, 5),
     ...(showEnterpriseNav
       ? [
-          { href: "/admin/telemetry", label: "Telemetry" },
-          { href: "/admin/guardrails", label: "Guardrails" },
+          { href: "/admin/telemetry", label: "Telemetry", icon: "recs" as const },
+          { href: "/admin/guardrails", label: "Guardrails", icon: "family" as const },
         ]
       : []),
     BASE_NAV[5],
+    BASE_NAV[6],
   ];
+  const hrefs = nav.map((i) => i.href);
 
   useEffect(() => {
     if (!authReady) return;
@@ -73,37 +78,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[14rem_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-0)_92%,transparent)] backdrop-blur-xl lg:flex">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[var(--bg-0)] lg:flex">
         <div className="flex h-14 shrink-0 items-center px-4 shadow-[inset_0_-1px_0_0_var(--line)]">
-          <span
-            className="font-display text-lg tracking-tight"
-            style={{ fontWeight: 700 }}
-          >
-            Admin
-          </span>
+          <span className="font-display text-lg font-bold tracking-tight">Admin</span>
         </div>
         <nav className="flex-1 space-y-0.5 px-2 py-4" aria-label="Admin">
           {nav.map((item) => {
-            const active =
-              item.href === "/admin"
-                ? pathname === "/admin"
-                : pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+            const active = isActive(pathname, item.href, hrefs);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`block px-3 py-2 text-sm transition ${
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-2.5 px-3 py-2 text-sm transition ${
                   active
                     ? "bg-[var(--accent-dim)] text-[var(--ink)]"
                     : "text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
                 }`}
               >
-                {item.label}
+                <NavIcon name={item.icon} />
+                <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
+        <div className="chrome-hatch-rule" aria-hidden />
         <div className="border-t border-[var(--line)] p-3 text-xs text-[var(--muted)]">
           <div className="truncate">{user.email || user.personaName}</div>
           <Link
@@ -116,7 +115,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg-0)_88%,transparent)] px-4 backdrop-blur-xl lg:hidden">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--line)] bg-[var(--bg-0)] px-4 lg:hidden">
           <span className="font-display font-bold">Admin</span>
           <nav className="ml-auto flex gap-2 overflow-x-auto text-xs">
             {nav.map((item) => (

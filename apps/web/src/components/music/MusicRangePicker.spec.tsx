@@ -14,6 +14,9 @@ describe("MusicRangePicker", () => {
     expect(screen.getByRole("button", { name: "Day" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Year" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Time range" })).toHaveClass(
+      "header-control",
+    );
   });
 
   it("includes All on detail pages", () => {

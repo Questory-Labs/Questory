@@ -3,6 +3,8 @@ import {
   PlaySessionAssignResultSchema,
   PlaySessionAssignSchema,
   PlaySessionDeleteResultSchema,
+  PlaySessionDayBucketSchema,
+  PlaySessionStatsSchema,
   PlaySessionGameSuggestPageSchema,
   PlaySessionItemSchema,
   PlaySessionPageSchema,
@@ -201,5 +203,48 @@ describe("PlaySessionAssignResultSchema", () => {
     expect(
       PlaySessionDeleteResultSchema.safeParse({ ok: true }).success,
     ).toBe(true);
+  });
+});
+
+describe("PlaySessionStatsSchema", () => {
+  it("accepts an overview payload", () => {
+    expect(
+      PlaySessionStatsSchema.safeParse({
+        sessionCount: 2,
+        totalDurationSecs: 5400,
+        avgDurationSecs: 2700,
+        weekDurationSecs: 3600,
+        weekSessionCount: 1,
+        unmatchedCount: 1,
+        uniqueGames: 1,
+        lastPlayedAt: "2026-01-15T12:00:00.000Z",
+        windowDays: 14,
+        weekDays: 7,
+        byDay: [
+          { day: "2026-01-15", durationSecs: 3600, sessionCount: 1 },
+        ],
+        topGames: [
+          {
+            key: "g1",
+            gameId: "g1",
+            name: "Dota 2",
+            headerImage: null,
+            appId: 570,
+            durationSecs: 3600,
+            sessionCount: 1,
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a bad day key", () => {
+    expect(
+      PlaySessionDayBucketSchema.safeParse({
+        day: "15 Jan",
+        durationSecs: 0,
+        sessionCount: 0,
+      }).success,
+    ).toBe(false);
   });
 });

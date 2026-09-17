@@ -6,7 +6,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { HatchShadow } from "@/components/HatchShadow";
 import { LandingBackground } from "@/components/LandingBackground";
 import { RotatingTagline } from "@/components/RotatingTagline";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui";
 
 export type StatusPageTone = "mint" | "warm" | "danger";
 

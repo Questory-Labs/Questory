@@ -48,8 +48,8 @@ describe("RegisterView", () => {
 
   it("shows the form when registration is not closed", () => {
     renderView({ closed: false });
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.getByLabelText("Confirm password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveClass("field");
+    expect(screen.getByLabelText("Password")).toHaveClass("field");
+    expect(screen.getByLabelText("Confirm password")).toHaveClass("field");
   });
 });
