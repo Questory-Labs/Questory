@@ -153,6 +153,13 @@ export const ProfileDataPanel = ({
             {importFile.name}
           </p>
         ) : null}
+        {runImport.failed ? (
+          <p className="mt-3 text-sm text-[var(--danger)]">
+            {runImport.error instanceof Error
+              ? runImport.error.message
+              : "Import failed"}
+          </p>
+        ) : null}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCloseImportConfirm}>
             Cancel

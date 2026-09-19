@@ -12,7 +12,7 @@ import {
   formatDuration,
   parseArgs,
   remainingUnstarted,
-  runnableJobs,
+  selectReadyJobs,
   selectJobs,
   skipBlockedJobs,
   vitestMaxWorkers,
@@ -220,13 +220,17 @@ async function main(argv = process.argv.slice(2)) {
       const slots = concurrency - running.size;
       if (slots <= 0 || failFastTripped) return;
 
-      const ready = runnableJobs(jobs, {
-        completed,
-        failed,
-        skipped,
-        running,
-        lockedMutex,
-      }).slice(0, slots);
+      const ready = selectReadyJobs(
+        jobs,
+        {
+          completed,
+          failed,
+          skipped,
+          running,
+          lockedMutex,
+        },
+        slots,
+      );
 
       for (const job of ready) {
         running.add(job.id);

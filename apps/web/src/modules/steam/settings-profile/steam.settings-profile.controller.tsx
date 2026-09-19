@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type PropsWithChildren } from "react";
+import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import type {
@@ -26,6 +26,8 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
   const [error, setError] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
+  const prevImportStatus = useRef<string | undefined>(undefined);
+  const awaitingImportCompletion = useRef(false);
 
   const regions = useResource({
     id: ["price-regions"],
@@ -50,6 +52,25 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
     const cc = user?.countryCode;
     if (cc) setCountryCode(cc.toUpperCase());
   }, [user?.countryCode]);
+
+  useEffect(() => {
+    const status = importJob.value?.status;
+    const prev = prevImportStatus.current;
+    prevImportStatus.current = status;
+    const fromRunning = prev === "running" && status === "completed";
+    const fromThisSubmit =
+      awaitingImportCompletion.current && status === "completed";
+    if (!fromRunning && !fromThisSubmit) return;
+    awaitingImportCompletion.current = false;
+    store.touch(["profile-import"]);
+    store.touch(["library"]);
+    store.touch(["collections"]);
+    store.touch(["wishlist"]);
+    store.touch(["cost-summary"]);
+    store.touch(["music-overview"]);
+    store.touch(["watch-overview"]);
+    store.touch(["read-library"]);
+  }, [importJob.value?.status, importJob.value?.id, store]);
 
   const save = useAction({
     run: async (nextCountry: string) => {
@@ -112,14 +133,8 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
     },
     onSuccess: () => {
       setImportConfirmOpen(false);
+      awaitingImportCompletion.current = true;
       store.touch(["profile-import"]);
-      store.touch(["library"]);
-      store.touch(["collections"]);
-      store.touch(["wishlist"]);
-      store.touch(["cost-summary"]);
-      store.touch(["music-overview"]);
-      store.touch(["watch-overview"]);
-      store.touch(["read-library"]);
     },
   });
 

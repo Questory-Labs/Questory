@@ -117,4 +117,41 @@ describe("ProfileDataPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Import zip" }));
     expect(runImport.submit).not.toHaveBeenCalled();
   });
+
+  it("shows import action errors in the confirmation dialog", () => {
+    const file = new File(["zip"], "questory-profile.zip", {
+      type: "application/zip",
+    });
+    render(
+      <ProfileDataPanel
+        exportStatus={resource<ProfileExportStatus>({
+          empty: false,
+          failed: false,
+          value: noneExport,
+        })}
+        generateExport={idleAction as unknown as UseActionResult<ProfileExportStatus, void>}
+        downloadExport={idleAction as unknown as UseActionResult<void, void>}
+        importJob={resource<ProfileImportJob | null>({
+          empty: false,
+          failed: false,
+          value: null,
+        })}
+        importFile={file}
+        importConfirmOpen={true}
+        onPickImportFile={() => undefined}
+        onOpenImportConfirm={() => undefined}
+        onCloseImportConfirm={() => undefined}
+        runImport={
+          {
+            ...idleAction,
+            failed: true,
+            error: new Error("A profile import is already in progress"),
+          } as unknown as UseActionResult<ProfileImportJob, File>
+        }
+      />,
+    );
+    expect(
+      screen.getByText("A profile import is already in progress"),
+    ).toBeInTheDocument();
+  });
 });

@@ -36,4 +36,27 @@ describe("QuestoryProfileArchiveSchema", () => {
     });
     expect(parsed.success).toBe(false);
   });
+
+  it("rejects invalid timestamps before purchases are applied", () => {
+    const parsed = QuestoryProfileArchiveSchema.safeParse({
+      ...minimal,
+      purchases: [
+        {
+          store: "steam",
+          amount: 10,
+          purchasedAt: "not-a-date",
+          source: "manual",
+        },
+      ],
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts ISO timestamps with offsets", () => {
+    const parsed = QuestoryProfileArchiveSchema.safeParse({
+      ...minimal,
+      exportedAt: "2026-08-29T17:30:00+05:30",
+    });
+    expect(parsed.success).toBe(true);
+  });
 });

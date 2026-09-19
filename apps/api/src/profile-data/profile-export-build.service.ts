@@ -1,5 +1,5 @@
 import { createWriteStream } from "fs";
-import { mkdir, readFile, rm, stat, unlink, writeFile } from "fs/promises";
+import { mkdir, rm, stat, unlink } from "fs/promises";
 import { join } from "path";
 import { Injectable, Logger } from "@nestjs/common";
 import {
@@ -32,7 +32,7 @@ import {
   ensureProfileExportDir,
   profileExportZipPath,
 } from "./profile-export-dir";
-import { profileExportReadme, zipProfileArchive } from "./profile-zip";
+import { profileExportReadme, zipProfileArchiveToPath } from "./profile-zip";
 import { PROFILE_EXPORT_TTL_MS } from "./profile-data.constants";
 
 @Injectable()
@@ -88,12 +88,11 @@ export class ProfileExportBuildService {
       };
 
       await this.writeJsonFile(jsonPath, archive);
-      const json = await readFile(jsonPath, "utf8");
-      const zip = zipProfileArchive(
-        json,
+      await zipProfileArchiveToPath(
+        jsonPath,
         profileExportReadme(exportedAt, services),
+        zipPath,
       );
-      await writeFile(zipPath, zip);
       const info = await stat(zipPath);
       const day = exportedAt.slice(0, 10);
       return {
@@ -109,7 +108,19 @@ export class ProfileExportBuildService {
 
   async deleteStoredFile(storageKey: string | null | undefined) {
     if (!storageKey) return;
-    await unlink(profileExportZipPath(storageKey)).catch(() => {});
+    try {
+      await unlink(profileExportZipPath(storageKey));
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
+      if (code === "ENOENT") return;
+      this.logger.error(
+        `Failed to delete profile export ${storageKey}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
   }
 
   private writeJsonFile(path: string, value: unknown) {

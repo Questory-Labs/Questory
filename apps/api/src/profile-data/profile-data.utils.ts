@@ -15,9 +15,9 @@ export type GameRef = {
   name?: string;
 };
 
-function asStore(store: string): "steam" | "epic" | "gog" {
+function asStore(store: string): "steam" | "epic" | "gog" | null {
   if (store === "epic" || store === "gog" || store === "steam") return store;
-  return "steam";
+  return null;
 }
 
 export function gameRefFrom(
@@ -31,12 +31,15 @@ export function gameRefFrom(
   if (!game) return null;
   const listing = game.storeListings?.[0];
   if (listing?.externalId) {
-    return {
-      store: asStore(listing.store),
-      externalId: listing.externalId,
-      appId: game.appId,
-      name: game.name,
-    };
+    const store = asStore(listing.store);
+    if (store) {
+      return {
+        store,
+        externalId: listing.externalId,
+        appId: game.appId,
+        name: game.name,
+      };
+    }
   }
   if (game.appId != null) {
     return {

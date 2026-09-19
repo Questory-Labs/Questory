@@ -1090,6 +1090,7 @@ model ImportJob {
   @@index([userId, createdAt])
   @@index([userId, status])
   @@index([status])
+  // Partial unique (userId, source) WHERE status = 'running' is created at API startup.
 }
 
 model TitleEnrichmentJob {
@@ -1316,4 +1317,5 @@ model ProfileExportJob {
   @@index([userId, status])
   @@index([userId, createdAt])
   @@index([expiresAt])
+  // Partial unique (userId) WHERE status IN ('pending','running') is created at API startup.
 }

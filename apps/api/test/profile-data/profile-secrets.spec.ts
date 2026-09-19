@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { unzipSync, strFromU8 } from "fflate";
 import { zipProfileArchive } from "../../src/profile-data/profile-zip";
 
 describe("profile export payload", () => {
@@ -11,7 +12,10 @@ describe("profile export payload", () => {
       profile: { countryCode: "IN", priceRegionLocked: true },
     });
     const zip = zipProfileArchive(json, "Reconnect steam and trakt.");
-    const text = zip.toString("utf8").toLowerCase();
+    const files = unzipSync(new Uint8Array(zip));
+    const text = Object.values(files)
+      .map((bytes) => strFromU8(bytes).toLowerCase())
+      .join("\n");
     expect(text).not.toContain("accesstoken");
     expect(text).not.toContain("refreshtoken");
     expect(text).not.toContain("passwordhash");

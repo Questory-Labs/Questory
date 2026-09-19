@@ -9,6 +9,7 @@ import {
   parseArgs,
   remainingUnstarted,
   runnableJobs,
+  selectReadyJobs,
   selectJobs,
   skipBlockedJobs,
   vitestMaxWorkers,
@@ -163,6 +164,15 @@ describe("runnableJobs", () => {
     }).map((job) => job.id);
     expect(ready).toEqual(["b", "c", "d"]);
   });
+
+  it("reserves mutexes while filling slots so siblings are not co-dispatched", () => {
+    const ready = selectReadyJobs(
+      mini,
+      { ...emptyState, completed: new Set(["a"]) },
+      3,
+    ).map((job) => job.id);
+    expect(ready).toEqual(["b", "c"]);
+  });
 });
 
 describe("skipBlockedJobs", () => {
@@ -202,6 +212,10 @@ describe("formatDuration", () => {
   it("formats seconds and minutes", () => {
     expect(formatDuration(1500)).toBe("1.5s");
     expect(formatDuration(65_000)).toBe("1m 05s");
+  });
+
+  it("rolls 60 rounded seconds into the next minute", () => {
+    expect(formatDuration(119_600)).toBe("2m 00s");
   });
 });
 

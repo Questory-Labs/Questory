@@ -1,4 +1,5 @@
-import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
+import { createReadStream, createWriteStream } from "fs";
+import { unzipSync, zipSync, strFromU8, strToU8, Zip, ZipDeflate } from "fflate";
 import {
   QUESTORY_PROFILE_JSON_NAME,
   QUESTORY_PROFILE_README_NAME,
@@ -30,15 +31,94 @@ export function zipProfileArchive(json: string, readme: string): Buffer {
   return Buffer.from(packed);
 }
 
+export function zipProfileArchiveToPath(
+  jsonPath: string,
+  readme: string,
+  zipPath: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const output = createWriteStream(zipPath);
+    const zip = new Zip();
+    let settled = false;
+
+    const finish = (err?: unknown) => {
+      if (settled) return;
+      settled = true;
+      if (!err) {
+        resolve();
+        return;
+      }
+      zip.terminate();
+      output.destroy();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
+
+    zip.ondata = (err, chunk, final) => {
+      if (err) {
+        finish(err);
+        return;
+      }
+      const buf = Buffer.from(chunk);
+      if (final) {
+        output.end(buf, () => finish());
+        return;
+      }
+      output.write(buf);
+    };
+
+    output.on("error", finish);
+
+    const readmeFile = new ZipDeflate(QUESTORY_PROFILE_README_NAME, {
+      level: 6,
+    });
+    zip.add(readmeFile);
+    readmeFile.push(strToU8(readme), true);
+
+    const jsonFile = new ZipDeflate(QUESTORY_PROFILE_JSON_NAME, { level: 6 });
+    zip.add(jsonFile);
+    const input = createReadStream(jsonPath);
+    input.on("error", finish);
+    input.on("data", (chunk: string | Buffer) => {
+      const buf = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+      jsonFile.push(Uint8Array.from(buf));
+    });
+    input.on("end", () => {
+      jsonFile.push(new Uint8Array(0), true);
+      zip.end();
+    });
+  });
+}
+
 export function unzipProfileArchiveJson(buffer: Buffer): string {
   let files: Record<string, Uint8Array>;
+  let accepted = 0;
+  let totalOriginal = 0;
   try {
     files = unzipSync(new Uint8Array(buffer), {
       filter(file) {
-        return !file.originalSize || file.originalSize <= PROFILE_IMPORT_MAX_BYTES;
+        if (file.originalSize && file.originalSize > PROFILE_IMPORT_MAX_BYTES) {
+          return false;
+        }
+        if (accepted >= MAX_ENTRIES) {
+          throw new Error(`Zip has too many entries (max ${MAX_ENTRIES})`);
+        }
+        const nextTotal = totalOriginal + (file.originalSize || 0);
+        if (nextTotal > PROFILE_IMPORT_MAX_BYTES) {
+          throw new Error("Zip contents are too large");
+        }
+        accepted += 1;
+        totalOriginal = nextTotal;
+        return true;
       },
     });
-  } catch {
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("too many entries") ||
+        err.message.includes("too large"))
+    ) {
+      throw err;
+    }
     throw new Error("Invalid or corrupted zip archive");
   }
 

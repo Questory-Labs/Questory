@@ -12,6 +12,10 @@ import {
 } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { PROFILE_IMPORT_SOURCE } from "./profile-data.constants";
+import {
+  ensureImportJobRunningLock,
+  isPrismaAdmissionConflict,
+} from "./profile-data.locks";
 import { unzipProfileArchiveJson } from "./profile-zip";
 import { ProfileImportGamesService } from "./profile-import-games.service";
 import { ProfileImportMediaService } from "./profile-import-media.service";
@@ -80,6 +84,11 @@ export class ProfileImportService implements OnModuleInit {
         `Marked ${result.count} interrupted profile import(s) as failed`,
       );
     }
+    try {
+      await ensureImportJobRunningLock(this.prisma);
+    } catch (err) {
+      this.logger.warn(`Could not ensure profile import running lock: ${err}`);
+    }
   }
 
   async getActive(userId: string): Promise<ProfileImportJob | null> {
@@ -99,17 +108,27 @@ export class ProfileImportService implements OnModuleInit {
       },
     });
     if (active) {
+      await rm(filePath, { force: true }).catch(() => {});
       throw new ConflictException("A profile import is already in progress");
     }
 
-    const job = await this.prisma.importJob.create({
-      data: {
-        userId,
-        source: PROFILE_IMPORT_SOURCE,
-        status: "running",
-        fileName,
-      },
-    });
+    let job;
+    try {
+      job = await this.prisma.importJob.create({
+        data: {
+          userId,
+          source: PROFILE_IMPORT_SOURCE,
+          status: "running",
+          fileName,
+        },
+      });
+    } catch (err) {
+      await rm(filePath, { force: true }).catch(() => {});
+      if (isPrismaAdmissionConflict(err)) {
+        throw new ConflictException("A profile import is already in progress");
+      }
+      throw err;
+    }
 
     void this.run(job.id, userId, filePath).catch((err) => {
       this.logger.error(`Profile import ${job.id} failed: ${err}`);

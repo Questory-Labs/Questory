@@ -51,7 +51,7 @@ export const TrendingView = (props: Record<string, unknown>) => {
             size="sm"
             eyebrow="What's hot"
             title="Trending"
-            description="Worldwide public charts. What your friends played sits at the bottom."
+            description="Worldwide public charts. What your friends played appears first."
           />
         </motion.div>
       </section>

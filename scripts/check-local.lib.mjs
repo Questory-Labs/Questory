@@ -324,6 +324,32 @@ export function runnableJobs(jobs, state) {
 }
 
 /**
+ * Pick up to `slots` runnable jobs while reserving mutexes so two jobs that
+ * share a mutex are never selected in the same batch.
+ * @param {Job[]} jobs
+ * @param {{
+ *   completed: Set<string>,
+ *   failed: Set<string>,
+ *   skipped: Set<string>,
+ *   running: Set<string>,
+ *   lockedMutex: Set<string>,
+ * }} state
+ * @param {number} slots
+ * @returns {Job[]}
+ */
+export function selectReadyJobs(jobs, state, slots) {
+  const reservedMutex = new Set(state.lockedMutex);
+  const ready = [];
+  for (const job of runnableJobs(jobs, state)) {
+    if (ready.length >= slots) break;
+    if (job.mutex && reservedMutex.has(job.mutex)) continue;
+    if (job.mutex) reservedMutex.add(job.mutex);
+    ready.push(job);
+  }
+  return ready;
+}
+
+/**
  * Transitively skip jobs whose dependencies failed or were skipped.
  * @param {Job[]} jobs
  * @param {Set<string>} failed
@@ -406,7 +432,11 @@ export function defaultConcurrency(
 export function formatDuration(ms) {
   const totalSec = Math.max(0, ms) / 1000;
   if (totalSec < 60) return `${totalSec.toFixed(1)}s`;
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = Math.round(totalSec - minutes * 60);
+  let minutes = Math.floor(totalSec / 60);
+  let seconds = Math.round(totalSec - minutes * 60);
+  if (seconds === 60) {
+    minutes += 1;
+    seconds = 0;
+  }
   return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }

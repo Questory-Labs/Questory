@@ -7,7 +7,7 @@ export const QUESTORY_PROFILE_VERSION = 1;
 export const QUESTORY_PROFILE_JSON_NAME = "questory-profile.json";
 export const QUESTORY_PROFILE_README_NAME = "README.txt";
 
-const IsoDateSchema = z.string().min(1);
+const IsoDateSchema = z.string().datetime({ offset: true });
 
 const GameRefSchema = z.object({
   store: StoreSchema.default("steam"),

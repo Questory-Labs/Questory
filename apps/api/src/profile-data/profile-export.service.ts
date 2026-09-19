@@ -10,13 +10,18 @@ import {
 } from "@nestjs/common";
 import { Queue, Worker } from "bullmq";
 import type { ProfileExportStatus } from "@questorylabs/shared";
+import { Prisma } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { bullmqConnection } from "../lib/redis-connection";
-import { resolveSyncMode } from "../lib/runtime-config";
+import { resolveDbProvider, resolveSyncMode } from "../lib/runtime-config";
 import {
   PROFILE_EXPORT_IN_FLIGHT,
   PROFILE_EXPORT_QUEUE,
 } from "./profile-data.constants";
+import {
+  ensureExportJobInFlightLock,
+  isPrismaAdmissionConflict,
+} from "./profile-data.locks";
 import { ProfileExportBuildService } from "./profile-export-build.service";
 import {
   ensureProfileExportDir,
@@ -24,6 +29,15 @@ import {
 } from "./profile-export-dir";
 
 type ExportJobData = { userId: string; jobId: string };
+
+const BULLMQ_LIVE_STATES = [
+  "waiting",
+  "delayed",
+  "paused",
+  "active",
+  "prioritized",
+  "waiting-children",
+] as const;
 
 @Injectable()
 export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
@@ -38,24 +52,12 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    const interrupted = await this.prisma.profileExportJob.updateMany({
-      where: { status: { in: [...PROFILE_EXPORT_IN_FLIGHT] } },
-      data: {
-        status: "failed",
-        lastError: "Interrupted by API restart",
-        completedAt: new Date(),
-      },
-    });
-    if (interrupted.count > 0) {
-      this.logger.warn(
-        `Marked ${interrupted.count} interrupted profile export(s) as failed`,
-      );
-    }
-
     const mode = resolveSyncMode();
     if (mode === "inline") {
       this.inlineMode = true;
       this.logger.log("Using inline profile export (no Redis queue)");
+      await this.failUnresumableExports();
+      await this.ensureInFlightLock();
       return;
     }
 
@@ -78,10 +80,13 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
       });
       await this.queue.waitUntilReady();
       this.logger.log("Using BullMQ profile export via Redis");
+      await this.reconcileQueuedExports();
     } catch (err) {
       this.logger.warn(`BullMQ unavailable, using inline profile export: ${err}`);
       this.inlineMode = true;
+      await this.failUnresumableExports();
     }
+    await this.ensureInFlightLock();
   }
 
   async onModuleDestroy() {
@@ -90,26 +95,57 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueue(userId: string) {
-    const inFlight = await this.prisma.profileExportJob.findFirst({
-      where: { userId, status: { in: [...PROFILE_EXPORT_IN_FLIGHT] } },
-    });
-    if (inFlight) {
-      throw new ConflictException("A profile export is already in progress");
+    let job: { id: string };
+    try {
+      job = await this.prisma.$transaction(
+        async (tx) => {
+          const inFlight = await tx.profileExportJob.findFirst({
+            where: { userId, status: { in: [...PROFILE_EXPORT_IN_FLIGHT] } },
+          });
+          if (inFlight) {
+            throw new ConflictException("A profile export is already in progress");
+          }
+          return tx.profileExportJob.create({
+            data: { userId, status: "pending" },
+          });
+        },
+        resolveDbProvider() === "postgresql"
+          ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+          : undefined,
+      );
+    } catch (err) {
+      if (err instanceof ConflictException) throw err;
+      if (isPrismaAdmissionConflict(err)) {
+        throw new ConflictException("A profile export is already in progress");
+      }
+      throw err;
     }
 
-    const job = await this.prisma.profileExportJob.create({
-      data: { userId, status: "pending" },
-    });
     const payload: ExportJobData = { userId, jobId: job.id };
     if (this.inlineMode || !this.queue) {
       void this.process(payload).catch((err) => {
         this.logger.error(`Inline profile export failed: ${err}`);
       });
     } else {
-      await this.queue.add("export", payload, {
-        removeOnComplete: 20,
-        removeOnFail: 20,
-      });
+      try {
+        await this.queue.add("export", payload, {
+          jobId: job.id,
+          removeOnComplete: 20,
+          removeOnFail: 20,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Profile export queue submit failed: ${message}`);
+        await this.prisma.profileExportJob.update({
+          where: { id: job.id },
+          data: {
+            status: "failed",
+            lastError: message,
+            completedAt: new Date(),
+          },
+        });
+        throw err;
+      }
     }
     return this.getStatus(userId);
   }
@@ -211,17 +247,6 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
     });
     try {
       const built = await this.build.buildZip(userId, jobId);
-      const previous = await this.prisma.profileExportJob.findMany({
-        where: {
-          userId,
-          status: "completed",
-          id: { not: jobId },
-        },
-      });
-      for (const old of previous) {
-        await this.build.deleteStoredFile(old.storageKey);
-        await this.prisma.profileExportJob.delete({ where: { id: old.id } });
-      }
       await this.prisma.profileExportJob.update({
         where: { id: jobId },
         data: {
@@ -234,6 +259,17 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
           lastError: null,
         },
       });
+      const previous = await this.prisma.profileExportJob.findMany({
+        where: {
+          userId,
+          status: "completed",
+          id: { not: jobId },
+        },
+      });
+      for (const old of previous) {
+        await this.build.deleteStoredFile(old.storageKey);
+        await this.prisma.profileExportJob.delete({ where: { id: old.id } });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Profile export ${jobId} failed: ${message}`);
@@ -245,6 +281,62 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
           completedAt: new Date(),
         },
       });
+    }
+  }
+
+  private async failUnresumableExports() {
+    const interrupted = await this.prisma.profileExportJob.updateMany({
+      where: { status: { in: [...PROFILE_EXPORT_IN_FLIGHT] } },
+      data: {
+        status: "failed",
+        lastError: "Interrupted by API restart",
+        completedAt: new Date(),
+      },
+    });
+    if (interrupted.count > 0) {
+      this.logger.warn(
+        `Marked ${interrupted.count} interrupted profile export(s) as failed`,
+      );
+    }
+  }
+
+  private async reconcileQueuedExports() {
+    if (!this.queue) return;
+    const rows = await this.prisma.profileExportJob.findMany({
+      where: { status: { in: [...PROFILE_EXPORT_IN_FLIGHT] } },
+    });
+    if (!rows.length) return;
+
+    const queued = await this.queue.getJobs([...BULLMQ_LIVE_STATES], 0, -1);
+    const queuedIds = new Set(
+      queued.map((job) => job.data?.jobId ?? job.id).filter(Boolean),
+    );
+
+    let stranded = 0;
+    for (const row of rows) {
+      if (queuedIds.has(row.id)) continue;
+      await this.prisma.profileExportJob.update({
+        where: { id: row.id },
+        data: {
+          status: "failed",
+          lastError: "Interrupted by API restart",
+          completedAt: new Date(),
+        },
+      });
+      stranded += 1;
+    }
+    if (stranded > 0) {
+      this.logger.warn(
+        `Marked ${stranded} unresumable profile export(s) as failed`,
+      );
+    }
+  }
+
+  private async ensureInFlightLock() {
+    try {
+      await ensureExportJobInFlightLock(this.prisma);
+    } catch (err) {
+      this.logger.warn(`Could not ensure profile export in-flight lock: ${err}`);
     }
   }
 
