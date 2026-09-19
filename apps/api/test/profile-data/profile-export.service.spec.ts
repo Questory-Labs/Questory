@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { ProfileExportService } from "../../src/profile-data/profile-export.service";
 import { ProfileExportBuildService } from "../../src/profile-data/profile-export-build.service";
+import { PROFILE_EXPORT_IN_FLIGHT } from "../../src/profile-data/profile-data.constants";
 import type { PrismaService } from "../../src/prisma/prisma.service";
 
 describe("ProfileExportService", () => {
@@ -131,6 +132,65 @@ describe("ProfileExportService", () => {
     expect(update.mock.invocationCallOrder[1]).toBeLessThan(
       deleteStoredFile.mock.invocationCallOrder[0],
     );
+  });
+
+  it("keeps the replacement completed when previous-export cleanup fails", async () => {
+    const warn = vi.spyOn(service["logger"], "warn").mockImplementation(() => undefined);
+    buildZip.mockResolvedValue({
+      storageKey: "new.zip",
+      fileName: "questory-profile.zip",
+      byteSize: 12,
+      expiresAt: new Date("2026-09-26T00:00:00.000Z"),
+    });
+    update.mockResolvedValue({});
+    findMany.mockResolvedValueOnce([
+      { id: "old", storageKey: "old.zip", status: "completed" },
+    ]);
+    deleteStoredFile.mockRejectedValue(new Error("EACCES"));
+
+    await (
+      service as unknown as {
+        process: (data: { userId: string; jobId: string }) => Promise<void>;
+      }
+    ).process({ userId: "user-1", jobId: "job-new" });
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls[1][0].data.status).toBe("completed");
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("previous profile export old"),
+    );
+    warn.mockRestore();
+  });
+
+  it("only counts in-flight rows that actually transitioned during reconcile", async () => {
+    findMany.mockResolvedValueOnce([
+      { id: "job-a", status: "pending" },
+      { id: "job-b", status: "running" },
+    ]);
+    updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+    (
+      service as unknown as { queue: { getJobs: ReturnType<typeof vi.fn> } }
+    ).queue = { getJobs: vi.fn().mockResolvedValue([]) };
+    const warn = vi.spyOn(service["logger"], "warn").mockImplementation(() => undefined);
+
+    await (
+      service as unknown as { reconcileQueuedExports: () => Promise<void> }
+    ).reconcileQueuedExports();
+
+    expect(updateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "job-a",
+        status: { in: [...PROFILE_EXPORT_IN_FLIGHT] },
+      },
+      data: expect.objectContaining({ status: "failed" }),
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "Marked 1 unresumable profile export(s) as failed",
+    );
+    warn.mockRestore();
   });
 
   it("keeps the completed row when stored-file cleanup fails", async () => {

@@ -267,8 +267,15 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
         },
       });
       for (const old of previous) {
-        await this.build.deleteStoredFile(old.storageKey);
-        await this.prisma.profileExportJob.delete({ where: { id: old.id } });
+        try {
+          await this.build.deleteStoredFile(old.storageKey);
+          await this.prisma.profileExportJob.delete({ where: { id: old.id } });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            `Failed to clean up previous profile export ${old.id}: ${message}`,
+          );
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -315,15 +322,18 @@ export class ProfileExportService implements OnModuleInit, OnModuleDestroy {
     let stranded = 0;
     for (const row of rows) {
       if (queuedIds.has(row.id)) continue;
-      await this.prisma.profileExportJob.update({
-        where: { id: row.id },
+      const result = await this.prisma.profileExportJob.updateMany({
+        where: {
+          id: row.id,
+          status: { in: [...PROFILE_EXPORT_IN_FLIGHT] },
+        },
         data: {
           status: "failed",
           lastError: "Interrupted by API restart",
           completedAt: new Date(),
         },
       });
-      stranded += 1;
+      stranded += result.count;
     }
     if (stranded > 0) {
       this.logger.warn(
