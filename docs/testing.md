@@ -8,6 +8,12 @@ Questory uses Vitest for unit/integration tests and Playwright for web e2e.
 # All packages with a test script
 pnpm test
 
+# Local CI: Vitest + package/app builds + Playwright, in parallel
+pnpm check
+pnpm check -- --skip-e2e          # faster (no Playwright)
+pnpm check -- --dry-run           # print the job plan
+pnpm check -- --fail-fast --concurrency 4
+
 # Per package
 pnpm --filter @questorylabs/shared test
 pnpm --filter @questorylabs/ui test
@@ -15,6 +21,8 @@ pnpm --filter @questorylabs/api test
 pnpm --filter @questorylabs/web test
 pnpm --filter @questorylabs/web test:e2e
 ```
+
+`pnpm check` generates the SQLite Prisma client and builds `@questorylabs/shared` first, then runs independent tests/builds together. `web:build` and `web:e2e` never overlap (they both write `.next`).
 
 Music, watch, and in-process cron tests live under `apps/api` (same Nest app).
 

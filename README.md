@@ -173,6 +173,7 @@ pnpm docker:prod
 | `pnpm setup` | Install, build shared packages, generate Prisma provider, push schema |
 | `pnpm dev` | Start Web + API servers |
 | `pnpm test` | Run Vitest across packages that define tests |
+| `pnpm check` | Local CI: tests + builds + e2e in parallel (`pnpm check:fast` skips e2e) |
 | `pnpm db:schema` | Generate `schema.prisma` for the active DB provider |
 | `pnpm db:push` | Apply Prisma schema changes to the DB |
 | `pnpm docker:*` | Compose aliases (`up`, `down`, `build`, `selfhosted`, `prod`, etc.) |
