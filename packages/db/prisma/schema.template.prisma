@@ -59,6 +59,7 @@ model User {
   playSessionRules       UserPlaySessionRule[]
   qmonitorDeviceSessions  QmonitorDeviceSession[]
   qmonitorAuthCodes       QmonitorAuthCode[]
+  profileExportJobs       ProfileExportJob[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -1089,6 +1090,7 @@ model ImportJob {
   @@index([userId, createdAt])
   @@index([userId, status])
   @@index([status])
+  // Partial unique (userId, source) WHERE status = 'running' is created at API startup.
 }
 
 model TitleEnrichmentJob {
@@ -1293,4 +1295,27 @@ model MediaTag {
 
   @@unique([tagId, mediaType, mediaId])
   @@index([mediaType, mediaId])
+}
+
+/** Per-user profile ZIP export; file is kept until expiresAt then GC'd. */
+model ProfileExportJob {
+  id          String    @id @default(cuid())
+  userId      String
+  /** pending | running | completed | failed */
+  status      String    @default("pending")
+  fileName    String?
+  storageKey  String?
+  byteSize    Int?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  expiresAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  // Partial unique (userId) WHERE status IN ('pending','running') is created at API startup.
 }

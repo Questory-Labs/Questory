@@ -9,7 +9,8 @@ import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
-import { useResource } from "@questorylabs/qhttp/react";
+import { JOB_POLL_MS } from "@/lib/polling";
+import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import { PropsWithChildren, useState } from "react";
 import type {
@@ -19,11 +20,15 @@ import type {
 } from "./steam.trending.types";
 import type { MediaTrendingShelf, WeeklyDigestView } from "@questorylabs/shared";
 
+const digestPeekId = ["trending", "insight-peek"];
+
 export const TrendingController = ({ children }: PropsWithChildren) => {
+  const store = useStore();
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
   const { showReadNav } = useReadEnabled();
   const { enabled: showEnterpriseNav } = useEnterpriseEnabled();
+  const [insightStarted, setInsightStarted] = useState(false);
 
   const friends = useResource({
     id: ["trending", "friends"],
@@ -72,32 +77,45 @@ export const TrendingController = ({ children }: PropsWithChildren) => {
   });
 
   const digestPeek = useResource({
-    id: ["trending", "weekly-digest-peek"],
+    id: digestPeekId,
     load: () => peekWeeklyDigest(),
     when: showEnterpriseNav,
     retries: 1,
+    refreshEvery: (value) => (value?.generating ? JOB_POLL_MS : false),
   });
 
   const digestGenerate = useResource({
-    id: ["trending", "weekly-digest-generate"],
-    load: () => startWeeklyDigest(),
+    id: ["trending", "insight-generate"],
+    load: async () => {
+      const started = await startWeeklyDigest();
+      setInsightStarted(true);
+      store.touch(digestPeekId);
+      return started;
+    },
     when:
       showEnterpriseNav &&
       digestPeek.ready &&
-      !digestPeek.value?.result,
+      !digestPeek.value?.result?.llmPolished &&
+      !digestPeek.value?.generating &&
+      !insightStarted,
     retries: 1,
   });
 
-  const digestValue: WeeklyDigestView | undefined = digestGenerate.value?.result
-    ? digestGenerate.value
-    : digestPeek.value;
+  const digestValue: WeeklyDigestView | undefined = digestPeek.value?.result
+    ? digestPeek.value
+    : digestGenerate.value?.result
+      ? digestGenerate.value
+      : digestPeek.value ?? digestGenerate.value;
 
   const digest = {
     ...digestPeek,
     value: digestValue,
     empty: !digestValue && digestPeek.empty && digestGenerate.empty,
     failed: digestPeek.failed && (digestGenerate.failed || !digestGenerate.ready),
-    busy: digestPeek.busy || digestGenerate.busy,
+    busy:
+      digestPeek.busy ||
+      digestGenerate.busy ||
+      digestValue?.generating === true,
   };
 
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);

@@ -90,7 +90,7 @@ export class ImportsService implements OnModuleInit {
 
   async onModuleInit() {
     const result = await this.prisma.importJob.updateMany({
-      where: { status: "running" },
+      where: { status: "running", source: { in: [...MUSIC_IMPORT_SOURCES] } },
       data: {
         status: "failed",
         lastError: "Interrupted by music service restart",

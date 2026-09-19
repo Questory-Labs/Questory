@@ -12,6 +12,7 @@ import {
 import { getMusicUrl } from "@/lib/music";
 import { getWatchUrl } from "@/lib/watch";
 import { DEFAULT_PRICE_REGIONS } from "./steam.settings-profile.constants";
+import { ProfileDataPanel } from "./steam.settings-profile-data.panel";
 import type { ProfileSettingsViewProps } from "./steam.settings-profile.types";
 
 export const ProfileSettingsView = (props: Record<string, unknown>) => {
@@ -27,6 +28,16 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
     user,
     showMusic,
     showWatch,
+    exportStatus,
+    generateExport,
+    downloadExport,
+    importJob,
+    importFile,
+    importConfirmOpen,
+    onPickImportFile,
+    onOpenImportConfirm,
+    onCloseImportConfirm,
+    runImport,
   } = props as ProfileSettingsViewProps;
 
   return (
@@ -109,6 +120,19 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
           </p>
         ) : null}
       </Panel>
+
+      <ProfileDataPanel
+        exportStatus={exportStatus}
+        generateExport={generateExport}
+        downloadExport={downloadExport}
+        importJob={importJob}
+        importFile={importFile}
+        importConfirmOpen={importConfirmOpen}
+        onPickImportFile={onPickImportFile}
+        onOpenImportConfirm={onOpenImportConfirm}
+        onCloseImportConfirm={onCloseImportConfirm}
+        runImport={runImport}
+      />
 
       {showMusic && (
         <ApiKeyPanel

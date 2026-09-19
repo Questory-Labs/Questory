@@ -6,10 +6,9 @@ import { LastFmScrobblerCard } from "./LastFmScrobblerCard";
 vi.mock("@/lib/music", () => ({
   musicFetch: vi.fn(),
   musicUrl: (path: string) => `http://api.test${path}`,
-  fetchMusicHealth: vi.fn(),
 }));
 
-import { fetchMusicHealth, musicFetch } from "@/lib/music";
+import { musicFetch } from "@/lib/music";
 
 function wrap(ui: React.ReactNode) {
   const store = new ResourceStore({ retries: false });
@@ -37,26 +36,15 @@ describe("LastFmScrobblerCard", () => {
 
   beforeEach(() => {
     vi.mocked(musicFetch).mockReset();
-    vi.mocked(fetchMusicHealth).mockReset();
-    vi.mocked(fetchMusicHealth).mockResolvedValue({
-      ok: true,
-      service: "questorylabs-music",
-      lastfmConfigured: true,
-    });
   });
 
   it("hides the card when Last.fm env is not configured on the API", async () => {
-    vi.mocked(fetchMusicHealth).mockResolvedValue({
-      ok: true,
-      service: "questorylabs-music",
-      lastfmConfigured: false,
-    });
+    vi.mocked(musicFetch).mockResolvedValue(configuredStatus({ configured: false }));
     wrap(<LastFmScrobblerCard />);
     await waitFor(() => {
-      expect(fetchMusicHealth).toHaveBeenCalled();
+      expect(musicFetch).toHaveBeenCalled();
     });
     expect(screen.queryByText("Last.fm")).not.toBeInTheDocument();
-    expect(musicFetch).not.toHaveBeenCalled();
   });
 
   it("shows Connect when Last.fm is configured and disconnected", async () => {
@@ -86,7 +74,7 @@ describe("LastFmScrobblerCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows a status error instead of hiding when health says Last.fm is on", async () => {
+  it("shows a status error instead of hiding when Last.fm status fails", async () => {
     vi.mocked(musicFetch).mockRejectedValue(
       new Error("column lastError does not exist"),
     );

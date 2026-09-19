@@ -2,7 +2,12 @@ import type {
   UseActionResult,
   UseResourceResult,
 } from "@questorylabs/qhttp/react";
-import type { MeResponse, User } from "@questorylabs/shared";
+import type {
+  MeResponse,
+  ProfileExportStatus,
+  ProfileImportJob,
+  User,
+} from "@questorylabs/shared";
 
 export type PriceRegion = {
   countryCode: string;
@@ -22,4 +27,14 @@ export type ProfileSettingsViewProps = {
   user: User | null;
   showMusic: boolean;
   showWatch: boolean;
+  exportStatus: UseResourceResult<ProfileExportStatus>;
+  generateExport: UseActionResult<ProfileExportStatus, void>;
+  downloadExport: UseActionResult<void, void>;
+  importJob: UseResourceResult<ProfileImportJob | null>;
+  importFile: File | null;
+  importConfirmOpen: boolean;
+  onPickImportFile: (file: File | null) => void;
+  onOpenImportConfirm: () => void;
+  onCloseImportConfirm: () => void;
+  runImport: UseActionResult<ProfileImportJob, File>;
 };

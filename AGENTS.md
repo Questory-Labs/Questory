@@ -48,6 +48,7 @@ Prisma: edit `packages/db/prisma/schema.template.prisma`. Generated `schema.pris
 | `pnpm dev` | API + web |
 | `pnpm db:schema` / `db:generate` / `db:push` / `db:migrate` | Prisma lifecycle |
 | `pnpm test` | Vitest across packages that define `test` |
+| `pnpm check` | Local CI: tests + builds + Playwright e2e in parallel (`check:fast` skips e2e) |
 | `pnpm docker:selfhosted` / `selfhosted-full` / `prod` | Compose profiles |
 
 Use `pnpm --filter @questorylabs/<pkg> …` for package-scoped work.

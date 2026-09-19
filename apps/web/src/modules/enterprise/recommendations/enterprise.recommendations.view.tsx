@@ -69,7 +69,7 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
         description="What to play, watch, and listen to next — scored from your library, listening history, and watchlists."
       />
       <section>
-        <div className="panel-outline mb-5 px-4 py-3 text-sm text-[var(--muted)]">
+        <div className="panel-outline mb-5 px-4 py-3 text-sm text-[var(--muted)] gap-1.5 flex items-center">
           {worldSummary ? (
             <span>{worldSummary}</span>
           ) : (

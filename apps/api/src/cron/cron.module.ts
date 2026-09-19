@@ -3,6 +3,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { SyncModule } from "../sync/sync.module";
 import { SteamModule } from "../steam/steam.module";
 import { WatchModule } from "../watch/watch.module";
+import { ProfileDataModule } from "../profile-data/profile-data.module";
 import { CronSecretGuard } from "./cron-secret.guard";
 import { CronRunnerService } from "./cron-runner.service";
 import { InternalCronController } from "./internal-cron.controller";
@@ -15,6 +16,7 @@ import { JobsService } from "./jobs.service";
     SyncModule,
     SteamModule,
     forwardRef(() => WatchModule),
+    ProfileDataModule,
   ],
   controllers: [InternalCronController],
   providers: [

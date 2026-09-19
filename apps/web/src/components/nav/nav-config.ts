@@ -51,7 +51,7 @@ const STEAM_GROUPS: NavGroup[] = [
 ];
 
 export const ACCOUNT_LINKS = [
-  { href: "/settings/profile", label: "Profile", hint: "Account & price region" },
+  { href: "/settings/profile", label: "Profile", hint: "Account, region & data" },
   {
     href: "/settings/connections",
     label: "Connections",

@@ -37,6 +37,30 @@ describe("WeeklyDigestViewSchema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts a charts-through-taste thesis", () => {
+    const parsed = WeeklyDigestViewSchema.safeParse({
+      cached: true,
+      generating: false,
+      result: {
+        weekId: "2026-W38",
+        from: "2026-09-14",
+        to: "2026-09-20",
+        headline: "Hades is still in your rotation",
+        body: "You played Hades this month and it is still on Steam Charts.",
+        llmPolished: true,
+        items: [
+          {
+            domain: "games",
+            name: "Hades",
+            reason: "You played this recently.",
+            chartLabel: "Steam Charts",
+          },
+        ],
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
 });
 
 describe("WeeklyDigestRequestSchema", () => {

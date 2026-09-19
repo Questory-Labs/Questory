@@ -24,7 +24,9 @@
     "docker:publish": "node scripts/docker-publish.mjs",
     "docker:build": "node scripts/docker-publish.mjs --no-push",
     "test": "pnpm run test:scripts && pnpm -r --if-present test",
-    "test:scripts": "vitest run --config vitest.scripts.config.mjs"
+    "test:scripts": "vitest run --config vitest.scripts.config.mjs",
+    "check": "node scripts/check-local.mjs",
+    "check:fast": "node scripts/check-local.mjs --skip-e2e"
   },
   "engines": {
     "node": ">=20"

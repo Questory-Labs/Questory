@@ -35,3 +35,4 @@ apps/watch/src/generated
 samples
 temp/*
 !temp/.gitkeep
+data/profile-exports/

@@ -1,5 +1,6 @@
 import { z } from "zod";
 export * from "./rewind";
+export * from "./profile-archive";
 export * from "./media-trending";
 export * from "./weekly-digest";
 

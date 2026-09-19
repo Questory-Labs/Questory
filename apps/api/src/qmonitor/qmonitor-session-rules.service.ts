@@ -179,7 +179,7 @@ export class QmonitorSessionRulesService {
         identity.matchKind === "exe"
           ? {
               userId,
-              exe: { contains: identity.matchValue, mode: "insensitive" },
+              exe: containsInsensitive(identity.matchValue),
             }
           : {
               userId,

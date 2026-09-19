@@ -4,7 +4,7 @@ import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import type { MusicScrobblerStatus } from "@questorylabs/shared";
 import { useState } from "react";
 import { Button, Dialog } from "@/components/ui";
-import { fetchMusicHealth, musicFetch, musicUrl } from "@/lib/music";
+import { musicFetch, musicUrl } from "@/lib/music";
 import { MusicSourceCard, MusicStatusPill } from "./MusicSourceCard";
 
 const formatLastSync = (iso: string | null): string => {
@@ -18,17 +18,9 @@ export const LastFmScrobblerCard = () => {
   const store = useStore();
   const [confirm, setConfirm] = useState<"connect" | "disconnect" | null>(null);
 
-  const health = useResource({
-    id: ["music-health"],
-    load: fetchMusicHealth,
-    freshFor: 30_000,
-    retries: false,
-  });
-
   const status = useResource({
     id: ["music-scrobbler-lastfm"],
     load: () => musicFetch<MusicScrobblerStatus>("/scrobbler/lastfm/status"),
-    when: health.value?.lastfmConfigured === true,
   });
 
   const lastfm = status.value?.lastfm;
@@ -43,7 +35,12 @@ export const LastFmScrobblerCard = () => {
     },
   });
 
-  if (health.value?.lastfmConfigured !== true) return null;
+  if (
+    !status.failed &&
+    (status.empty || status.value?.lastfm?.configured !== true)
+  ) {
+    return null;
+  }
 
   const blurb = status.failed
     ? "Could not load Last.fm status from the API. Check the API logs (schema push may be needed)."

@@ -65,6 +65,7 @@ describe("InternalCronService.syncPricesDaily", () => {
       {} as never,
       sync,
       {} as never,
+      { purgeExpired: vi.fn() } as never,
     );
   });
 
@@ -115,11 +116,16 @@ describe("InternalCronService.dailyRefresh", () => {
       enqueueDailyLibrarySync,
     } as unknown as SyncService;
 
+    const profileExports = {
+      purgeExpired: vi.fn().mockResolvedValue({ deleted: 0 }),
+    } as never;
+
     service = new InternalCronService(
       prisma,
       {} as never,
       sync,
       {} as never,
+      profileExports,
     );
   });
 
@@ -127,6 +133,6 @@ describe("InternalCronService.dailyRefresh", () => {
     const result = await service.dailyRefresh();
 
     expect(enqueueDailyLibrarySync).toHaveBeenCalledWith("user-1", "steam-1");
-    expect(result).toEqual({ users: 1, enqueued: 1, failed: 0 });
+    expect(result).toEqual({ users: 1, enqueued: 1, failed: 0, deleted: 0 });
   });
 });
