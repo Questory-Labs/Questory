@@ -1,12 +1,12 @@
 import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
+import type {
+  AdminInstanceSettings,
+  PatchFeatureFlags,
+} from "@questorylabs/shared";
 
-export type Settings = {
-  signupEnabled: boolean;
-  signupOpen: boolean;
-  abuse: Record<string, number>;
-};
+export type Settings = AdminInstanceSettings;
 
 export type AdminSettingsViewProps = {
   settings: UseResourceResult<Settings>;
-  patch: UseActionResult<unknown, boolean>;
+  patch: UseActionResult<Settings, PatchFeatureFlags>;
 };

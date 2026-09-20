@@ -61,32 +61,37 @@ export const watchLiveSourceState = ({
   anilistConnected,
   webhookActive,
   expanded,
+  allowed,
 }: {
   traktConnected: boolean;
   anilistConnected: boolean;
   webhookActive: boolean;
   expanded: Partial<Record<LiveSourceId, boolean>>;
+  allowed?: Partial<Record<LiveSourceId, boolean>>;
 }) => {
-  const showTrakt = traktConnected || Boolean(expanded.trakt);
-  const showAnilist = anilistConnected || Boolean(expanded.anilist);
-  const showWebhook = webhookActive || Boolean(expanded.webhook);
+  const traktOn = allowed?.trakt !== false;
+  const anilistOn = allowed?.anilist !== false;
+  const webhookOn = allowed?.webhook !== false;
+  const showTrakt = traktOn && (traktConnected || Boolean(expanded.trakt));
+  const showAnilist = anilistOn && (anilistConnected || Boolean(expanded.anilist));
+  const showWebhook = webhookOn && (webhookActive || Boolean(expanded.webhook));
   const showingLive = showTrakt || showAnilist || showWebhook;
   const unused: UnusedSource[] = [];
-  if (!traktConnected) {
+  if (traktOn && !traktConnected) {
     unused.push({
       id: "trakt",
       label: "Trakt",
       hint: "OAuth · watched history sync",
     });
   }
-  if (!anilistConnected) {
+  if (anilistOn && !anilistConnected) {
     unused.push({
       id: "anilist",
       label: "AniList",
       hint: "OAuth · anime + manga",
     });
   }
-  if (!webhookActive) {
+  if (webhookOn && !webhookActive) {
     unused.push({
       id: "webhook",
       label: "Plex / Jellyfin",

@@ -15,6 +15,8 @@ import { KitsuService } from "../watch/kitsu/kitsu.service";
 import { LetterboxdScrapeSyncService } from "../watch/letterboxd/letterboxd-scrape-sync.service";
 import { MalService } from "../watch/mal/mal.service";
 import { ShikimoriService } from "../watch/shikimori/shikimori.service";
+import { FeatureFlagsService } from "../features/feature-flags.service";
+import type { FeatureSource } from "@questorylabs/shared";
 import { TraktService } from "../watch/trakt/trakt.service";
 
 export type AdminUserSyncTarget =
@@ -41,6 +43,7 @@ export class AdminUserOpsService {
     private readonly kitsu: KitsuService,
     private readonly bangumi: BangumiService,
     private readonly shikimori: ShikimoriService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   async syncTarget(userId: string, target: AdminUserSyncTarget) {
@@ -83,6 +86,12 @@ export class AdminUserOpsService {
   }
 
   private async syncMusic(userId: string) {
+    if (
+      !(await this.flags.isDomainEnabled("music")) ||
+      !(await this.flags.isSourceEnabled("musicbrainz"))
+    ) {
+      return { ok: true, skipped: true, enqueued: 0, userId };
+    }
     const listens = await this.prisma.listen.findMany({
       where: { userId },
       select: { trackId: true },
@@ -100,34 +109,44 @@ export class AdminUserOpsService {
   }
 
   private async syncMovie(userId: string) {
+    if (!(await this.flags.isDomainEnabled("watch"))) {
+      return { ok: true, skipped: true, userId, results: {} };
+    }
     return this.runProviderSyncs(userId, [
-      ["trakt", () => this.trakt.syncHistory(userId)],
-      ["letterboxd", () => this.letterboxd.syncUser(userId)],
-      ["anilist", () => this.anilist.syncList(userId)],
-      ["mal", () => this.mal.syncList(userId)],
-      ["kitsu", () => this.kitsu.syncList(userId)],
-      ["bangumi", () => this.bangumi.syncList(userId)],
-      ["shikimori", () => this.shikimori.syncList(userId)],
+      ["trakt", "trakt", () => this.trakt.syncHistory(userId)],
+      ["letterboxd", "letterboxdScrape", () => this.letterboxd.syncUser(userId)],
+      ["anilist", "anilist", () => this.anilist.syncList(userId, "watch")],
+      ["mal", "mal", () => this.mal.syncList(userId, "watch")],
+      ["kitsu", "kitsu", () => this.kitsu.syncList(userId, "watch")],
+      ["bangumi", "bangumi", () => this.bangumi.syncList(userId, "watch")],
+      ["shikimori", "shikimori", () => this.shikimori.syncList(userId, "watch")],
     ]);
   }
 
   private async syncRead(userId: string) {
+    if (!(await this.flags.isDomainEnabled("read"))) {
+      return { ok: true, skipped: true, userId, results: {} };
+    }
     return this.runProviderSyncs(userId, [
-      ["anilist", () => this.anilist.syncList(userId)],
-      ["mal", () => this.mal.syncList(userId)],
-      ["kitsu", () => this.kitsu.syncList(userId)],
-      ["bangumi", () => this.bangumi.syncList(userId)],
-      ["shikimori", () => this.shikimori.syncList(userId)],
+      ["anilist", "anilist", () => this.anilist.syncList(userId, "read")],
+      ["mal", "mal", () => this.mal.syncList(userId, "read")],
+      ["kitsu", "kitsu", () => this.kitsu.syncList(userId, "read")],
+      ["bangumi", "bangumi", () => this.bangumi.syncList(userId, "read")],
+      ["shikimori", "shikimori", () => this.shikimori.syncList(userId, "read")],
     ]);
   }
 
   private async runProviderSyncs(
     userId: string,
-    providers: Array<[string, () => Promise<unknown>]>,
+    providers: Array<[string, FeatureSource, () => Promise<unknown>]>,
   ) {
     const results: Record<string, unknown> = {};
 
-    for (const [name, run] of providers) {
+    for (const [name, source, run] of providers) {
+      if (!(await this.flags.isSourceEnabled(source))) {
+        results[name] = { skipped: true };
+        continue;
+      }
       try {
         results[name] = await run();
       } catch (err) {

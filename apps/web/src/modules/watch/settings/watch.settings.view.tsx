@@ -29,28 +29,33 @@ export const WatchSettingsView = (props: Record<string, unknown>) => {
         addOpen={view.addOpen}
         setAddOpen={view.setAddOpen}
         selectSource={view.selectSource}
+        showLetterboxdScrape={view.showLetterboxdScrape !== false}
       />
 
-      <AnimeListSourcesSection />
+      {view.showAnimeLists !== false ? (
+        <AnimeListSourcesSection allowed={view.animeListAllowed} />
+      ) : null}
 
-      <LetterboxdImportSection
-        file={view.file}
-        dragging={view.dragging}
-        busy={view.busy}
-        progress={view.progress}
-        include={view.include}
-        importMsg={view.importMsg}
-        importOk={view.importOk}
-        importFailed={view.importFailed}
-        isCsv={view.isCsv}
-        inputRef={view.inputRef}
-        onInputChange={view.onInputChange}
-        onDrop={view.onDrop}
-        setDragging={view.setDragging}
-        toggleKind={view.toggleKind}
-        onImport={view.onImport}
-        clearFile={view.clearFile}
-      />
+      {view.showLetterboxdImport !== false ? (
+        <LetterboxdImportSection
+          file={view.file}
+          dragging={view.dragging}
+          busy={view.busy}
+          progress={view.progress}
+          include={view.include}
+          importMsg={view.importMsg}
+          importOk={view.importOk}
+          importFailed={view.importFailed}
+          isCsv={view.isCsv}
+          inputRef={view.inputRef}
+          onInputChange={view.onInputChange}
+          onDrop={view.onDrop}
+          setDragging={view.setDragging}
+          toggleKind={view.toggleKind}
+          onImport={view.onImport}
+          clearFile={view.clearFile}
+        />
+      ) : null}
     </>
   );
 };

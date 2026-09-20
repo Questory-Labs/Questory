@@ -1,20 +1,27 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useResource, type UseResourceResult } from "@questorylabs/qhttp/react";
-import type { MusicHealth, WatchHealth } from "@questorylabs/shared";
-import { fetchMusicHealth, isMusicFlagEnabled } from "@/lib/music";
-import { fetchWatchHealth, isWatchFlagEnabled } from "@/lib/watch";
-import { fetchReadHealth, isReadFlagEnabled } from "@/lib/read";
-
-type ReadHealth = { ok: boolean };
+import type { AppStatus, SourceFlags } from "@questorylabs/shared";
+import {
+  APP_STATUS_RESOURCE_ID,
+  defaultSourceFlags,
+  fetchAppStatus,
+} from "@/lib/app-status";
 
 export type MusicEnabledValue = {
   flagOn: boolean;
   healthOk: boolean;
   showMusicNav: boolean;
   isLoading: boolean;
-  health: UseResourceResult<MusicHealth>;
+  failed: boolean;
 };
 
 export type WatchEnabledValue = {
@@ -24,7 +31,7 @@ export type WatchEnabledValue = {
   healthOk: boolean;
   showWatchNav: boolean;
   isLoading: boolean;
-  health: UseResourceResult<WatchHealth>;
+  failed: boolean;
 };
 
 export type ReadEnabledValue = {
@@ -34,105 +41,101 @@ export type ReadEnabledValue = {
   healthOk: boolean;
   showReadNav: boolean;
   isLoading: boolean;
-  health: UseResourceResult<ReadHealth>;
+  failed: boolean;
 };
 
 export type StatusValue = {
   music: MusicEnabledValue;
   watch: WatchEnabledValue;
   read: ReadEnabledValue;
+  sources: SourceFlags;
+  isLoading: boolean;
+  failed: boolean;
+  status: UseResourceResult<AppStatus>;
 };
 
 const StatusContext = createContext<StatusValue | null>(null);
 
-function useMusicEnabledState(): MusicEnabledValue {
-  const flagOn = isMusicFlagEnabled();
-  const health = useResource({
-    id: ["music-health"],
-    load: fetchMusicHealth,
-    when: flagOn,
-    freshFor: 30_000,
-    retries: false,
-    refreshOnFocus: true,
-  });
+const DropEpochContext = createContext({
+  epoch: 0,
+  bump: () => undefined as void,
+});
 
-  const showMusicNav = flagOn && health.value?.ok === true && !health.failed;
-
-  return useMemo(
-    () => ({
-      flagOn,
-      healthOk: health.value?.ok === true,
-      showMusicNav,
-      isLoading: flagOn && health.empty && health.busy,
-      health,
-    }),
-    [flagOn, health, showMusicNav],
+/** Bump after store.drop() so GET /v1/status loads again (useResource will not re-ensure). */
+export function DropEpochProvider({ children }: { children: ReactNode }) {
+  const [epoch, setEpoch] = useState(0);
+  const bump = useCallback(() => setEpoch((n) => n + 1), []);
+  const value = useMemo(() => ({ epoch, bump }), [epoch, bump]);
+  return (
+    <DropEpochContext.Provider value={value}>{children}</DropEpochContext.Provider>
   );
 }
 
-function useWatchEnabledState(): WatchEnabledValue {
-  const flagOn = isWatchFlagEnabled();
-  const health = useResource({
-    id: ["watch-health"],
-    load: fetchWatchHealth,
-    when: flagOn,
-    freshFor: 30_000,
-    retries: false,
-    refreshOnFocus: true,
-  });
-
-  const enabled = flagOn && health.value?.ok === true && !health.failed;
-
-  return useMemo(
-    () => ({
-      enabled,
-      flag: flagOn,
-      flagOn,
-      healthOk: health.value?.ok === true,
-      showWatchNav: enabled,
-      isLoading: flagOn && health.empty && health.busy,
-      health,
-    }),
-    [enabled, flagOn, health],
-  );
-}
-
-function useReadEnabledState(): ReadEnabledValue {
-  const flagOn = isReadFlagEnabled();
-  const health = useResource({
-    id: ["read-health"],
-    load: fetchReadHealth,
-    when: flagOn,
-    freshFor: 30_000,
-    retries: false,
-    refreshOnFocus: true,
-  });
-
-  const enabled = flagOn && health.value?.ok === true && !health.failed;
-
-  return useMemo(
-    () => ({
-      enabled,
-      flag: flagOn,
-      flagOn,
-      healthOk: health.value?.ok === true,
-      showReadNav: enabled,
-      isLoading: flagOn && health.empty && health.busy,
-      health,
-    }),
-    [enabled, flagOn, health],
-  );
+export function useDropEpochBump() {
+  return useContext(DropEpochContext).bump;
 }
 
 /** Mount once under ResourceProvider; domain hooks read from this context. */
 export function StatusProvider({ children }: { children: ReactNode }) {
-  const music = useMusicEnabledState();
-  const watch = useWatchEnabledState();
-  const read = useReadEnabledState();
-  const value = useMemo(
-    () => ({ music, watch, read }),
-    [music, watch, read],
-  );
+  const { epoch } = useContext(DropEpochContext);
+  return <StatusProviderInner key={epoch}>{children}</StatusProviderInner>;
+}
+
+function StatusProviderInner({ children }: { children: ReactNode }) {
+  const status = useResource({
+    id: [...APP_STATUS_RESOURCE_ID],
+    load: fetchAppStatus,
+    freshFor: Number.POSITIVE_INFINITY,
+    retries: false,
+    // qHttp only refreshes on focus when this resource last failed.
+    refreshOnFocus: true,
+  });
+
+  const loaded = !status.empty && !status.failed;
+  const musicOn = loaded && status.value?.music.enabled === true;
+  const watchOn = loaded && status.value?.watch.enabled === true;
+  const readOn = loaded && status.value?.read.enabled === true;
+  const isLoading = status.empty && (status.busy || !status.failed);
+
+  const sources = status.value?.sources ?? defaultSourceFlags();
+
+  const value = useMemo((): StatusValue => {
+    const music: MusicEnabledValue = {
+      flagOn: musicOn,
+      healthOk: musicOn,
+      showMusicNav: musicOn,
+      isLoading,
+      failed: status.failed,
+    };
+    const watch: WatchEnabledValue = {
+      enabled: watchOn,
+      flag: watchOn,
+      flagOn: watchOn,
+      healthOk: watchOn,
+      showWatchNav: watchOn,
+      isLoading,
+      failed: status.failed,
+    };
+    const read: ReadEnabledValue = {
+      enabled: readOn,
+      flag: readOn,
+      flagOn: readOn,
+      healthOk: readOn,
+      showReadNav: readOn,
+      isLoading,
+      failed: status.failed,
+    };
+    return {
+      music,
+      watch,
+      read,
+      sources,
+      isLoading,
+      failed: status.failed,
+      status,
+    };
+  }, [musicOn, watchOn, readOn, isLoading, sources, status]);
+
   return (
     <StatusContext.Provider value={value}>{children}</StatusContext.Provider>
   );
@@ -146,17 +149,18 @@ export function useStatus() {
   return ctx;
 }
 
-/** Music menus/routes: feature flag ON and music /health ok. */
 export function useMusicEnabled() {
   return useStatus().music;
 }
 
-/** Watch menus/routes: feature flag ON and watch /health ok. */
 export function useWatchEnabled() {
   return useStatus().watch;
 }
 
-/** Read menus/routes: feature flag ON and API /health read.enabled. */
 export function useReadEnabled() {
   return useStatus().read;
+}
+
+export function useFeatureSources() {
+  return useStatus().sources;
 }

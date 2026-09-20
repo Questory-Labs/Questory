@@ -15,6 +15,7 @@ import {
   StateMessage,
 } from "@/components/ui";
 import { formatDeltaPct, formatMinutes, formatShare } from "@/lib/watch";
+import { featureErrorMessage } from "@/lib/app-status";
 import type { WatchHomeViewProps } from "./watch.home.types";
 
 export const WatchHomeView = (props: Record<string, unknown>) => {
@@ -69,7 +70,10 @@ export const WatchHomeView = (props: Record<string, unknown>) => {
           }
           error={
             <StateMessage variant="error">
-              Could not load watch analytics.
+              {featureErrorMessage(
+                insights.error,
+                "Could not load watch analytics.",
+              )}
             </StateMessage>
           }
         >

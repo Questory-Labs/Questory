@@ -11,6 +11,7 @@ import {
   StateMessage,
 } from "@/components/ui";
 import { formatDeltaPct, formatShare } from "@/lib/read";
+import { featureErrorMessage } from "@/lib/app-status";
 import type { ReadHomeViewProps } from "./read.home.types";
 
 export const ReadHomeView = (props: Record<string, unknown>) => {
@@ -44,7 +45,10 @@ export const ReadHomeView = (props: Record<string, unknown>) => {
           }
           error={
             <StateMessage variant="error">
-              Could not load read analytics.
+              {featureErrorMessage(
+                insights.error,
+                "Could not load read analytics.",
+              )}
             </StateMessage>
           }
         >

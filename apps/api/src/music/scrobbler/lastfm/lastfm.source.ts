@@ -32,6 +32,7 @@ export class LastFmSource implements ScrobbleSource {
     private readonly connections: ScrobblerConnections,
   ) {}
 
+  /** Credentials only. Music + Last.fm flags are checked in ScrobblerLoop each tick. */
   isConfigured() {
     return isLastFmConfigured();
   }

@@ -6,9 +6,11 @@ import { musicFetch } from "@/lib/music";
 import { readFetch } from "@/lib/read";
 import { watchFetch } from "@/lib/watch";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
+import { useFeatureSources } from "@/hooks/useFeatureSources";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { sourceEnabled } from "@/lib/app-status";
 import { JOB_POLL_MS } from "@/lib/polling";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
@@ -27,6 +29,11 @@ export const TrendingController = ({ children }: PropsWithChildren) => {
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
   const { showReadNav } = useReadEnabled();
+  const sources = useFeatureSources();
+  const showMusicShelf =
+    showMusicNav && sourceEnabled(sources, "listenbrainzApi");
+  const showWatchShelf = showWatchNav && sourceEnabled(sources, "tmdb");
+  const showReadShelf = showReadNav && sourceEnabled(sources, "anilist");
   const { enabled: showEnterpriseNav } = useEnterpriseEnabled();
   const [insightStarted, setInsightStarted] = useState(false);
 
@@ -58,21 +65,21 @@ export const TrendingController = ({ children }: PropsWithChildren) => {
   const music = useResource({
     id: ["trending", "music-sitewide"],
     load: () => musicFetch<MediaTrendingShelf>("/trending/sitewide"),
-    when: showMusicNav,
+    when: showMusicShelf,
     retries: 1,
   });
 
   const watch = useResource({
     id: ["trending", "watch-tmdb"],
     load: () => watchFetch<MediaTrendingShelf>("/trending/tmdb"),
-    when: showWatchNav,
+    when: showWatchShelf,
     retries: 1,
   });
 
   const read = useResource({
     id: ["trending", "read-anilist"],
     load: () => readFetch<MediaTrendingShelf>("/trending/anilist"),
-    when: showReadNav,
+    when: showReadShelf,
     retries: 1,
   });
 
@@ -126,9 +133,9 @@ export const TrendingController = ({ children }: PropsWithChildren) => {
     concurrent,
     deck,
     topReleases,
-    showMusic: showMusicNav,
-    showWatch: showWatchNav,
-    showRead: showReadNav,
+    showMusic: showMusicShelf,
+    showWatch: showWatchShelf,
+    showRead: showReadShelf,
     showEnterprise: showEnterpriseNav,
     music,
     watch,

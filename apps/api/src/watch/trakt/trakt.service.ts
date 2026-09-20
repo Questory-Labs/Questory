@@ -14,6 +14,7 @@ import {
   resolveTraktRedirectUri,
 } from "../lib/runtime-config";
 import { providerFetch } from "../../lib/qhttp-outbound";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
 
 type TraktIds = {
   trakt?: number;
@@ -63,6 +64,7 @@ export class TraktService {
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   configured() {
@@ -249,6 +251,13 @@ export class TraktService {
   }
 
   async syncHistory(userId?: string) {
+    if (
+      !(await this.flags.isDomainEnabled("watch")) ||
+      !(await this.flags.isSourceEnabled("trakt"))
+    ) {
+      this.logger.debug("Trakt sync skipped (feature flags)");
+      return { ok: true, skipped: true, accepted: 0 };
+    }
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
 

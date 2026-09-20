@@ -34,6 +34,7 @@ describe("AdminService.createUser", () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
   });
 

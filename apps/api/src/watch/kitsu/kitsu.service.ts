@@ -16,6 +16,9 @@ import {
 } from "../../read/kitsu/kitsu-map";
 import { providerFetch } from "../lib/provider-fetch";
 import { resolveProviderDate } from "../lib/resolve-date";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { resolveListSyncHalves } from "../../features/list-sync-scope";
+import type { ListSyncScope } from "@questorylabs/shared";
 
 type KitsuLibraryEntry = {
   id: string;
@@ -57,6 +60,7 @@ export class KitsuService {
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
     private readonly readCatalog: ReadCatalogService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   configured() {
@@ -148,7 +152,12 @@ export class KitsuService {
     return this.syncingUsers.has(userId);
   }
 
-  async syncList(userId?: string) {
+  async syncList(userId?: string, scope: ListSyncScope = "both") {
+    const halves = await resolveListSyncHalves(this.flags, "kitsu", scope);
+    if (halves.skip) {
+      this.logger.debug("Kitsu sync skipped (feature flags)");
+      return { ok: true, skipped: true, accepted: 0, mangaAccepted: 0 };
+    }
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
     const conn = await this.prisma.sourceConnection.findUnique({
@@ -166,18 +175,12 @@ export class KitsuService {
       const kitsuUserId = profile.data?.[0]?.id;
       if (!kitsuUserId) throw new BadRequestException("Kitsu user missing");
 
-      const animeAccepted = await this.syncLibrary(
-        user.id,
-        token,
-        kitsuUserId,
-        "anime",
-      );
-      const mangaAccepted = await this.syncLibrary(
-        user.id,
-        token,
-        kitsuUserId,
-        "manga",
-      );
+      const animeAccepted = halves.watch
+        ? await this.syncLibrary(user.id, token, kitsuUserId, "anime")
+        : 0;
+      const mangaAccepted = halves.read
+        ? await this.syncLibrary(user.id, token, kitsuUserId, "manga")
+        : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
         data: {

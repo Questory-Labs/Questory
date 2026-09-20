@@ -108,7 +108,7 @@ pnpm dev
 ```
 - **Web**: [http://localhost:3000](http://localhost:3000)
 - **API**: [http://localhost:4000](http://localhost:4000) — *Handles Steam, optional media modules, and in-process cron.*
-- *Optional Features:* Set `NEXT_PUBLIC_ENABLE_MUSIC=true`, `NEXT_PUBLIC_ENABLE_WATCH=true`, or `NEXT_PUBLIC_ENABLE_READ=true` in your environment (nav links appear when the API `/health` endpoint reports them as enabled).
+- *Optional Music / Watch / Read:* **Admin → Settings** is the control once a flag is saved. Until then the API uses `FEATURE_MUSIC|WATCH|READ` (preferred) or `NEXT_PUBLIC_ENABLE_*` (same names, so a root `.env` still works). The UI reads `GET /v1/status` once per load. `GET /health` is liveness only — do not curl it for flags, and do not confuse it with `GET /v1/enterprise/status`. Compose must pass `FEATURE_*` on `api`, `api-lite`, and `scrobbler` in the same release; pulling a new Hub image with old compose defaults domains **off**.
 
 *Want Docker-based infra during local dev?* Run `pnpm docker:infra` to spin up Postgres and Redis, then update `DATABASE_URL` and `REDIS_URL` to point to localhost.
 

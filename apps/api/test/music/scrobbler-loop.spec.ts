@@ -62,6 +62,10 @@ describe("ScrobblerLoop", () => {
       { submit, clear } as never,
       { enqueueTrack } as never,
       { acquireLock } as never,
+      {
+        isDomainEnabled: async () => true,
+        isSourceEnabled: async () => true,
+      } as never,
     );
     // First due is startedAt + stagger; freeze start so ticks are always due.
     (loop as unknown as { startedAt: number }).startedAt = 0;
@@ -152,5 +156,24 @@ describe("ScrobblerLoop", () => {
     await loop.pollNow("u1", "lastfm");
     expect(poll).not.toHaveBeenCalled();
     expect(add).toHaveBeenCalled();
+  });
+
+  it("skips ticks when Music or Last.fm is disabled", async () => {
+    loop = new ScrobblerLoop(
+      [source],
+      { listActive, get, updatePoll } as never,
+      { upsertListen } as never,
+      { submit, clear } as never,
+      { enqueueTrack } as never,
+      { acquireLock } as never,
+      {
+        isDomainEnabled: async () => false,
+        isSourceEnabled: async () => true,
+      } as never,
+    );
+    listActive.mockResolvedValue([conn()]);
+    await loop.tick();
+    expect(poll).not.toHaveBeenCalled();
+    expect(listActive).not.toHaveBeenCalled();
   });
 });

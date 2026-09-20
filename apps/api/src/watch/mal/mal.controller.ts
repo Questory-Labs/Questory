@@ -10,10 +10,15 @@ import type { Response } from "express";
 import { MalService } from "./mal.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { listProviderConnectedUrl } from "../../features/list-provider-redirect";
 
 @Controller("watch/mal")
 export class MalController {
-  constructor(private readonly mal: MalService) {}
+  constructor(
+    private readonly mal: MalService,
+    private readonly flags: FeatureFlagsService,
+  ) {}
 
   @Get("status")
   @UseGuards(SessionUserGuard)
@@ -36,13 +41,7 @@ export class MalController {
   ) {
     if (!code) return res.status(400).send("Missing code");
     await this.mal.exchangeCode(code, state);
-    const web =
-      process.env.WEB_ORIGIN ||
-      process.env.NEXT_PUBLIC_WEB_URL ||
-      "http://localhost:3000";
-    return res.redirect(
-      `${web.replace(/\/$/, "")}/watch/settings?mal=connected`,
-    );
+    return res.redirect(await listProviderConnectedUrl(this.flags, "mal"));
   }
 
 }

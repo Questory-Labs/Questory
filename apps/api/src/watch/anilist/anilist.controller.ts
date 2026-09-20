@@ -11,10 +11,15 @@ import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-sta
 import { AnilistService } from "./anilist.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { listProviderConnectedUrl } from "../../features/list-provider-redirect";
 
 @Controller("watch/anilist")
 export class AnilistController {
-  constructor(private readonly anilist: AnilistService) {}
+  constructor(
+    private readonly anilist: AnilistService,
+    private readonly flags: FeatureFlagsService,
+  ) {}
 
   @Get("status")
   @UseGuards(SessionUserGuard)
@@ -41,13 +46,7 @@ export class AnilistController {
       throw new BadRequestException("Invalid or expired OAuth state");
     }
     await this.anilist.exchangeCode(code, verified.userId);
-    const web =
-      process.env.WEB_ORIGIN ||
-      process.env.NEXT_PUBLIC_WEB_URL ||
-      "http://localhost:3000";
-    return res.redirect(
-      `${web.replace(/\/$/, "")}/watch/settings?anilist=connected`,
-    );
+    return res.redirect(await listProviderConnectedUrl(this.flags, "anilist"));
   }
 
 }

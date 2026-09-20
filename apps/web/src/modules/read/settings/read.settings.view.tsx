@@ -1,51 +1,66 @@
 "use client";
 
+import type { FeatureSource } from "@questorylabs/shared";
 import { ListProviderCard } from "@/components/sources/ListProviderCard";
 import { SourcesSectionHeading } from "@/components/sources/SourcesSectionHeading";
 import { PageHeader } from "@/components/ui";
+import { useFeatureSources } from "@/hooks/useFeatureSources";
+import { sourceEnabled } from "@/lib/app-status";
 import { readFetch, readUrl } from "@/lib/read";
 import { MANGA_PROVIDERS, READ_ANILIST } from "./read.settings.constants";
 
-export const ReadSettingsView = () => (
-  <>
-    <PageHeader size="sm"
-      title="Sources"
-      description="Connect anime/manga list providers to sync manga into Read. Anime from the same connections syncs into Watch."
-    />
+export const ReadSettingsView = () => {
+  const sources = useFeatureSources();
+  const showAnilist = sourceEnabled(sources, "anilist");
+  const mangaProviders = MANGA_PROVIDERS.filter((provider) =>
+    sourceEnabled(sources, provider.id as FeatureSource),
+  );
 
-    <section className="mb-10">
-      <SourcesSectionHeading
-        eyebrow="Live"
-        title="Live sources"
-        description="Active connections that sync ongoing manga (and shared Watch anime)."
+  return (
+    <>
+      <PageHeader size="sm"
+        title="Sources"
+        description="Connect anime/manga list providers to sync manga into Read. Anime from the same connections syncs into Watch."
       />
-      <div className="grid gap-4 md:grid-cols-2">
-        <ListProviderCard
-          provider={READ_ANILIST}
-          queryKeyPrefix="read"
-          fetchFn={readFetch}
-          urlFn={readUrl}
-        />
-      </div>
-    </section>
 
-    <section>
-      <SourcesSectionHeading
-        eyebrow="Manga lists"
-        title="MAL, Kitsu, Bangumi, Shikimori"
-        description="Import manga into Read from additional list providers. Anime from the same connections syncs into Watch."
-      />
-      <div className="grid gap-4 md:grid-cols-2">
-        {MANGA_PROVIDERS.map((provider) => (
-          <ListProviderCard
-            key={provider.id}
-            provider={provider}
-            queryKeyPrefix="read"
-            fetchFn={readFetch}
-            urlFn={readUrl}
+      {showAnilist ? (
+        <section className="mb-10">
+          <SourcesSectionHeading
+            eyebrow="Live"
+            title="Live sources"
+            description="Active connections that sync ongoing manga (and shared Watch anime)."
           />
-        ))}
-      </div>
-    </section>
-  </>
-);
+          <div className="grid gap-4 md:grid-cols-2">
+            <ListProviderCard
+              provider={READ_ANILIST}
+              queryKeyPrefix="read"
+              fetchFn={readFetch}
+              urlFn={readUrl}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {mangaProviders.length ? (
+        <section>
+          <SourcesSectionHeading
+            eyebrow="Manga lists"
+            title="MAL, Kitsu, Bangumi, Shikimori"
+            description="Import manga into Read from additional list providers. Anime from the same connections syncs into Watch."
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            {mangaProviders.map((provider) => (
+              <ListProviderCard
+                key={provider.id}
+                provider={provider}
+                queryKeyPrefix="read"
+                fetchFn={readFetch}
+                urlFn={readUrl}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+};

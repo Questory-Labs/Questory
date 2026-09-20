@@ -20,6 +20,7 @@ import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { useDropEpochBump } from "@/providers/StatusProvider";
 import { useEffect, useId, useMemo, useState } from "react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const store = useStore();
+  const bumpStatus = useDropEpochBump();
   const menuId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   useGlobalSearchShortcut();
@@ -59,6 +61,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     run: () => api("/auth/logout", { method: "POST" }),
     onSuccess: () => {
       store.drop();
+      bumpStatus();
       router.push("/");
     },
   });

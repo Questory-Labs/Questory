@@ -1,31 +1,43 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { claimTmdbId } from "../catalog/title-merge";
 import { TMDB_REQUEST_PACE_MS } from "../tmdb/tmdb.constants";
 import { TmdbService } from "../tmdb/tmdb.service";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { FlagResume } from "../../features/flag-resume";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 /** Cap startup backfill so we don't hammer TMDB after a large import. */
 const BACKFILL_BATCH = 200;
 
 @Injectable()
-export class EnrichmentService implements OnModuleInit {
+export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EnrichmentService.name);
   private queue: string[] = [];
   private readonly forceIds = new Set<string>();
   private running = false;
+  private readonly flagResume: FlagResume;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly tmdb: TmdbService,
-  ) {}
+    private readonly flags: FeatureFlagsService,
+  ) {
+    this.flagResume = new FlagResume(this.flags, () => {
+      void this.drain();
+    });
+  }
 
   onModuleInit() {
     void this.enqueueMissingRuntimes().finally(() => {
       void this.drain();
     });
+  }
+
+  onModuleDestroy() {
+    this.flagResume.dispose();
   }
 
   enqueueTitle(titleId: string, opts?: { force?: boolean }) {
@@ -52,14 +64,31 @@ export class EnrichmentService implements OnModuleInit {
     return titles.length;
   }
 
+  private async flagsAllowDrain() {
+    return (
+      (await this.flags.isDomainEnabled("watch")) &&
+      (await this.flags.isSourceEnabled("tmdb"))
+    );
+  }
+
   private async drain() {
     if (this.running) return;
+    if (!(await this.flagsAllowDrain())) {
+      if (this.queue.length) this.flagResume.schedule();
+      return;
+    }
     this.running = true;
     try {
       while (this.queue.length) {
+        if (!(await this.flagsAllowDrain())) {
+          this.flagResume.schedule();
+          break;
+        }
         const titleId = this.queue.shift()!;
         await this.enrichOne(titleId);
-        await new Promise((r) => setTimeout(r, TMDB_REQUEST_PACE_MS));
+        if (this.queue.length) {
+          await new Promise((r) => setTimeout(r, TMDB_REQUEST_PACE_MS));
+        }
       }
     } finally {
       this.running = false;

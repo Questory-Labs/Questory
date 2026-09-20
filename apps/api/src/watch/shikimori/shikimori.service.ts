@@ -23,6 +23,9 @@ import {
   resolveShikimoriClientSecret,
   resolveShikimoriRedirectUri,
 } from "../lib/runtime-config";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { resolveListSyncHalves } from "../../features/list-sync-scope";
+import type { ListSyncScope } from "@questorylabs/shared";
 
 type ShikimoriRate<T> = {
   id: number;
@@ -61,6 +64,7 @@ export class ShikimoriService {
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
     private readonly readCatalog: ReadCatalogService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   configured() {
@@ -176,7 +180,12 @@ export class ShikimoriService {
     return this.syncingUsers.has(userId);
   }
 
-  async syncList(userId?: string) {
+  async syncList(userId?: string, scope: ListSyncScope = "both") {
+    const halves = await resolveListSyncHalves(this.flags, "shikimori", scope);
+    if (halves.skip) {
+      this.logger.debug("Shikimori sync skipped (feature flags)");
+      return { ok: true, skipped: true, accepted: 0, mangaAccepted: 0 };
+    }
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
     const conn = await this.prisma.sourceConnection.findUnique({
@@ -191,16 +200,12 @@ export class ShikimoriService {
         "/api/users/whoami",
         token,
       );
-      const animeAccepted = await this.syncAnimeRates(
-        user.id,
-        token,
-        profile.id,
-      );
-      const mangaAccepted = await this.syncMangaRates(
-        user.id,
-        token,
-        profile.id,
-      );
+      const animeAccepted = halves.watch
+        ? await this.syncAnimeRates(user.id, token, profile.id)
+        : 0;
+      const mangaAccepted = halves.read
+        ? await this.syncMangaRates(user.id, token, profile.id)
+        : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
         data: {

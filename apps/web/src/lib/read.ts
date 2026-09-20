@@ -7,6 +7,7 @@ export function getReadUrl(): string {
   return getApiUrl();
 }
 
+/** Legacy env helper. Live UI gates use GET /v1/status via StatusProvider. */
 export function isReadFlagEnabled(): boolean {
   const v =
     runtimeEnv("NEXT_PUBLIC_ENABLE_READ") ||

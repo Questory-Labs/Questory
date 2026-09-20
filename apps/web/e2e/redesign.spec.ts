@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { API, apiPathname, mockAuthedApi } from "./helpers";
+import { API, apiPathname, E2E_APP_STATUS, mockAuthedApi } from "./helpers";
 
 const DASHBOARD_STATS = {
   librarySize: 10,
@@ -249,12 +249,14 @@ async function mockRedesignApi(page: Page, user: { isAdmin?: boolean } = {}) {
     page,
     async (url, route) => {
     const path = apiPathname(url);
-    if (url.includes("/health")) {
+    if (path === "/v1/status" || path === "/status") {
+      await json(route, E2E_APP_STATUS);
+      return true;
+    }
+    if (path === "/health" || path === "/api/health") {
       await json(route, {
         ok: true,
-        music: { enabled: true },
-        watch: { enabled: true },
-        read: { enabled: true },
+        service: "questorylabs-api",
       });
       return true;
     }

@@ -11,6 +11,8 @@ import {
 import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import { api } from "@/lib/api";
+import { sourceEnabled } from "@/lib/app-status";
+import { useFeatureSources } from "@/hooks/useFeatureSources";
 import { watchFetch, watchUrl } from "@/lib/watch";
 import { LETTERBOXD_KINDS, type LetterboxdKind } from "./watch.settings.constants";
 import type {
@@ -28,6 +30,7 @@ import {
 
 export const WatchSettingsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
+  const sources = useFeatureSources();
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -49,10 +52,12 @@ export const WatchSettingsController = ({ children }: PropsWithChildren) => {
   const trakt = useResource({
     id: ["trakt-status"],
     load: () => watchFetch<ConnStatus>("/trakt/status"),
+    when: sourceEnabled(sources, "trakt"),
   });
   const anilist = useResource({
     id: ["watch-anilist-status"],
     load: () => watchFetch<ConnStatus>("/anilist/status"),
+    when: sourceEnabled(sources, "anilist"),
   });
   const identity = useResource({
     id: ["api-keys-identity"],
@@ -209,7 +214,18 @@ export const WatchSettingsController = ({ children }: PropsWithChildren) => {
     anilistConnected,
     webhookActive,
     expanded,
+    allowed: {
+      trakt: sourceEnabled(sources, "trakt"),
+      anilist: sourceEnabled(sources, "anilist"),
+      webhook: sourceEnabled(sources, "watchWebhooks"),
+    },
   });
+  const animeListAllowed = {
+    mal: sourceEnabled(sources, "mal"),
+    kitsu: sourceEnabled(sources, "kitsu"),
+    shikimori: sourceEnabled(sources, "shikimori"),
+    bangumi: sourceEnabled(sources, "bangumi"),
+  };
   const { importOk, importFailed } = letterboxdImportTone(importMsg);
   const isCsv = Boolean(file?.name.toLowerCase().endsWith(".csv"));
 
@@ -249,5 +265,9 @@ export const WatchSettingsController = ({ children }: PropsWithChildren) => {
       setFile(null);
       setImportMsg(null);
     },
+    showLetterboxdImport: sourceEnabled(sources, "letterboxdImport"),
+    showLetterboxdScrape: sourceEnabled(sources, "letterboxdScrape"),
+    showAnimeLists: Object.values(animeListAllowed).some(Boolean),
+    animeListAllowed,
   });
 };

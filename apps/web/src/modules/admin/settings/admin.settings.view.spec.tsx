@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
+import type {
+  AdminInstanceSettings,
+  FeatureFlagOrigin,
+  PatchFeatureFlags,
+} from "@questorylabs/shared";
+import { FEATURE_SOURCES } from "@questorylabs/shared";
 import { AdminSettingsView } from "./admin.settings.view";
 import type { AdminSettingsViewProps, Settings } from "./admin.settings.types";
 
@@ -31,12 +37,25 @@ const idlePatch = {
   error: null,
   value: undefined,
   input: undefined,
-} as UseActionResult<unknown, boolean>;
+} as unknown as UseActionResult<Settings, PatchFeatureFlags>;
+
+const flag = (enabled: boolean, origin: FeatureFlagOrigin = "default") => ({
+  enabled,
+  origin,
+});
 
 const settingsValue: Settings = {
   signupEnabled: true,
   signupOpen: true,
   abuse: { login: 2 },
+  features: {
+    music: flag(true, "env"),
+    watch: flag(false, "default"),
+    read: flag(true, "db"),
+  },
+  sources: Object.fromEntries(
+    FEATURE_SOURCES.map((id) => [id, flag(true)]),
+  ) as AdminInstanceSettings["sources"],
 };
 
 const renderView = (patch: Partial<AdminSettingsViewProps>) =>
@@ -72,10 +91,17 @@ describe("AdminSettingsView", () => {
     expect(screen.queryByText("Signup")).not.toBeInTheDocument();
   });
 
-  it("renders signup and abuse panels when ready", () => {
+  it("renders signup, feature, source, and abuse panels when ready", () => {
     renderView({});
     expect(screen.getByText("Signup")).toBeInTheDocument();
+    expect(screen.getByText("Features")).toBeInTheDocument();
+    expect(screen.getByText("Data sources")).toBeInTheDocument();
     expect(screen.getByText("Abuse metrics")).toBeInTheDocument();
     expect(screen.getByText("Enable signup")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Reload the app to update navigation/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("From environment")).toBeInTheDocument();
+    expect(screen.getByText("Saved in Admin")).toBeInTheDocument();
   });
 });

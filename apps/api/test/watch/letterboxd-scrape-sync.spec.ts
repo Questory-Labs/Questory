@@ -117,6 +117,10 @@ describe("LetterboxdScrapeSyncService", () => {
       enrichment as unknown as EnrichmentService,
       letterboxd as unknown as LetterboxdService,
       tmdb as import("../../src/watch/tmdb/tmdb.service").TmdbService,
+      {
+        isDomainEnabled: async () => true,
+        isSourceEnabled: async () => true,
+      } as never,
     );
   }
 

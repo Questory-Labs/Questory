@@ -35,6 +35,8 @@ import {
   isSignupOpen,
   setSignupEnabled,
 } from "../auth/signup-policy";
+import type { FeatureSource, PatchFeatureFlags } from "@questorylabs/shared";
+import { FeatureFlagsService } from "../features/feature-flags.service";
 import { normalizeEmail } from "../auth/abuse/disposable-emails";
 
 @Injectable()
@@ -52,6 +54,7 @@ export class AdminService {
     private readonly cost: CostService,
     private readonly accounts: AccountsService,
     private readonly catalog: CatalogService,
+    private readonly flags: FeatureFlagsService,
     @Optional()
     @Inject(WATCH_CRON_SYNC)
     private readonly watchCron: WatchCronSync | null,
@@ -118,12 +121,34 @@ export class AdminService {
   async getSettings() {
     const signupEnabled = await getSignupEnabledSetting(this.prisma);
     const signupOpen = await isSignupOpen(this.prisma);
-    return { signupEnabled, signupOpen, abuse: this.abuse.getMetrics() };
+    const flags = await this.flags.getAdminFlags();
+    return {
+      signupEnabled,
+      signupOpen,
+      abuse: this.abuse.getMetrics(),
+      features: flags.domains,
+      sources: flags.sources,
+    };
   }
 
-  async patchSettings(body: { signupEnabled?: boolean }) {
+  async patchSettings(body: PatchFeatureFlags) {
     if (typeof body.signupEnabled === "boolean") {
       await setSignupEnabled(this.prisma, body.signupEnabled);
+    }
+    if (body.features) {
+      for (const domain of ["music", "watch", "read"] as const) {
+        const enabled = body.features[domain];
+        if (typeof enabled === "boolean") {
+          await this.flags.setDomain(domain, enabled);
+        }
+      }
+    }
+    if (body.sources) {
+      for (const [source, enabled] of Object.entries(body.sources)) {
+        if (typeof enabled === "boolean") {
+          await this.flags.setSource(source as FeatureSource, enabled);
+        }
+      }
     }
     return this.getSettings();
   }

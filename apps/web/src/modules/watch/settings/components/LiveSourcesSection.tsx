@@ -25,6 +25,7 @@ type LiveProps = Pick<
   | "addOpen"
   | "setAddOpen"
   | "selectSource"
+  | "showLetterboxdScrape"
 >;
 
 export const LiveSourcesSection = ({
@@ -39,6 +40,7 @@ export const LiveSourcesSection = ({
   addOpen,
   setAddOpen,
   selectSource,
+  showLetterboxdScrape,
 }: LiveProps) => (
   <section className="mb-10">
     <SourcesSectionHeading
@@ -178,7 +180,7 @@ export const LiveSourcesSection = ({
           </SourceCard>
         ) : null}
 
-        <LetterboxdConnectCard />
+        {showLetterboxdScrape !== false ? <LetterboxdConnectCard /> : null}
       </div>
     ) : null}
   </section>
