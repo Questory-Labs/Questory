@@ -43,12 +43,21 @@ export class FeatureFlagsService {
   private readonly logger = new Logger(FeatureFlagsService.name);
   private snapshot: ResolvedFlags | null = null;
   private loadedAt = 0;
+  private readonly listeners = new Set<() => void>();
 
   constructor(private readonly prisma: PrismaService) {}
 
   invalidate() {
     this.snapshot = null;
     this.loadedAt = 0;
+    this.emitChange();
+  }
+
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   async isDomainEnabled(domain: FeatureDomain): Promise<boolean> {
@@ -73,6 +82,17 @@ export class FeatureFlagsService {
     }
   }
 
+  async assertAnyDomainEnabled(
+    domains: readonly FeatureDomain[],
+  ): Promise<void> {
+    for (const domain of domains) {
+      if (await this.isDomainEnabled(domain)) return;
+    }
+    throw new ForbiddenException(
+      featureDisabledMessage(domains[0] ?? "watch"),
+    );
+  }
+
   async getPublicStatus(): Promise<AppStatus> {
     const snap = await this.getSnapshot();
     const sources = {} as SourceFlags;
@@ -94,11 +114,13 @@ export class FeatureFlagsService {
   async setDomain(domain: FeatureDomain, enabled: boolean): Promise<void> {
     await this.upsert(featureConfigKey(domain), enabled);
     this.patchL1("domain", domain, enabled);
+    this.emitChange();
   }
 
   async setSource(source: FeatureSource, enabled: boolean): Promise<void> {
     await this.upsert(sourceConfigKey(source), enabled);
     this.patchL1("source", source, enabled);
+    this.emitChange();
   }
 
   async getSnapshot(force = false): Promise<ResolvedFlags> {
@@ -129,6 +151,18 @@ export class FeatureFlagsService {
       this.snapshot = this.resolve({});
       this.loadedAt = Date.now();
       return this.snapshot;
+    }
+  }
+
+  private emitChange() {
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch (err) {
+        this.logger.warn(
+          `Feature flag listener failed: ${err instanceof Error ? err.message : err}`,
+        );
+      }
     }
   }
 

@@ -39,4 +39,42 @@ describe("matchFeatureRoute", () => {
       source: "watchWebhooks",
     });
   });
+
+  it("allows shared list-provider OAuth callbacks when Watch or Read is on", () => {
+    expect(matchFeatureRoute("/v1/watch/anilist/callback?code=x")).toEqual({
+      domain: ["watch", "read"],
+      source: "anilist",
+    });
+    expect(matchFeatureRoute("/v1/watch/mal/callback")).toEqual({
+      domain: ["watch", "read"],
+      source: "mal",
+    });
+  });
+
+  it("still requires Watch for list-provider status routes", () => {
+    expect(matchFeatureRoute("/v1/watch/anilist/status")).toEqual({
+      domain: "watch",
+      source: "anilist",
+    });
+  });
+
+  it("allows shared list-provider HTTP cron when Watch or Read is on", () => {
+    expect(matchFeatureRoute("/v1/watch/internal/cron/anilist-sync")).toEqual({
+      domain: ["watch", "read"],
+      source: "anilist",
+    });
+    expect(matchFeatureRoute("/v1/watch/internal/cron/kitsu-sync")).toEqual({
+      domain: ["watch", "read"],
+      source: "kitsu",
+    });
+  });
+
+  it("still requires Watch for Watch-only HTTP cron", () => {
+    expect(matchFeatureRoute("/v1/watch/internal/cron/letterboxd-scrape")).toEqual({
+      domain: "watch",
+    });
+    expect(matchFeatureRoute("/v1/watch/internal/cron/trakt-sync")).toEqual({
+      domain: "watch",
+    });
+  });
 });

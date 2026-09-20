@@ -12,10 +12,15 @@ import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-sta
 import { BangumiService } from "./bangumi.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { listProviderConnectedUrl } from "../../features/list-provider-redirect";
 
 @Controller("watch/bangumi")
 export class BangumiController {
-  constructor(private readonly bangumi: BangumiService) {}
+  constructor(
+    private readonly bangumi: BangumiService,
+    private readonly flags: FeatureFlagsService,
+  ) {}
 
   @Get("status")
   @UseGuards(SessionUserGuard)
@@ -42,13 +47,7 @@ export class BangumiController {
       throw new BadRequestException("Invalid or expired OAuth state");
     }
     await this.bangumi.exchangeCode(code, verified.userId);
-    const web =
-      process.env.WEB_ORIGIN ||
-      process.env.NEXT_PUBLIC_WEB_URL ||
-      "http://localhost:3000";
-    return res.redirect(
-      `${web.replace(/\/$/, "")}/watch/settings?bangumi=connected`,
-    );
+    return res.redirect(await listProviderConnectedUrl(this.flags, "bangumi"));
   }
 
 }

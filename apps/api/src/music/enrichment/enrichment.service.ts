@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { FlagResume } from "../../features/flag-resume";
 import {
   assessEnrichmentGaps,
   hasEnrichmentGaps,
@@ -14,16 +15,21 @@ import {
 import { providerFetch } from "../../lib/qhttp-outbound";
 
 @Injectable()
-export class EnrichmentService implements OnModuleInit {
+export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EnrichmentService.name);
   private queue: string[] = [];
   private running = false;
+  private readonly flagResume: FlagResume;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly flags: FeatureFlagsService,
-  ) {}
+  ) {
+    this.flagResume = new FlagResume(this.flags, () => {
+      void this.drain();
+    });
+  }
 
   async onModuleInit() {
     const pending = await this.prisma.enrichmentJob.findMany({
@@ -47,6 +53,10 @@ export class EnrichmentService implements OnModuleInit {
       this.logger.log(`Queued ${enqueued} track(s) missing enrichment data`);
     }
     void this.drain();
+  }
+
+  onModuleDestroy() {
+    this.flagResume.dispose();
   }
 
   /**
@@ -135,17 +145,26 @@ export class EnrichmentService implements OnModuleInit {
     void this.drain();
   }
 
+  private async flagsAllowDrain() {
+    return (
+      (await this.flags.isDomainEnabled("music")) &&
+      (await this.flags.isSourceEnabled("musicbrainz"))
+    );
+  }
+
   private async drain() {
     if (this.running) return;
-    if (
-      !(await this.flags.isDomainEnabled("music")) ||
-      !(await this.flags.isSourceEnabled("musicbrainz"))
-    ) {
+    if (!(await this.flagsAllowDrain())) {
+      if (this.queue.length) this.flagResume.schedule();
       return;
     }
     this.running = true;
     try {
       while (this.queue.length) {
+        if (!(await this.flagsAllowDrain())) {
+          this.flagResume.schedule();
+          break;
+        }
         const trackId = this.queue.shift();
         if (!trackId) continue;
         try {
@@ -155,8 +174,10 @@ export class EnrichmentService implements OnModuleInit {
             `Enrichment failed for ${trackId}: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
-        // MusicBrainz courtesy rate limit (~1 req/s)
-        await new Promise((r) => setTimeout(r, 1100));
+        if (this.queue.length) {
+          // MusicBrainz courtesy rate limit (~1 req/s)
+          await new Promise((r) => setTimeout(r, 1100));
+        }
       }
     } finally {
       this.running = false;

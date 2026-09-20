@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Get,
   INestApplication,
+  Post,
   VersioningType,
 } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
@@ -24,6 +25,26 @@ class WatchDummyController {
   trakt() {
     return { ok: true };
   }
+
+  @Get("anilist/status")
+  anilistStatus() {
+    return { ok: true };
+  }
+
+  @Get("anilist/callback")
+  anilistCallback() {
+    return { ok: true };
+  }
+
+  @Post("internal/cron/anilist-sync")
+  anilistCron() {
+    return { ok: true };
+  }
+
+  @Post("internal/cron/letterboxd-scrape")
+  letterboxdCron() {
+    return { ok: true };
+  }
 }
 
 @Controller("music")
@@ -38,6 +59,7 @@ describe("FeatureHttpGuard", () => {
   let app: INestApplication;
   const assertDomainEnabled = vi.fn();
   const assertSourceEnabled = vi.fn();
+  const assertAnyDomainEnabled = vi.fn();
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -47,7 +69,11 @@ describe("FeatureHttpGuard", () => {
         { provide: APP_GUARD, useExisting: FeatureHttpGuard },
         {
           provide: FeatureFlagsService,
-          useValue: { assertDomainEnabled, assertSourceEnabled },
+          useValue: {
+            assertDomainEnabled,
+            assertSourceEnabled,
+            assertAnyDomainEnabled,
+          },
         },
       ],
     }).compile();
@@ -66,6 +92,7 @@ describe("FeatureHttpGuard", () => {
   it("returns 403 when a domain is disabled", async () => {
     assertDomainEnabled.mockReset();
     assertSourceEnabled.mockReset();
+    assertAnyDomainEnabled.mockReset();
     assertDomainEnabled.mockRejectedValue(
       new ForbiddenException(featureDisabledMessage("music")),
     );
@@ -78,11 +105,56 @@ describe("FeatureHttpGuard", () => {
   it("does not 403 watch analytics when Trakt is off", async () => {
     assertDomainEnabled.mockReset();
     assertSourceEnabled.mockReset();
+    assertAnyDomainEnabled.mockReset();
     assertDomainEnabled.mockResolvedValue(undefined);
     assertSourceEnabled.mockRejectedValue(
       new ForbiddenException(featureDisabledMessage("trakt")),
     );
     await request(app.getHttpServer()).get("/v1/watch/analytics").expect(200);
     await request(app.getHttpServer()).get("/v1/watch/trakt/status").expect(403);
+  });
+
+  it("uses any-domain for shared AniList OAuth callback and HTTP cron", async () => {
+    assertDomainEnabled.mockReset();
+    assertSourceEnabled.mockReset();
+    assertAnyDomainEnabled.mockReset();
+    assertAnyDomainEnabled.mockResolvedValue(undefined);
+    assertSourceEnabled.mockResolvedValue(undefined);
+    await request(app.getHttpServer())
+      .get("/v1/watch/anilist/callback")
+      .expect(200);
+    await request(app.getHttpServer())
+      .post("/v1/watch/internal/cron/anilist-sync")
+      .expect(201);
+    expect(assertAnyDomainEnabled).toHaveBeenCalledWith(["watch", "read"]);
+    expect(assertDomainEnabled).not.toHaveBeenCalled();
+  });
+
+  it("still requires Watch for AniList status and Letterboxd cron", async () => {
+    assertDomainEnabled.mockReset();
+    assertSourceEnabled.mockReset();
+    assertAnyDomainEnabled.mockReset();
+    assertDomainEnabled.mockResolvedValue(undefined);
+    assertSourceEnabled.mockResolvedValue(undefined);
+    await request(app.getHttpServer())
+      .get("/v1/watch/anilist/status")
+      .expect(200);
+    await request(app.getHttpServer())
+      .post("/v1/watch/internal/cron/letterboxd-scrape")
+      .expect(201);
+    expect(assertDomainEnabled).toHaveBeenCalledWith("watch");
+    expect(assertAnyDomainEnabled).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when neither Watch nor Read is enabled for callback", async () => {
+    assertDomainEnabled.mockReset();
+    assertSourceEnabled.mockReset();
+    assertAnyDomainEnabled.mockReset();
+    assertAnyDomainEnabled.mockRejectedValue(
+      new ForbiddenException(featureDisabledMessage("watch")),
+    );
+    await request(app.getHttpServer())
+      .get("/v1/watch/anilist/callback")
+      .expect(403);
   });
 });

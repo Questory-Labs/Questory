@@ -13,7 +13,11 @@ export class FeatureHttpGuard implements CanActivate {
     const url = req.originalUrl || req.url || "";
     const match = matchFeatureRoute(url);
     if (!match) return true;
-    await this.flags.assertDomainEnabled(match.domain);
+    if (typeof match.domain === "string") {
+      await this.flags.assertDomainEnabled(match.domain);
+    } else {
+      await this.flags.assertAnyDomainEnabled(match.domain);
+    }
     if (match.source) {
       await this.flags.assertSourceEnabled(match.source);
     }

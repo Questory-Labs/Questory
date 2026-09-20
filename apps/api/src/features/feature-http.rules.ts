@@ -1,13 +1,21 @@
 import type { FeatureDomain, FeatureSource } from "@questorylabs/shared";
+import {
+  LIST_PROVIDER_DOMAINS,
+  LIST_PROVIDER_SOURCES,
+} from "./list-sync-scope";
 
 export type FeatureHttpRequirement = {
-  domain: FeatureDomain;
+  domain: FeatureDomain | readonly FeatureDomain[];
   source?: FeatureSource;
 };
 
 function pathname(url: string): string {
   const path = (url.split("?")[0] || "/").replace(/\/+$/, "") || "/";
   return path.startsWith("/") ? path : `/${path}`;
+}
+
+function anyListDomain(source: FeatureSource): FeatureHttpRequirement {
+  return { domain: LIST_PROVIDER_DOMAINS, source };
 }
 
 /**
@@ -41,6 +49,17 @@ export function matchFeatureRoute(url: string): FeatureHttpRequirement | null {
   }
   if (path.startsWith("/v1/music")) {
     return { domain: "music" };
+  }
+
+  // Shared list-provider OAuth and HTTP cron live under /v1/watch/* even when
+  // only Read is enabled (redirect_uri and cron paths are Watch-prefixed).
+  for (const source of LIST_PROVIDER_SOURCES) {
+    if (path === `/v1/watch/${source}/callback`) {
+      return anyListDomain(source);
+    }
+    if (path === `/v1/watch/internal/cron/${source}-sync`) {
+      return anyListDomain(source);
+    }
   }
 
   if (path.startsWith("/v1/watch/trakt")) {

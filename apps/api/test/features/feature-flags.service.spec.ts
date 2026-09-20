@@ -98,4 +98,27 @@ describe("FeatureFlagsService", () => {
       ForbiddenException,
     );
   });
+
+  it("notifies listeners on setDomain and unsubscribes", async () => {
+    const fn = vi.fn();
+    const stop = service.onChange(fn);
+    await service.setDomain("music", true);
+    expect(fn).toHaveBeenCalledTimes(1);
+    stop();
+    await service.setDomain("music", false);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a shared route when any listed domain is on", async () => {
+    await service.setDomain("read", true);
+    await expect(
+      service.assertAnyDomainEnabled(["watch", "read"]),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws when none of the listed domains are on", async () => {
+    await expect(
+      service.assertAnyDomainEnabled(["watch", "read"]),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

@@ -1,5 +1,23 @@
-import type { FeatureSource, ListSyncScope } from "@questorylabs/shared";
+import type {
+  FeatureDomain,
+  FeatureSource,
+  ListSyncScope,
+} from "@questorylabs/shared";
 import type { FeatureFlagsService } from "./feature-flags.service";
+
+/** List providers shared by Watch (anime) and Read (manga). */
+export const LIST_PROVIDER_SOURCES = [
+  "anilist",
+  "mal",
+  "kitsu",
+  "shikimori",
+  "bangumi",
+] as const satisfies readonly FeatureSource[];
+
+export const LIST_PROVIDER_DOMAINS = [
+  "watch",
+  "read",
+] as const satisfies readonly FeatureDomain[];
 
 export type ListSyncHalves = {
   skip: boolean;

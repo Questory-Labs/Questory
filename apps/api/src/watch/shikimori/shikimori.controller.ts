@@ -12,10 +12,15 @@ import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-sta
 import { ShikimoriService } from "./shikimori.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { listProviderConnectedUrl } from "../../features/list-provider-redirect";
 
 @Controller("watch/shikimori")
 export class ShikimoriController {
-  constructor(private readonly shikimori: ShikimoriService) {}
+  constructor(
+    private readonly shikimori: ShikimoriService,
+    private readonly flags: FeatureFlagsService,
+  ) {}
 
   @Get("status")
   @UseGuards(SessionUserGuard)
@@ -42,12 +47,8 @@ export class ShikimoriController {
       throw new BadRequestException("Invalid or expired OAuth state");
     }
     await this.shikimori.exchangeCode(code, verified.userId);
-    const web =
-      process.env.WEB_ORIGIN ||
-      process.env.NEXT_PUBLIC_WEB_URL ||
-      "http://localhost:3000";
     return res.redirect(
-      `${web.replace(/\/$/, "")}/watch/settings?shikimori=connected`,
+      await listProviderConnectedUrl(this.flags, "shikimori"),
     );
   }
 
