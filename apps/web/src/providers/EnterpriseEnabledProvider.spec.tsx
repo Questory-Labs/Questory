@@ -49,7 +49,7 @@ describe("useEnterpriseEnabled", () => {
     process.env.ENTERPRISE = "true";
     vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
       available: true,
-      service: { ok: true, ready: true },
+      service: { ok: true },
     });
 
     const { result } = renderHook(() => useEnterpriseEnabled(), { wrapper });
