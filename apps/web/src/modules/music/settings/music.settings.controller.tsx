@@ -11,6 +11,8 @@ import {
 import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import { api } from "@/lib/api";
+import { sourceEnabled } from "@/lib/app-status";
+import { useFeatureSources } from "@/hooks/useFeatureSources";
 import { musicUrl } from "@/lib/music";
 import type {
   IdentityResponse,
@@ -21,6 +23,7 @@ import { isMusicImportFile } from "./music.settings.utils";
 
 export const MusicSettingsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
+  const sources = useFeatureSources();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -234,6 +237,9 @@ export const MusicSettingsController = ({ children }: PropsWithChildren) => {
     ingestActive,
     nativeLocked,
     lastfmFlash,
+    showLastfm: sourceEnabled(sources, "lastfm"),
+    showListenbrainzIngest: sourceEnabled(sources, "listenbrainzIngest"),
+    showMusicImports: sourceEnabled(sources, "musicImports"),
     fileName,
     message,
     jobId,

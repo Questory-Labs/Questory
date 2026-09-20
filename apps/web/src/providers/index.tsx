@@ -1,9 +1,9 @@
 "use client";
 
 import { ResourceProvider } from "@questorylabs/qhttp/react";
+import { DropEpochProvider, StatusProvider } from "./StatusProvider";
 import { EnterpriseEnabledProvider } from "./EnterpriseEnabledProvider";
 import { NotificationProvider } from "./NotificationProvider";
-import { StatusProvider } from "./StatusProvider";
 import { UserProvider } from "./UserProvider";
 
 const RESOURCE_DEFAULTS = {
@@ -14,13 +14,15 @@ const RESOURCE_DEFAULTS = {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ResourceProvider defaults={RESOURCE_DEFAULTS}>
-      <UserProvider>
-        <StatusProvider>
-          <EnterpriseEnabledProvider>
-            <NotificationProvider>{children}</NotificationProvider>
-          </EnterpriseEnabledProvider>
-        </StatusProvider>
-      </UserProvider>
+      <DropEpochProvider>
+        <UserProvider>
+          <StatusProvider>
+            <EnterpriseEnabledProvider>
+              <NotificationProvider>{children}</NotificationProvider>
+            </EnterpriseEnabledProvider>
+          </StatusProvider>
+        </UserProvider>
+      </DropEpochProvider>
     </ResourceProvider>
   );
 }
@@ -35,10 +37,13 @@ export {
 } from "./NotificationProvider";
 export {
   StatusProvider,
+  DropEpochProvider,
+  useDropEpochBump,
   useStatus,
   useMusicEnabled,
   useWatchEnabled,
   useReadEnabled,
+  useFeatureSources,
   type StatusValue,
   type MusicEnabledValue,
   type WatchEnabledValue,

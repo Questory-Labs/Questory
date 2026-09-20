@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { resolve } from "node:path";
 import { CacheModule } from "./cache/cache.module";
+import { FeaturesModule } from "./features/features.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ScrobblerModule } from "./music/scrobbler/scrobbler.module";
 
@@ -17,6 +18,7 @@ const localEnv = resolve(process.cwd(), ".env");
       expandVariables: true,
     }),
     PrismaModule,
+    FeaturesModule,
     CacheModule,
     ScrobblerModule,
   ],

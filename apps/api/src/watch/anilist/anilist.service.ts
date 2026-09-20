@@ -20,6 +20,9 @@ import {
   resolveAniListRedirectUri,
 } from "../lib/runtime-config";
 import { providerFetch } from "../../lib/qhttp-outbound";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { resolveListSyncHalves } from "../../features/list-sync-scope";
+import type { ListSyncScope } from "@questorylabs/shared";
 
 @Injectable()
 export class AnilistService {
@@ -34,6 +37,7 @@ export class AnilistService {
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
     private readonly readCatalog: ReadCatalogService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   configured() {
@@ -128,7 +132,12 @@ export class AnilistService {
     return this.syncingUsers.has(userId);
   }
 
-  async syncList(userId?: string) {
+  async syncList(userId?: string, scope: ListSyncScope = "both") {
+    const halves = await resolveListSyncHalves(this.flags, "anilist", scope);
+    if (halves.skip) {
+      this.logger.debug("AniList sync skipped (feature flags)");
+      return { ok: true, skipped: true, accepted: 0, mangaAccepted: 0 };
+    }
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
     const conn = await this.prisma.sourceConnection.findUnique({
@@ -138,7 +147,7 @@ export class AnilistService {
 
     this.syncingUsers.add(user.id);
     try {
-      return await this.runSyncList(user.id, conn);
+      return await this.runSyncList(user.id, conn, halves);
     } finally {
       this.syncingUsers.delete(user.id);
     }
@@ -147,6 +156,7 @@ export class AnilistService {
   private async runSyncList(
     userId: string,
     conn: { id: string; accessToken: string },
+    halves: { watch: boolean; read: boolean },
   ) {
     const query = `
       query {
@@ -189,6 +199,8 @@ export class AnilistService {
     const viewerId = viewerJson.data?.Viewer?.id;
     if (!viewerId) throw new BadRequestException("AniList Viewer missing");
 
+    let accepted = 0;
+    if (halves.watch) {
     const listRes = await providerFetch(this.gql, {
       method: "POST",
       headers: {
@@ -234,7 +246,6 @@ export class AnilistService {
       );
     }
 
-    let accepted = 0;
     const lists = listJson.data?.MediaListCollection?.lists || [];
     for (const list of lists) {
       for (const entry of list.entries) {
@@ -303,12 +314,11 @@ export class AnilistService {
         this.enrichment.enqueueTitle(title.id);
       }
     }
+    }
 
-    const mangaAccepted = await this.syncMangaList(
-      userId,
-      conn.accessToken,
-      viewerId,
-    );
+    const mangaAccepted = halves.read
+      ? await this.syncMangaList(userId, conn.accessToken, viewerId)
+      : 0;
 
     await this.prisma.sourceConnection.update({
       where: { id: conn.id },

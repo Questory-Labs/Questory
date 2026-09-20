@@ -46,6 +46,10 @@ const baseProps = (): WatchSettingsViewProps => ({
   toggleKind: () => {},
   onImport: () => {},
   clearFile: () => {},
+  showLetterboxdImport: true,
+  showLetterboxdScrape: true,
+  showAnimeLists: true,
+  animeListAllowed: { mal: true, kitsu: true, shikimori: true, bangumi: true },
 });
 
 describe("WatchSettingsView", () => {

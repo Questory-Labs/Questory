@@ -29,6 +29,7 @@ import { WatchModule } from "./watch/watch.module";
 import { ReadModule } from "./read/read.module";
 import { ShellModule } from "./shell/shell.module";
 import { HealthController, ApiHealthController } from "./health.controller";
+import { FeaturesModule } from "./features/features.module";
 import { EnterpriseModule } from "./enterprise/enterprise.module";
 import { ProfileDataModule } from "./profile-data/profile-data.module";
 import { QmonitorModule } from "./qmonitor/qmonitor.module";
@@ -46,6 +47,7 @@ const localEnv = resolve(process.cwd(), ".env");
       expandVariables: true,
     }),
     PrismaModule,
+    FeaturesModule,
     CacheModule,
     SteamModule,
     AccountsModule,

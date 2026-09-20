@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { MusicGate } from "./MusicGate";
 
@@ -42,6 +42,7 @@ describe("MusicGate", () => {
       flagOn: false,
       showMusicNav: false,
       isLoading: false,
+      failed: false,
     } as any);
     wrap(
       <MusicGate>
@@ -49,5 +50,21 @@ describe("MusicGate", () => {
       </MusicGate>,
     );
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  it("does not redirect when status failed", async () => {
+    vi.mocked(useMusicEnabled).mockReturnValue({
+      flagOn: false,
+      showMusicNav: false,
+      isLoading: false,
+      failed: true,
+    } as any);
+    wrap(
+      <MusicGate>
+        <div>music</div>
+      </MusicGate>,
+    );
+    expect(screen.getByText("Could not load feature flags.")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

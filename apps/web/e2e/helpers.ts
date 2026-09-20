@@ -30,6 +30,30 @@ export const E2E_USER: E2EUser = {
   avatarUrl: null,
 };
 
+export const E2E_APP_STATUS = {
+  music: { enabled: true },
+  watch: { enabled: true },
+  read: { enabled: true },
+  sources: {
+    lastfm: true,
+    listenbrainzIngest: true,
+    listenbrainzApi: true,
+    spotify: true,
+    musicbrainz: true,
+    musicImports: true,
+    trakt: true,
+    tmdb: true,
+    anilist: true,
+    mal: true,
+    kitsu: true,
+    shikimori: true,
+    bangumi: true,
+    letterboxdImport: true,
+    letterboxdScrape: true,
+    watchWebhooks: true,
+  },
+};
+
 const EMPTY_SEARCH = {
   games: [],
   friends: [],
@@ -76,7 +100,30 @@ export async function mockAuthedApi(
       });
       return;
     }
+    if (url.includes("/shell/sync-status") || url.includes("/sync/jobs")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          steam: { active: false, jobs: [] },
+          music: null,
+          watch: null,
+          read: null,
+          jobs: [],
+        }),
+      });
+      return;
+    }
     if (extra && (await extra(url, route))) {
+      return;
+    }
+    const path = apiPathname(url);
+    if (path === "/v1/status" || path === "/status") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(E2E_APP_STATUS),
+      });
       return;
     }
     await route.fulfill({

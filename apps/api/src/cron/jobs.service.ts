@@ -12,6 +12,8 @@ import { CronRunnerService } from "./cron-runner.service";
 import { getConfiguredSchedules } from "./cron-schedules";
 import { InternalCronService } from "./internal-cron.service";
 import { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
+import type { FeatureSource } from "@questorylabs/shared";
+import { FeatureFlagsService } from "../features/feature-flags.service";
 
 export { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
 
@@ -23,6 +25,7 @@ export class JobsService implements OnModuleInit {
     private readonly internalCron: InternalCronService,
     private readonly cronRunner: CronRunnerService,
     private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly flags: FeatureFlagsService,
     @Optional()
     @Inject(WATCH_CRON_SYNC)
     private readonly watchCron: WatchCronSync | null,
@@ -123,20 +126,57 @@ export class JobsService implements OnModuleInit {
       return;
     }
     this.logger.log("Starting watch-sync (Trakt + AniList + anime providers)");
-    const providerJobs: Array<{ name: string; run: () => Promise<unknown> }> = [
-      { name: "trakt-sync", run: () => this.watchCron!.runTraktSync() },
-      { name: "anilist-sync", run: () => this.watchCron!.runAnilistSync() },
-      { name: "mal-sync", run: () => this.watchCron!.runMalSync() },
-      { name: "kitsu-sync", run: () => this.watchCron!.runKitsuSync() },
-      { name: "bangumi-sync", run: () => this.watchCron!.runBangumiSync() },
-      { name: "shikimori-sync", run: () => this.watchCron!.runShikimoriSync() },
+    const providerJobs: Array<{
+      name: string;
+      run: () => Promise<unknown>;
+      enabled: () => Promise<boolean>;
+    }> = [
+      {
+        name: "trakt-sync",
+        run: () => this.watchCron!.runTraktSync(),
+        enabled: async () =>
+          (await this.flags.isDomainEnabled("watch")) &&
+          (await this.flags.isSourceEnabled("trakt")),
+      },
+      {
+        name: "anilist-sync",
+        run: () => this.watchCron!.runAnilistSync(),
+        enabled: async () => this.listProviderEnabled("anilist"),
+      },
+      {
+        name: "mal-sync",
+        run: () => this.watchCron!.runMalSync(),
+        enabled: async () => this.listProviderEnabled("mal"),
+      },
+      {
+        name: "kitsu-sync",
+        run: () => this.watchCron!.runKitsuSync(),
+        enabled: async () => this.listProviderEnabled("kitsu"),
+      },
+      {
+        name: "bangumi-sync",
+        run: () => this.watchCron!.runBangumiSync(),
+        enabled: async () => this.listProviderEnabled("bangumi"),
+      },
+      {
+        name: "shikimori-sync",
+        run: () => this.watchCron!.runShikimoriSync(),
+        enabled: async () => this.listProviderEnabled("shikimori"),
+      },
       {
         name: "letterboxd-scrape",
         run: () => this.watchCron!.runLetterboxdScrape(),
+        enabled: async () =>
+          (await this.flags.isDomainEnabled("watch")) &&
+          (await this.flags.isSourceEnabled("letterboxdScrape")),
       },
     ];
 
     for (const job of providerJobs) {
+      if (!(await job.enabled())) {
+        this.logger.debug(`${job.name} skipped (feature flags)`);
+        continue;
+      }
       try {
         const { result } = await this.cronRunner.run(
           job.name,
@@ -150,5 +190,13 @@ export class JobsService implements OnModuleInit {
         );
       }
     }
+  }
+
+  private async listProviderEnabled(source: FeatureSource): Promise<boolean> {
+    if (!(await this.flags.isSourceEnabled(source))) return false;
+    return (
+      (await this.flags.isDomainEnabled("watch")) ||
+      (await this.flags.isDomainEnabled("read"))
+    );
   }
 }

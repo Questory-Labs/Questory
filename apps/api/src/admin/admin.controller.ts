@@ -11,15 +11,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { z } from "zod";
+import { PatchFeatureFlagsSchema } from "@questorylabs/shared";
 import { AdminGuard } from "../auth/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { AdminService } from "./admin.service";
 import { AdminUserOpsService } from "./admin-user-ops.service";
 import { MigrationsService } from "./migrations/migrations.service";
-
-const PatchSettingsSchema = z.object({
-  signupEnabled: z.boolean().optional(),
-});
 
 const CreateUserSchema = z.object({
   personaName: z.string().min(1).max(64),
@@ -98,9 +95,9 @@ export class AdminController {
 
   @Patch("settings")
   patchSettings(@Body() body: unknown) {
-    const parsed = PatchSettingsSchema.safeParse(body);
+    const parsed = PatchFeatureFlagsSchema.safeParse(body);
     if (!parsed.success) {
-      return { error: "Invalid body" };
+      throw new BadRequestException(parsed.error.flatten());
     }
     return this.admin.patchSettings(parsed.data);
   }

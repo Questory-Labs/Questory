@@ -1,7 +1,17 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { ResourceProvider, ResourceStore } from "@questorylabs/qhttp/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReadSettingsView } from "./read.settings.view";
+
+vi.mock("@/hooks/useFeatureSources", () => ({
+  useFeatureSources: () =>
+    new Proxy(
+      {},
+      {
+        get: () => true,
+      },
+    ),
+}));
 
 vi.mock("@/lib/read", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/read")>();

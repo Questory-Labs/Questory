@@ -38,7 +38,16 @@ const PROVIDERS: ListProviderConfig[] = [
   },
 ];
 
-export const AnimeListSourcesSection = () => {
+export const AnimeListSourcesSection = ({
+  allowed,
+}: {
+  allowed?: Partial<Record<"mal" | "kitsu" | "shikimori" | "bangumi", boolean>>;
+}) => {
+  const providers = PROVIDERS.filter(
+    (provider) => allowed?.[provider.id as "mal" | "kitsu" | "shikimori" | "bangumi"] !== false,
+  );
+  if (!providers.length) return null;
+
   return (
     <section className="mb-10">
       <SourcesSectionHeading
@@ -47,7 +56,7 @@ export const AnimeListSourcesSection = () => {
         description="Import anime into Watch and manga into Read from additional list providers."
       />
       <div className="grid gap-4 md:grid-cols-2">
-        {PROVIDERS.map((provider) => (
+        {providers.map((provider) => (
           <ListProviderCard
             key={provider.id}
             provider={provider}

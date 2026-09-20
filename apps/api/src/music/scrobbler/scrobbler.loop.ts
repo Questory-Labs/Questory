@@ -36,6 +36,7 @@ import type {
   ScrobbleSource,
   SourceConn,
 } from "./scrobbler.types";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
 
 class Semaphore {
   private active = 0;
@@ -87,6 +88,7 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
     private readonly playingNow: PlayingNowService,
     private readonly enrichment: EnrichmentService,
     private readonly cache: CacheService,
+    private readonly flags: FeatureFlagsService,
   ) {
     this.sourcesById = new Map(
       sources.filter((source) => source.isConfigured()).map((s) => [s.id, s]),
@@ -167,6 +169,12 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
 
   async tick(): Promise<void> {
     if (this.ticking) return;
+    if (
+      !(await this.flags.isDomainEnabled("music")) ||
+      !(await this.flags.isSourceEnabled("lastfm"))
+    ) {
+      return;
+    }
     this.ticking = true;
     try {
       const conns = await this.connections.listActive();
@@ -197,6 +205,12 @@ export class ScrobblerLoop implements OnModuleInit, OnModuleDestroy {
   }
 
   async pollNow(userId: string, provider: MusicScrobblerProviderId): Promise<void> {
+    if (
+      !(await this.flags.isDomainEnabled("music")) ||
+      !(await this.flags.isSourceEnabled("lastfm"))
+    ) {
+      return;
+    }
     const source = this.sourcesById.get(provider);
     if (!source) return;
     const conn = await this.connections.get(userId, provider);

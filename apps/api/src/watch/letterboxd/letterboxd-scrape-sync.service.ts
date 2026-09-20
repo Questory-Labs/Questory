@@ -16,6 +16,7 @@ import {
 import { LetterboxdService } from "../imports/letterboxd.service";
 import { LetterboxdConnectService } from "./letterboxd-connect.service";
 import { normalizeLetterboxdScrapeRows } from "./letterboxd-row-parse";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
 
 const SOURCE = "letterboxd";
 const SOURCE_KEY = "letterboxd";
@@ -46,6 +47,7 @@ export class LetterboxdScrapeSyncService {
     private readonly enrichment: EnrichmentService,
     private readonly letterboxd: LetterboxdService,
     private readonly tmdb: TmdbService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   async syncAll(): Promise<{
@@ -54,6 +56,13 @@ export class LetterboxdScrapeSyncService {
     skipped: number;
     stopped: number;
   }> {
+    if (
+      !(await this.flags.isDomainEnabled("watch")) ||
+      !(await this.flags.isSourceEnabled("letterboxdScrape"))
+    ) {
+      this.logger.debug("letterboxd scrape skipped (feature flags)");
+      return { users: 0, imported: 0, skipped: 0, stopped: 0 };
+    }
     const config = await this.providers.getPublishedDefinition(SOURCE_KEY);
     if (!config) {
       this.logger.debug("letterboxd scrape skipped (no published iteration)");
@@ -90,6 +99,12 @@ export class LetterboxdScrapeSyncService {
     username?: string,
     definitionOverride?: ScraperDefinition,
   ): Promise<{ imported: number; skipped: number; stoppedEarly: boolean }> {
+    if (
+      !(await this.flags.isDomainEnabled("watch")) ||
+      !(await this.flags.isSourceEnabled("letterboxdScrape"))
+    ) {
+      return { imported: 0, skipped: 0, stoppedEarly: false };
+    }
     if (this.syncingUsers.has(userId)) {
       return { imported: 0, skipped: 0, stoppedEarly: false };
     }

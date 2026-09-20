@@ -14,7 +14,7 @@ const PREVIEWS = [
     href: "/test/500",
     code: "500",
     label: "Server error",
-    hint: "Throws into `error.tsx`",
+    hint: "Static status preview",
   },
   {
     href: "/test/400",

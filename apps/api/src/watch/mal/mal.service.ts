@@ -22,6 +22,9 @@ import {
   resolveMalClientSecret,
   resolveMalRedirectUri,
 } from "../lib/runtime-config";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { resolveListSyncHalves } from "../../features/list-sync-scope";
+import type { ListSyncScope } from "@questorylabs/shared";
 import {
   generateMalPkce,
   signMalOAuthState,
@@ -70,6 +73,7 @@ export class MalService {
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
     private readonly readCatalog: ReadCatalogService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   configured() {
@@ -204,7 +208,12 @@ export class MalService {
     return this.syncingUsers.has(userId);
   }
 
-  async syncList(userId?: string) {
+  async syncList(userId?: string, scope: ListSyncScope = "both") {
+    const halves = await resolveListSyncHalves(this.flags, "mal", scope);
+    if (halves.skip) {
+      this.logger.debug("MAL sync skipped (feature flags)");
+      return { ok: true, skipped: true, accepted: 0, mangaAccepted: 0 };
+    }
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
     const conn = await this.prisma.sourceConnection.findUnique({
@@ -215,8 +224,12 @@ export class MalService {
     this.syncingUsers.add(user.id);
     try {
       const token = await this.ensureAccessToken(user.id);
-      const animeAccepted = await this.syncAnimeList(user.id, token);
-      const mangaAccepted = await this.syncMangaList(user.id, token);
+      const animeAccepted = halves.watch
+        ? await this.syncAnimeList(user.id, token)
+        : 0;
+      const mangaAccepted = halves.read
+        ? await this.syncMangaList(user.id, token)
+        : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
         data: { lastSyncedAt: new Date() },

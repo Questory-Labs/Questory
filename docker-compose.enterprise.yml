@@ -57,6 +57,9 @@ x-api-env: &api-env
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   USE_INLINE_SYNC: "false"
   ENTERPRISE_URL: http://enterprise:4030
+  FEATURE_MUSIC: ${NEXT_PUBLIC_ENABLE_MUSIC:-true}
+  FEATURE_WATCH: ${NEXT_PUBLIC_ENABLE_WATCH:-true}
+  FEATURE_READ: ${NEXT_PUBLIC_ENABLE_READ:-true}
 
 x-enterprise-env: &enterprise-env
   <<: *shared-env

@@ -14,6 +14,7 @@ import {
 import { EnrichmentService } from "../enrichment/enrichment.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { parseImportInWorker } from "./parse-in-worker";
 import { detectImportSourceFromPath } from "./parsers/detect";
 import type { ImportSource } from "./parsers/types";
@@ -86,6 +87,7 @@ export class ImportsService implements OnModuleInit {
     private readonly catalog: CatalogService,
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   async onModuleInit() {
@@ -139,6 +141,9 @@ export class ImportsService implements OnModuleInit {
       throw new BadRequestException(
         err instanceof Error ? err.message : "Unrecognized import file",
       );
+    }
+    if (source === "spotify_json") {
+      await this.flags.assertSourceEnabled("spotify");
     }
 
     const job = await this.prisma.importJob.create({

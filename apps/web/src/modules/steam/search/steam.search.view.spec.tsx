@@ -100,6 +100,21 @@ describe("SearchView", () => {
     expect(screen.getByText("Dota 2")).toBeInTheDocument();
   });
 
+  it("renders script-looking queries as text", () => {
+    const q = "<img onerror=alert(1)>";
+    const { container } = renderView({
+      q,
+      chips: [],
+      result: resource<SearchResult>({
+        empty: false,
+        failed: false,
+        value: emptyResult,
+      }),
+    });
+    expect(screen.getByText(`Results for “${q}”`)).toBeInTheDocument();
+    expect(container.querySelector("img[onerror]")).toBeNull();
+  });
+
   it("shows collection empty when ready with no hits", () => {
     renderView({
       result: resource<SearchResult>({

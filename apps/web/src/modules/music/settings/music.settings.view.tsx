@@ -9,6 +9,10 @@ import type { MusicSettingsViewProps } from "./music.settings.types";
 
 export const MusicSettingsView = (props: Record<string, unknown>) => {
   const view = props as MusicSettingsViewProps;
+  const showLastfm = view.showLastfm !== false;
+  const showIngest = view.showListenbrainzIngest !== false;
+  const showImports = view.showMusicImports !== false;
+  const showLive = showLastfm || showIngest;
 
   return (
     <>
@@ -30,37 +34,43 @@ export const MusicSettingsView = (props: Record<string, unknown>) => {
         </p>
       ) : null}
 
-      <section className="mb-10">
-        <MusicSectionHeading
-          eyebrow="Live"
-          title="Live sources"
-          description="Native Last.fm polling, or ListenBrainz-compatible ingest. Connecting Last.fm disables multi-scrobbler for this user."
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <LastFmScrobblerCard />
-          <MultiScrobblerCard
-            active={view.ingestActive}
-            nativeLocked={view.nativeLocked}
+      {showLive ? (
+        <section className="mb-10">
+          <MusicSectionHeading
+            eyebrow="Live"
+            title="Live sources"
+            description="Native Last.fm polling, or ListenBrainz-compatible ingest. Connecting Last.fm disables multi-scrobbler for this user."
           />
-        </div>
-      </section>
 
-      <HistoryImportSection
-        fileName={view.fileName}
-        message={view.message}
-        jobId={view.jobId}
-        job={view.job}
-        restoring={view.restoring}
-        dragging={view.dragging}
-        busy={view.busy}
-        failed={view.failed}
-        showProgress={view.showProgress}
-        inputRef={view.inputRef}
-        onInputChange={view.onInputChange}
-        onDrop={view.onDrop}
-        setDragging={view.setDragging}
-      />
+          <div className="grid gap-4 md:grid-cols-2">
+            {showLastfm ? <LastFmScrobblerCard /> : null}
+            {showIngest ? (
+              <MultiScrobblerCard
+                active={view.ingestActive}
+                nativeLocked={view.nativeLocked}
+              />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {showImports ? (
+        <HistoryImportSection
+          fileName={view.fileName}
+          message={view.message}
+          jobId={view.jobId}
+          job={view.job}
+          restoring={view.restoring}
+          dragging={view.dragging}
+          busy={view.busy}
+          failed={view.failed}
+          showProgress={view.showProgress}
+          inputRef={view.inputRef}
+          onInputChange={view.onInputChange}
+          onDrop={view.onDrop}
+          setDragging={view.setDragging}
+        />
+      ) : null}
     </>
   );
 };

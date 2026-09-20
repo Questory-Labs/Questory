@@ -23,6 +23,9 @@ import {
   resolveBangumiClientSecret,
   resolveBangumiRedirectUri,
 } from "../lib/runtime-config";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { resolveListSyncHalves } from "../../features/list-sync-scope";
+import type { ListSyncScope } from "@questorylabs/shared";
 
 type BangumiCollection = {
   id: number;
@@ -54,6 +57,7 @@ export class BangumiService {
     private readonly enrichment: EnrichmentService,
     private readonly users: UsersService,
     private readonly readCatalog: ReadCatalogService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   configured() {
@@ -169,7 +173,12 @@ export class BangumiService {
     return this.syncingUsers.has(userId);
   }
 
-  async syncList(userId?: string) {
+  async syncList(userId?: string, scope: ListSyncScope = "both") {
+    const halves = await resolveListSyncHalves(this.flags, "bangumi", scope);
+    if (halves.skip) {
+      this.logger.debug("Bangumi sync skipped (feature flags)");
+      return { ok: true, skipped: true, accepted: 0, mangaAccepted: 0 };
+    }
     const user = await this.users.resolveUser(userId);
     if (!user) throw new NotFoundException("No user");
     const conn = await this.prisma.sourceConnection.findUnique({
@@ -180,8 +189,12 @@ export class BangumiService {
     this.syncingUsers.add(user.id);
     try {
       const token = await this.ensureAccessToken(user.id);
-      const animeAccepted = await this.syncCollections(user.id, token, 2);
-      const mangaAccepted = await this.syncCollections(user.id, token, 1);
+      const animeAccepted = halves.watch
+        ? await this.syncCollections(user.id, token, 2)
+        : 0;
+      const mangaAccepted = halves.read
+        ? await this.syncCollections(user.id, token, 1)
+        : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
         data: { lastSyncedAt: new Date() },

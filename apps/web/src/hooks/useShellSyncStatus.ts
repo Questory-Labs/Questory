@@ -88,6 +88,13 @@ function latestByType(jobs: SyncJob[]): Map<string, SyncJob> {
   return map;
 }
 
+/** Empty/partial `/shell/sync-status` bodies omit `steam`; do not read `.active` on undefined. */
+export function isSteamShellActive(
+  data: Partial<ShellSyncStatus> | undefined,
+): boolean {
+  return Boolean(data?.steam?.active);
+}
+
 function isActiveStatus(status: SyncJob["status"] | undefined) {
   return status === "pending" || status === "running";
 }
@@ -188,7 +195,7 @@ export function useShellSyncStatus(opts?: {
     }));
   }, [data?.steam?.jobs]);
 
-  const steamActive = Boolean(data?.steam.active);
+  const steamActive = isSteamShellActive(data);
   const steamDoneCount = steamStages.filter(
     (s) => s.job?.status === "completed",
   ).length;

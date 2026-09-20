@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
 import {
   assessEnrichmentGaps,
   hasEnrichmentGaps,
@@ -21,6 +22,7 @@ export class EnrichmentService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   async onModuleInit() {
@@ -135,6 +137,12 @@ export class EnrichmentService implements OnModuleInit {
 
   private async drain() {
     if (this.running) return;
+    if (
+      !(await this.flags.isDomainEnabled("music")) ||
+      !(await this.flags.isSourceEnabled("musicbrainz"))
+    ) {
+      return;
+    }
     this.running = true;
     try {
       while (this.queue.length) {

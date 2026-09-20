@@ -3,6 +3,7 @@
 import { api } from "@/lib/api";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
+import type { PatchFeatureFlags } from "@questorylabs/shared";
 import { PropsWithChildren } from "react";
 import type { Settings } from "./admin.settings.types";
 
@@ -14,10 +15,10 @@ export const AdminSettingsController = ({ children }: PropsWithChildren) => {
   });
 
   const patch = useAction({
-    run: (signupEnabled: boolean) =>
-      api("/admin/settings", {
+    run: (body: PatchFeatureFlags) =>
+      api<Settings>("/admin/settings", {
         method: "PATCH",
-        body: JSON.stringify({ signupEnabled }),
+        body: JSON.stringify(body),
       }),
     onSuccess: () => {
       store.touch(["admin-settings"]);

@@ -46,7 +46,14 @@ describe("watch.settings.utils", () => {
       expanded: { trakt: true },
     });
     expect(expanded.showTrakt).toBe(true);
-    expect(expanded.chooserOptions.map((o) => o.id)).toEqual([
+    const hidden = watchLiveSourceState({
+      traktConnected: false,
+      anilistConnected: false,
+      webhookActive: false,
+      expanded: {},
+      allowed: { trakt: false },
+    });
+    expect(hidden.chooserOptions.map((o) => o.id)).toEqual([
       "anilist",
       "webhook",
     ]);

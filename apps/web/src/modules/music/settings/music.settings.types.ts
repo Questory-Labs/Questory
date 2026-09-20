@@ -44,6 +44,9 @@ export type MusicSettingsViewProps = {
   ingestActive: boolean;
   nativeLocked: boolean;
   lastfmFlash: string | null;
+  showLastfm: boolean;
+  showListenbrainzIngest: boolean;
+  showMusicImports: boolean;
   fileName: string | null;
   message: string | null;
   jobId: string | null;

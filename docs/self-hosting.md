@@ -27,6 +27,16 @@ cp .env.selfhosted.example .env          # or .env.selfhosted-full.example / .en
 # edit SESSION_SECRET, STEAM_API_KEY, URLs, optional ALLOWED_STEAM_IDS
 ```
 
+## Feature flags (Music, Watch, Read, data sources)
+
+1. **Admin → Settings** is the control once a flag is saved (`AppConfig` keys such as `feature.music` / `source.trakt`).
+2. **Env** is the unsaved fallback: `FEATURE_MUSIC|WATCH|READ` wins over `NEXT_PUBLIC_ENABLE_*` (same names as today so a root `.env` still works). Domains default **off**; data sources default **on**.
+3. The **UI** reads `GET /v1/status` **once per load**. Mid-session admin changes do not update nav until reload; the API still returns 403.
+4. **`GET /health`** is liveness only (`ok` + `service`). Do not curl it for flags.
+5. Do not confuse this with **`GET /v1/enterprise/status`** (QEngine).
+
+Compose in this version maps `FEATURE_*` from `NEXT_PUBLIC_ENABLE_*` onto **`api`**, **`api-lite`**, and **`scrobbler`**. Pulling a new Hub image with an old compose file is **unsupported** — the web no longer treats ENABLE as a live gate, and the API would default domains off.
+
 ## Quick deploy
 
 Build from this repo with `--build`. Prebuilt images are optional if you configure image names/tags in `.env`.
@@ -91,7 +101,7 @@ pnpm docker:prod -- --build
 Web: `http://localhost:3000` (or your `WEB_ORIGIN`)  
 API: `http://localhost:4000` (or your public API URL) — Steam, music, watch, and optional in-process cron
 
-`GET /health` on the API is a public liveness probe (`ok`, `service`) plus `music.enabled` / `watch.enabled` / `read.enabled` for the web soft-gates. It does not report app mode, database, Redis, allowlist, or whether third-party keys are configured.
+`GET /health` on the API is a public liveness probe (`ok`, `service`) only. Feature flags live on `GET /v1/status` and Admin → Settings. It does not report app mode, database, Redis, allowlist, or whether third-party keys are configured.
 
 **One database:** Steam, music, watch, and read all use the same `DATABASE_URL` (SQLite file volume or Postgres `questorylabs`). Schema lives in `packages/db`. Identity is a shared `User` row (Steam OpenID, music ingest token, Trakt/AniList connections).
 
@@ -112,10 +122,11 @@ Questory Music runs **inside the Steam API** (`apps/api`). Live plays can come f
 
 Music **shares the same database** as Steam (same `DATABASE_URL`). Schema is owned by `packages/db`.
 
-1. Turn on the web flag (`NEXT_PUBLIC_ENABLE_MUSIC=true` on the web service). Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars), unless native Last.fm is connected:
+1. Turn the domain on in **Admin → Settings**, or leave it unsaved and set `FEATURE_MUSIC=true` (or `NEXT_PUBLIC_ENABLE_MUSIC=true`) on every API process. Ingest tokens are **per-user** — mint them in **Settings → Profile** after Steam login (not env vars), unless native Last.fm is connected:
 
 ```env
-NEXT_PUBLIC_ENABLE_MUSIC=true
+FEATURE_MUSIC=true
+# NEXT_PUBLIC_ENABLE_MUSIC=true  # unsaved fallback if FEATURE_MUSIC is unset
 ```
 
 Session APIs live at `/v1/music/*` on the API origin (same process and port as Steam).
@@ -173,12 +184,7 @@ Import runs asynchronously; poll `GET /v1/music/imports/:jobId` for progress. Du
 
 ### Frontend menus
 
-The web app shows **Music** nav items only when **both** are true:
-
-1. `NEXT_PUBLIC_ENABLE_MUSIC=true` (baked at web image build time)
-2. API `GET /health` reports `ok: true` and `music.enabled` is not `false`
-
-If the flag is off or the API health check fails, the Steam UI is unchanged.
+The web app shows **Music** nav items from the on-load `GET /v1/status` snapshot (`music.enabled`). After you change flags in Admin, reload the app to update navigation. `GET /health` is not used for this.
 
 ## Watch analytics (optional)
 
@@ -187,7 +193,8 @@ Questory Watch is an **API module** under `/v1/watch/*`. It ingests movie/TV his
 ### Enable
 
 ```env
-NEXT_PUBLIC_ENABLE_WATCH=true
+FEATURE_WATCH=true
+# NEXT_PUBLIC_ENABLE_WATCH=true  # unsaved fallback if FEATURE_WATCH is unset
 TRAKT_CLIENT_ID=...
 TRAKT_CLIENT_SECRET=...
 TRAKT_REDIRECT_URI=http://localhost:4000/v1/watch/trakt/callback
@@ -250,19 +257,20 @@ By default the API schedules Trakt, AniList, MAL, Kitsu, Bangumi, Shikimori, and
 
 ### Frontend menus
 
-Watch nav appears when `NEXT_PUBLIC_ENABLE_WATCH=true` **and** API `GET /health` reports `ok: true` with `watch.enabled` not `false`.
+Watch nav appears from the on-load `GET /v1/status` snapshot (`watch.enabled`). Reload after Admin changes. `GET /health` is not used for this.
 
 ### Optional: Read (manga / print)
 
 Questory Read is an **API module** under `/v1/read/*`. It syncs manga/manhwa/novels from AniList, MyAnimeList, Kitsu, Bangumi, and Shikimori into dedicated Read tables (not Watch `Title` / `WatchEvent`).
 
 ```env
-NEXT_PUBLIC_ENABLE_READ=true
+FEATURE_READ=true
+# NEXT_PUBLIC_ENABLE_READ=true  # unsaved fallback if FEATURE_READ is unset
 # AniList / MAL / Shikimori / Bangumi OAuth — see Watch section
 # Kitsu: connect in Read → Sources (email + password; tokens only stored)
 ```
 
-Read nav appears when `NEXT_PUBLIC_ENABLE_READ=true` **and** API `GET /health` reports `ok: true` with `read.enabled` not `false`. Connect AniList under **Read → Sources** (or Watch → Sources — shared connection), then sync. Cron AniList sync also refreshes manga.
+Read nav appears from the on-load `GET /v1/status` snapshot (`read.enabled`). Reload after Admin changes. Connect AniList under **Read → Sources** (or Watch → Sources — shared connection), then sync. Cron AniList sync also refreshes manga.
 
 ## Steam OpenID URLs
 

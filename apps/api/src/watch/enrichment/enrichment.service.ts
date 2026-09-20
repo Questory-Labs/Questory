@@ -4,6 +4,7 @@ import { CatalogService } from "../catalog/catalog.service";
 import { claimTmdbId } from "../catalog/title-merge";
 import { TMDB_REQUEST_PACE_MS } from "../tmdb/tmdb.constants";
 import { TmdbService } from "../tmdb/tmdb.service";
+import { FeatureFlagsService } from "../../features/feature-flags.service";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 /** Cap startup backfill so we don't hammer TMDB after a large import. */
@@ -20,6 +21,7 @@ export class EnrichmentService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly tmdb: TmdbService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   onModuleInit() {
@@ -54,6 +56,12 @@ export class EnrichmentService implements OnModuleInit {
 
   private async drain() {
     if (this.running) return;
+    if (
+      !(await this.flags.isDomainEnabled("watch")) ||
+      !(await this.flags.isSourceEnabled("tmdb"))
+    ) {
+      return;
+    }
     this.running = true;
     try {
       while (this.queue.length) {

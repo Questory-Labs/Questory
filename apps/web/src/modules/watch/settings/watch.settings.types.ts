@@ -71,4 +71,8 @@ export type WatchSettingsViewProps = {
   toggleKind: (kind: LetterboxdKind) => void;
   onImport: () => void;
   clearFile: () => void;
+  showLetterboxdImport: boolean;
+  showLetterboxdScrape: boolean;
+  showAnimeLists: boolean;
+  animeListAllowed: Partial<Record<"mal" | "kitsu" | "shikimori" | "bangumi", boolean>>;
 };

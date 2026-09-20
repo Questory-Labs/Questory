@@ -30,9 +30,16 @@ describe("ProfileExportBuildService.deleteStoredFile", () => {
   });
 
   it("propagates other unlink failures", async () => {
+    const error = vi
+      .spyOn(service["logger"], "error")
+      .mockImplementation(() => undefined);
     vi.mocked(unlink).mockRejectedValueOnce(
       Object.assign(new Error("busy"), { code: "EACCES" }),
     );
     await expect(service.deleteStoredFile("busy.zip")).rejects.toThrow("busy");
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("busy.zip"),
+    );
+    error.mockRestore();
   });
 });

@@ -13,6 +13,7 @@ import {
   StateMessage,
 } from "@/components/ui";
 import { formatDeltaPct, formatMinutes } from "@/lib/music";
+import { featureErrorMessage } from "@/lib/app-status";
 import { MusicHomeCharts } from "./components/MusicHomeCharts";
 import type { MusicHomeViewProps } from "./music.home.types";
 
@@ -64,7 +65,10 @@ export const MusicHomeView = (props: Record<string, unknown>) => {
           }
           error={
             <StateMessage variant="error">
-              Could not load music analytics.
+              {featureErrorMessage(
+                insights.error,
+                "Could not load music analytics.",
+              )}
             </StateMessage>
           }
         >

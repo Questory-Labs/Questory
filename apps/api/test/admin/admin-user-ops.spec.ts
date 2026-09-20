@@ -41,6 +41,10 @@ describe("AdminUserOpsService", () => {
       { syncList: vi.fn() } as never,
       { syncList: vi.fn() } as never,
       { syncList: vi.fn() } as never,
+      {
+        isDomainEnabled: async () => true,
+        isSourceEnabled: async () => true,
+      } as never,
     );
   });
 

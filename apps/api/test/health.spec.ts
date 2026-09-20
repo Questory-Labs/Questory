@@ -23,14 +23,14 @@ describe("GET /health", () => {
     await app.close();
   });
 
-  it("returns liveness and feature flags without infra details", async () => {
+  it("returns liveness only, without feature flags", async () => {
     const res = await request(app.getHttpServer()).get("/health").expect(200);
     expect(res.body).toEqual({
       ok: true,
       service: "questorylabs-api",
-      music: { enabled: true },
-      watch: { enabled: true },
-      read: { enabled: true },
     });
+    expect(res.body.music).toBeUndefined();
+    expect(res.body.watch).toBeUndefined();
+    expect(res.body.read).toBeUndefined();
   });
 });

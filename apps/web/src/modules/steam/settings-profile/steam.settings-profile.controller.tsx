@@ -10,7 +10,9 @@ import type {
 } from "@questorylabs/shared";
 import { api, apiBlob } from "@/lib/api";
 import { parseApiError } from "@/lib/auth-api";
+import { sourceEnabled } from "@/lib/app-status";
 import { PROFILE_DATA_POLL_MS } from "@/lib/polling";
+import { useFeatureSources } from "@/hooks/useFeatureSources";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
@@ -20,6 +22,7 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
   const music = useMusicEnabled();
   const watch = useWatchEnabled();
+  const sources = useFeatureSources();
   const { user } = useUser();
   const [countryCode, setCountryCode] = useState("IN");
   const [message, setMessage] = useState<string | null>(null);
@@ -159,8 +162,10 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
     selected,
     dirty,
     user,
-    showMusic: music.showMusicNav,
-    showWatch: watch.showWatchNav,
+    showMusic:
+      music.showMusicNav && sourceEnabled(sources, "listenbrainzIngest"),
+    showWatch:
+      watch.showWatchNav && sourceEnabled(sources, "watchWebhooks"),
     exportStatus,
     generateExport,
     downloadExport,

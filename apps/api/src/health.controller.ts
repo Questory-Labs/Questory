@@ -1,25 +1,15 @@
 import { Controller, Get, VERSION_NEUTRAL } from "@nestjs/common";
 
 /**
- * Public liveness + feature soft-gates. Do not add mode, database, Redis,
- * allowlist, or credential-configured flags — those belong on authenticated
- * admin/settings surfaces.
+ * Public liveness only. Feature flags live on GET /v1/status and
+ * authenticated admin/settings — do not add them here.
  */
-function coreHealth() {
-  return {
-    ok: true as const,
-    music: { enabled: true },
-    watch: { enabled: true },
-    read: { enabled: true },
-  };
-}
-
 @Controller({ path: "health", version: VERSION_NEUTRAL })
 export class HealthController {
   @Get()
   check() {
     return {
-      ...coreHealth(),
+      ok: true as const,
       service: "questorylabs-api",
     };
   }
