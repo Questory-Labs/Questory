@@ -45,7 +45,7 @@ export class EnterpriseRecommendationsController {
       isAdmin: false,
       method: "POST",
       path: "/v1/recommendations/goals",
-      body,
+      body: withSessionUser(body, user.userId),
     });
   }
 
@@ -130,3 +130,8 @@ export class EnterpriseRecommendationsController {
     });
   }
 }
+
+const withSessionUser = (body: unknown, userId: string) =>
+  body && typeof body === "object" && !Array.isArray(body)
+    ? { ...(body as Record<string, unknown>), userId }
+    : { userId };

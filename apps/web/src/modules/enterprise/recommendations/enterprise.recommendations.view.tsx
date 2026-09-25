@@ -180,6 +180,28 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
                       />
                     ))}
                   </div>
+                  {showingCurated &&
+                    (active.library?.length ?? 0) > 0 &&
+                    tab === "all" && (
+                      <section className={styles.libraryStrip}>
+                        <h2 className={styles.libraryHeading}>From your library</h2>
+                        <div className={styles.grid}>
+                          {uniqueRecommendationItems(active.library ?? [])
+                            .filter(
+                              (item) => !dismissed.has(item.itemKey ?? ""),
+                            )
+                            .map((item) => (
+                              <RecommendationCard
+                                key={itemReactKey(item)}
+                                item={item}
+                                vote={votes[item.itemKey ?? ""]}
+                                dismissed={fading.has(item.itemKey ?? "")}
+                                onFeedback={onFeedback}
+                              />
+                            ))}
+                        </div>
+                      </section>
+                    )}
                   <p className={styles.meta}>
                     {active.engine}
                     {showingCurated && active.llm?.ready

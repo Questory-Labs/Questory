@@ -8,7 +8,7 @@ export default function SmartGoalsPage() {
     <>
       <PageHeader size="sm"
         title="Smart Goals"
-        description="Crush your backlog. AI analyzes your library to suggest the shortest games, movies, and books to help you reach your goals."
+        description="Unfinished games, watchlist titles, and in-progress reads — sized to the timeframe you pick."
       />
       <SmartGoalsPanel />
     </>

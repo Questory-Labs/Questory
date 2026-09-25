@@ -172,4 +172,36 @@ describe("RecommendationsView", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Hades")).not.toBeInTheDocument();
   });
+
+  it("renders research picks above the library strip", () => {
+    renderView({
+      curated: {
+        available: true,
+        engine: "qengine/0.1.0",
+        items: [
+          {
+            kind: "movie",
+            domain: "watch",
+            name: "Hereditary",
+            score: 0.82,
+            reasons: ["Fits your ask, not in your library"],
+            itemKey: "research:tmdb:movie:1",
+          },
+        ],
+        library: [
+          {
+            kind: "game",
+            domain: "games",
+            name: "Hades",
+            score: 0.7,
+            reasons: ["You never finished it"],
+            itemKey: "game:g1",
+          },
+        ],
+      },
+    });
+    expect(screen.getByText("Hereditary")).toBeInTheDocument();
+    expect(screen.getByText("From your library")).toBeInTheDocument();
+    expect(screen.getByText("Hades")).toBeInTheDocument();
+  });
 });

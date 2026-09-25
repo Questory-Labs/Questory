@@ -29,7 +29,7 @@ export const SmartGoalsPanel = () => {
   return (
     <section>
       <div className={styles.worldStrip}>
-        <span>Backlog killer</span>
+        <span>Backlog picks</span>
         <div className={styles.goalsControls}>
           <select
             value={timeframe}

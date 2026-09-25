@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
     "dev": "node scripts/dev.mjs",
+    "predev:http": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",
     "dev:http": "nest start --watch",
     "dev:scrobbler": "nest start --watch --entryFile scrobbler-worker",
     "prebuild": "node ../../scripts/sync-prisma-schema.mjs && node ../../scripts/prisma-generate-safe.mjs client",

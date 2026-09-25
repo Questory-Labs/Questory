@@ -73,4 +73,23 @@ describe("weekly digest request validation", () => {
       }),
     );
   });
+
+  it("injects the session userId into goals", async () => {
+    forward.mockClear();
+    await request(app.getHttpServer())
+      .post("/v1/recommendations/goals")
+      .set("Cookie", cookie())
+      .send({ targetCount: 5, timeframe: "this month" })
+      .expect(201);
+    expect(forward).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/v1/recommendations/goals",
+        body: {
+          targetCount: 5,
+          timeframe: "this month",
+          userId: "u1",
+        },
+      }),
+    );
+  });
 });

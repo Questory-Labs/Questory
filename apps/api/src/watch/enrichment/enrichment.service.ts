@@ -73,25 +73,34 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
 
   private async drain() {
     if (this.running) return;
-    if (!(await this.flagsAllowDrain())) {
-      if (this.queue.length) this.flagResume.schedule();
-      return;
-    }
+    // Claim the lock before the first await. Otherwise every enqueue that
+    // lands during flagsAllowDrain starts another drain, and a later shift
+    // runs findUnique with an undefined id.
     this.running = true;
+    let blocked = false;
     try {
       while (this.queue.length) {
         if (!(await this.flagsAllowDrain())) {
           this.flagResume.schedule();
+          blocked = true;
           break;
         }
-        const titleId = this.queue.shift()!;
-        await this.enrichOne(titleId);
+        const titleId = this.queue.shift();
+        if (!titleId) continue;
+        try {
+          await this.enrichOne(titleId);
+        } catch (err) {
+          this.logger.warn(
+            `Enrich ${titleId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
         if (this.queue.length) {
           await new Promise((r) => setTimeout(r, TMDB_REQUEST_PACE_MS));
         }
       }
     } finally {
       this.running = false;
+      if (!blocked && this.queue.length) void this.drain();
     }
   }
 

@@ -69,6 +69,8 @@ export type RecommendationResponse = {
   plan?: Plan;
   worldSummary?: string;
   items: RecommendationItem[];
+  /** In-catalog strip when research picks are the primary list. */
+  library?: RecommendationItem[];
   message?: string;
 };
 
@@ -84,7 +86,7 @@ export type GoalSuggestion = {
 };
 
 export type RecommendationGoalsRequest = {
-  userId: string;
+  userId?: string;
   targetCount: number;
   timeframe: string;
 };
@@ -102,6 +104,7 @@ export type JobStatus =
   | "queued"
   | "scoring"
   | "extras"
+  | "researching"
   | "writing"
   | "done"
   | "failed";
@@ -112,6 +115,12 @@ export type JobEvent = {
   message: string;
 };
 
+export type JobStage = {
+  id: string;
+  label: string;
+  hint: string;
+};
+
 export type CurationJob = {
   jobId: string;
   status: JobStatus;
@@ -120,6 +129,8 @@ export type CurationJob = {
   error?: string;
   /** True when the finished result was served from the curated cache. */
   fromCache?: boolean;
+  /** Stepper for this run. Owned by QEngine. */
+  stages?: JobStage[];
 };
 
 export type CurateCacheView = {

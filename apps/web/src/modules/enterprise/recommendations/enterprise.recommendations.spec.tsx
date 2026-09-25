@@ -51,13 +51,25 @@ const installFetch = () => {
         return respond({
           jobId: "j1",
           status: "scoring",
+          stages: [
+            { id: "scoring", label: "Scoring", hint: "Scoring your libraries…" },
+            { id: "extras", label: "Finding extras", hint: "Finding extras…" },
+            { id: "writing", label: "Writing", hint: "Writing…" },
+          ],
           events: [
             { ts: 1, stage: "scoring", message: "Scoring your libraries" },
           ],
         });
       }
       if (url.includes("/v1/recommendations/curate")) {
-        return respond({ jobId: "j1", status: "queued", events: [] });
+        return respond({
+          jobId: "j1",
+          status: "queued",
+          stages: [
+            { id: "scoring", label: "Scoring", hint: "Getting ready…" },
+          ],
+          events: [],
+        });
       }
       if (url.includes("/v1/recommendations/feedback")) {
         return respond({ ok: true });

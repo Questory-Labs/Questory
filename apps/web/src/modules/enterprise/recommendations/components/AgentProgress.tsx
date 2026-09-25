@@ -1,35 +1,32 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { CurationJob, JobStatus } from "@/lib/enterprise-types";
+import type { CurationJob, JobStage } from "@/lib/enterprise-types";
 import styles from "../recommendations.module.css";
 
-const STAGES: { id: JobStatus; label: string }[] = [
-  { id: "scoring", label: "Scoring" },
-  { id: "extras", label: "Finding extras" },
-  { id: "writing", label: "Writing" },
-];
-
-const STAGE_ORDER: Record<string, number> = {
-  queued: 0,
-  scoring: 1,
-  extras: 2,
-  writing: 3,
-  done: 4,
-  failed: 4,
+const stepState = (
+  stages: JobStage[],
+  status: CurationJob["status"],
+  index: number,
+): "done" | "active" | "pending" => {
+  if (status === "done" || status === "failed") return "done";
+  if (status === "queued") return "pending";
+  const current = stages.findIndex((stage) => stage.id === status);
+  if (current < 0) return "pending";
+  if (index < current) return "done";
+  if (index === current) return "active";
+  return "pending";
 };
 
-const EMPTY_FEED: Record<JobStatus, string> = {
-  queued: "Getting ready…",
-  scoring: "Scoring your libraries…",
-  extras: "Finding extras…",
-  writing: "Writing…",
-  done: "Scoring your libraries…",
-  failed: "Scoring your libraries…",
+const emptyHint = (job: CurationJob): string => {
+  const stages = job.stages ?? [];
+  const current = stages.find((stage) => stage.id === job.status);
+  return current?.hint || stages[0]?.hint || "";
 };
 
 /**
  * Wait experience: a short stage stepper plus a live activity feed.
+ * Stage labels come from the job payload.
  */
 export const AgentProgress = ({
   job,
@@ -39,37 +36,34 @@ export const AgentProgress = ({
   onShowHeuristics?: () => void;
 }) => {
   const feedRef = useRef<HTMLDivElement>(null);
+  const stages = job.stages ?? [];
+  const hint = emptyHint(job);
 
   useEffect(() => {
     const el = feedRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [job.events.length]);
 
-  const position = STAGE_ORDER[job.status] ?? 0;
-
   return (
     <div className={styles.progress}>
-      <ol className={styles.progressSteps}>
-        {STAGES.map((stage, i) => {
-          const idx = i + 1;
-          const state =
-            position > idx ? "done" : position === idx ? "active" : "pending";
-          return (
+      {stages.length > 0 && (
+        <ol className={styles.progressSteps}>
+          {stages.map((stage, i) => (
             <li
               key={stage.id}
               className={styles.progressStep}
-              data-state={state}
+              data-state={stepState(stages, job.status, i)}
             >
               <span className={styles.progressDot} aria-hidden />
               {stage.label}
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ol>
+      )}
 
       <div ref={feedRef} className={styles.progressFeed} role="log">
-        {job.events.length === 0 && (
-          <p className={styles.progressLine}>{EMPTY_FEED[job.status]}</p>
+        {job.events.length === 0 && hint && (
+          <p className={styles.progressLine}>{hint}</p>
         )}
         {job.events.map((event, i) => (
           <p key={`${event.ts}-${i}`} className={styles.progressLine}>
