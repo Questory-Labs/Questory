@@ -11,7 +11,10 @@ import {
   type ProfileImportJob,
 } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
-import { PROFILE_IMPORT_SOURCE } from "./profile-data.constants";
+import {
+  PROFILE_IMPORT_PROGRESS_FLUSH_MS,
+  PROFILE_IMPORT_SOURCE,
+} from "./profile-data.constants";
 import {
   ensureImportJobRunningLock,
   isPrismaAdmissionConflict,
@@ -19,6 +22,7 @@ import {
 import { unzipProfileArchiveJson } from "./profile-zip";
 import { ProfileImportGamesService } from "./profile-import-games.service";
 import { ProfileImportMediaService } from "./profile-import-media.service";
+import { ImportProgress } from "./profile-import-progress";
 
 function serializeJob(job: {
   id: string;
@@ -58,6 +62,50 @@ function serializeJob(job: {
     createdAt: job.createdAt.toISOString(),
     completedAt: job.completedAt?.toISOString() ?? null,
   };
+}
+
+/**
+ * Periodically persists running counts so `/import/active` shows live progress.
+ * Only touches jobs still `running`, so a late flush never clobbers the final row.
+ */
+class ImportProgressFlusher {
+  private timer: NodeJS.Timeout | null = null;
+  private inFlight: Promise<void> | null = null;
+  private lastProcessed = 0;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobId: string,
+    private readonly progress: ImportProgress,
+  ) {}
+
+  start() {
+    this.timer = setInterval(() => {
+      if (this.inFlight) return;
+      this.inFlight = this.flush().finally(() => {
+        this.inFlight = null;
+      });
+    }, PROFILE_IMPORT_PROGRESS_FLUSH_MS);
+    this.timer.unref?.();
+  }
+
+  async stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    await this.inFlight;
+  }
+
+  private async flush() {
+    const { accepted, skipped } = this.progress;
+    if (accepted + skipped === this.lastProcessed) return;
+    this.lastProcessed = accepted + skipped;
+    await this.prisma.importJob
+      .updateMany({
+        where: { id: this.jobId, status: "running" },
+        data: { accepted, skipped },
+      })
+      .catch(() => {});
+  }
 }
 
 @Injectable()
@@ -138,6 +186,8 @@ export class ProfileImportService implements OnModuleInit {
   }
 
   private async run(jobId: string, userId: string, filePath: string) {
+    const progress = new ImportProgress();
+    const flusher = new ImportProgressFlusher(this.prisma, jobId, progress);
     try {
       const buffer = await readFile(filePath);
       const jsonText = unzipProfileArchiveJson(buffer);
@@ -172,31 +222,30 @@ export class ProfileImportService implements OnModuleInit {
         data: { total },
       });
 
+      flusher.start();
       await this.games.applyProfile(userId, archive);
-      const parts = [
-        await this.games.applyLibrary(userId, archive),
-        await this.games.applyWishlist(userId, archive),
-        await this.games.applyPurchases(userId, archive),
-        await this.games.applyCollections(userId, archive),
-        await this.games.applyPlaySessionRules(userId, archive),
-        await this.games.applyPlaySessions(userId, archive),
-        await this.games.applyFamily(userId, archive),
-        await this.media.applyMusic(userId, archive),
-        await this.media.applyWatch(userId, archive),
-        await this.media.applyRead(userId, archive),
-      ];
-      const accepted = parts.reduce((n, p) => n + p.accepted, 0);
-      const skipped = parts.reduce((n, p) => n + p.skipped, 0);
+      await this.games.applyLibrary(userId, archive, progress);
+      await this.games.applyWishlist(userId, archive, progress);
+      await this.games.applyPurchases(userId, archive, progress);
+      await this.games.applyCollections(userId, archive, progress);
+      await this.games.applyPlaySessionRules(userId, archive, progress);
+      await this.games.applyPlaySessions(userId, archive, progress);
+      await this.games.applyFamily(userId, archive, progress);
+      await this.media.applyMusic(userId, archive, progress);
+      await this.media.applyWatch(userId, archive, progress);
+      await this.media.applyRead(userId, archive, progress);
+      await flusher.stop();
       await this.prisma.importJob.update({
         where: { id: jobId },
         data: {
           status: "completed",
-          accepted,
-          skipped,
+          accepted: progress.accepted,
+          skipped: progress.skipped,
           completedAt: new Date(),
         },
       });
     } catch (err) {
+      await flusher.stop();
       const message =
         err instanceof BadRequestException
           ? (err.message as string)
@@ -207,6 +256,8 @@ export class ProfileImportService implements OnModuleInit {
         where: { id: jobId },
         data: {
           status: "failed",
+          accepted: progress.accepted,
+          skipped: progress.skipped,
           lastError: message,
           completedAt: new Date(),
         },

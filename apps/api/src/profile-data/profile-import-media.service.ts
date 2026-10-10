@@ -9,7 +9,11 @@ import { CatalogService as WatchCatalogService } from "../watch/catalog/catalog.
 import { ReadCatalogService } from "../read/catalog/catalog.service";
 import { yieldEventLoop } from "./profile-data.utils";
 import { PROFILE_EXPORT_YIELD_EVERY } from "./profile-data.constants";
-import type { ApplyCounts } from "./profile-import-games.service";
+import {
+  ApplyTally,
+  type ApplyCounts,
+  type ImportProgress,
+} from "./profile-import-progress";
 
 @Injectable()
 export class ProfileImportMediaService {
@@ -23,9 +27,9 @@ export class ProfileImportMediaService {
   async applyMusic(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
 
     for (const row of archive.music.rules) {
       const existing = await this.prisma.userMusicRule.findFirst({
@@ -38,7 +42,7 @@ export class ProfileImportMediaService {
         },
       });
       if (existing) {
-        skipped += 1;
+        tally.skip();
         continue;
       }
       const artists = [];
@@ -68,13 +72,13 @@ export class ProfileImportMediaService {
           },
         });
       }
-      accepted += 1;
+      tally.accept();
     }
 
     for (const row of archive.music.labels) {
       const entityId = await this.resolveLabelEntity(row);
       if (!entityId) {
-        skipped += 1;
+        tally.skip();
         continue;
       }
       await this.prisma.userMusicLabel.upsert({
@@ -93,7 +97,7 @@ export class ProfileImportMediaService {
         },
         update: { displayName: row.displayName },
       });
-      accepted += 1;
+      tally.accept();
     }
 
     const cache = createImportEntityCache();
@@ -119,21 +123,21 @@ export class ProfileImportMediaService {
         },
         cache,
       );
-      if (result.created) accepted += 1;
-      else skipped += 1;
+      if (result.created) tally.accept();
+      else tally.skip();
       n += 1;
       if (n % PROFILE_EXPORT_YIELD_EVERY === 0) await yieldEventLoop();
     }
 
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyWatch(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     let n = 0;
     for (const row of archive.watch.events) {
       const title = await this.watchCatalog.upsertTitle({
@@ -179,8 +183,8 @@ export class ProfileImportMediaService {
         runtimeMinutes: row.runtimeMinutes,
         precision: row.precision,
       });
-      if (before) skipped += 1;
-      else accepted += 1;
+      if (before) tally.skip();
+      else tally.accept();
       n += 1;
       if (n % PROFILE_EXPORT_YIELD_EVERY === 0) await yieldEventLoop();
     }
@@ -207,17 +211,17 @@ export class ProfileImportMediaService {
         rating: row.rating,
         listedAt: row.listedAt ? new Date(row.listedAt) : null,
       });
-      accepted += 1;
+      tally.accept();
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyRead(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     let n = 0;
     for (const row of archive.read.events) {
       const title = await this.readCatalog.upsertTitle({
@@ -249,8 +253,8 @@ export class ProfileImportMediaService {
         rating: row.rating,
         precision: row.precision,
       });
-      if (before) skipped += 1;
-      else accepted += 1;
+      if (before) tally.skip();
+      else tally.accept();
       n += 1;
       if (n % PROFILE_EXPORT_YIELD_EVERY === 0) await yieldEventLoop();
     }
@@ -276,9 +280,9 @@ export class ProfileImportMediaService {
         progressVolumes: row.progressVolumes,
         listedAt: row.listedAt ? new Date(row.listedAt) : null,
       });
-      accepted += 1;
+      tally.accept();
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   private async resolveLabelEntity(row: {

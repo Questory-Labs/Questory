@@ -7,8 +7,13 @@ import { QmonitorSessionRulesService } from "../qmonitor/qmonitor-session-rules.
 import { yieldEventLoop } from "./profile-data.utils";
 import { PROFILE_EXPORT_YIELD_EVERY } from "./profile-data.constants";
 import { sessionMatchIdentity } from "../qmonitor/session-identity";
+import {
+  ApplyTally,
+  type ApplyCounts,
+  type ImportProgress,
+} from "./profile-import-progress";
 
-export type ApplyCounts = { accepted: number; skipped: number };
+export type { ApplyCounts };
 
 @Injectable()
 export class ProfileImportGamesService {
@@ -36,14 +41,14 @@ export class ProfileImportGamesService {
   async applyLibrary(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     let n = 0;
     for (const row of archive.library) {
       const game = await this.resolveGame(userId, row);
       if (!game) {
-        skipped += 1;
+        tally.skip();
         continue;
       }
       const existing = await this.prisma.libraryEntry.findUnique({
@@ -75,19 +80,19 @@ export class ProfileImportGamesService {
           ...(row.hidden != null ? { hidden: row.hidden } : {}),
         },
       });
-      accepted += 1;
+      tally.accept();
       n += 1;
       if (n % PROFILE_EXPORT_YIELD_EVERY === 0) await yieldEventLoop();
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyWishlist(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     for (const row of archive.wishlistTargets) {
       const store = isStoreId(row.store) ? row.store : "steam";
       try {
@@ -111,20 +116,20 @@ export class ProfileImportGamesService {
           },
           update: { targetPrice: row.targetPrice },
         });
-        accepted += 1;
+        tally.accept();
       } catch {
-        skipped += 1;
+        tally.skip();
       }
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyPurchases(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     for (const row of archive.purchases) {
       const purchasedAt = new Date(row.purchasedAt);
       const existing = await this.prisma.purchase.findFirst({
@@ -139,7 +144,7 @@ export class ProfileImportGamesService {
         },
       });
       if (existing) {
-        skipped += 1;
+        tally.skip();
         continue;
       }
       await this.prisma.purchase.create({
@@ -155,17 +160,17 @@ export class ProfileImportGamesService {
           discountPct: row.discountPct ?? null,
         },
       });
-      accepted += 1;
+      tally.accept();
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyCollections(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     for (const row of archive.collections) {
       let collection = await this.prisma.collection.findFirst({
         where: { userId, name: row.name, type: "custom" },
@@ -183,7 +188,7 @@ export class ProfileImportGamesService {
       for (const item of row.items) {
         const game = await this.resolveGame(userId, item);
         if (!game) {
-          skipped += 1;
+          tally.skip();
           continue;
         }
         await this.prisma.collectionItem.upsert({
@@ -196,22 +201,22 @@ export class ProfileImportGamesService {
           create: { collectionId: collection.id, gameId: game.id },
           update: {},
         });
-        accepted += 1;
+        tally.accept();
       }
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyPlaySessionRules(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     for (const row of archive.playSessionRules) {
       const game = await this.resolveGame(userId, row.target);
       if (!game) {
-        skipped += 1;
+        tally.skip();
         continue;
       }
       await this.prisma.userPlaySessionRule.upsert({
@@ -225,18 +230,18 @@ export class ProfileImportGamesService {
         },
         update: { targetGameId: game.id },
       });
-      accepted += 1;
+      tally.accept();
     }
     this.sessionRules.invalidateRulesCache(userId);
-    return { accepted, skipped };
+    return tally.counts();
   }
 
   async applyPlaySessions(
     userId: string,
     archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
   ): Promise<ApplyCounts> {
-    let accepted = 0;
-    let skipped = 0;
+    const tally = new ApplyTally(progress);
     let n = 0;
     for (const row of archive.playSessions) {
       let gameId: string | null = null;
@@ -279,15 +284,20 @@ export class ProfileImportGamesService {
         },
         update: {},
       });
-      accepted += 1;
+      tally.accept();
       n += 1;
       if (n % PROFILE_EXPORT_YIELD_EVERY === 0) await yieldEventLoop();
     }
-    return { accepted, skipped };
+    return tally.counts();
   }
 
-  async applyFamily(userId: string, archive: QuestoryProfileArchive) {
-    if (!archive.family) return { accepted: 0, skipped: 0 };
+  async applyFamily(
+    userId: string,
+    archive: QuestoryProfileArchive,
+    progress?: ImportProgress,
+  ): Promise<ApplyCounts> {
+    const tally = new ApplyTally(progress);
+    if (!archive.family) return tally.counts();
     let group = await this.prisma.familyGroup.findFirst({
       where: { ownerId: userId },
     });
@@ -301,7 +311,6 @@ export class ProfileImportGamesService {
         data: { name: archive.family.name },
       });
     }
-    let accepted = 0;
     for (const member of archive.family.members) {
       await this.prisma.familyMember.upsert({
         where: {
@@ -319,9 +328,9 @@ export class ProfileImportGamesService {
           role: member.role,
         },
       });
-      accepted += 1;
+      tally.accept();
     }
-    return { accepted, skipped: 0 };
+    return tally.counts();
   }
 
   private async resolveGame(
