@@ -18,7 +18,7 @@
   
 
   <p align="center">
-    <a href="https://questory-labs.github.io/"><img alt="Website & Docs" src="https://img.shields.io/badge/Docs-questory--labs.github.io-blue?style=for-the-badge&logo=github" /></a>
+    <a href="https://questorylabs.com"><img alt="Website & Docs" src="https://img.shields.io/badge/Docs-questorylabs.com-blue?style=for-the-badge&logo=github" /></a>
     <a href="https://hub.docker.com/r/santoshpanna/questorylabs-api/stable"><img alt="API Docker" src="https://img.shields.io/docker/v/santoshpanna/questorylabs-api/stable?label=API%20Image&style=for-the-badge&logo=docker&logoColor=white" /></a>
     <a href="https://hub.docker.com/r/santoshpanna/questorylabs-web/stable"><img alt="Web Docker" src="https://img.shields.io/docker/v/santoshpanna/questorylabs-web/stable?label=Web%20Image&style=for-the-badge&logo=docker&logoColor=white" /></a>
     <a href="https://hub.docker.com/r/santoshpanna/questorylabs-qengine"><img alt="QEngine Docker" src="https://img.shields.io/docker/v/santoshpanna/questorylabs-qengine?label=QEngine%20Image&style=for-the-badge&logo=docker&logoColor=white" /></a>
