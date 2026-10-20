@@ -29,6 +29,10 @@ vi.mock("./components/PlanHero", () => ({
   PlanHero: () => null,
 }));
 
+vi.mock("./components/PreviousSlates", () => ({
+  PreviousSlates: () => <div data-testid="previous-slates" />,
+}));
+
 const hadesResponse: RecommendationResponse = {
   available: true,
   engine: "qengine/0.1.0",
@@ -203,5 +207,107 @@ describe("RecommendationsView", () => {
     expect(screen.getByText("Hereditary")).toBeInTheDocument();
     expect(screen.getByText("From your library")).toBeInTheDocument();
     expect(screen.getByText("Hades")).toBeInTheDocument();
+  });
+
+  it("credits the reason-tier model in the footer", () => {
+    renderView({
+      curated: {
+        available: true,
+        engine: "qengine/0.1.0",
+        llm: {
+          enabled: true,
+          ready: true,
+          model: "base/model",
+          tiers: [
+            { tier: "reason", model: "deepseek/deepseek-v4.1-flash", reasoning: "low" },
+            { tier: "fast", model: "qwen/fast", reasoning: "off" },
+          ],
+        },
+        items: [
+          {
+            kind: "movie",
+            domain: "watch",
+            name: "Hereditary",
+            score: 0.82,
+            reasons: ["Fits your ask"],
+            itemKey: "research:tmdb:movie:1",
+          },
+        ],
+      },
+    });
+    expect(
+      screen.getByText(/curated by deepseek\/deepseek-v4\.1-flash/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/heuristic order/)).not.toBeInTheDocument();
+  });
+
+  it("leads with the curator's why and shows the history strip", () => {
+    renderView({
+      curated: {
+        available: true,
+        engine: "qengine/0.1.0",
+        arm: "rerank",
+        items: [
+          {
+            kind: "game",
+            domain: "games",
+            name: "Hades",
+            score: 0.9,
+            reasons: ["You never finished it"],
+            why: "Your roguelike streak stalled on the last boss; one more run fits tonight.",
+            itemKey: "game:g1",
+          },
+        ],
+      },
+    });
+    expect(
+      screen.getByText(/one more run fits tonight/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("You never finished it")).toBeInTheDocument();
+    expect(screen.getByTestId("previous-slates")).toBeInTheDocument();
+  });
+
+  it("badges play-together picks", () => {
+    renderView({
+      curated: {
+        available: true,
+        engine: "qengine/0.1.0",
+        arm: "rerank",
+        items: [
+          {
+            kind: "game",
+            domain: "games",
+            name: "Deep Rock Galactic",
+            score: 0.8,
+            reasons: ["3 friends played this in the last two weeks"],
+            itemKey: "game:g2",
+            cardType: "social",
+          },
+        ],
+      },
+    });
+    expect(screen.getByText("Play together")).toBeInTheDocument();
+  });
+
+  it("notes when the slate fell back to the heuristic order", () => {
+    renderView({
+      curated: {
+        available: true,
+        engine: "qengine/0.1.0",
+        arm: "rerank-fallback",
+        llm: { enabled: true, ready: true, model: "m" },
+        items: [
+          {
+            kind: "game",
+            domain: "games",
+            name: "Hades",
+            score: 0.9,
+            reasons: ["You never finished it"],
+            itemKey: "game:g1",
+          },
+        ],
+      },
+    });
+    expect(screen.getByText(/heuristic order \(model unavailable\)/)).toBeInTheDocument();
   });
 });

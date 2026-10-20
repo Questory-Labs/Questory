@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { SchedulerRegistry } from "@nestjs/schedule";
 import { CronJob } from "cron";
@@ -37,7 +38,9 @@ import {
 } from "../auth/signup-policy";
 import type { FeatureSource, PatchFeatureFlags } from "@questorylabs/shared";
 import { FeatureFlagsService } from "../features/feature-flags.service";
+import { EnterpriseProxyService } from "../enterprise/enterprise-proxy.service";
 import { normalizeEmail } from "../auth/abuse/disposable-emails";
+import { RECAP_USER_PREFIX } from "../recap/monthly-recap.service";
 
 @Injectable()
 export class AdminService {
@@ -58,6 +61,8 @@ export class AdminService {
     @Optional()
     @Inject(WATCH_CRON_SYNC)
     private readonly watchCron: WatchCronSync | null,
+    @Optional()
+    private readonly enterprise?: EnterpriseProxyService,
   ) {}
 
   async overview() {
@@ -299,8 +304,33 @@ export class AdminService {
         throw new ForbiddenException("Cannot delete the last admin");
       }
     }
+    await this.eraseEnterpriseData(id);
     await this.prisma.user.delete({ where: { id } });
+    await this.prisma.appConfig.deleteMany({ where: { key: `${RECAP_USER_PREFIX}${id}` } });
     return { ok: true };
+  }
+
+  private async eraseEnterpriseData(id: string) {
+    if (!this.enterprise) return;
+    try {
+      await this.enterprise.forward({
+        userId: id,
+        isAdmin: true,
+        method: "DELETE",
+        path: `/v1/enterprise/users/${encodeURIComponent(id)}`,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const unreachable = err instanceof ServiceUnavailableException;
+      if (unreachable && !process.env.ENTERPRISE_URL) {
+        this.logger.warn(`QEngine not reachable; skipped data erase for ${id}: ${message}`);
+        return;
+      }
+      this.logger.error(`QEngine data erase failed for ${id}: ${message}`);
+      throw new ServiceUnavailableException(
+        "Could not erase recommendation data; the account was not deleted. Try again.",
+      );
+    }
   }
 
   /**

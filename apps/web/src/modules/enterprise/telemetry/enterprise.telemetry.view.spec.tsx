@@ -113,6 +113,7 @@ const baseProps = (): TelemetryViewProps => ({
   avgCost: undefined,
   costPer1m: undefined,
   pricingConfigured: false,
+  costSource: undefined,
   collectorOk: true,
   collectorError: null,
   totalTraces: 0,
@@ -166,6 +167,12 @@ describe("TelemetryView", () => {
     expect(screen.getByText("Requests")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("Healthy")).toBeInTheDocument();
+  });
+
+  it("labels provider-reported cost", () => {
+    renderView({ pricingConfigured: true, costSource: "reported", costUsd: 0.25 });
+    expect(screen.getByText("Cost")).toBeInTheDocument();
+    expect(screen.getByText("Reported by the provider")).toBeInTheDocument();
   });
 
   it("shows collection empty for traces", () => {

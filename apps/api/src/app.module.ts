@@ -34,6 +34,7 @@ import { EnterpriseModule } from "./enterprise/enterprise.module";
 import { ProfileDataModule } from "./profile-data/profile-data.module";
 import { QmonitorModule } from "./qmonitor/qmonitor.module";
 import { TagsModule } from "./tags/tags.module";
+import { RecapModule } from "./recap/recap.module";
 
 const rootEnv = resolve(process.cwd(), "../../.env");
 const localEnv = resolve(process.cwd(), ".env");
@@ -76,6 +77,7 @@ const localEnv = resolve(process.cwd(), ".env");
     AdminModule,
     EnterpriseModule,
     TagsModule,
+    RecapModule,
     QmonitorModule,
     ProfileDataModule,
   ],

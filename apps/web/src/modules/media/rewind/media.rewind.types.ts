@@ -5,7 +5,9 @@ import type {
   RewindStatsResponse,
 } from "@questorylabs/shared";
 
-export type RewindDomain = "music" | "watch" | "read";
+export type RewindDomain = "music" | "watch" | "read" | "games";
+
+export type RewindScope = RewindDomain | "all";
 
 export type RewindMonth = number | "all";
 
@@ -100,7 +102,7 @@ export type EmphasisSegment = {
 };
 
 export type RewindViewProps = {
-  domain: RewindDomain;
+  domain: RewindScope;
   year: number;
   month: RewindMonth;
   setMonth: Dispatch<SetStateAction<RewindMonth>>;

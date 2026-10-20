@@ -118,6 +118,162 @@ describe("RewindView", () => {
     expect(screen.queryByText("Vibe Check")).not.toBeInTheDocument();
   });
 
+  it("renders the extras row, arc and faded list with coverage", () => {
+    renderView({
+      period: "2025",
+      statsQuery: mockResource<RewindStatsResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          ...musicStats,
+          period: "2025",
+          activeDays: 120,
+          longestStreakDays: 9,
+          longestGapDays: 14,
+          busiestDay: { date: "2025-03-02", count: 61 },
+          monthly: [
+            { month: "2025-01", count: 30, topItem: "Radiohead" },
+            { month: "2025-02", count: 50, topItem: "Bjork" },
+          ],
+          prior: { total: 300, deltaPct: 37, newItems: 20, returningItems: 44, coverage: true },
+          droppedOff: [{ id: "x", name: "Portishead", count: 25 }],
+          maxRepeatsInDay: { name: "Karma Police", count: 7, date: "2025-04-01" },
+        },
+      }),
+    });
+    expect(screen.getByText("Longest Streak")).toBeInTheDocument();
+    expect(screen.getByText("9 days")).toBeInTheDocument();
+    expect(screen.getByText("Mar 2")).toBeInTheDocument();
+    expect(screen.getByText("vs 2024")).toBeInTheDocument();
+    expect(screen.getByText("+37%")).toBeInTheDocument();
+    expect(screen.getByText("14 days")).toBeInTheDocument();
+    expect(screen.getByText("Month by Month")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Monthly plays, peak Feb/ })).toBeInTheDocument();
+    expect(screen.getByText("Faded Out Since 2024")).toBeInTheDocument();
+    expect(screen.getByText("Portishead")).toBeInTheDocument();
+    expect(screen.getByText("7×")).toBeInTheDocument();
+  });
+
+  it("hides the prior comparison and faded list without coverage", () => {
+    renderView({
+      statsQuery: mockResource<RewindStatsResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          ...musicStats,
+          prior: { total: 300, deltaPct: 37, newItems: 20, returningItems: 44, coverage: false },
+          droppedOff: [{ id: "x", name: "Portishead", count: 25 }],
+        },
+      }),
+    });
+    expect(screen.queryByText(/^vs /)).not.toBeInTheDocument();
+    expect(screen.queryByText("Portishead")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("rewind-extras")).not.toBeInTheDocument();
+  });
+
+  it("renders watch ratings, unfinished and binge lists", () => {
+    renderView({
+      domain: "watch",
+      statsQuery: mockResource<RewindStatsResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          domain: "watch",
+          period: "2026-07",
+          totalWatches: 10,
+          watchingMinutes: 600,
+          uniqueTitles: 3,
+          uniqueMovies: 2,
+          uniqueShows: 1,
+          movieWatches: 2,
+          showWatches: 8,
+          topTitles: [],
+          topGenres: [],
+          peakHour: null,
+          peakDow: null,
+          avgRating: 7.5,
+          ratedCount: 2,
+          topRated: [{ id: "a", name: "Dune", count: 9 }],
+          unfinished: [{ id: "b", name: "Tenet", count: 40 }],
+          bingeRuns: [{ id: "c", name: "Severance", count: 5 }],
+        },
+      }),
+    });
+    expect(screen.getByText("Top Rated · avg 7.5")).toBeInTheDocument();
+    expect(screen.getByText("9/10")).toBeInTheDocument();
+    expect(screen.getByText("40%")).toBeInTheDocument();
+    expect(screen.getByText("5 eps")).toBeInTheDocument();
+  });
+
+  it("renders games stats, top games and the session upsell", () => {
+    const games = (sessionsAvailable: boolean): RewindStatsResponse => ({
+      domain: "games",
+      period: "2025",
+      totalMinutes: 1800,
+      sessions: sessionsAvailable ? 12 : 0,
+      sessionsAvailable,
+      uniqueGames: 3,
+      newGames: 1,
+      topGames: [{ id: "g1", name: "Hades II", count: 1200 }],
+      topGenres: [{ id: "roguelike", name: "Roguelike", count: 1200 }],
+      longestSession: sessionsAvailable
+        ? { name: "Hades II", minutes: 240, date: "2025-03-01" }
+        : null,
+      lateNightShare: sessionsAvailable ? 34 : null,
+      peakHour: sessionsAvailable ? { index: 22, label: "10pm", count: 300 } : null,
+      peakDow: null,
+      backlog: 7,
+      achievementsInPeriod: 4,
+    });
+    renderView({
+      domain: "games",
+      statsQuery: mockResource<RewindStatsResponse>({
+        empty: false,
+        failed: false,
+        value: games(true),
+      }),
+    });
+    expect(screen.getByText("Hours Played")).toBeInTheDocument();
+    expect(screen.getByText("30")).toBeInTheDocument();
+    expect(screen.getByText("Top Games")).toBeInTheDocument();
+    expect(screen.getByText("34% late night")).toBeInTheDocument();
+    expect(screen.getByText("Unplayed today")).toBeInTheDocument();
+    expect(screen.queryByText("Install qMonitor to unlock session stats")).toBeNull();
+    cleanup();
+    renderView({
+      domain: "games",
+      statsQuery: mockResource<RewindStatsResponse>({
+        empty: false,
+        failed: false,
+        value: games(false),
+      }),
+    });
+    expect(screen.getByText("Install qMonitor to unlock session stats")).toBeInTheDocument();
+    expect(screen.queryByText("Peak Playing")).toBeNull();
+  });
+
+  it("renders one tile per active area for the unified rewind", () => {
+    renderView({
+      domain: "all",
+      statsQuery: mockResource<RewindStatsResponse>({
+        empty: false,
+        failed: false,
+        value: { domain: "all", period: "2026-07", domains: { music: musicStats } },
+      }),
+      aiQuery: mockResource<RewindInsightResponse>({
+        empty: false,
+        failed: false,
+        value: { ...aiValue, content: "<musicyear>Mostly **Radiohead**.</musicyear>" },
+      }),
+    });
+    expect(screen.getByText("Your Rewind")).toBeInTheDocument();
+    expect(screen.getByText("Music")).toBeInTheDocument();
+    expect(screen.getByText("hours listened · Radiohead")).toBeInTheDocument();
+    expect(screen.getByText("Your Music")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download share card" })).toBeInTheDocument();
+    expect(screen.queryByText("Watching")).toBeNull();
+  });
+
   it("renders AI cards when ready", () => {
     renderView({});
     expect(screen.getByText("Vibe Check")).toBeInTheDocument();

@@ -13,7 +13,9 @@ describe("buildNavGroups", () => {
     expect(hrefs).toEqual(
       expect.arrayContaining([
         "/dashboard",
+        "/rewind",
         "/library",
+        "/library/rewind",
         "/music",
         "/music/listening",
         "/music/charts",

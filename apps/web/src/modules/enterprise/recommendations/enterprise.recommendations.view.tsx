@@ -6,6 +6,7 @@ import { DossierCard } from "./components/DossierCard";
 import { LocationSettings } from "./components/LocationSettings";
 import { MoodBar } from "./components/MoodBar";
 import { PlanHero } from "./components/PlanHero";
+import { PreviousSlates } from "./components/PreviousSlates";
 import styles from "./recommendations.module.css";
 import type {
   CurationJob,
@@ -202,13 +203,27 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
                         </div>
                       </section>
                     )}
+                  {tab === "all" && (
+                    <PreviousSlates
+                      currentKeys={
+                        new Set(active.items.map((item) => item.itemKey ?? ""))
+                      }
+                      votes={votes}
+                      onFeedback={onFeedback}
+                    />
+                  )}
                   <p className={styles.meta}>
                     {active.engine}
                     {showingCurated && active.llm?.ready
-                      ? ` · curated by ${active.llm.model}`
+                      ? ` · curated by ${active.llm.tiers?.find((t) => t.tier === "reason")?.model ?? active.llm.model}`
                       : !active.ml?.ready
                         ? " · heuristics only"
                         : ""}
+                    {showingCurated &&
+                    (active.arm === "heuristic" ||
+                      active.arm === "rerank-fallback")
+                      ? " · heuristic order (model unavailable)"
+                      : ""}
                     {active.llm?.pulling?.length
                       ? ` · pulling ${active.llm.pulling.join(", ")}`
                       : ""}

@@ -12,7 +12,9 @@ import {
 import type { CollectionsViewProps } from "./steam.collections.types";
 
 export const CollectionsView = (props: Record<string, unknown>) => {
-  const { list, create, name, setName } = props as CollectionsViewProps;
+  const { list, create, name, setName, tasteAvailable, groupByTaste } =
+    props as CollectionsViewProps;
+  const grouped = groupByTaste?.value;
 
   return (
     <>
@@ -38,7 +40,27 @@ export const CollectionsView = (props: Record<string, unknown>) => {
         <Button type="submit" variant="primary" disabled={create.busy}>
           Create
         </Button>
+        {tasteAvailable && groupByTaste ? (
+          <Button
+            type="button"
+            disabled={groupByTaste.busy}
+            onClick={() => groupByTaste.submit()}
+          >
+            {groupByTaste.busy ? "Grouping..." : "Group by taste"}
+          </Button>
+        ) : null}
       </form>
+      {groupByTaste?.failed ? (
+        <p className="mt-2 text-sm text-[var(--danger)]">
+          Could not group your library right now.
+        </p>
+      ) : grouped ? (
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          {grouped.available
+            ? `${grouped.collections} taste shelves updated.`
+            : "Taste grouping is warming up. Try again later."}
+        </p>
+      ) : null}
       {create.failed ? (
         <p className="mt-2 text-sm text-[var(--danger)]">
           Could not create collection.

@@ -13,9 +13,11 @@ function enterpriseBaseUrl(): string {
   );
 }
 
+export type RewindAiDomain = "music" | "watch" | "read" | "games" | "all";
+
 export async function callRewindGenerate(
   userId: string,
-  domain: "music" | "watch" | "read",
+  domain: RewindAiDomain,
   period: string,
   stats: unknown,
 ): Promise<string> {

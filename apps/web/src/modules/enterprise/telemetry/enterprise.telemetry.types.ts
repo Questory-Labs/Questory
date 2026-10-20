@@ -4,6 +4,7 @@ import type {
 } from "@questorylabs/qhttp/react";
 import type {
   OtelHealth,
+  OtelCostSource,
   OtelModelPricing,
   OtelPricing,
   OtelSpan,
@@ -82,6 +83,7 @@ export type TelemetryViewProps = {
   avgCost: number | undefined;
   costPer1m: number | undefined;
   pricingConfigured: boolean;
+  costSource: OtelCostSource | undefined;
   collectorOk: boolean;
   collectorError: string | null;
   totalTraces: number;

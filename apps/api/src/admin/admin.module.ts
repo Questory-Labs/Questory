@@ -21,6 +21,7 @@ import { SteamModule } from "../steam/steam.module";
 import { WatchModule } from "../watch/watch.module";
 import { ImportsModule } from "../watch/imports/imports.module";
 import { ScraperModule } from "../scraper/scraper.module";
+import { EnterpriseModule } from "../enterprise/enterprise.module";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ScraperModule } from "../scraper/scraper.module";
     BangumiModule,
     ShikimoriModule,
     LetterboxdModule,
+    EnterpriseModule,
   ],
   controllers: [AdminController, ScraperAdminController],
   providers: [AdminService, AdminUserOpsService, MigrationsService],

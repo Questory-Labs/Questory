@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import { semanticSearch } from "@/lib/enterprise-api";
+import { useEnterpriseEnabled } from "@/providers/EnterpriseEnabledProvider";
 
 export const SearchController = ({ children }: PropsWithChildren) => {
   const sp = useSearchParams();
@@ -17,11 +19,19 @@ export const SearchController = ({ children }: PropsWithChildren) => {
   const { showMusicNav } = useMusicEnabled();
   const { enabled: showWatchNav } = useWatchEnabled();
   const { showReadNav } = useReadEnabled();
+  const { enabled: meaningAvailable } = useEnterpriseEnabled();
+  const mode = meaningAvailable && sp.get("mode") === "meaning" ? "meaning" : "exact";
 
   const result = useResource({
     id: ["search", q],
     load: () => api<SearchResult>(`/search?q=${encodeURIComponent(q)}`),
-    when: Boolean(q),
+    when: Boolean(q) && mode === "exact",
+  });
+
+  const meaning = useResource({
+    id: ["search-meaning", q],
+    load: () => semanticSearch(q),
+    when: Boolean(q) && mode === "meaning",
   });
 
   const chips = useMemo(() => formatSearchChips(parseSearchQuery(q)), [q]);
@@ -33,5 +43,8 @@ export const SearchController = ({ children }: PropsWithChildren) => {
     showMusic: showMusicNav,
     showWatch: showWatchNav,
     showRead: showReadNav,
+    mode,
+    meaningAvailable,
+    meaning,
   });
 };

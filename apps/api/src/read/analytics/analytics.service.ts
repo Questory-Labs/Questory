@@ -9,6 +9,12 @@ import {
 } from "../../lib/timezone";
 import { UsersService } from "../../watch/users/users.service";
 import { TITLE_DETAIL_EVENTS_LIMIT } from "./analytics.constants";
+import {
+  commonExtras,
+  priorPeriodBounds,
+  zonedPeriodBounds,
+} from "../../lib/rewind-stats";
+import { enrichReadRewind } from "./rewind-enrich";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type FormatFilter =
@@ -630,24 +636,8 @@ export class ReadAnalyticsService {
 
   async rewindStats(userId: string, period: string, timeZone = "UTC") {
     const user = await this.resolveUser(userId);
-    let start: Date;
-    let end: Date;
-
-    if (period.length === 4) {
-      const year = parseInt(period, 10);
-      start = new Date(`${year}-01-01T00:00:00.000Z`);
-      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-    } else if (period.length === 7) {
-      const [yearStr, monthStr] = period.split("-");
-      const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10);
-      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextMonth = month === 12 ? 1 : month + 1;
-      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-    } else {
-      throw new Error("Invalid period format");
-    }
+    const { start, end } = zonedPeriodBounds(period, timeZone);
+    const priorBounds = priorPeriodBounds(period, timeZone);
 
     const events = await this.prisma.readEvent.findMany({
       where: {
@@ -658,6 +648,8 @@ export class ReadAnalyticsService {
         readTitleId: true,
         readAt: true,
         chaptersRead: true,
+        volumesRead: true,
+        status: true,
         readTitle: {
           select: {
             name: true,
@@ -710,6 +702,14 @@ export class ReadAnalyticsService {
       ? { index: peakDowIdx, label: DOW_LABELS[peakDowIdx], count: dowBuckets[peakDowIdx] }
       : null;
 
+    const extras = await this.readRewindExtras(
+      user.id,
+      period,
+      timeZone,
+      priorBounds,
+      events,
+    );
+
     return {
       domain: "read" as const,
       period,
@@ -729,6 +729,68 @@ export class ReadAnalyticsService {
         .sort((a, b) => b.count - a.count),
       peakHour,
       peakDow,
+      ...extras,
+    };
+  }
+
+  private async readRewindExtras(
+    userId: string,
+    period: string,
+    timeZone: string,
+    priorBounds: { start: Date; end: Date },
+    events: Array<{
+      readTitleId: string;
+      readAt: Date;
+      status: string | null;
+      volumesRead: number | null;
+      readTitle: { name: string };
+    }>,
+  ) {
+    const [priorTitles, earliest] = await Promise.all([
+      this.prisma.readEvent.groupBy({
+        by: ["readTitleId"],
+        where: {
+          userId,
+          readAt: { gte: priorBounds.start, lt: priorBounds.end },
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.readEvent.aggregate({
+        where: { userId },
+        _min: { readAt: true },
+      }),
+    ]);
+    const current = new Set(events.map((e) => e.readTitleId));
+    const dropCandidates = priorTitles
+      .filter((r) => !current.has(r.readTitleId))
+      .sort((a, b) => b._count._all - a._count._all)
+      .slice(0, 20);
+    const names = dropCandidates.length
+      ? await this.prisma.readTitle.findMany({
+          where: { id: { in: dropCandidates.map((r) => r.readTitleId) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameOf = new Map(names.map((t) => [t.id, t.name]));
+
+    return {
+      ...commonExtras({
+        period,
+        timeZone,
+        events: events.map((e) => ({
+          at: e.readAt,
+          itemId: e.readTitleId,
+          name: e.readTitle.name,
+        })),
+        prior: priorTitles.map((r) => ({
+          id: r.readTitleId,
+          name: nameOf.get(r.readTitleId) ?? "",
+          count: r._count._all,
+        })),
+        priorStart: priorBounds.start,
+        earliestEventAt: earliest._min.readAt,
+      }),
+      ...enrichReadRewind(events),
     };
   }
 }

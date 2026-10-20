@@ -5,7 +5,20 @@ import {
   getRewindAiPeriodError,
   isRewindAiGenerationAllowed,
   latestCompletedRewindMonth,
+  previousRewindPeriod,
 } from "./rewind";
+
+describe("previousRewindPeriod", () => {
+  it("steps back one year or one month", () => {
+    expect(previousRewindPeriod("2025")).toBe("2024");
+    expect(previousRewindPeriod("2025-03")).toBe("2025-02");
+    expect(previousRewindPeriod("2025-01")).toBe("2024-12");
+  });
+
+  it("rejects malformed periods", () => {
+    expect(() => previousRewindPeriod("25")).toThrow();
+  });
+});
 
 const aug2026 = new Date(2026, 7, 2);
 

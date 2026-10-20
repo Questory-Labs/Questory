@@ -35,8 +35,10 @@ export type RecommendationsViewProps = {
   curate: (mood: string | undefined, options: CurateOptions) => void;
   useCached: (mood: string | undefined) => void;
   recurate: () => void;
-  onFeedback: (item: RecommendationItem, action: FeedbackAction) => void;
+  onFeedback: (item: FeedbackTarget, action: FeedbackAction) => void;
 };
+
+export type FeedbackTarget = Pick<RecommendationItem, "itemKey">;
 
 export type RecommendationCardProps = {
   item: RecommendationItem;

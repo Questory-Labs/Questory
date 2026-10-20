@@ -96,6 +96,20 @@ describe("CollectionsView", () => {
     expect(screen.getByText("No collections yet.")).toBeInTheDocument();
   });
 
+  it("offers taste grouping only when QEngine is available", () => {
+    const groupByTaste = {
+      ...idleCreate,
+      succeeded: true,
+      value: { available: true, collections: 2 },
+    } as unknown as CollectionsViewProps["groupByTaste"];
+    renderView({ tasteAvailable: false, groupByTaste });
+    expect(screen.queryByRole("button", { name: "Group by taste" })).toBeNull();
+    cleanup();
+    renderView({ tasteAvailable: true, groupByTaste });
+    expect(screen.getByRole("button", { name: "Group by taste" })).toBeInTheDocument();
+    expect(screen.getByText("2 taste shelves updated.")).toBeInTheDocument();
+  });
+
   it("shows a mutation error when create failed", () => {
     renderView({
       create: { ...idleCreate, failed: true },

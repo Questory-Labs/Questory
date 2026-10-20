@@ -8,10 +8,11 @@ import {
 } from "@questorylabs/ui";
 import { SearchResults, isSearchEmpty } from "@/components/search/SearchResults";
 import { SearchTips } from "./components/SearchTips";
+import { MeaningResults, SearchModeToggle } from "./components/MeaningResults";
 import type { SearchViewProps } from "./steam.search.types";
 
 export const SearchView = (props: Record<string, unknown>) => {
-  const { q, chips, result, showMusic, showWatch, showRead } =
+  const { q, chips, result, showMusic, showWatch, showRead, mode, meaningAvailable, meaning } =
     props as SearchViewProps;
 
   return (
@@ -23,7 +24,8 @@ export const SearchView = (props: Record<string, unknown>) => {
       />
 
       <div className="space-y-6">
-        {chips.length > 0 ? (
+        {meaningAvailable && q ? <SearchModeToggle q={q} mode={mode} /> : null}
+        {chips.length > 0 && mode === "exact" ? (
           <div className="flex flex-wrap gap-2">
             {chips.map((chip) => (
               <span
@@ -41,6 +43,8 @@ export const SearchView = (props: Record<string, unknown>) => {
             Use the header search or press Ctrl+K to find games, friends, music,
             movies, shows, and reads.
           </p>
+        ) : mode === "meaning" ? (
+          <MeaningResults meaning={meaning} />
         ) : (
           <ResourceStatus
             failed={result.failed}

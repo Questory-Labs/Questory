@@ -5,13 +5,19 @@ import { DossierCard } from "./DossierCard";
 
 vi.mock("@/lib/enterprise-api", () => ({
   fetchDossier: vi.fn(),
+  fetchRecommendationHistory: vi.fn(),
   refreshDossier: vi.fn(),
 }));
 
-import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
+import {
+  fetchDossier,
+  fetchRecommendationHistory,
+  refreshDossier,
+} from "@/lib/enterprise-api";
 
 const fetchMock = vi.mocked(fetchDossier);
 const refreshMock = vi.mocked(refreshDossier);
+const historyMock = vi.mocked(fetchRecommendationHistory);
 
 function dossierView(identity: string, extra?: { refreshing?: boolean; error?: string }) {
   return {
@@ -55,7 +61,9 @@ describe("DossierCard", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     refreshMock.mockReset();
+    historyMock.mockReset();
     fetchMock.mockResolvedValue(dossierView("A roguelike devotee."));
+    historyMock.mockResolvedValue({ slates: [], liked: [], passed: [] });
   });
   afterEach(cleanup);
 
@@ -73,6 +81,21 @@ describe("DossierCard", () => {
     });
     fireEvent.click(toggle);
     expect(screen.getByText("A roguelike devotee.")).toBeInTheDocument();
+  });
+
+  it("lists recently liked and passed works when expanded", async () => {
+    historyMock.mockResolvedValue({
+      slates: [],
+      liked: ["Hades", "Celeste"],
+      passed: ["Fortnite"],
+    });
+    renderCard();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /your taste fingerprint/i }),
+    );
+    expect(await screen.findByText("Hades · Celeste")).toBeInTheDocument();
+    expect(screen.getByText("You passed on")).toBeInTheDocument();
+    expect(screen.getByText("Fortnite")).toBeInTheDocument();
   });
 
   it("opens a confirmation dialog and does not refresh until confirmed", async () => {

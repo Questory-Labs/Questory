@@ -443,13 +443,13 @@ export class SteamApiService {
   async getPlayerAchievements(
     steamId: string,
     appId: number,
-  ): Promise<{ unlocked: number; total: number; pct: number } | null> {
+  ): Promise<{ unlocked: number; total: number; pct: number; unlockTimes: number[] } | null> {
     if (!this.apiKey) return null;
     try {
       const data = await this.fetchJson<{
         playerstats?: {
           success?: boolean;
-          achievements?: { achieved: number }[];
+          achievements?: { achieved: number; unlocktime?: number }[];
         };
       }>(
         `${this.base}/ISteamUserStats/GetPlayerAchievements/v1/?key=${this.apiKey}&steamid=${steamId}&appid=${appId}`,
@@ -461,7 +461,10 @@ export class SteamApiService {
       const unlocked = list.filter((a) => a.achieved === 1).length;
       const total = list.length;
       const pct = total > 0 ? Math.round((unlocked / total) * 1000) / 10 : 0;
-      return { unlocked, total, pct };
+      const unlockTimes = list
+        .filter((a) => a.achieved === 1 && typeof a.unlocktime === "number" && a.unlocktime > 0)
+        .map((a) => a.unlocktime as number);
+      return { unlocked, total, pct, unlockTimes };
     } catch {
       return null;
     }

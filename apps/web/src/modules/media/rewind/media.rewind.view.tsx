@@ -5,10 +5,15 @@ import { Button, StateMessage } from "@/components/ui";
 import { RewindCarousel } from "./components/RewindCarousel";
 import { RewindInsightCard } from "./components/RewindInsightCard";
 import { CURRENT_YEAR, MONTHS, REWIND_START_YEAR } from "./media.rewind.constants";
+import { RewindExtras, RewindNamedList } from "./components/RewindExtras";
 import { RewindStatCard } from "./components/RewindStatCard";
 import { RewindTopList } from "./components/RewindTopList";
+import { RewindAllTiles } from "./components/RewindAllTiles";
 import type { RewindViewProps } from "./media.rewind.types";
 import { formatAiCards } from "./media.rewind.utils";
+
+const formatHours = (minutes: number): string =>
+  minutes >= 60 ? Math.round(minutes / 60).toLocaleString() : (minutes / 60).toFixed(1);
 
 export const RewindView = (props: Record<string, unknown>) => {
   const {
@@ -34,7 +39,18 @@ export const RewindView = (props: Record<string, unknown>) => {
     (_, i) => REWIND_START_YEAR + i,
   ).reverse();
   const stats = statsQuery.value;
-  const domainTitle = `${domain.charAt(0).toUpperCase()}${domain.slice(1)}`;
+  const domainTitle =
+    domain === "all" ? "Your" : `${domain.charAt(0).toUpperCase()}${domain.slice(1)}`;
+  const extrasUnit =
+    stats?.domain === "music"
+      ? "plays"
+      : stats?.domain === "watch"
+        ? "watches"
+        : stats?.domain === "games"
+          ? "hours"
+          : "sessions";
+  const extrasFormat =
+    stats?.domain === "games" ? (n: number) => formatHours(n) : undefined;
 
   return (
     <>
@@ -173,7 +189,106 @@ export const RewindView = (props: Record<string, unknown>) => {
                     <RewindStatCard title="Peak Reading" value={stats.peakHour?.label || "-"} subtitle={stats.peakDow?.label} />
                   </>
                 )}
+                {stats.domain === "games" && (
+                  <>
+                    <RewindStatCard title="Hours Played" value={formatHours(stats.totalMinutes)} />
+                    <RewindStatCard title="Games Played" value={stats.uniqueGames.toLocaleString()} subtitle={stats.newGames ? `${stats.newGames} new` : undefined} />
+                    {stats.sessionsAvailable ? (
+                      <>
+                        <RewindStatCard title="Sessions" value={stats.sessions.toLocaleString()} subtitle={stats.longestSession ? `Longest ${formatHours(stats.longestSession.minutes)}h · ${stats.longestSession.name}` : undefined} />
+                        <RewindStatCard title="Peak Playing" value={stats.peakHour?.label || "-"} subtitle={stats.lateNightShare != null ? `${stats.lateNightShare}% late night` : stats.peakDow?.label} />
+                      </>
+                    ) : (
+                      <RewindStatCard title="Sessions" value="-" subtitle="Install qMonitor to unlock session stats" />
+                    )}
+                  </>
+                )}
               </div>
+
+              {stats.domain === "all" ? (
+                <RewindAllTiles stats={stats} />
+              ) : (
+                <RewindExtras stats={stats} period={period} unitLabel={extrasUnit} formatCount={extrasFormat} />
+              )}
+
+              {stats.domain === "games" ? (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <RewindTopList title="Top Games" items={stats.topGames.map((g) => ({ ...g, count: Number(formatHours(g.count).replace(/,/g, "")) }))} unitLabel="hrs" />
+                  <div className="space-y-4">
+                    {stats.topGenres.length ? (
+                      <Panel className="p-5">
+                        <h3 className="text-[var(--muted)] text-sm font-medium uppercase tracking-wider mb-4">Top Genres</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {stats.topGenres.map((g) => (
+                            <div key={g.id} className="px-3 py-1.5 rounded-full bg-[var(--bg-2)] text-[var(--ink)] text-sm">
+                              {g.name} <span className="text-[var(--faint)] ml-1">{formatHours(g.count)}h</span>
+                            </div>
+                          ))}
+                        </div>
+                      </Panel>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-4">
+                      {stats.achievementsInPeriod != null ? (
+                        <RewindStatCard title="Achievements" value={stats.achievementsInPeriod.toLocaleString()} />
+                      ) : null}
+                      {stats.backlog != null ? (
+                        <RewindStatCard title="Backlog" value={stats.backlog.toLocaleString()} subtitle="Unplayed today" />
+                      ) : null}
+                    </div>
+                    <RewindNamedList
+                      title="Tried & Set Aside"
+                      items={stats.abandoned}
+                      detail={(item) => `${item.count} min`}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {stats.domain === "watch" &&
+              (stats.topRated?.length || stats.unfinished?.length || stats.bingeRuns?.length) ? (
+                <div className="grid md:grid-cols-3 gap-4">
+                  <RewindNamedList
+                    title={
+                      stats.avgRating != null
+                        ? `Top Rated · avg ${stats.avgRating}`
+                        : "Top Rated"
+                    }
+                    items={stats.topRated}
+                    detail={(item) => `${item.count}/10`}
+                  />
+                  <RewindNamedList
+                    title="Unfinished"
+                    items={stats.unfinished}
+                    detail={(item) => `${item.count}%`}
+                  />
+                  <RewindNamedList
+                    title="Binge Days"
+                    items={stats.bingeRuns}
+                    detail={(item) => `${item.count} eps`}
+                  />
+                </div>
+              ) : null}
+
+              {stats.domain === "read" && stats.statusBreakdown ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <RewindStatCard title="Completed" value={stats.statusBreakdown.completed} />
+                  <RewindStatCard title="Dropped" value={stats.statusBreakdown.dropped} />
+                  <RewindStatCard title="Re-reading" value={stats.statusBreakdown.repeating} />
+                  {stats.volumesRead ? (
+                    <RewindStatCard title="Volumes" value={stats.volumesRead.toLocaleString()} />
+                  ) : null}
+                </div>
+              ) : null}
+
+              {stats.domain === "music" && stats.maxRepeatsInDay ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <RewindStatCard
+                    title="On Repeat"
+                    value={`${stats.maxRepeatsInDay.count}×`}
+                    subtitle={`${stats.maxRepeatsInDay.name} in one day`}
+                  />
+                </div>
+              ) : null}
 
               <div className="grid md:grid-cols-2 gap-4">
                 {stats.domain === "music" && (

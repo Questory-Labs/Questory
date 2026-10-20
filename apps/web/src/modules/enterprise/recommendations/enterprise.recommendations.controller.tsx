@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type PropsWithChildren } from "react";
+import { useCallback, useEffect, useState, type PropsWithChildren } from "react";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import {
@@ -14,11 +14,15 @@ import {
 import type {
   CurationJob,
   FeedbackAction,
-  RecommendationItem,
   RecommendationResponse,
 } from "@/lib/enterprise-types";
 import { JOB_POLL_MS } from "@/lib/polling";
-import type { CurateOptions, RecsTab } from "./enterprise.recommendations.types";
+import type {
+  CurateOptions,
+  FeedbackTarget,
+  RecsTab,
+} from "./enterprise.recommendations.types";
+import { HISTORY_RESOURCE_ID } from "./components/PreviousSlates";
 
 export const RecommendationsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
@@ -78,6 +82,10 @@ export const RecommendationsController = ({ children }: PropsWithChildren) => {
     setJobId(null);
   }
 
+  useEffect(() => {
+    if (curated) void store.touch([...HISTORY_RESOURCE_ID]);
+  }, [curated, store]);
+
   const curate = useCallback((mood: string | undefined, options: CurateOptions) => {
     setLastMood(mood);
     setCurated(null);
@@ -113,7 +121,7 @@ export const RecommendationsController = ({ children }: PropsWithChildren) => {
   }, [curate, lastMood]);
 
   const onFeedback = useCallback(
-    (item: RecommendationItem, action: FeedbackAction) => {
+    (item: FeedbackTarget, action: FeedbackAction) => {
       const key = item.itemKey;
       if (!key) return;
       // Optimistic: reflect the vote/dismissal immediately, then fire.

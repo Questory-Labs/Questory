@@ -119,6 +119,7 @@ export const TelemetryController = ({ children }: PropsWithChildren) => {
   const avgCost = usageNumber(u, ["avg_cost_per_request"]);
   const costPer1m = usageNumber(u, ["cost_per_1m_tokens"]);
   const pricingConfigured = u.pricing_configured === true;
+  const costSource = u.cost_source;
 
   const series = useMemo(
     () =>
@@ -226,6 +227,7 @@ export const TelemetryController = ({ children }: PropsWithChildren) => {
     avgCost,
     costPer1m,
     pricingConfigured,
+    costSource,
     collectorOk,
     collectorError,
     totalTraces,

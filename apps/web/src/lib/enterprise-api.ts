@@ -4,6 +4,7 @@ import type {
   DossierView,
   FeedbackAction,
   RecommendationDomain,
+  RecommendationHistory,
   RecommendationResponse,
   RecommendationGoalsRequest,
   RecommendationGoalsResponse,
@@ -136,6 +137,37 @@ export async function sendFeedback(
   });
 }
 
+export async function fetchRecommendationHistory(
+  limit = 3,
+): Promise<RecommendationHistory> {
+  return enterpriseRequest<RecommendationHistory>(
+    `/recommendations/history?limit=${limit}`,
+  );
+}
+
+export type SemanticSearchItem = {
+  key: string;
+  id: string;
+  domain: "games" | "music" | "watch" | "read";
+  kind: string;
+  name: string;
+  imageUrl?: string | null;
+  year?: number | null;
+  score: number;
+};
+
+export type SemanticSearchResult = {
+  items: SemanticSearchItem[];
+  available: boolean;
+};
+
+export async function semanticSearch(q: string, limit = 20): Promise<SemanticSearchResult> {
+  return enterpriseRequest<SemanticSearchResult>("/recommendations/search", {
+    method: "POST",
+    body: JSON.stringify({ q: q.trim().slice(0, 200), limit }),
+  });
+}
+
 export async function fetchDossier(): Promise<DossierView> {
   return enterpriseRequest<DossierView>("/enterprise/dossier");
 }
@@ -223,6 +255,8 @@ export type OtelModelUsage = {
   priced?: boolean;
 };
 
+export type OtelCostSource = "reported" | "rates" | "mixed";
+
 /** Loose usage payload — fields evolve; UI reads known keys. */
 export type OtelUsage = {
   request_count?: number;
@@ -235,6 +269,7 @@ export type OtelUsage = {
   avg_cost_per_request?: number;
   cost_per_1m_tokens?: number;
   pricing_configured?: boolean;
+  cost_source?: OtelCostSource;
   by_model?: OtelModelUsage[];
   models?: OtelModelUsage[];
   timeseries?: OtelUsageBucket[];

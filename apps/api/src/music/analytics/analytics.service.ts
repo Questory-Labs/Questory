@@ -12,6 +12,17 @@ import { UsersService } from "../users/users.service";
 import { CorrectionsService } from "../corrections/corrections.service";
 import { overlayArtistCredit } from "../corrections/artist-credit";
 import {
+  commonExtras,
+  priorPeriodBounds,
+  zonedPeriodBounds,
+  type PriorItemCount,
+} from "../../lib/rewind-stats";
+import {
+  aggregateMoodsFromListens,
+  featuredArtists,
+  maxRepeatsInDay,
+} from "./rewind-enrich";
+import {
   resolveMusicService,
   resolveMusicServiceLabel,
 } from "../lib/music-service";
@@ -1080,22 +1091,7 @@ export class AnalyticsService {
     }>,
     limit?: number,
   ) {
-    const moodCounts = new Map<string, { id: string; name: string; count: number }>();
-    for (const l of listenRows) {
-      for (const tg of l.track.genres) {
-        if (tg.genre.kind !== "mood") continue;
-        const cur = moodCounts.get(tg.genre.id) || {
-          id: tg.genre.id,
-          name: tg.genre.name,
-          count: 0,
-        };
-        cur.count += 1;
-        moodCounts.set(tg.genre.id, cur);
-      }
-    }
-    return [...moodCounts.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit ?? undefined);
+    return aggregateMoodsFromListens(listenRows, limit);
   }
 
   async artistDetail(
@@ -1533,24 +1529,8 @@ export class AnalyticsService {
 
   async rewindStats(userId: string, period: string, timeZone = "UTC") {
     const user = await this.resolveUser(userId);
-    let start: Date;
-    let end: Date;
-
-    if (period.length === 4) {
-      const year = parseInt(period, 10);
-      start = new Date(`${year}-01-01T00:00:00.000Z`);
-      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-    } else if (period.length === 7) {
-      const [yearStr, monthStr] = period.split("-");
-      const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10);
-      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextMonth = month === 12 ? 1 : month + 1;
-      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-    } else {
-      throw new Error("Invalid period format");
-    }
+    const { start, end } = zonedPeriodBounds(period, timeZone);
+    const priorBounds = priorPeriodBounds(period, timeZone);
 
     const listens = await this.prisma.listen.findMany({
       where: {
@@ -1634,17 +1614,41 @@ export class AnalyticsService {
       });
       newTracks = earliestTracks.filter((r) => r._min.listenedAt && r._min.listenedAt >= start).length;
 
-      const artistFirsts = await Promise.all(
-        uniqueArtistIds.map((artistId) =>
-          this.prisma.listen.findFirst({
-            where: { userId: user.id, track: { artistId } },
-            orderBy: { listenedAt: "asc" },
-            select: { listenedAt: true },
-          }),
-        ),
-      );
-      newArtists = artistFirsts.filter((r) => r?.listenedAt != null && r.listenedAt >= start).length;
+      // Earliest listen per artist across all of their tracks, in two set
+      // queries instead of one findFirst per artist (a yearly rewind can
+      // touch hundreds of artists).
+      const artistTrackFirsts = await this.prisma.listen.groupBy({
+        by: ["trackId"],
+        where: { userId: user.id, track: { artistId: { in: uniqueArtistIds } } },
+        _min: { listenedAt: true },
+      });
+      const trackArtists = await this.prisma.track.findMany({
+        where: { id: { in: artistTrackFirsts.map((r) => r.trackId) } },
+        select: { id: true, artistId: true },
+      });
+      const artistOfTrack = new Map(trackArtists.map((t) => [t.id, t.artistId]));
+      const artistFirstListen = new Map<string, Date>();
+      for (const row of artistTrackFirsts) {
+        const artistId = artistOfTrack.get(row.trackId);
+        const first = row._min.listenedAt;
+        if (!artistId || !first) continue;
+        const current = artistFirstListen.get(artistId);
+        if (!current || first < current) artistFirstListen.set(artistId, first);
+      }
+      newArtists = uniqueArtistIds.filter((artistId) => {
+        const first = artistFirstListen.get(artistId);
+        return first != null && first >= start;
+      }).length;
     }
+
+    const extras = await this.musicRewindExtras(
+      user.id,
+      period,
+      timeZone,
+      priorBounds,
+      listens,
+      artistCredits,
+    );
 
     return {
       domain: "music" as const,
@@ -1675,6 +1679,88 @@ export class AnalyticsService {
         .slice(0, 5),
       peakHour,
       peakDow,
+      ...extras,
+    };
+  }
+
+  private async musicRewindExtras(
+    userId: string,
+    period: string,
+    timeZone: string,
+    priorBounds: { start: Date; end: Date },
+    listens: Array<{
+      trackId: string;
+      listenedAt: Date;
+      track: {
+        artistId: string;
+        title: string;
+        artist: { name: string };
+        genres: Array<{ genre: { id: string; name: string; kind: string } }>;
+      };
+    }>,
+    artistCredits: Map<string, string>,
+  ) {
+    const [priorTracks, earliest] = await Promise.all([
+      this.prisma.listen.groupBy({
+        by: ["trackId"],
+        where: {
+          userId,
+          listenedAt: { gte: priorBounds.start, lt: priorBounds.end },
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.listen.aggregate({
+        where: { userId },
+        _min: { listenedAt: true },
+      }),
+    ]);
+    const priorTrackArtists = priorTracks.length
+      ? await this.prisma.track.findMany({
+          where: { id: { in: priorTracks.map((r) => r.trackId) } },
+          select: { id: true, artistId: true, artist: { select: { name: true } } },
+        })
+      : [];
+    const artistOfTrack = new Map(priorTrackArtists.map((t) => [t.id, t]));
+    const priorArtists = new Map<string, PriorItemCount>();
+    for (const row of priorTracks) {
+      const track = artistOfTrack.get(row.trackId);
+      if (!track) continue;
+      const cur = priorArtists.get(track.artistId) ?? {
+        id: track.artistId,
+        name: track.artist.name,
+        count: 0,
+      };
+      cur.count += row._count._all;
+      priorArtists.set(track.artistId, cur);
+    }
+
+    return {
+      ...commonExtras({
+        period,
+        timeZone,
+        events: listens.map((l) => ({
+          at: l.listenedAt,
+          itemId: l.track.artistId,
+          name: l.track.artist.name,
+        })),
+        prior: [...priorArtists.values()],
+        priorStart: priorBounds.start,
+        earliestEventAt: earliest._min.listenedAt,
+      }),
+      topMoods: aggregateMoodsFromListens(listens, 5),
+      featuredArtists: featuredArtists(
+        listens.map((l) => ({ trackId: l.trackId, artistName: l.track.artist.name })),
+        artistCredits,
+      ),
+      maxRepeatsInDay: maxRepeatsInDay(
+        listens.map((l) => ({
+          trackId: l.trackId,
+          listenedAt: l.listenedAt,
+          title: l.track.title,
+          artistName: l.track.artist.name,
+        })),
+        timeZone,
+      ),
     };
   }
 }

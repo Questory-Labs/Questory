@@ -15,7 +15,8 @@ export const RecommendationCard = ({
     item.kind === "movie" || item.kind === "show" || item.kind === "manga";
   const extra = item.kind === "external" || item.kind === "lifestyle";
   const canVote = Boolean(item.itemKey) && !extra;
-  const badge = KIND_LABELS[item.kind];
+  const badge =
+    item.cardType === "social" ? "Play together" : KIND_LABELS[item.kind];
   return (
     <article className={styles.cardWrap} data-dismissed={dismissed}>
       <HatchShadow size="sm" faceClassName={`panel ${styles.card}`}>
@@ -57,6 +58,7 @@ export const RecommendationCard = ({
               {Math.round(item.score * 100)}
             </span>
           </div>
+          {item.why ? <p className={styles.why}>{item.why}</p> : null}
           {item.blurb ? (
             <p className={styles.blurb}>{item.blurb}</p>
           ) : (

@@ -7,4 +7,6 @@ export type CollectionsViewProps = {
   create: UseActionResult<unknown, void>;
   name: string;
   setName: Dispatch<SetStateAction<string>>;
+  tasteAvailable?: boolean;
+  groupByTaste?: UseActionResult<{ available: boolean; collections: number }, void>;
 };

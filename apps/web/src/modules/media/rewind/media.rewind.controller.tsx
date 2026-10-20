@@ -6,6 +6,8 @@ import { cloneElements } from "@questorylabs/ui";
 import { musicFetch } from "@/lib/music";
 import { watchFetch } from "@/lib/watch";
 import { readFetch } from "@/lib/read";
+import { gamesFetch } from "@/lib/games";
+import { api } from "@/lib/api";
 import type {
   RewindInsightResponse,
   RewindStatsResponse,
@@ -19,12 +21,26 @@ import {
 } from "@questorylabs/shared";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { CURRENT_YEAR } from "./media.rewind.constants";
-import type { RewindDomain, RewindMonth } from "./media.rewind.types";
+import type { RewindMonth, RewindScope } from "./media.rewind.types";
+
+const allFetch = <T,>(path: string, init?: RequestInit): Promise<T> =>
+  api<T>(path.replace(/^\/analytics\/rewind/, "/rewind"), init);
+
+const REWIND_FETCHERS: Record<
+  RewindScope,
+  <T>(path: string, init?: RequestInit) => Promise<T>
+> = {
+  music: musicFetch,
+  watch: watchFetch,
+  read: readFetch,
+  games: gamesFetch,
+  all: allFetch,
+};
 
 export const RewindController = ({
   children,
   domain,
-}: PropsWithChildren<{ domain: RewindDomain }>) => {
+}: PropsWithChildren<{ domain: RewindScope }>) => {
   const [year, setYear] = useState(CURRENT_YEAR);
   const [month, setMonth] = useState<RewindMonth>(() =>
     defaultRewindMonthForYear(CURRENT_YEAR),
@@ -32,12 +48,7 @@ export const RewindController = ({
   const [forceRedo, setForceRedo] = useState(false);
   const { when: enterpriseEnabled } = useEnterpriseEnabled();
 
-  const fetcher =
-    domain === "music"
-      ? musicFetch
-      : domain === "watch"
-        ? watchFetch
-        : readFetch;
+  const fetcher = REWIND_FETCHERS[domain];
 
   const period =
     month === "all" ? `${year}` : `${year}-${month.toString().padStart(2, "0")}`;
@@ -50,7 +61,7 @@ export const RewindController = ({
     id: ["rewind-stats", domain, period, tz],
     load: () =>
       fetcher<RewindStatsResponse>(
-        `/analytics/rewind/stats?period=${period}&tz=${tz}`,
+        `/analytics/rewind/stats?period=${period}&tz=${encodeURIComponent(tz)}`,
       ),
   });
 

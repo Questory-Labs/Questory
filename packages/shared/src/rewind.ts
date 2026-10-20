@@ -39,7 +39,38 @@ export interface RewindPeakBucket {
   count: number;
 }
 
-export interface RewindMusicStats {
+export interface RewindMonthBucket {
+  /** `YYYY-MM` for yearly periods, `YYYY-MM-DD` for monthly ones. */
+  month: string;
+  count: number;
+  topItem?: string | null;
+}
+
+export interface RewindBusiestDay {
+  date: string;
+  count: number;
+}
+
+export interface RewindPriorComparison {
+  total: number;
+  deltaPct: number | null;
+  newItems: number;
+  returningItems: number;
+  /** False when history starts after the prior period began (comparison is biased). */
+  coverage: boolean;
+}
+
+export interface RewindCommonExtras {
+  activeDays?: number;
+  longestStreakDays?: number;
+  longestGapDays?: number;
+  busiestDay?: RewindBusiestDay | null;
+  monthly?: RewindMonthBucket[];
+  prior?: RewindPriorComparison;
+  droppedOff?: RewindTopItem[];
+}
+
+export interface RewindMusicStats extends RewindCommonExtras {
   domain: "music";
   period: string;
   totalPlays: number;
@@ -53,9 +84,12 @@ export interface RewindMusicStats {
   topGenres: RewindTopGenre[];
   peakHour: RewindPeakBucket | null;
   peakDow: RewindPeakBucket | null;
+  topMoods?: RewindTopGenre[];
+  featuredArtists?: RewindTopItem[];
+  maxRepeatsInDay?: { name: string; subtitle?: string | null; count: number; date: string } | null;
 }
 
-export interface RewindWatchStats {
+export interface RewindWatchStats extends RewindCommonExtras {
   domain: "watch";
   period: string;
   totalWatches: number;
@@ -69,9 +103,14 @@ export interface RewindWatchStats {
   topGenres: RewindTopGenre[];
   peakHour: RewindPeakBucket | null;
   peakDow: RewindPeakBucket | null;
+  avgRating?: number | null;
+  ratedCount?: number;
+  topRated?: RewindTopItem[];
+  unfinished?: RewindTopItem[];
+  bingeRuns?: RewindTopItem[];
 }
 
-export interface RewindReadStats {
+export interface RewindReadStats extends RewindCommonExtras {
   domain: "read";
   period: string;
   totalEvents: number;
@@ -82,12 +121,46 @@ export interface RewindReadStats {
   formatBreakdown: { name: string; count: number }[];
   peakHour: RewindPeakBucket | null;
   peakDow: RewindPeakBucket | null;
+  statusBreakdown?: { completed: number; dropped: number; repeating: number };
+  volumesRead?: number;
+}
+
+export interface RewindGamesStats extends RewindCommonExtras {
+  domain: "games";
+  period: string;
+  totalMinutes: number;
+  sessions: number;
+  sessionsAvailable: boolean;
+  uniqueGames: number;
+  newGames: number;
+  topGames: RewindTopItem[];
+  topGenres: RewindTopGenre[];
+  longestSession: { name: string; minutes: number; date: string } | null;
+  lateNightShare: number | null;
+  peakHour: RewindPeakBucket | null;
+  peakDow: RewindPeakBucket | null;
+  backlog: number | null;
+  abandoned?: RewindTopItem[];
+  achievementsInPeriod: number | null;
+}
+
+export interface RewindAllStats {
+  domain: "all";
+  period: string;
+  domains: {
+    music?: RewindMusicStats;
+    watch?: RewindWatchStats;
+    read?: RewindReadStats;
+    games?: RewindGamesStats;
+  };
 }
 
 export type RewindStatsResponse =
   | RewindMusicStats
   | RewindWatchStats
-  | RewindReadStats;
+  | RewindReadStats
+  | RewindGamesStats
+  | RewindAllStats;
 
 /* ── Rewind period rules ── */
 
@@ -95,6 +168,17 @@ const REWIND_PERIOD_RE = /^(\d{4})(?:-(\d{2}))?$/;
 
 export function isRewindYearlyPeriod(period: string): boolean {
   return /^\d{4}$/.test(period);
+}
+
+/** The period of the same length immediately before `period`. */
+export function previousRewindPeriod(period: string): string {
+  const match = REWIND_PERIOD_RE.exec(period);
+  if (!match) throw new Error("period must be YYYY or YYYY-MM");
+  const year = Number.parseInt(match[1]!, 10);
+  if (match[2] == null) return String(year - 1);
+  const month = Number.parseInt(match[2], 10);
+  if (month === 1) return `${year - 1}-12`;
+  return `${year}-${String(month - 1).padStart(2, "0")}`;
 }
 
 /** Months with complete data for rewind (excludes the in-progress current month). */

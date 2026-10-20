@@ -59,8 +59,8 @@ export const RecsSnippet = ({
                     {item.domain}
                   </p>
                   <p className="mt-0.5 truncate text-sm font-medium">{item.name}</p>
-                  {item.reasons[0] ? (
-                    <p className="mt-1 text-xs text-[var(--muted)]">{item.reasons[0]}</p>
+                  {(item.why ?? item.reasons[0]) ? (
+                    <p className="mt-1 text-xs text-[var(--muted)]">{item.why ?? item.reasons[0]}</p>
                   ) : null}
                 </Panel>
               </li>

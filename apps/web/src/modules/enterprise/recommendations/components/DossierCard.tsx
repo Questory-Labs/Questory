@@ -3,9 +3,14 @@
 import { useState } from "react";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { Button, Dialog } from "@questorylabs/ui";
-import { fetchDossier, refreshDossier } from "@/lib/enterprise-api";
+import {
+  fetchDossier,
+  fetchRecommendationHistory,
+  refreshDossier,
+} from "@/lib/enterprise-api";
 import { JOB_POLL_MS } from "@/lib/polling";
 import styles from "../recommendations.module.css";
+import { HISTORY_RESOURCE_ID } from "./PreviousSlates";
 
 /** Collapsible "Your taste fingerprint" card from the dossier endpoint. */
 export const DossierCard = () => {
@@ -17,6 +22,13 @@ export const DossierCard = () => {
     load: fetchDossier,
     freshFor: 5 * 60_000,
     refreshEvery: (value) => (value?.refreshing ? JOB_POLL_MS : false),
+    retries: 1,
+  });
+  const history = useResource({
+    id: [...HISTORY_RESOURCE_ID],
+    load: () => fetchRecommendationHistory(4),
+    when: open,
+    freshFor: 60_000,
     retries: 1,
   });
   const refresh = useAction({
@@ -133,6 +145,21 @@ export const DossierCard = () => {
               ))}
             </div>
           )}
+          {(
+            [
+              ["You liked", history.value?.liked ?? []],
+              ["You passed on", history.value?.passed ?? []],
+            ] as const
+          )
+            .filter(([, names]) => names.length > 0)
+            .map(([label, names]) => (
+              <div key={label} className={styles.dossierFeedback}>
+                <p className={styles.dossierFeedbackLabel}>{label}</p>
+                <p className={styles.dossierFeedbackNames}>
+                  {names.slice(0, 12).join(" · ")}
+                </p>
+              </div>
+            ))}
         </div>
       )}
     </section>

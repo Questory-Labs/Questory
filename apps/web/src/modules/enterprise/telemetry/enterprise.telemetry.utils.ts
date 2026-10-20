@@ -1,4 +1,8 @@
-import type { OtelSpan, OtelUsage } from "@/lib/enterprise-api";
+import type {
+  OtelCostSource,
+  OtelSpan,
+  OtelUsage,
+} from "@/lib/enterprise-api";
 import type { SpanNode } from "./enterprise.telemetry.types";
 
 export const formatDurationNs = (ns?: number): string => {
@@ -25,6 +29,16 @@ export const formatUsd = (amount: number | undefined): string => {
     })}`;
   }
   return `$${amount.toFixed(4)}`;
+};
+
+export const costSourceHint = (
+  pricingConfigured: boolean,
+  source: OtelCostSource | undefined,
+): string | undefined => {
+  if (!pricingConfigured) return "Set model rates below to estimate spend";
+  if (source === "reported") return "Reported by the provider";
+  if (source === "mixed") return "Provider-reported, rest from your rates";
+  return undefined;
 };
 
 export const formatBucketLabel = (iso: string, granularity?: string): string => {

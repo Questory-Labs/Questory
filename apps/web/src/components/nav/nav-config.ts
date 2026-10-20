@@ -28,6 +28,7 @@ const STEAM_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
       { href: "/trending", label: "Trending", icon: "trending" },
+      { href: "/rewind", label: "Rewind", icon: "rewind" },
     ],
   },
   {
@@ -37,6 +38,7 @@ const STEAM_GROUPS: NavGroup[] = [
       { href: "/wishlist", label: "Wishlist", icon: "wishlist" },
       { href: "/collections", label: "Collections", icon: "collections" },
       { href: "/sessions", label: "Sessions", icon: "sessions" },
+      { href: "/library/rewind", label: "Rewind", icon: "rewind" },
       { href: "/cost", label: "Cost", icon: "cost" },
     ],
   },

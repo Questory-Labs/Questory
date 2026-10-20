@@ -4,7 +4,11 @@ import { StatCard } from "@/components/StatCard";
 import { Panel, ResourceStatus, SkeletonStatGrid } from "@questorylabs/ui";
 import { TIME_RANGES } from "./enterprise.telemetry.constants";
 import type { TelemetryViewProps } from "./enterprise.telemetry.types";
-import { formatCompact, formatUsd } from "./enterprise.telemetry.utils";
+import {
+  costSourceHint,
+  formatCompact,
+  formatUsd,
+} from "./enterprise.telemetry.utils";
 import { ModelUsage } from "./components/ModelUsage";
 import { PricingPanel } from "./components/PricingPanel";
 import { TitledPanel, TelemetryStat } from "./components/TelemetryChrome";
@@ -47,6 +51,7 @@ export const TelemetryView = (props: Record<string, unknown>) => {
     avgCost,
     costPer1m,
     pricingConfigured,
+    costSource,
     collectorOk,
     collectorError,
     totalTraces,
@@ -162,13 +167,9 @@ export const TelemetryView = (props: Record<string, unknown>) => {
 
           <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              label="Est. cost"
+              label={costSource === "reported" ? "Cost" : "Est. cost"}
               value={pricingConfigured ? formatUsd(costUsd) : "—"}
-              hint={
-                pricingConfigured
-                  ? undefined
-                  : "Set model rates below to estimate spend"
-              }
+              hint={costSourceHint(pricingConfigured, costSource)}
             />
             <StatCard
               label="Avg / request"

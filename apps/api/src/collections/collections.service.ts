@@ -3,6 +3,30 @@ import { PrismaService } from "../prisma/prisma.service";
 import { parseStringArray } from "../lib/json-arrays";
 import { COLLECTION_GAMES_PAGE_SIZE } from "./collections.constants";
 
+export const CLUSTER_RULE_PREFIX = "cluster:";
+const MAX_CLUSTERS = 12;
+const MAX_CLUSTER_GAMES = 200;
+const MAX_CLUSTER_NAME = 40;
+
+export type ClusterInput = { id: string; name: string; gameIds: string[] };
+
+export function parseClusters(raw: unknown): ClusterInput[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ClusterInput[] = [];
+  for (const entry of raw.slice(0, MAX_CLUSTERS)) {
+    const c = (entry ?? {}) as Record<string, unknown>;
+    const id = typeof c.id === "string" ? c.id.trim() : "";
+    const name = typeof c.name === "string" ? c.name.trim() : "";
+    if (!id || id.length > 64 || !name || name.length > MAX_CLUSTER_NAME) continue;
+    if (!Array.isArray(c.gameIds)) continue;
+    const gameIds = [
+      ...new Set(c.gameIds.filter((g): g is string => typeof g === "string" && g.length > 0)),
+    ].slice(0, MAX_CLUSTER_GAMES);
+    if (gameIds.length) out.push({ id, name, gameIds });
+  }
+  return out;
+}
+
 const AUTO_RULES: {
   key: string;
   name: string;
@@ -167,6 +191,78 @@ export class CollectionsService {
     }
   }
 
+  async applyClusterCollections(userId: string, raw: unknown): Promise<number> {
+    const clusters = parseClusters(raw);
+    const owned = new Set(
+      (
+        await this.prisma.libraryEntry.findMany({
+          where: { userId },
+          select: { gameId: true },
+        })
+      ).map((e) => e.gameId),
+    );
+    const existing = await this.prisma.collection.findMany({
+      where: { userId },
+      select: { id: true, name: true, ruleKey: true },
+    });
+    const byRule = new Map(existing.filter((c) => c.ruleKey).map((c) => [c.ruleKey!, c]));
+    const takenNames = new Map(existing.map((c) => [c.name.toLowerCase(), c.id]));
+    const kept = new Set<string>();
+    let written = 0;
+
+    for (const cluster of clusters) {
+      const ruleKey = `${CLUSTER_RULE_PREFIX}${cluster.id}`;
+      const gameIds = cluster.gameIds.filter((g) => owned.has(g));
+      if (gameIds.length < 3) continue;
+      if (AUTO_RULES.some((r) => r.name.toLowerCase() === cluster.name.toLowerCase())) continue;
+      const current = byRule.get(ruleKey);
+      const holder = takenNames.get(cluster.name.toLowerCase());
+      const nameFree = !holder || holder === current?.id;
+      let collectionId: string;
+      if (current) {
+        if (nameFree && current.name !== cluster.name) {
+          takenNames.delete(current.name.toLowerCase());
+          takenNames.set(cluster.name.toLowerCase(), current.id);
+        }
+        await this.prisma.collection.update({
+          where: { id: current.id },
+          data: {
+            ...(nameFree ? { name: cluster.name } : {}),
+            description: "Grouped by taste from games you own",
+          },
+        });
+        collectionId = current.id;
+      } else {
+        if (!nameFree) continue;
+        const created = await this.prisma.collection.create({
+          data: {
+            userId,
+            name: cluster.name,
+            type: "auto",
+            ruleKey,
+            description: "Grouped by taste from games you own",
+          },
+        });
+        takenNames.set(cluster.name.toLowerCase(), created.id);
+        collectionId = created.id;
+      }
+      kept.add(ruleKey);
+      await this.prisma.collectionItem.deleteMany({ where: { collectionId } });
+      await this.prisma.collectionItem.createMany({
+        data: gameIds.map((gameId) => ({ collectionId, gameId })),
+      });
+      written += 1;
+    }
+
+    const stale = existing
+      .filter((c) => c.ruleKey?.startsWith(CLUSTER_RULE_PREFIX) && !kept.has(c.ruleKey))
+      .map((c) => c.id);
+    if (stale.length) {
+      await this.prisma.collection.deleteMany({ where: { userId, id: { in: stale } } });
+    }
+    return written;
+  }
+
   async list(userId: string) {
     await this.ensureAutos(userId);
     const collections = await this.prisma.collection.findMany({
@@ -186,7 +282,7 @@ export class CollectionsService {
 
   private async ensureAutos(userId: string) {
     const count = await this.prisma.collection.count({
-      where: { userId, type: "auto" },
+      where: { userId, type: "auto", NOT: { ruleKey: { startsWith: CLUSTER_RULE_PREFIX } } },
     });
     if (count === 0) await this.rebuildAutoCollections(userId);
   }

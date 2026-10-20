@@ -1254,7 +1254,7 @@ model ReadListState {
 model AiInsightCache {
   id        String   @id @default(cuid())
   userId    String
-  /** music | watch | read */
+  /** music | watch | read | games | all */
   domain    String
   /** 2026 | 2026-08 */
   period    String
