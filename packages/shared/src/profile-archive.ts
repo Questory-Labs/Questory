@@ -212,7 +212,7 @@ export const QuestoryProfileArchiveSchema = z.object({
       countryCode: z.string().nullable().optional(),
       priceRegionLocked: z.boolean().optional(),
     })
-    .default({}),
+    .prefault({}),
   library: z.array(LibraryRowSchema).default([]),
   wishlistTargets: z.array(WishlistTargetSchema).default([]),
   purchases: z.array(PurchaseRowSchema).default([]),
@@ -226,19 +226,19 @@ export const QuestoryProfileArchiveSchema = z.object({
       labels: z.array(MusicLabelRowSchema).default([]),
       listens: z.array(MusicListenRowSchema).default([]),
     })
-    .default({}),
+    .prefault({}),
   watch: z
     .object({
       events: z.array(WatchEventRowSchema).default([]),
       listStates: z.array(WatchListStateRowSchema).default([]),
     })
-    .default({}),
+    .prefault({}),
   read: z
     .object({
       events: z.array(ReadEventRowSchema).default([]),
       listStates: z.array(ReadListStateRowSchema).default([]),
     })
-    .default({}),
+    .prefault({}),
 });
 
 export type QuestoryProfileArchive = z.infer<
