@@ -1,4 +1,4 @@
-FROM node:22-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -7,7 +7,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/ui/package.json packages/ui/
 RUN pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 WORKDIR /app
 RUN corepack enable
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
@@ -31,7 +31,7 @@ RUN pnpm --filter @questorylabs/shared build \
   && pnpm --filter @questorylabs/ui build \
   && pnpm --filter @questorylabs/web run build
 
-FROM node:22-alpine AS runner
+FROM node:22.23.4-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable

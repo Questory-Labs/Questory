@@ -1,6 +1,6 @@
 ARG DATABASE_PROVIDER=postgresql
 
-FROM node:22-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -9,7 +9,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
 RUN pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 ARG DATABASE_PROVIDER=postgresql
 WORKDIR /app
 RUN corepack enable
@@ -30,7 +30,7 @@ RUN mkdir -p apps/api/src/generated/prisma \
   && pnpm --filter @questorylabs/db exec prisma generate \
   && pnpm --filter @questorylabs/api run build
 
-FROM node:22-alpine AS runner
+FROM node:22.23.4-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable \
