@@ -63,12 +63,12 @@ export const ScraperDefinitionSchema = z.object({
   engine: ScraperEngineSchema,
   startUrl: z.string().min(1).max(2048),
   userAgent: z.string().max(512).optional(),
-  headers: z.record(z.string().max(512)).optional(),
-  limits: ScraperLimitsSchema.default({}),
+  headers: z.record(z.string(), z.string().max(512)).optional(),
+  limits: ScraperLimitsSchema.prefault({}),
   itemSelector: z.string().min(1).max(512),
   fields: z.array(ScraperFieldRuleSchema).min(1).max(32),
-  pagination: ScraperPaginationSchema.default({ type: "none" }),
-  stop: ScraperStopSchema.default({}),
+  pagination: ScraperPaginationSchema.prefault({ type: "none" }),
+  stop: ScraperStopSchema.prefault({}),
 });
 export type ScraperDefinition = z.infer<typeof ScraperDefinitionSchema>;
 
@@ -143,7 +143,7 @@ export const ScraperConfigRecordSchema = ScraperConfigBodySchema.extend({
 export type ScraperConfigRecord = z.infer<typeof ScraperConfigRecordSchema>;
 
 export const ScraperTestRequestSchema = z.object({
-  macros: z.record(z.string()).default({}),
+  macros: z.record(z.string(), z.string()).default({}),
   maxPages: z.number().int().min(1).max(5).default(1),
 });
 export type ScraperTestRequest = z.infer<typeof ScraperTestRequestSchema>;
@@ -153,7 +153,7 @@ export const ScraperTestResponseSchema = z.object({
     z.object({
       page: z.number(),
       url: z.string(),
-      rows: z.array(z.record(z.string().nullable())),
+      rows: z.array(z.record(z.string(), z.string().nullable())),
     }),
   ),
 });
