@@ -57,6 +57,28 @@ describe("MigrationsService", () => {
     });
   });
 
+  it("exposes the failure timestamp for failed migrations", async () => {
+    const updatedAt = new Date("2026-10-25T21:04:00.000Z");
+    findMany.mockResolvedValue([
+      {
+        key: "letterboxd_watch_dedupe_v1",
+        status: "failed",
+        runCount: 2,
+        lastStartedAt: new Date("2026-10-25T21:02:00.000Z"),
+        lastCompletedAt: null,
+        lastError: "boom",
+        lastResult: "{}",
+        updatedAt,
+      },
+    ]);
+    const result = await service.listMigrations();
+    expect(result.migrations[0]).toMatchObject({
+      status: "failed",
+      lastFailedAt: updatedAt.toISOString(),
+      canRun: true,
+    });
+  });
+
   it("runs letterboxd migration and records completion", async () => {
     const result = await service.runMigration(
       "letterboxd_watch_dedupe_v1",

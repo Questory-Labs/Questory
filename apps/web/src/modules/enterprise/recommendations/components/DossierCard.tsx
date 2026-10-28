@@ -9,7 +9,6 @@ import {
   refreshDossier,
 } from "@/lib/enterprise-api";
 import { JOB_POLL_MS } from "@/lib/polling";
-import styles from "../recommendations.module.css";
 import { HISTORY_RESOURCE_ID } from "./PreviousSlates";
 
 /** Collapsible "Your taste fingerprint" card from the dossier endpoint. */
@@ -54,20 +53,33 @@ export const DossierCard = () => {
   };
 
   return (
-    <section className={styles.dossier}>
-      <div className={styles.dossierHeader}>
+    <section className="min-w-0 flex-[1_1_320px] self-start rounded-[20px] border border-white/[0.06] bg-black/30 p-4">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          className={styles.dossierToggle}
+          className="flex items-center gap-2 text-sm font-normal text-[var(--ink)]"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
+          <svg
+            aria-hidden="true"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`transition-transform duration-500 ${open ? "rotate-90" : ""}`}
+          >
+            <path d="m9 6 6 6-6 6" />
+          </svg>
           Your taste fingerprint
-          <span aria-hidden>{open ? "−" : "+"}</span>
         </button>
         <button
           type="button"
-          className={styles.dossierRefresh}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/[0.12] px-3.5 text-[13px] text-[var(--ink)] transition-transform duration-500 hover:-translate-y-0.5 disabled:opacity-50"
           onClick={() => setConfirmOpen(true)}
           disabled={busy}
           aria-busy={busy}
@@ -80,12 +92,10 @@ export const DossierCard = () => {
               : "Regenerate from your latest activity"
           }
         >
-          <span
-            aria-hidden
-            className={busy ? styles.dossierRefreshSpin : undefined}
-          >
+          <span aria-hidden className={busy ? "q-spin inline-block" : undefined}>
             ↻
           </span>
+          Regenerate
         </button>
       </div>
       <Dialog
@@ -105,20 +115,22 @@ export const DossierCard = () => {
           </Button>
         </div>
       </Dialog>
+      <p className="mt-3 font-serif text-[17px] leading-[1.3] text-[#cfcfd3]">
+        {d.identity}
+      </p>
       {busy && (
-        <p className={styles.dossierStatus} aria-live="polite">
+        <p className="mt-2 text-xs text-[var(--muted)]" aria-live="polite">
           Refreshing from your latest activity…
         </p>
       )}
       {errorText && (
-        <p className={styles.dossierError} role="alert">
+        <p className="mt-2 text-xs text-[var(--danger)]" role="alert">
           {errorText}
         </p>
       )}
       {open && (
-        <div className={styles.dossierBody}>
-          <p className={styles.dossierIdentity}>{d.identity}</p>
-          <dl className={styles.dossierSections}>
+        <div className="q-in mt-3 space-y-3">
+          <dl className="space-y-2">
             {(
               [
                 ["Gaming", d.gaming],
@@ -130,16 +142,19 @@ export const DossierCard = () => {
             )
               .filter(([, text]) => text && text !== "Not enough data.")
               .map(([label, text]) => (
-                <div key={label} className={styles.dossierSection}>
-                  <dt>{label}</dt>
-                  <dd>{text}</dd>
+                <div key={label}>
+                  <dt className="label-mono text-[10px] text-[var(--faint)]">{label}</dt>
+                  <dd className="mt-0.5 text-sm text-[var(--muted)]">{text}</dd>
                 </div>
               ))}
           </dl>
           {d.keywords.length > 0 && (
-            <div className={styles.dossierKeywords}>
+            <div className="flex flex-wrap gap-1.5">
               {d.keywords.map((kw) => (
-                <span key={kw} className={styles.dossierKeyword}>
+                <span
+                  key={kw}
+                  className="rounded-full border border-[var(--line)] px-2.5 py-0.5 text-xs text-[var(--muted)]"
+                >
                   {kw}
                 </span>
               ))}
@@ -153,9 +168,9 @@ export const DossierCard = () => {
           )
             .filter(([, names]) => names.length > 0)
             .map(([label, names]) => (
-              <div key={label} className={styles.dossierFeedback}>
-                <p className={styles.dossierFeedbackLabel}>{label}</p>
-                <p className={styles.dossierFeedbackNames}>
+              <div key={label}>
+                <p className="label-mono text-[10px] text-[var(--faint)]">{label}</p>
+                <p className="mt-0.5 text-sm text-[var(--muted)]">
                   {names.slice(0, 12).join(" · ")}
                 </p>
               </div>

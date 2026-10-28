@@ -1,7 +1,9 @@
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
   DashboardStats,
+  GoalListResponse,
   MusicInsights,
+  MusicPlayingNow,
   MusicRecentPage,
   PlayNextItem,
   ReadInsights,
@@ -11,6 +13,7 @@ import type {
 } from "@questorylabs/shared";
 import type { useSyncJobs } from "@/hooks/useSyncJobs";
 import type { RecommendationResponse } from "@/lib/enterprise-types";
+import type { DashboardTimeRange } from "./steam.dashboard.constants";
 
 export type DashboardViewProps = {
   recentlyPlayed: DashboardStats["recentlyPlayed"];
@@ -24,9 +27,14 @@ export type DashboardViewProps = {
   showEnterprise?: boolean;
   musicInsights?: UseResourceResult<MusicInsights>;
   musicRecent?: UseResourceResult<MusicRecentPage>;
+  musicPlayingNow?: MusicPlayingNow;
   watchInsights?: UseResourceResult<WatchInsights>;
   watchRecent?: UseResourceResult<WatchRecentPage>;
   readInsights?: UseResourceResult<ReadInsights>;
   readRecent?: UseResourceResult<ReadRecentPage>;
   recs?: UseResourceResult<RecommendationResponse>;
+  goals?: UseResourceResult<GoalListResponse>;
+  range?: DashboardTimeRange;
+  setRange?: (range: DashboardTimeRange) => void;
+  now?: Date | null;
 };

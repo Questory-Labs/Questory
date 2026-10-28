@@ -55,7 +55,7 @@ const baseProps = (): WatchSettingsViewProps => ({
 describe("WatchSettingsView", () => {
   afterEach(cleanup);
 
-  it("renders sources heading and the empty live prompt", () => {
+  it("renders the sources intro and the empty live prompt", () => {
     const store = new ResourceStore({ retries: false });
     render(
       <ResourceProvider store={store}>
@@ -64,7 +64,7 @@ describe("WatchSettingsView", () => {
         />
       </ResourceProvider>,
     );
-    expect(screen.getByRole("heading", { name: "Sources" })).toBeInTheDocument();
+    expect(screen.getByText(/Connect a live source to keep Watch up to date/)).toBeInTheDocument();
     expect(screen.getByText("No live source yet.")).toBeInTheDocument();
   });
 });

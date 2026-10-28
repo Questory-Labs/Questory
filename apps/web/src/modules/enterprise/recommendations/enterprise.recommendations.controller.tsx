@@ -23,10 +23,12 @@ import type {
   RecsTab,
 } from "./enterprise.recommendations.types";
 import { HISTORY_RESOURCE_ID } from "./components/PreviousSlates";
+import { dayPartLabel } from "./enterprise.recommendations.utils";
 
 export const RecommendationsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
   const [tab, setTab] = useState<RecsTab>("all");
+  const [dayPart] = useState(() => dayPartLabel(new Date()));
   const [jobId, setJobId] = useState<string | null>(null);
   const [peekHeuristics, setPeekHeuristics] = useState(false);
   const [curated, setCurated] = useState<RecommendationResponse | null>(null);
@@ -147,6 +149,7 @@ export const RecommendationsController = ({ children }: PropsWithChildren) => {
   return cloneElements(children, {
     tab,
     setTab,
+    dayPart,
     jobId,
     peekHeuristics,
     setPeekHeuristics,

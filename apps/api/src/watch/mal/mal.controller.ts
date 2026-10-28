@@ -5,6 +5,7 @@ import {
   Res,
   UseGuards,
   BadRequestException,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { MalService } from "./mal.service";
@@ -44,4 +45,9 @@ export class MalController {
     return res.redirect(await listProviderConnectedUrl(this.flags, "mal"));
   }
 
+  @Delete()
+  @UseGuards(SessionUserGuard)
+  disconnect(@CurrentWatchUserId() userId: string) {
+    return this.mal.disconnect(userId);
+  }
 }

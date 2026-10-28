@@ -59,11 +59,16 @@ export const GlanceStats = ({
                 ? formatMoney(value.costPerHour, value.currency || "USD")
                 : "—"
             }
-            hint={
+            hint={[
               value?.lifetimeAtCurrent
                 ? `Library ~${formatMoney(value.lifetimeAtCurrent, value.currency || "USD")}`
-                : "See Cost for library value"
-            }
+                : "See Cost for library value",
+              value?.monthSpend
+                ? `${formatMoney(value.monthSpend.amount, value.monthSpend.currency)} spent this month`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
             href="/cost"
           />
           <StatCard

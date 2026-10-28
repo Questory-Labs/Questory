@@ -5,6 +5,8 @@ export type LoginViewProps = {
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   pending: boolean;
+  credentialError?: boolean;
+  lockSecondsLeft?: number;
   challenge: AuthChallenge | null;
   challengeLoading: boolean;
   refreshChallenge: () => Promise<AuthChallenge | null>;

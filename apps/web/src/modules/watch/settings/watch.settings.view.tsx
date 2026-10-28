@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimeListSourcesSection } from "./components/AnimeListSourcesSection";
-import { PageHeader } from "@/components/ui";
 import { LiveSourcesSection } from "./components/LiveSourcesSection";
 import { LetterboxdImportSection } from "./components/LetterboxdImportSection";
 import type { WatchSettingsViewProps } from "./watch.settings.types";
@@ -11,11 +10,9 @@ export const WatchSettingsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader size="sm"
-        eyebrow="Watch"
-        title="Sources"
-        description="Connect a live source to keep Watch up to date. Letterboxd scrape sync uses admin-configured rules. Enrich with a CSV export below."
-      />
+      <p className="mb-6 text-sm text-[var(--muted)]">
+        Connect a live source to keep Watch up to date. Letterboxd scrape sync uses admin-configured rules. Enrich with a CSV export below.
+      </p>
 
       <LiveSourcesSection
         trakt={view.trakt}

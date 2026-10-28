@@ -1,10 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
 import { AdminEnrichmentView } from "./admin.enrichment.view";
 import type {
   AdminEnrichmentViewProps,
   EnrichmentResponse,
+  RequeueInput,
+  RequeueResponse,
   StatusBucket,
 } from "./admin.enrichment.types";
 
@@ -37,12 +39,17 @@ const idleTrigger = {
   input: undefined,
 } as UseActionResult<unknown, void>;
 
+const idleRequeue = {
+  ...idleTrigger,
+} as unknown as UseActionResult<RequeueResponse, RequeueInput>;
+
 const bucket = (patch?: Partial<StatusBucket>): StatusBucket => ({
   pending: 1,
   running: 0,
   completed: 2,
   failed: 0,
   total: 3,
+  completed24h: 1,
   ...patch,
 });
 
@@ -87,6 +94,7 @@ const renderView = (patch: Partial<AdminEnrichmentViewProps>) =>
           value: dataValue,
         }),
         trigger: idleTrigger,
+        requeue: idleRequeue,
         ...patch,
       } as AdminEnrichmentViewProps)}
     />,
@@ -136,5 +144,83 @@ describe("AdminEnrichmentView", () => {
       },
     });
     expect(screen.getByText("recover failed")).toBeInTheDocument();
+  });
+
+  it("shows the selected domain's stat tiles", () => {
+    renderView({});
+    expect(screen.getByText("Completed · 24h")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Domain" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Status filter" })).toBeInTheDocument();
+  });
+
+  it("confirms before recovering every failed job", () => {
+    const submit = vi.fn();
+    renderView({
+      data: resource<EnrichmentResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          ...dataValue,
+          counts: { ...dataValue.counts, music: bucket({ failed: 12 }) },
+        },
+      }),
+      requeue: { ...idleRequeue, submit },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Recover 12 failed/ }));
+    expect(submit).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Requeue" }));
+    expect(submit).toHaveBeenCalledWith({ domain: "music", allFailed: true });
+  });
+
+  it("confirms before requeueing a single failed row", () => {
+    const submit = vi.fn();
+    renderView({
+      data: resource<EnrichmentResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          ...dataValue,
+          items: [
+            {
+              ...dataValue.items[0],
+              status: "failed",
+              attempts: 3,
+              error: "MusicBrainz 503",
+            },
+          ],
+        },
+      }),
+      requeue: { ...idleRequeue, submit },
+    });
+    expect(screen.getAllByText("MusicBrainz 503").length).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "Requeue Nightcall" }));
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Requeue" }));
+    expect(submit).toHaveBeenCalledWith({ domain: "music", ids: ["job-1abcdef"] });
+  });
+
+  it("hides requeue controls for the game domain", () => {
+    renderView({
+      domain: "game",
+      data: resource<EnrichmentResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          ...dataValue,
+          counts: { ...dataValue.counts, game: bucket({ failed: 4 }) },
+          items: [{ ...dataValue.items[0], status: "failed" }],
+        },
+      }),
+    });
+    expect(screen.queryByRole("button", { name: /Recover/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Requeue/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the requeue error", () => {
+    renderView({
+      requeue: { ...idleRequeue, failed: true, error: new Error("requeue down") },
+    });
+    expect(screen.getByText("requeue down")).toBeInTheDocument();
   });
 });

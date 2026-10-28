@@ -111,11 +111,11 @@ describe("SessionsPage", () => {
     expect(await screen.findByText("Played")).toBeInTheDocument();
     expect(screen.getAllByText("Dota 2").length).toBeGreaterThan(0);
     expect(screen.getAllByText("1h").length).toBeGreaterThan(0);
-    expect(screen.getByText(/steam/)).toBeInTheDocument();
+    expect(screen.getByText(/desk/)).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: "Dota 2" })[0],
     ).toHaveAttribute("href", "/library/g1");
-    expect(screen.getByRole("button", { name: "Assign" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete session" })).toBeInTheDocument();
   });
 });

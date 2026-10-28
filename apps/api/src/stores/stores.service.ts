@@ -4,6 +4,7 @@ import { GameMergeService } from "./game-merge.service";
 import { ItadService } from "../steam/itad.service";
 import { StoreId, STORES, isStoreId } from "./store.constants";
 import { currencyFromCountry } from "../lib/currency";
+import { ACCOUNT_PROVIDER } from "../accounts/account.constants";
 
 @Injectable()
 export class StoresService implements OnModuleInit {
@@ -106,7 +107,17 @@ export class StoresService implements OnModuleInit {
     if (created) this.logger.log(`Backfilled ${created} Steam store listings`);
   }
 
-  async listStatus(_userId: string) {
+  async listStatus(userId: string) {
+    const [steamAccount, user] = await Promise.all([
+      this.prisma.account.findFirst({
+        where: { userId, provider: ACCOUNT_PROVIDER.steam },
+        select: { providerAccountId: true, displayName: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { lastSyncedAt: true },
+      }),
+    ]);
     return STORES.map((store) => {
       if (store === "steam") {
         return {
@@ -114,9 +125,9 @@ export class StoresService implements OnModuleInit {
           connected: true,
           syncEnabled: true as const,
           status: "connected" as const,
-          displayName: null as string | null,
-          externalUserId: null as string | null,
-          lastSyncedAt: null as string | null,
+          displayName: steamAccount?.displayName ?? null,
+          externalUserId: steamAccount?.providerAccountId ?? null,
+          lastSyncedAt: user?.lastSyncedAt?.toISOString() ?? null,
         };
       }
       return {

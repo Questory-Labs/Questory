@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { FAMILY_MEMBER_LIMIT } from "@questorylabs/shared";
 import {
   canRemoveFamilyMember,
+  libraryMix,
   memberLabel,
   normalizeSteamId,
   remainingFamilySlots,
+  shareableLabel,
 } from "./steam.family.utils";
 
 describe("steam.family.utils", () => {
@@ -29,5 +31,25 @@ describe("steam.family.utils", () => {
     expect(
       memberLabel({ personaName: "Sam", isMe: true, steamId: "1" }),
     ).toBe("Sam (me)");
+  });
+
+  it("splits a library into shared, unique and other widths", () => {
+    expect(
+      libraryMix({ librarySize: 10, sharedCount: 4, uniqueCount: 2 }, 20),
+    ).toEqual({ shared: 20, unique: 10, other: 20 });
+    expect(libraryMix({ librarySize: 3 }, 3)).toEqual({
+      shared: 0,
+      unique: 0,
+      other: 100,
+    });
+  });
+
+  it("labels shareable directions", () => {
+    expect(
+      shareableLabel({ direction: "toYou", ownerName: "Alex", wantedByName: "Sam" }),
+    ).toBe("Alex → you");
+    expect(
+      shareableLabel({ direction: "fromYou", ownerName: "Sam", wantedByName: "Alex" }),
+    ).toBe("You → Alex");
   });
 });

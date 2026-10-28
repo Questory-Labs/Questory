@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Dialog, Panel } from "@/components/ui";
+import { Button, Dialog } from "@/components/ui";
+import { ProfileSection } from "./components/ProfileSection";
 import type { ProfileSettingsViewProps } from "./steam.settings-profile.types";
 
 type Props = Pick<
@@ -39,19 +40,17 @@ export const ProfileDataPanel = ({
 
   return (
     <>
-      <Panel wrapperClassName="max-w-lg" className="p-5">
-        <h2 className="font-display text-lg font-bold tracking-tight">
-          Your data
-        </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+      <ProfileSection id="profile-data" index={5} title="Your data">
+        <p className="mt-0.5 text-sm text-[var(--muted)]">
           Download a zip of your Questory data (collections, prices, listens,
           watch/read history, play sessions). It does not include logins or API
           keys — reconnect services under Connections, then import this file.
           Zips are kept for 7 days.
         </p>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
+        <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
           <Button
+            variant="secondary"
             disabled={generating}
             onClick={() => generateExport.submit()}
           >
@@ -90,24 +89,24 @@ export const ProfileDataPanel = ({
           </p>
         ) : null}
 
-        <div className="mt-6 border-t border-[var(--line)] pt-5">
+        <div className="mt-5 border-t border-white/[0.05] pt-4">
           <p className="text-sm text-[var(--muted)]">
             Import a Questory profile zip. Existing data is merged; duplicates
             are skipped.
           </p>
-          <label className="mt-3 block text-sm">
-            <span className="text-[var(--muted)]">Profile zip</span>
+          <label className="label-mono mt-3 block text-[10px]">
+            <span>Profile zip</span>
             <input
               type="file"
               accept=".zip,application/zip"
               disabled={importRunning}
-              className="mt-1.5 block w-full text-sm"
+              className="mt-1.5 block w-full font-sans text-sm normal-case tracking-normal text-[var(--muted)] file:mr-3 file:min-h-9 file:cursor-pointer file:rounded-full file:border file:border-white/[0.12] file:bg-white/[0.04] file:px-4 file:text-[13px] file:text-[var(--ink)]"
               onChange={(e) =>
                 onPickImportFile(e.target.files?.[0] ?? null)
               }
             />
           </label>
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Button
               variant="secondary"
               disabled={!importFile || importRunning}
@@ -136,7 +135,7 @@ export const ProfileDataPanel = ({
             </p>
           ) : null}
         </div>
-      </Panel>
+      </ProfileSection>
 
       <Dialog
         open={importConfirmOpen}

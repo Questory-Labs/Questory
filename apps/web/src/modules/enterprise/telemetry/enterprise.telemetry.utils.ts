@@ -3,6 +3,7 @@ import type {
   OtelSpan,
   OtelUsage,
 } from "@/lib/enterprise-api";
+import type { AdminTone } from "@/modules/admin/shared/admin.tone";
 import type { SpanNode } from "./enterprise.telemetry.types";
 
 export const formatDurationNs = (ns?: number): string => {
@@ -61,11 +62,11 @@ export const usageNumber = (
   return undefined;
 };
 
-export const statusTone = (status?: string): string => {
+export const traceTone = (status?: string): AdminTone => {
   const s = (status || "").toUpperCase();
-  if (s === "ERROR" || s === "2") return "text-[var(--danger)]";
-  if (s === "OK" || s === "1") return "text-[var(--accent)]";
-  return "text-[var(--muted)]";
+  if (s === "ERROR" || s === "2") return "danger";
+  if (s === "OK" || s === "1") return "ok";
+  return "muted";
 };
 
 export const attrString = (

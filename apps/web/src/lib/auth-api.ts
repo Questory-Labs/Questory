@@ -73,23 +73,72 @@ export function steamLinkUrl() {
   return `${apiOrigin()}/auth/steam`;
 }
 
-export function parseApiError(err: unknown): { message: string; status?: number } {
+export type ParsedApiError = {
+  message: string;
+  status?: number;
+  attemptsLeft?: number;
+  retryAfterSec?: number;
+  requestId?: string;
+};
+
+type ApiErrorBody = {
+  message?: string | string[];
+  statusCode?: number;
+  error?: string;
+  attemptsLeft?: unknown;
+  retryAfterSec?: unknown;
+  retryAfter?: unknown;
+  requestId?: unknown;
+};
+
+const nonNegativeInt = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) && v >= 0
+    ? Math.floor(v)
+    : undefined;
+
+function fromBody(
+  json: ApiErrorBody,
+  fallbackMessage: string,
+  status: number | undefined,
+  requestId: string | undefined,
+): ParsedApiError {
+  const msg = Array.isArray(json.message)
+    ? json.message.join(", ")
+    : json.message || json.error || fallbackMessage;
+  const parsed: ParsedApiError = {
+    message: msg,
+    status: json.statusCode ?? status,
+  };
+  const attemptsLeft = nonNegativeInt(json.attemptsLeft);
+  const retryAfterSec =
+    nonNegativeInt(json.retryAfterSec) ?? nonNegativeInt(json.retryAfter);
+  const bodyRequestId =
+    typeof json.requestId === "string" ? json.requestId : undefined;
+  if (attemptsLeft !== undefined) parsed.attemptsLeft = attemptsLeft;
+  if (retryAfterSec !== undefined) parsed.retryAfterSec = retryAfterSec;
+  if (requestId ?? bodyRequestId) parsed.requestId = requestId ?? bodyRequestId;
+  return parsed;
+}
+
+export function parseApiError(err: unknown): ParsedApiError {
+  const extra = err as
+    | (Error & { status?: number; data?: unknown; requestId?: string })
+    | undefined;
   const statusFromErr =
-    err instanceof Error && typeof (err as Error & { status?: number }).status === "number"
-      ? (err as Error & { status: number }).status
+    err instanceof Error && typeof extra?.status === "number"
+      ? extra.status
       : undefined;
   if (!(err instanceof Error)) return { message: "Something went wrong", status: statusFromErr };
   const text = err.message;
+  const requestId =
+    typeof extra?.requestId === "string" ? extra.requestId : undefined;
+  if (extra?.data && typeof extra.data === "object") {
+    return fromBody(extra.data as ApiErrorBody, text, statusFromErr, requestId);
+  }
   try {
-    const json = JSON.parse(text) as {
-      message?: string | string[];
-      statusCode?: number;
-      error?: string;
-    };
-    const msg = Array.isArray(json.message)
-      ? json.message.join(", ")
-      : json.message || json.error || text;
-    return { message: msg, status: json.statusCode ?? statusFromErr };
+    const json: unknown = JSON.parse(text);
+    if (!json || typeof json !== "object") throw new Error("not an object");
+    return fromBody(json as ApiErrorBody, text, statusFromErr, requestId);
   } catch {
     if (text.includes("429") || text.toLowerCase().includes("too many")) {
       return { message: "Too many attempts, try again later", status: 429 };

@@ -1,10 +1,7 @@
 "use client";
 
-import { Sparkline } from "@/components/charts/Sparkline";
 import { MediaHomeSlots } from "@/components/media/MediaHomeSlots";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
-import { NowPlayingPanel } from "@/components/music/NowPlayingPanel";
-import { StatCard } from "@/components/StatCard";
 import {
   PageHeader,
   ResourceStatus,
@@ -12,9 +9,11 @@ import {
   SkeletonTileGrid,
   StateMessage,
 } from "@/components/ui";
-import { formatDeltaPct, formatMinutes } from "@/lib/music";
 import { featureErrorMessage } from "@/lib/app-status";
+import { listeningPhrase, RANGE_EYEBROW } from "../music.utils";
+import { HomeKpis } from "./components/HomeKpis";
 import { MusicHomeCharts } from "./components/MusicHomeCharts";
+import { NowPlayingHero } from "./components/NowPlayingHero";
 import type { MusicHomeViewProps } from "./music.home.types";
 
 export const MusicHomeView = (props: Record<string, unknown>) => {
@@ -23,6 +22,9 @@ export const MusicHomeView = (props: Record<string, unknown>) => {
     setRange,
     insights,
     playing,
+    overview,
+    topArtists,
+    dailyTarget,
     heatmap,
     daySeries,
     hour,
@@ -33,26 +35,32 @@ export const MusicHomeView = (props: Record<string, unknown>) => {
   } = props as MusicHomeViewProps;
 
   const d = insights.value;
-  const nowPlaying = playing.value?.track ?? null;
+  const nowPlaying = playing.value ?? null;
   const spark = (daySeries.value || []).map((b) => b.count);
-  const peakCaption = [
-    d?.peakHour ? `Peak ${d.peakHour.label}` : null,
-    d?.topGenre ? d.topGenre.name : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <MediaHomeSlots
       header={
         <PageHeader
           size="sm"
-          title="Music"
+          eyebrow={`Music · ${RANGE_EYEBROW[range]}`}
+          title={
+            d ? (
+              <>
+                {d.periodListens.toLocaleString()} plays,{" "}
+                <em className="font-serif font-normal text-[#f0c4cf]">
+                  {listeningPhrase(d.peakHour?.hour)}
+                </em>
+              </>
+            ) : (
+              "Music"
+            )
+          }
           description="Listening pulse from your scrobbles — what's playing, when you listen, and what's shifting."
           actions={<MusicRangePicker value={range} onChange={setRange} />}
         />
       }
-      hero={nowPlaying ? <NowPlayingPanel track={nowPlaying} /> : undefined}
+      hero={nowPlaying ? <NowPlayingHero playing={nowPlaying} /> : undefined}
       kpis={
         <ResourceStatus
           failed={insights.failed}
@@ -73,46 +81,27 @@ export const MusicHomeView = (props: Record<string, unknown>) => {
           }
         >
           {d ? (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <StatCard
-                label="Listens"
-                value={d.periodListens}
-                hint={
-                  d.compare.deltaPct != null
-                    ? `${formatDeltaPct(d.compare.deltaPct)} vs prior`
-                    : undefined
-                }
-                sparkline={
-                  spark.length > 1 ? (
-                    <Sparkline data={spark} ariaLabel="Listens by day" />
-                  ) : undefined
-                }
-              />
-              <StatCard
-                label="Listening time"
-                value={formatMinutes(d.listeningMinutes)}
-              />
-              <StatCard label="New artists" value={d.newArtists} />
-              <StatCard label="Unique artists" value={d.uniqueArtists} />
-              <StatCard
-                label="Coverage"
-                value={`${d.durationCoverage}%`}
-                hint="listens with duration"
-              />
-            </div>
+            <HomeKpis
+              range={range}
+              insights={d}
+              overview={overview.value}
+              spark={spark}
+            />
           ) : null}
         </ResourceStatus>
       }
       charts={
         <MusicHomeCharts
           heatmap={heatmap}
+          topArtists={topArtists}
+          dailyTarget={dailyTarget.value?.target ?? null}
           daySeries={daySeries}
           hour={hour}
           dow={dow}
           years={years}
           services={services}
           showCalendar={showCalendar}
-          peakCaption={peakCaption || undefined}
+          peakGenre={d?.topGenre?.name ?? null}
         />
       }
     />

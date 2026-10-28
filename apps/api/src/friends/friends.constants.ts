@@ -9,3 +9,7 @@ export const LIBRARY_CACHE_ATTEMPT_LIMIT = 100;
 
 /** Max games stored per friend library cache. */
 export const GAMES_PER_FRIEND_LIMIT = 200;
+
+export const COMMON_GAME_LIST_LIMIT = 24;
+
+export const FRIENDS_QUERY_MAX_LENGTH = 64;

@@ -27,7 +27,9 @@ import { bullmqConnection } from "../lib/redis-connection";
 import { resolveSyncMode } from "../lib/runtime-config";
 import { parseSteamReleaseDate } from "../lib/steam-dates";
 import { truncateToUtcHour } from "./play-activity";
+import { steamPlatforms, steamPriceFacts } from "./steam-appdetails";
 import { orderFriendsForLibraryCache } from "../friends/friend-library-cache";
+import { friendPresenceFromSummary } from "../friends/friend-presence";
 import {
   GAMES_PER_FRIEND_LIMIT,
   LIBRARY_CACHE_ATTEMPT_LIMIT,
@@ -669,6 +671,8 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
           ? details.publishers
           : browseItem?.publishers || [];
       const isFree = Boolean(details?.is_free ?? browseItem?.isFree);
+      const platforms = steamPlatforms(details?.platforms);
+      const metacriticScore = details?.metacritic?.score ?? null;
 
       await this.prisma.game.update({
         where: { id: game.id },
@@ -689,6 +693,10 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
           ...(browseItem?.reviewScore != null
             ? { reviewScore: browseItem.reviewScore }
             : {}),
+          ...(platforms.length
+            ? { platforms: stringifyStringArray(platforms) }
+            : {}),
+          ...(metacriticScore != null ? { metacriticScore } : {}),
           // Only write when the deck report succeeds — don't wipe a known status.
           ...(deckStatus ? { deckStatus } : {}),
           metadataSyncedAt: new Date(),
@@ -767,6 +775,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       const name = details?.name || `App ${item.appId}`;
       const headerImage =
         details?.header_image || this.steam.headerImageFromAppId(item.appId);
+      const { discountPercent, regularPrice } = steamPriceFacts(details);
 
       const externalId = String(item.appId);
       const previous = await this.prisma.wishlistItem.findUnique({
@@ -804,6 +813,8 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
           currentPrice,
           lowestPrice,
           shouldBuyScore,
+          discountPercent,
+          regularPrice,
           genres: stringifyStringArray(genres),
         },
         update: {
@@ -816,6 +827,8 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
           currentPrice,
           lowestPrice,
           shouldBuyScore,
+          discountPercent,
+          regularPrice,
           genres: stringifyStringArray(genres),
           syncedAt: new Date(),
         },
@@ -910,11 +923,13 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     );
     const summaryMap = new Map(summaries.map((s) => [s.steamid, s]));
 
+    const presenceSyncedAt = new Date();
     for (const friend of friends) {
       const summary = summaryMap.get(friend.steamid);
       const existingUser = await this.accounts.findUserBySteamId(
         friend.steamid,
       );
+      const presence = friendPresenceFromSummary(summary, presenceSyncedAt);
       await this.prisma.friendship.upsert({
         where: {
           userId_friendSteamId: { userId, friendSteamId: friend.steamid },
@@ -925,11 +940,13 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
           friendUserId: existingUser?.id,
           personaName: summary?.personaname || friend.steamid,
           avatarUrl: summary?.avatarfull || null,
+          ...presence,
         },
         update: {
           friendUserId: existingUser?.id,
           personaName: summary?.personaname || friend.steamid,
           avatarUrl: summary?.avatarfull || null,
+          ...presence,
         },
       });
     }

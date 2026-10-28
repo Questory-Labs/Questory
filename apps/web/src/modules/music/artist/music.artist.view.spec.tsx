@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { ResourceProvider, ResourceStore } from "@questorylabs/qhttp/react";
-import type { MusicArtistDetail } from "@questorylabs/shared";
+import type { MusicArtistDetail, MusicTimeBucket } from "@questorylabs/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mockResource } from "@/test/resource-mock";
 import { MusicArtistView } from "./music.artist.view";
@@ -41,6 +41,7 @@ const renderView = (patch: Partial<MusicArtistViewProps> = {}) =>
         range: "all",
         setRange: () => {},
         detail: mockResource({ empty: false, failed: false, value: detail }),
+        hours: mockResource<MusicTimeBucket[]>({ empty: false, failed: false, value: [] }),
         saveBusy: false,
         onSave: async () => {},
         ...patch,
@@ -62,5 +63,52 @@ describe("MusicArtistView", () => {
     renderView();
     expect(screen.getByRole("heading", { name: "Flume" })).toBeInTheDocument();
     expect(screen.getAllByText("Helix").length).toBeGreaterThan(0);
+  });
+  it("renders rank, KPIs, albums with year and hour peak", () => {
+    renderView({
+      range: "month",
+      detail: mockResource({
+        empty: false,
+        failed: false,
+        value: {
+          ...detail,
+          range: "month",
+          artist: { ...detail.artist, userDisplayName: "FLUME" },
+          rank: 2,
+          listeningMinutes: 90,
+          peakHour: { hour: 22, label: "10pm", count: 5 },
+          peakDow: { day: 1, label: "Mon", count: 6 },
+          topAlbums: [{ id: "r1", title: "Skin", year: 2016, count: 7 }],
+          topMoods: [{ id: "m1", name: "late night", count: 3 }],
+        },
+      }),
+      hours: mockResource<MusicTimeBucket[]>({
+        empty: false,
+        failed: false,
+        value: [
+          { key: "21", label: "9pm", count: 2 },
+          { key: "22", label: "10pm", count: 5 },
+        ],
+      }),
+    });
+    expect(screen.getByText("Artist · #2 this month")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "FLUME" })).toBeInTheDocument();
+    expect(screen.getByText("Flume")).toBeInTheDocument();
+    expect(screen.getByText("Mon")).toBeInTheDocument();
+    expect(screen.getAllByText("10pm").length).toBeGreaterThan(0);
+    expect(screen.getByText("2016 · 7 listens")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Skin/ })).toHaveAttribute(
+      "href",
+      "/music/albums/r1",
+    );
+    expect(screen.getByText("late night")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View top tracks" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View top albums" })).toBeInTheDocument();
+  });
+
+  it("shows an hour error without hiding the artist", () => {
+    renderView({ hours: mockResource({ empty: true, failed: true }) });
+    expect(screen.getByText("Could not load hour-of-day listens.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Flume" })).toBeInTheDocument();
   });
 });

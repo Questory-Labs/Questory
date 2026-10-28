@@ -20,6 +20,7 @@ import type {
   FriendsShelf,
   GlobalShelf,
 } from "./steam.trending.types";
+import type { TrendingTab } from "./steam.trending.constants";
 import type { MediaTrendingShelf, WeeklyDigestView } from "@questorylabs/shared";
 
 const digestPeekId = ["trending", "insight-peek"];
@@ -126,6 +127,7 @@ export const TrendingController = ({ children }: PropsWithChildren) => {
   };
 
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
+  const [tab, setTab] = useState<TrendingTab>("games");
 
   const props = {
     friends,
@@ -143,6 +145,8 @@ export const TrendingController = ({ children }: PropsWithChildren) => {
     digest,
     selectedAppId,
     setSelectedAppId,
+    tab,
+    setTab,
   };
 
   return cloneElements(children, props);

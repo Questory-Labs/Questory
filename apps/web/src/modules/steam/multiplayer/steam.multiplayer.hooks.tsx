@@ -8,8 +8,11 @@ import {
   type MultiplayerMode,
 } from "./steam.multiplayer.constants";
 
-export const useMultiplayerPlanFilters = (friendList: Friend[]) => {
-  const [selected, setSelected] = useState<string[]>([]);
+export const useMultiplayerPlanFilters = (
+  friendList: Friend[],
+  initialSelected: string[] = [],
+) => {
+  const [selected, setSelected] = useState<string[]>(initialSelected);
   const [friendFilter, setFriendFilter] = useState("");
   const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(8);

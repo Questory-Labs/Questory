@@ -10,8 +10,9 @@ import {
   flattenTree,
   formatAttrValue,
   formatDurationNs,
-  statusTone,
+  traceTone,
 } from "../enterprise.telemetry.utils";
+import { AdminStatusPill } from "@/modules/admin/shared/components/AdminStatusPill";
 import { MiniStat } from "./TelemetryChrome";
 
 type TraceSidebarProps = {
@@ -80,19 +81,17 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
       <button
         type="button"
         aria-label="Close trace details"
-        className="absolute inset-0 bg-[var(--bg-0)]/75 hatch-fill"
+        className="absolute inset-0 bg-[var(--bg-0)]/75 backdrop-blur-sm"
         onClick={onClose}
       />
-      <aside className="relative flex h-full w-full max-w-xl flex-col border-l border-[var(--line)] bg-[var(--bg-1)]">
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
+      <aside className="q-pop relative flex h-full w-full max-w-xl flex-col border-l border-[var(--qengine-line)] bg-[var(--bg-1)]">
+        <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-[18px]">
           <div className="min-w-0">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-              Trace detail
-            </p>
-            <h2 className="mt-1 break-all font-mono text-sm font-semibold text-[var(--ink)]">
+            <p className="label-mono text-[var(--warm)]">Trace detail</p>
+            <h2 className="mt-1.5 break-all font-mono text-sm text-[var(--ink)]">
               {traceId}
             </h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">
+            <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">
               {spans.length} span{spans.length === 1 ? "" : "s"}
               {Number.isFinite(t0) && t1 > 0
                 ? ` · ${formatDurationNs(windowNs)}`
@@ -100,11 +99,7 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
               {totals.errors > 0 ? ` · ${totals.errors} error` : null}
             </p>
           </div>
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            className="px-2.5 py-1 text-[var(--muted)]"
-          >
+          <Button variant="secondary" size="sm" onClick={onClose}>
             Esc
           </Button>
         </div>
@@ -144,10 +139,8 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
                 </div>
 
                 <div>
-                  <h3 className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                    Timeline
-                  </h3>
-                  <div className="mt-3 space-y-2">
+                  <h3 className="label-mono">Span tree</h3>
+                  <ol className="mt-3 flex flex-col gap-3">
                     {flat.map((node, i) => {
                       const span = node.span;
                       const start = span.start_time_unix_nano ?? t0;
@@ -161,22 +154,26 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
                       const width = Math.max((dur / windowNs) * 100, 0.8);
                       const name = span.name || span.span_name || `span-${i}`;
                       return (
-                        <div
+                        <li
                           key={`${span.span_id || name}-${i}`}
-                          className="space-y-1"
+                          style={{ paddingLeft: node.depth * 14 }}
                         >
-                          <div
-                            className="truncate font-mono text-[11px] text-[var(--muted)]"
-                            style={{ paddingLeft: node.depth * 12 }}
-                          >
-                            {name}
+                          <div className="flex justify-between gap-2 font-mono">
+                            <span className="truncate text-xs text-[var(--ink)]">
+                              {name}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-[var(--muted)]">
+                              {formatDurationNs(dur)}
+                            </span>
                           </div>
-                          <div className="relative h-2 overflow-hidden rounded-sm bg-[var(--bg-2)]">
+                          <div className="relative mt-1.5 h-1 overflow-hidden rounded-sm bg-white/[0.06]">
                             <div
-                              className={`absolute inset-y-0 rounded-sm ${
+                              className={`q-bar absolute inset-y-0 rounded-sm ${
                                 (span.status || "").toUpperCase() === "ERROR"
-                                  ? "bg-[var(--danger)]"
-                                  : "bg-[var(--accent)]"
+                                  ? "bg-[var(--danger)] shadow-[0_0_8px_var(--danger)]"
+                                  : attrString(span, "gen_ai.request.model") != null
+                                    ? "bg-[var(--warm)] shadow-[0_0_8px_var(--warm)]"
+                                    : "bg-[var(--muted)]"
                               }`}
                               style={{
                                 left: `${left}%`,
@@ -184,16 +181,14 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
                               }}
                             />
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ol>
                 </div>
 
                 <div>
-                  <h3 className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                    Spans
-                  </h3>
+                  <h3 className="label-mono">Spans</h3>
                   <ul className="mt-3 space-y-2">
                     {flat.map((node, i) => {
                       const span = node.span;
@@ -221,7 +216,7 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
                       return (
                         <li
                           key={id}
-                          className="border border-[var(--line)] bg-[var(--bg-0)]"
+                          className="rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.02]"
                           style={{ marginLeft: node.depth * 12 }}
                         >
                           <button
@@ -232,7 +227,7 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
                                 [id]: !open,
                               }))
                             }
-                            className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
+                            className="q-row flex w-full items-start justify-between gap-3 rounded-[var(--radius)] px-3 py-2.5 text-left"
                           >
                             <div className="min-w-0">
                               <div className="truncate font-mono text-xs text-[var(--ink)]">
@@ -252,15 +247,13 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
                                   : null}
                               </div>
                             </div>
-                            <span
-                              className={`shrink-0 font-mono text-[10px] uppercase ${statusTone(span.status)}`}
-                            >
+                            <AdminStatusPill tone={traceTone(span.status)}>
                               {span.status || "unset"}
-                            </span>
+                            </AdminStatusPill>
                           </button>
 
                           {open ? (
-                            <div className="space-y-3 border-t border-[var(--line)] px-3 py-3 font-mono text-[11px]">
+                            <div className="space-y-3 border-t border-white/[0.06] px-3 py-3 font-mono text-[11px]">
                               <dl className="grid grid-cols-[7rem_1fr] gap-x-2 gap-y-1.5 text-[var(--muted)]">
                                 <dt>span_id</dt>
                                 <dd className="break-all text-[var(--ink)]">
@@ -298,7 +291,7 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
 
                               {attrEntries.length > 0 ? (
                                 <div>
-                                  <p className="mb-1.5 text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
+                                  <p className="label-mono mb-1.5">
                                     Attributes
                                   </p>
                                   <ul className="space-y-1">

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Panel } from "@questorylabs/ui";
+import { ADMIN_SECTION_TITLE } from "@/modules/admin/shared/admin.styles";
 import type { DraftState } from "../enterprise.guardrails.types";
 import { ActionSelect } from "./ActionSelect";
 
@@ -11,34 +12,26 @@ export const RegexRulesPanel = ({
   rows: DraftState;
   updateDraft: (patch: Partial<DraftState>) => void;
 }) => (
-  <Panel className="space-y-3 p-4">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="font-display text-lg font-bold">Custom regex rules</h2>
-      <Button
-        variant="secondary"
-        onClick={() =>
-          updateDraft({
-            regexRules: [...rows.regexRules, { pattern: "", action: "block" }],
-          })
-        }
-      >
-        Add rule
-      </Button>
-    </div>
-    <p className="text-sm text-[var(--muted)]">
+  <Panel
+    variant="accent"
+    wrapperClassName="q-in min-w-0 flex-[1_1_360px]"
+    className="h-full px-5 py-[18px]"
+  >
+    <h2 className={ADMIN_SECTION_TITLE}>Regex rules</h2>
+    <p className="mt-1 text-[13px] text-[var(--muted)]">
       Rust regex syntax. Invalid patterns are skipped at runtime.
     </p>
     {rows.regexRules.length === 0 ? (
-      <p className="text-sm text-[var(--muted)]">No custom regex rules.</p>
+      <p className="mt-3 text-sm text-[var(--muted)]">No custom regex rules.</p>
     ) : (
-      <div className="space-y-2">
+      <ul className="mt-3 text-[13px]">
         {rows.regexRules.map((rule, index) => (
-          <div
+          <li
             key={index}
-            className="flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-2 first:border-0 first:pt-0"
+            className="flex flex-wrap items-center gap-2.5 border-t border-[var(--warm)]/10 py-2.5"
           >
             <input
-              className="min-w-[12rem] flex-1 rounded border border-[var(--line)] bg-[var(--bg-0)] px-2 py-1.5 font-mono text-sm"
+              className="min-h-9 min-w-[12rem] flex-1 rounded-full border border-white/[0.08] bg-black/30 px-3.5 font-mono text-xs text-[var(--warm)]"
               placeholder="pattern"
               value={rule.pattern}
               onChange={(e) => {
@@ -58,7 +51,9 @@ export const RegexRulesPanel = ({
               }}
             />
             <Button
-              variant="secondary"
+              variant="ghost-danger"
+              size="sm"
+              aria-label={`Remove rule ${index + 1}`}
               onClick={() => {
                 const next = rows.regexRules.filter((_, i) => i !== index);
                 updateDraft({ regexRules: next });
@@ -66,9 +61,20 @@ export const RegexRulesPanel = ({
             >
               Remove
             </Button>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     )}
+    <Button
+      variant="secondary"
+      className="mt-3.5"
+      onClick={() =>
+        updateDraft({
+          regexRules: [...rows.regexRules, { pattern: "", action: "block" }],
+        })
+      }
+    >
+      Add rule
+    </Button>
   </Panel>
 );

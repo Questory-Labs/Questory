@@ -1,6 +1,7 @@
 "use client";
 
 import { StatusPage } from "@/components/StatusPage";
+import { errorRequestId } from "@/lib/api";
 
 export default function Error({
   error,
@@ -10,15 +11,18 @@ export default function Error({
   reset: () => void;
 }) {
   const digest = error.digest ? ` · digest: ${error.digest}` : "";
+  const reference = errorRequestId(error) ?? error.digest;
 
   return (
     <StatusPage
       code="500"
-      eyebrow="Sync interrupted"
-      title="The quest log glitched"
+      eyebrow="Server error"
+      title="Something broke"
+      titleAccent="on our side"
       taglineContext="serverError"
       logLine={`quest log › unhandled_exception — status: 500${digest}`}
-      tone="warm"
+      reference={reference}
+      tone="danger"
       primary={{ label: "Try again", onClick: reset, variant: "primary" }}
       secondary={{ label: "Back to dashboard", href: "/dashboard" }}
     />

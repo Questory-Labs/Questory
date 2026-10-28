@@ -90,6 +90,13 @@ export class CatalogService {
     return this.prisma.title.update({ where: { id }, data });
   }
 
+  async findTitleSummary(id: string) {
+    return this.prisma.title.findUnique({
+      where: { id },
+      select: { id: true, type: true, runtimeMinutes: true },
+    });
+  }
+
   async upsertTitle(input: UpsertTitleInput) {
     const nameNormalized = normalizeName(input.name);
     const idMerge = {
@@ -394,6 +401,30 @@ export class CatalogService {
         event.runtimeMinutes ?? event.title.runtimeMinutes ?? 0;
       await this.bumpHourBucket(userId, event.watchedAt, minutes);
     }
+  }
+
+  async syncDroppedListState(input: {
+    userId: string;
+    titleId: string;
+    source: string;
+    dropped: boolean;
+    listedAt?: Date | null;
+  }) {
+    const key = {
+      userId: input.userId,
+      titleId: input.titleId,
+      listType: "dropped",
+      source: input.source,
+    };
+    if (!input.dropped) {
+      await this.prisma.titleListState.deleteMany({ where: key });
+      return;
+    }
+    await this.prisma.titleListState.upsert({
+      where: { userId_titleId_listType_source: key },
+      create: { ...key, listedAt: input.listedAt ?? null },
+      update: {},
+    });
   }
 
   async upsertListState(input: {

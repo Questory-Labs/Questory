@@ -8,6 +8,8 @@ import { PropsWithChildren, useEffect, useState } from "react";
 import type {
   Domain,
   EnrichmentResponse,
+  RequeueInput,
+  RequeueResponse,
   StatusFilter,
 } from "./admin.enrichment.types";
 
@@ -46,6 +48,17 @@ export const AdminEnrichmentController = ({ children }: PropsWithChildren) => {
     },
   });
 
+  const requeue = useAction({
+    run: (input: RequeueInput) =>
+      api<RequeueResponse>("/admin/enrichment/requeue", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      store.touch(["admin-enrichment"]);
+    },
+  });
+
   return cloneElements(children, {
     domain,
     setDomain,
@@ -55,5 +68,6 @@ export const AdminEnrichmentController = ({ children }: PropsWithChildren) => {
     setPage,
     data,
     trigger,
+    requeue,
   });
 };

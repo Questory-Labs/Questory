@@ -2,7 +2,6 @@
 
 import { formatMoney } from "@/lib/money";
 import type { CostSummary } from "@questorylabs/shared";
-import { Panel } from "@questorylabs/ui";
 import { CostGameList } from "./CostGameList";
 import { CostShareList } from "./CostShareList";
 
@@ -18,27 +17,31 @@ export const CostIdleList = ({ summary }: { summary: CostSummary }) => {
   const money = (n: number | null | undefined) => formatMoney(n, currency);
 
   return (
-    <section className="mt-10">
-      <h2 className="font-display text-xl font-bold tracking-tight">Unplayed</h2>
-      <p className="mt-1 mb-4 text-sm text-[var(--muted)]">
+    <section
+      aria-labelledby="cost-unplayed"
+      className="panel q-in min-w-0 flex-[1_1_340px] px-3.5 pb-3 pt-5"
+      style={{ ["--i" as string]: 3 }}
+    >
+      <h2 id="cost-unplayed" className="mx-2 text-[17px] font-normal">
+        Unplayed
+      </h2>
+      <p className="mx-2 mt-1 text-[13px] text-[var(--muted)]">
         {money(summary.unplayedValue)} of priced value has no playtime.
       </p>
       {buckets.length > 0 ? (
-        <Panel variant="outline" className="mb-4 p-4">
-          <CostShareList
-            title="Value by hours"
-            rows={buckets}
-            currency={currency}
-          />
-        </Panel>
+        <div className="mx-2 mt-4">
+          <CostShareList title="Value by hours" rows={buckets} currency={currency} />
+        </div>
       ) : null}
       {rows.length > 0 ? (
-        <CostGameList
-          rows={rows}
-          currency={currency}
-          emptyMessage="No unplayed priced games."
-          showRoi={false}
-        />
+        <div className="mt-3">
+          <CostGameList
+            rows={rows}
+            currency={currency}
+            emptyMessage="No unplayed priced games."
+            showRoi={false}
+          />
+        </div>
       ) : null}
     </section>
   );

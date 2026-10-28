@@ -60,6 +60,7 @@ model User {
   qmonitorDeviceSessions  QmonitorDeviceSession[]
   qmonitorAuthCodes       QmonitorAuthCode[]
   profileExportJobs       ProfileExportJob[]
+  goals                   Goal[]
 }
 
 /** Instance-level key/value config (e.g. signupEnabled). */
@@ -216,6 +217,12 @@ model Game {
   /** IsThereAnyDeal game UUID — primary cross-store merge key. */
   itadId               String?   @unique
   igdbId               Int?
+  platforms            String    @default("[]")
+  metacriticScore      Int?
+  hltbMainHours        Float?
+  hltbExtraHours       Float?
+  hltbCompletionistHours Float?
+  hltbSyncedAt         DateTime?
   metadataSyncedAt     DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
@@ -380,6 +387,8 @@ model LibraryEntry {
   achievementTotal       Int?
   achievementPct         Float?
   achievementSyncedAt    DateTime?
+  userStatus             String?
+  userStatusAt           DateTime?
   syncedAt               DateTime  @default(now())
 
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -388,6 +397,7 @@ model LibraryEntry {
 
   @@unique([userId, gameId])
   @@index([userId])
+  @@index([userId, userStatus])
   @@index([playtimeForever])
   @@index([lastPlayedAt])
 }
@@ -445,6 +455,8 @@ model WishlistItem {
   currentPrice   Float?
   lowestPrice    Float?
   shouldBuyScore Float?
+  discountPercent Int?
+  regularPrice   Float?
   genres         String    @default("[]")
   syncedAt       DateTime  @default(now())
 
@@ -485,6 +497,11 @@ model Friendship {
   friendUserId  String?
   personaName   String
   avatarUrl     String?
+  personaState  Int?
+  currentAppId  Int?
+  currentGameName String?
+  lastLogoffAt  DateTime?
+  presenceSyncedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -584,6 +601,7 @@ model Collection {
   type        String
   ruleKey     String?
   description String?
+  color       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -800,6 +818,8 @@ model ListenHourBucket {
 model PlayingNow {
   userId    String   @id
   trackId   String
+  source    String?
+  startedAt DateTime?
   updatedAt DateTime @updatedAt
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -919,6 +939,9 @@ model Title {
   kitsuId          Int?
   bangumiId        Int?
   shikimoriId      Int?
+  status           String?
+  lastAirDate      DateTime?
+  totalEpisodes    Int?
   metadataSyncedAt DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -1318,4 +1341,27 @@ model ProfileExportJob {
   @@index([userId, createdAt])
   @@index([expiresAt])
   // Partial unique (userId) WHERE status IN ('pending','running') is created at API startup.
+}
+
+model Goal {
+  id               String    @id @default(cuid())
+  userId           String
+  domain           String
+  kind             String
+  name             String
+  targetRef        String?
+  targetValue      Float?
+  progressValue    Float     @default(0)
+  estimatedMinutes Int?
+  timeframe        String
+  periodStart      DateTime
+  periodEnd        DateTime
+  acceptedAt       DateTime  @default(now())
+  doneAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, periodStart])
 }

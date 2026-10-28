@@ -99,7 +99,6 @@ describe("DashboardView", () => {
       });
       expect(screen.getByRole("heading", { name: /^Hades$/ })).toBeInTheDocument();
       expect(screen.getByText("Continue")).toBeInTheDocument();
-      expect(document.querySelector(".aspect-\\[460\\/215\\]")).toBeTruthy();
       expect(screen.queryByText("Open Connections")).not.toBeInTheDocument();
     });
 
@@ -190,7 +189,7 @@ describe("DashboardView", () => {
     expect(screen.queryByRole("img", { name: "Near completion" })).not.toBeInTheDocument();
   });
 
-  it("omits the Continue section when media flags are on", () => {
+  it("keeps Continue alongside media now-cards when media flags are on", () => {
     renderView({
       recentlyPlayed: [hades],
       showMusic: true,
@@ -244,13 +243,12 @@ describe("DashboardView", () => {
         },
       }),
     });
-    expect(screen.queryByRole("heading", { name: "Continue" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Resume a game, series, or book — not something you already finished")).not.toBeInTheDocument();
-    expect(screen.getByText("Hades")).toBeInTheDocument();
-    expect(screen.getByText("Play next")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Hades$/ })).toBeInTheDocument();
+    expect(screen.getByText("Continue")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Up next" })).toBeInTheDocument();
   });
 
-  it("adds music glance without a continue strip", () => {
+  it("adds music glance next to the continue card", () => {
     renderView({
       recentlyPlayed: [hades],
       showMusic: true,
@@ -277,8 +275,7 @@ describe("DashboardView", () => {
         },
       }),
     });
-    expect(screen.queryByRole("heading", { name: "Continue" })).not.toBeInTheDocument();
-    expect(screen.getByText("Hades")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Hades$/ })).toBeInTheDocument();
     expect(screen.getByText("Listens")).toBeInTheDocument();
     expect(screen.getByText("42")).toBeInTheDocument();
     expect(screen.getByText("This week across Steam, music.")).toBeInTheDocument();
@@ -292,7 +289,6 @@ describe("DashboardView", () => {
     });
     expect(screen.getByText("Library")).toBeInTheDocument();
     expect(screen.getByText("Could not load music stats.")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Continue" })).not.toBeInTheDocument();
   });
 
   it("uses unified activity when music is on", () => {
@@ -411,5 +407,43 @@ describe("DashboardView", () => {
       screen.getByText("Last 7 days · 2959 chapters · +75% vs prior"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Chapters logged")).not.toBeInTheDocument();
+  });
+
+  it("renders time played, summary tiles and goals when data exists", () => {
+    renderView({
+      now: new Date(2026, 9, 28, 14, 30),
+      range: "week",
+      setRange: () => undefined,
+      showEnterprise: true,
+      stats: resource<DashboardStats>({
+        empty: false,
+        failed: false,
+        value: {
+          ...statsValue,
+          syncedSources: 3,
+          needsYou: { total: 1, failedSyncs: 0, unmatchedSessions: 1, unreadNotifications: 0 },
+          timePlayed: {
+            todaySecs: 1800,
+            weekSecs: 5400,
+            monthSecs: 36000,
+            priorWeekSecs: 3600,
+            weekHourlySecs: Array.from({ length: 168 }, () => 0),
+          },
+        },
+      }),
+      goals: resource({ empty: false, failed: false, value: { items: [] } }),
+    });
+    expect(screen.getByRole("heading", { name: "Time played" })).toBeInTheDocument();
+    expect(screen.getByText("Sources synced")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Needs you/ })).toHaveAttribute("href", "/sessions");
+    expect(screen.getByRole("heading", { name: "Goals" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Month" })).toBeInTheDocument();
+  });
+
+  it("omits time played, tiles and goals without data", () => {
+    renderView({});
+    expect(screen.queryByRole("heading", { name: "Time played" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Sources synced")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Goals" })).not.toBeInTheDocument();
   });
 });

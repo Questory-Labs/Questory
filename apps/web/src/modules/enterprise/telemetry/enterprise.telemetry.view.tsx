@@ -1,7 +1,15 @@
 "use client";
 
-import { StatCard } from "@/components/StatCard";
-import { Panel, ResourceStatus, SkeletonStatGrid } from "@questorylabs/ui";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import type { AdminTone } from "@/modules/admin/shared/admin.tone";
+import { AdminStat } from "@/modules/admin/shared/components/AdminStat";
+import { AdminStatusPill } from "@/modules/admin/shared/components/AdminStatusPill";
+import {
+  PageHeader,
+  Panel,
+  ResourceStatus,
+  SkeletonStatGrid,
+} from "@questorylabs/ui";
 import { TIME_RANGES } from "./enterprise.telemetry.constants";
 import type { TelemetryViewProps } from "./enterprise.telemetry.types";
 import {
@@ -10,11 +18,14 @@ import {
   formatUsd,
 } from "./enterprise.telemetry.utils";
 import { ModelUsage } from "./components/ModelUsage";
-import { PricingPanel } from "./components/PricingPanel";
-import { TitledPanel, TelemetryStat } from "./components/TelemetryChrome";
+import { PricingEditor, PricingSummary } from "./components/PricingPanel";
+import { SpendBars } from "./components/SpendBars";
 import { TraceList } from "./components/TraceList";
 import { TraceSidebar } from "./components/TraceSidebar";
 import { UsageCharts } from "./components/UsageCharts";
+
+const compactOrDash = (value: number | undefined) =>
+  value != null ? formatCompact(value) : "—";
 
 export const TelemetryView = (props: Record<string, unknown>) => {
   const {
@@ -73,66 +84,51 @@ export const TelemetryView = (props: Record<string, unknown>) => {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1
-            className="font-display text-2xl tracking-tight text-[var(--ink)]"
-            style={{ fontWeight: 700 }}
-          >
-            Telemetry
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            AI usage and traces from the QEngine OTLP collector.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1 text-sm">
-          {TIME_RANGES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRange(r)}
-              className={`px-3 py-1.5 transition ${
-                range === r
-                  ? "bg-[var(--accent-dim)] text-[var(--ink)]"
-                  : "text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
+  const collector: { tone: AdminTone; label: string } = health.empty
+    ? { tone: "muted", label: "Checking collector…" }
+    : collectorOk
+      ? { tone: "ok", label: "Collector healthy" }
+      : { tone: "danger", label: "Collector down" };
 
-      <Panel className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-            Collector
-          </p>
-          <p className="mt-1 text-sm text-[var(--ink)]">
-            {health.empty
-              ? "Checking…"
-              : collectorOk
-                ? "Healthy"
-                : `Down${collectorError ? ` (${collectorError})` : ""}`}
-          </p>
-        </div>
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${
-            collectorOk ? "bg-[var(--accent)]" : "bg-[var(--danger)]"
-          }`}
-          aria-hidden
-        />
-      </Panel>
+  return (
+    <div className="space-y-3.5">
+      <PageHeader
+        size="md"
+        className="mb-0 px-1 pb-2.5 pt-2"
+        eyebrow="AI usage and traces from the QEngine OTLP collector"
+        title={
+          <>
+            QEngine,{" "}
+            <span className="font-serif text-[var(--warm)]">under the hood</span>
+          </>
+        }
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <AdminStatusPill tone={collector.tone} live={collector.tone === "ok"}>
+              {collector.label}
+            </AdminStatusPill>
+            {!health.empty && !collectorOk && collectorError ? (
+              <span className="text-[var(--danger)]">{collectorError}</span>
+            ) : null}
+          </span>
+        }
+        actions={
+          <SegmentedControl
+            label="Range"
+            value={range}
+            onChange={setRange}
+            options={TIME_RANGES.map((r) => ({ value: r, label: r }))}
+          />
+        }
+      />
 
       <ResourceStatus
         failed={usage.failed}
         empty={usage.empty}
         loading={
           <>
-            <SkeletonStatGrid count={4} />
-            <SkeletonStatGrid count={4} className="mt-4" />
+            <SkeletonStatGrid count={3} />
+            <SkeletonStatGrid count={3} className="mt-3.5" />
           </>
         }
         error={
@@ -141,66 +137,62 @@ export const TelemetryView = (props: Record<string, unknown>) => {
           </p>
         }
       >
-        <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <TelemetryStat
-              label="Requests"
-              value={requestCount}
-              loading={false}
+        <div className="space-y-3.5">
+          <Panel
+            variant="accent"
+            wrapperClassName="q-in"
+            className="flex flex-wrap items-end gap-6 px-6 py-[22px]"
+          >
+            <div className="min-w-0 flex-[1_1_240px]">
+              <h2 className="label-mono text-[var(--warm)]">
+                {costSource === "reported" ? "Cost" : "Est. cost"} · {range}
+              </h2>
+              <p className="mt-2 text-[64px] font-extralight leading-none tracking-[-0.04em]">
+                {pricingConfigured ? formatUsd(costUsd) : "—"}
+              </p>
+              <p className="mt-2.5 text-[13px] text-[var(--muted)]">
+                <span className="text-[var(--ink)]">
+                  {requestCount != null ? requestCount.toLocaleString() : "—"}
+                </span>{" "}
+                requests
+                {pricingConfigured && avgCost != null
+                  ? ` · ${formatUsd(avgCost)} each`
+                  : null}
+              </p>
+              {costSourceHint(pricingConfigured, costSource) ? (
+                <p className="mt-1 text-xs text-[var(--faint)]">
+                  {costSourceHint(pricingConfigured, costSource)}
+                </p>
+              ) : null}
+            </div>
+            <SpendBars
+              values={series.map((p) =>
+                pricingConfigured ? p.cost_usd : p.request_count,
+              )}
+              label={pricingConfigured ? "Cost per interval" : "Requests per interval"}
             />
-            <TelemetryStat
-              label="Input tokens"
-              value={inputTokens}
-              loading={false}
-            />
-            <TelemetryStat
-              label="Output tokens"
-              value={outputTokens}
-              loading={false}
-            />
-            <TelemetryStat
-              label="Total tokens"
-              value={totalTokens}
-              loading={false}
-            />
-          </section>
+          </Panel>
 
-          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label={costSource === "reported" ? "Cost" : "Est. cost"}
-              value={pricingConfigured ? formatUsd(costUsd) : "—"}
-              hint={costSourceHint(pricingConfigured, costSource)}
-            />
-            <StatCard
-              label="Avg / request"
-              value={pricingConfigured ? formatUsd(avgCost) : "—"}
-            />
-            <StatCard
-              label="Cost / 1M tokens"
-              value={pricingConfigured ? formatUsd(costPer1m) : "—"}
-            />
-            <StatCard
-              label="Cached · Reasoning"
-              value={`${formatCompact(cachedTokens ?? 0)} · ${formatCompact(reasoningTokens ?? 0)}`}
-            />
+          <section className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
+            {[
+              ["Input tokens", compactOrDash(inputTokens)],
+              ["Output tokens", compactOrDash(outputTokens)],
+              ["Total tokens", compactOrDash(totalTokens)],
+              ["Cost / 1M", pricingConfigured ? formatUsd(costPer1m) : "—"],
+              ["Cached", formatCompact(cachedTokens ?? 0)],
+              ["Reasoning", formatCompact(reasoningTokens ?? 0)],
+            ].map(([label, value], i) => (
+              <AdminStat
+                key={label}
+                label={label}
+                value={value}
+                size="md"
+                index={i + 2}
+              />
+            ))}
           </section>
-        </>
+        </div>
       </ResourceStatus>
-
-      <TitledPanel title="Model pricing ($ / 1M tokens)">
-        <PricingPanel
-          pricing={pricing}
-          pricingOpen={pricingOpen}
-          setPricingOpen={setPricingOpen}
-          pricingRows={pricingRows}
-          updatePricingRow={updatePricingRow}
-          newModel={newModel}
-          setNewModel={setNewModel}
-          setPricingDraft={setPricingDraft}
-          pricingDraft={pricingDraft}
-          savePricing={savePricing}
-        />
-      </TitledPanel>
 
       <UsageCharts
         usage={usage}
@@ -209,10 +201,31 @@ export const TelemetryView = (props: Record<string, unknown>) => {
         usageGranularity={usageGranularity}
       />
 
-      <ModelUsage
-        modelRows={modelRows}
-        pricingConfigured={pricingConfigured}
-      />
+      <div className="flex flex-wrap gap-3.5">
+        <ModelUsage
+          modelRows={modelRows}
+          pricingConfigured={pricingConfigured}
+        />
+        <PricingSummary
+          pricing={pricing}
+          pricingOpen={pricingOpen}
+          setPricingOpen={setPricingOpen}
+          pricingRows={pricingRows}
+        />
+      </div>
+
+      {pricingOpen ? (
+        <PricingEditor
+          pricing={pricing}
+          pricingRows={pricingRows}
+          updatePricingRow={updatePricingRow}
+          newModel={newModel}
+          setNewModel={setNewModel}
+          setPricingDraft={setPricingDraft}
+          pricingDraft={pricingDraft}
+          savePricing={savePricing}
+        />
+      ) : null}
 
       <TraceList
         traces={traces}

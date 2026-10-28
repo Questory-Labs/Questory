@@ -43,17 +43,20 @@ const stats: PlaySessionStats = {
 describe("SessionsOverview", () => {
   afterEach(cleanup);
 
-  it("renders totals, the day chart, and top games", () => {
+  it("renders window KPIs, the day chart, and top games", () => {
     render(<SessionsOverview stats={stats} />);
     expect(screen.getByText("Played")).toBeInTheDocument();
-    expect(screen.getByText("2h 30m")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
-    expect(screen.getByText("Last 7 days")).toBeInTheDocument();
-    expect(screen.getByText("1h 30m")).toBeInTheDocument();
+    expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Average session")).toBeInTheDocument();
+    expect(screen.getByText(/7 d 1h 30m/)).toBeInTheDocument();
+    expect(screen.getByText("2 linked games")).toBeInTheDocument();
     expect(screen.getByText("Unmatched")).toBeInTheDocument();
     expect(screen.getByText("Assign to a library game")).toBeInTheDocument();
-    expect(screen.getByText("Last 14 days")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Playtime by day" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /Hours played per day, last 14 days, peak 1 h/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Playtime over the last 7 days" })).toBeInTheDocument();
+    expect(screen.getByText("01")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dota 2" })).toHaveAttribute(
       "href",
       "/library/g1",

@@ -1,5 +1,7 @@
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
-import type { WatchTitleDetail } from "@questorylabs/shared";
+import type { WatchCatalogLog, WatchTitleDetail } from "@questorylabs/shared";
+
+export type WatchTitleMarkMessage = { tone: "ok" | "error"; text: string } | null;
 
 export type WatchTitleViewProps = {
   id: string;
@@ -9,4 +11,7 @@ export type WatchTitleViewProps = {
     displayName: string;
     coverUrl: string;
   }) => Promise<void>;
+  markBusy?: boolean;
+  markMessage?: WatchTitleMarkMessage;
+  onMark?: (body: WatchCatalogLog) => void;
 };

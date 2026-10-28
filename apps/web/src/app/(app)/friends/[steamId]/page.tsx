@@ -1,10 +1,10 @@
-import { FriendCompareController } from "@/modules/steam/friend-compare/steam.friend-compare.controller";
-import { FriendCompareView } from "@/modules/steam/friend-compare/steam.friend-compare.view";
+import { FriendsController } from "@/modules/steam/friends/steam.friends.controller";
+import { FriendsView } from "@/modules/steam/friends/steam.friends.view";
 
 const FriendComparePage = () => (
-  <FriendCompareController>
-    <FriendCompareView />
-  </FriendCompareController>
+  <FriendsController>
+    <FriendsView />
+  </FriendsController>
 );
 
 export default FriendComparePage;

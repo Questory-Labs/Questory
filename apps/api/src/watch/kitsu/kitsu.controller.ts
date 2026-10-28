@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   UseGuards,
+  Delete,
 } from "@nestjs/common";
 import { KitsuService } from "./kitsu.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
@@ -28,4 +29,9 @@ export class KitsuController {
     return this.kitsu.connect(body.email ?? "", body.password ?? "", userId);
   }
 
+  @Delete()
+  @UseGuards(SessionUserGuard)
+  disconnect(@CurrentWatchUserId() userId: string) {
+    return this.kitsu.disconnect(userId);
+  }
 }

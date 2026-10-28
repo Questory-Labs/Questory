@@ -3,7 +3,7 @@
 import { useState, type PropsWithChildren } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { ReadLibraryPage, ReadListStatus } from "@questorylabs/shared";
+import type { ReadLibraryPage, ReadLibrarySort, ReadListStatus } from "@questorylabs/shared";
 import { readFetch } from "@/lib/read";
 import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
 
@@ -12,11 +12,13 @@ export const ReadLibraryController = ({ children }: PropsWithChildren) => {
   const [status, setStatus] = useState<"" | ReadListStatus>("");
   const [format, setFormat] = useState("");
   const [category, setCategory] = useState("");
+  const [genre, setGenre] = useState("");
+  const [sort, setSort] = useState<ReadLibrarySort>("updated");
   const [q, setQ] = useState("");
   const [qDraft, setQDraft] = useState("");
 
   const library = useResource({
-    id: ["read-library", page, status, format, category, q],
+    id: ["read-library", page, status, format, category, genre, sort, q],
     load: () => {
       const params = new URLSearchParams({
         page: String(page),
@@ -25,6 +27,8 @@ export const ReadLibraryController = ({ children }: PropsWithChildren) => {
       if (status) params.set("status", status);
       if (format) params.set("format", format);
       if (category) params.set("category", category);
+      if (genre) params.set("genre", genre);
+      if (sort !== "updated") params.set("sort", sort);
       if (q) params.set("q", q);
       return readFetch<ReadLibraryPage>(`/library?${params}`);
     },
@@ -45,6 +49,10 @@ export const ReadLibraryController = ({ children }: PropsWithChildren) => {
     setFormat,
     category,
     setCategory,
+    genre,
+    setGenre,
+    sort,
+    setSort,
     qDraft,
     setQDraft,
     onSearch,

@@ -10,4 +10,6 @@ export const TRIGGERABLE_JOBS = new Set([
   "kitsu-sync",
   "bangumi-sync",
   "shikimori-sync",
+  "monthly-recap",
+  "letterboxd-scrape",
 ]);

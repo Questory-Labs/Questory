@@ -76,6 +76,34 @@ describe("SearchService", () => {
     expect(titleFindMany).not.toHaveBeenCalled();
   });
 
+  it("adds playtime, last played and status to library game hits", async () => {
+    libraryEntryFindMany.mockResolvedValue([
+      {
+        gameId: "g1",
+        playtimeForever: 125,
+        lastPlayedAt: new Date("2026-10-01T00:00:00.000Z"),
+        userStatus: "playing",
+        game: {
+          appId: 620,
+          name: "Portal 2",
+          headerImage: null,
+          genres: "[]",
+          publishers: "[]",
+          developers: "[]",
+          categories: "[]",
+        },
+      },
+    ]);
+    const result = await service.search("user-1", "game:portal", 10);
+    expect(result.games[0]).toMatchObject({
+      appId: 620,
+      source: "library",
+      playtimeMinutes: 125,
+      lastPlayedAt: "2026-10-01T00:00:00.000Z",
+      userStatus: "playing",
+    });
+  });
+
   it("limits to friend scope", async () => {
     friendshipFindMany.mockResolvedValue([
       {
@@ -152,10 +180,15 @@ describe("SearchService", () => {
         title: "Blueming",
         artist: { name: "IU" },
         release: { title: "Palette" },
+        _count: { listens: 7 },
       },
     ]);
 
     const result = await service.search("user-1", "track:blueming", 10);
+    expect(result.music.tracks[0]?.playCount).toBe(7);
+    expect(
+      trackFindMany.mock.calls[0]?.[0]?.select._count.select.listens.where.userId,
+    ).toBe("user-1");
 
     expect(trackFindMany).toHaveBeenCalled();
     expect(artistFindMany).not.toHaveBeenCalled();

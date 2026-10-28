@@ -2,45 +2,28 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { BrandMark } from "@/components/BrandMark";
 import { LoadingPage } from "@/components/LoadingPage";
-import { NavIcon } from "@/components/nav/NavIcon";
-import { isActive } from "@/components/nav/nav-config";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useUser } from "@/hooks/useUser";
-import type { NavIconName } from "@/components/nav/nav-config";
-
-const BASE_NAV: { href: string; label: string; icon: NavIconName }[] = [
-  { href: "/admin", label: "Dashboard", icon: "dashboard" },
-  { href: "/admin/users", label: "Users", icon: "friends" },
-  { href: "/admin/cron", label: "Cron", icon: "sessions" },
-  { href: "/admin/migrations", label: "Migrations", icon: "collections" },
-  { href: "/admin/enrichment", label: "Enrichment", icon: "library" },
-  { href: "/admin/scrapers", label: "Scrapers", icon: "trending" },
-  { href: "/admin/settings", label: "Settings", icon: "cost" },
-];
+import { buildAdminNavGroups } from "@/modules/admin/shared/admin.nav";
+import { AdminNavLinks } from "@/modules/admin/shared/components/AdminNavLinks";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const menuId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
   const { when: enterpriseEnabled, isLoading: enterpriseLoading } =
     useEnterpriseEnabled();
   const { user, authReady } = useUser();
 
-  const showEnterpriseNav = enterpriseEnabled && !enterpriseLoading;
-
-  const nav = [
-    ...BASE_NAV.slice(0, 5),
-    ...(showEnterpriseNav
-      ? [
-          { href: "/admin/telemetry", label: "Telemetry", icon: "recs" as const },
-          { href: "/admin/guardrails", label: "Guardrails", icon: "family" as const },
-        ]
-      : []),
-    BASE_NAV[5],
-    BASE_NAV[6],
-  ];
-  const hrefs = nav.map((i) => i.href);
+  const showEnterpriseNav = Boolean(enterpriseEnabled) && !enterpriseLoading;
+  const groups = useMemo(
+    () => buildAdminNavGroups(showEnterpriseNav),
+    [showEnterpriseNav],
+  );
 
   useEffect(() => {
     if (!authReady) return;
@@ -50,6 +33,23 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       router.replace("/dashboard");
     }
   }, [authReady, user, router]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
 
   if (!authReady) {
     return (
@@ -70,67 +70,116 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!user.isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
-        Admin access required…
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] px-4">
+        <div className="panel q-in w-full max-w-sm p-6 text-center">
+          <p className="label-mono flex items-center justify-center gap-2">
+            <span className="dot text-[var(--warm)] shadow-[0_0_8px_var(--warm)]" aria-hidden />
+            Admin
+          </p>
+          <h1 className="font-display mt-3 text-2xl font-light">
+            Access <span className="font-serif">required</span>
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Admin access required. Taking you back to the app…
+          </p>
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-block text-sm text-[var(--warm)] hover:underline"
+          >
+            Back to app
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[14rem_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[var(--bg-0)] lg:flex">
-        <div className="flex h-14 shrink-0 items-center px-4 shadow-[inset_0_-1px_0_0_var(--line)]">
-          <span className="font-display text-lg font-bold tracking-tight">Admin</span>
-        </div>
-        <nav className="flex-1 space-y-0.5 px-2 py-4" aria-label="Admin">
-          {nav.map((item) => {
-            const active = isActive(pathname, item.href, hrefs);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2.5 px-3 py-2 text-sm transition ${
-                  active
-                    ? "bg-[var(--accent-dim)] text-[var(--ink)]"
-                    : "text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
-                }`}
-              >
-                <NavIcon name={item.icon} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="chrome-hatch-rule" aria-hidden />
-        <div className="border-t border-[var(--line)] p-3 text-xs text-[var(--muted)]">
-          <div className="truncate">{user.email || user.personaName}</div>
-          <Link
-            href="/dashboard"
-            className="mt-2 inline-block text-[var(--accent)] hover:underline"
-          >
-            Back to app
-          </Link>
+    <div className="min-h-screen lg:grid lg:grid-cols-[17rem_1fr]">
+      <aside className="sticky top-0 hidden h-screen p-3 pr-0 lg:block">
+        <div className="panel flex h-full flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-4">
+            <BrandMark href="/admin" size="sm" wordmarkClassName="text-[1.35rem]" />
+            <span className="label-mono ml-auto text-[var(--warm)]">Admin</span>
+          </div>
+          <nav className="min-h-0 flex-1 overflow-y-auto px-2" aria-label="Admin">
+            <AdminNavLinks pathname={pathname} groups={groups} />
+          </nav>
+          <div className="truncate border-t border-[var(--line)] px-4 py-3 font-mono text-[10px] text-[var(--faint)]">
+            {user.email || user.personaName}
+          </div>
         </div>
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--line)] bg-[var(--bg-0)] px-4 lg:hidden">
-          <span className="font-display font-bold">Admin</span>
-          <nav className="ml-auto flex gap-2 overflow-x-auto text-xs">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="shrink-0 text-[var(--muted)] hover:text-[var(--ink)]"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+        <header className="sticky top-0 z-40 bg-[var(--bg-0)]/80 backdrop-blur-xl lg:hidden">
+          <div className="flex h-14 shrink-0 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--line)] sm:px-6">
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)] text-[var(--ink)] transition hover:border-[var(--line-strong)]"
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
+              {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            </button>
+            <BrandMark href="/admin" size="sm" className="shrink-0" wordmarkClassName="text-lg" />
+            <span className="label-mono ml-auto text-[var(--warm)]">Admin</span>
+          </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+
+        {menuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              aria-label="Close menu"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div
+              id={menuId}
+              className="q-in absolute bottom-2 left-2 top-2 flex w-[min(18rem,86vw)] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--line-strong)] bg-[var(--bg-1)]"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
+                <BrandMark href={null} size="sm" wordmarkClassName="text-lg" />
+                <button
+                  type="button"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)]"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="sr-only">Close</span>
+                  <CloseIcon />
+                </button>
+              </div>
+              <nav className="min-h-0 flex-1 overflow-y-auto px-2" aria-label="Admin mobile">
+                <AdminNavLinks
+                  pathname={pathname}
+                  groups={groups}
+                  onNavigate={() => setMenuOpen(false)}
+                />
+              </nav>
+            </div>
+          </div>
+        )}
+
+        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">{children}</main>
       </div>
     </div>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
   );
 }

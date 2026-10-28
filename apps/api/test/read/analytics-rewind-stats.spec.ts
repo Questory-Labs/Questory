@@ -23,9 +23,11 @@ describe("Read AnalyticsService.rewindStats", () => {
       .fn()
       .mockResolvedValue({ _min: { readAt: new Date("2023-01-01T00:00:00Z") } });
     const titleFindMany = vi.fn().mockResolvedValue([{ id: "t2", name: "Vagabond" }]);
+    const listFindMany = vi.fn().mockResolvedValue([{ readTitleId: "t1" }]);
     const prisma = {
       readEvent: { findMany, groupBy, aggregate },
       readTitle: { findMany: titleFindMany },
+      readListState: { findMany: listFindMany },
     } as unknown as PrismaService;
     const users = {
       resolveUser: vi.fn().mockResolvedValue({ id: "user-1" }),
@@ -63,5 +65,11 @@ describe("Read AnalyticsService.rewindStats", () => {
     expect(stats.droppedOff).toEqual([{ id: "t2", name: "Vagabond", count: 5 }]);
     expect(stats.statusBreakdown).toEqual({ completed: 1, dropped: 0, repeating: 0 });
     expect(stats.monthly).toHaveLength(31);
+    expect(stats.inProgress).toBe(1);
+    expect(listFindMany.mock.calls[0]![0].where).toEqual({
+      userId: "user-1",
+      listStatus: "reading",
+      readTitleId: { in: ["t1"] },
+    });
   });
 });

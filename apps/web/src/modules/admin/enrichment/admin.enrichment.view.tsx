@@ -1,116 +1,158 @@
 "use client";
 
-import { Button, EmptyState, PageHeader, Panel } from "@/components/ui";
+import { useState } from "react";
+import { Button, EmptyState } from "@/components/ui";
+import { SegmentedControl } from "@/components/SegmentedControl";
 import { ResourceStatus, SkeletonListRows } from "@questorylabs/ui";
-import { TABS, STATUS_FILTERS } from "./admin.enrichment.constants";
+import { AdminStat } from "../shared/components/AdminStat";
+import {
+  DOMAIN_OPTIONS,
+  STATUS_OPTIONS,
+  TABS,
+  isRequeueDomain,
+} from "./admin.enrichment.constants";
 import type { AdminEnrichmentViewProps } from "./admin.enrichment.types";
-import { formatWhen } from "./admin.enrichment.utils";
-import { MiniStat } from "./components/MiniStat";
-import { StatusPill } from "./components/StatusPill";
+import { EnrichmentTable } from "./components/EnrichmentTable";
+import { RequeueDialog, type RequeueTarget } from "./components/RequeueDialog";
 
 export const AdminEnrichmentView = (props: Record<string, unknown>) => {
-  const { domain, setDomain, status, setStatus, page, setPage, data, trigger } =
-    props as AdminEnrichmentViewProps;
+  const {
+    domain,
+    setDomain,
+    status,
+    setStatus,
+    page,
+    setPage,
+    data,
+    trigger,
+    requeue,
+  } = props as AdminEnrichmentViewProps;
+  const [confirm, setConfirm] = useState<RequeueTarget | null>(null);
 
-  const counts = data.value?.counts;
-  const activeCounts = counts?.[domain];
+  const activeCounts = data.value?.counts?.[domain];
+  const failed = activeCounts?.failed ?? 0;
+  const canRequeue = isRequeueDomain(domain);
   const totalPages = data.value
     ? Math.max(1, Math.ceil(data.value.total / data.value.pageSize))
     : 1;
   const activeTab = TABS.find((t) => t.id === domain)!;
 
+  const onConfirm = () => {
+    if (!confirm || !isRequeueDomain(domain)) return;
+    requeue.submit(
+      confirm.kind === "all"
+        ? { domain, allFailed: true }
+        : { domain, ids: [confirm.item.id] },
+    );
+    setConfirm(null);
+  };
+
   return (
-    <>
-      <PageHeader size="sm"
-        title="Enrichment"
-        description="MusicBrainz, TMDB, and Steam metadata job queues."
-        actions={
+    <div className="flex flex-col gap-3.5">
+      <div
+        className="q-in flex flex-wrap items-center justify-between gap-3"
+        style={{ "--i": 1 } as React.CSSProperties}
+      >
+        <SegmentedControl
+          label="Domain"
+          value={domain}
+          onChange={setDomain}
+          options={DOMAIN_OPTIONS}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          {canRequeue && failed > 0 ? (
+            <button
+              type="button"
+              disabled={requeue.busy}
+              onClick={() => setConfirm({ kind: "all", count: failed })}
+              className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-[var(--danger)]/40 bg-[var(--danger)]/[0.12] px-[18px] text-sm text-[color-mix(in_srgb,var(--danger)_30%,white)] transition-colors hover:bg-[var(--danger)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Recover {failed} failed
+            </button>
+          ) : null}
           <Button
             variant="secondary"
             disabled={trigger.busy}
             onClick={() => trigger.submit()}
           >
-            Recover failed
+            Run sync recovery
           </Button>
-        }
-      />
+        </div>
+      </div>
 
       {trigger.failed ? (
-        <p className="mb-4 text-sm text-[var(--warm)]">
+        <p className="text-sm text-[var(--danger)]">
           {(trigger.error as Error).message}
         </p>
       ) : null}
+      {requeue.failed ? (
+        <p className="text-sm text-[var(--danger)]">
+          {(requeue.error as Error).message}
+        </p>
+      ) : null}
+      {requeue.succeeded && requeue.value ? (
+        <p className="text-sm text-[var(--ok)]">
+          Requeued {requeue.value.requeued} job
+          {requeue.value.requeued === 1 ? "" : "s"}.
+        </p>
+      ) : null}
 
-      <div
-        className="mb-6 flex gap-1 border-b border-[var(--line)]"
-        role="tablist"
-        aria-label="Enrichment domain"
-      >
-        {TABS.map((tab) => {
-          const bucket = counts?.[tab.id];
-          const active = domain === tab.id;
-          const queue = bucket ? bucket.pending + bucket.running : null;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setDomain(tab.id)}
-              className={`relative -mb-px flex items-center gap-2 px-4 py-2.5 text-sm transition ${
-                active
-                  ? "border-b-2 border-[var(--accent)] font-medium text-[var(--ink)]"
-                  : "text-[var(--muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {tab.label}
-              {queue != null ? (
-                <span
-                  className={`font-mono text-[10px] tabular-nums ${
-                    queue > 0 ? "text-[var(--warm)]" : "text-[var(--faint)]"
-                  }`}
-                >
-                  {queue}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
+      <p className="px-1 text-sm text-[var(--muted)]">{activeTab.hint}</p>
+
+      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+        <AdminStat
+          label="Pending"
+          value={activeCounts?.pending ?? "—"}
+          tone="warn"
+          index={2}
+        />
+        <AdminStat
+          label="Running"
+          value={activeCounts?.running ?? "—"}
+          tone="muted"
+          live={Boolean(activeCounts?.running)}
+          index={3}
+        />
+        <AdminStat
+          label="Failed"
+          value={activeCounts?.failed ?? "—"}
+          tone="danger"
+          index={4}
+        />
+        <AdminStat
+          label="Completed · 24h"
+          value={activeCounts?.completed24h ?? "—"}
+          tone="ok"
+          index={5}
+        />
       </div>
 
-      <p className="mb-4 text-sm text-[var(--muted)]">{activeTab.hint}</p>
-
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <MiniStat label="Pending" value={activeCounts?.pending} tone="warm" />
-        <MiniStat label="Running" value={activeCounts?.running} tone="warm" />
-        <MiniStat label="Failed" value={activeCounts?.failed} tone="danger" />
-        <MiniStat label="Completed" value={activeCounts?.completed} />
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Status filter">
-          {STATUS_FILTERS.map((f) => {
-            const active = status === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setStatus(f.id)}
-                className={`px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] transition ${
-                  active
-                    ? "bg-[var(--accent-dim)] text-[var(--ink)]"
-                    : "text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
-                }`}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedControl
+          label="Status filter"
+          value={status}
+          onChange={setStatus}
+          options={STATUS_OPTIONS}
+        />
         {data.value ? (
           <span className="font-mono text-[10px] text-[var(--faint)]">
             {data.value.total} job{data.value.total === 1 ? "" : "s"}
             {status !== "all" ? ` · ${status}` : ""}
+            {activeCounts ? ` · ${activeCounts.completed} completed all time` : ""}
           </span>
         ) : null}
       </div>
@@ -120,69 +162,18 @@ export const AdminEnrichmentView = (props: Record<string, unknown>) => {
         empty={data.empty}
         loading={<SkeletonListRows />}
         error={
-          <p className="text-sm text-[var(--warm)]">
+          <p className="text-sm text-[var(--danger)]">
             {(data.error as Error)?.message}
           </p>
         }
       >
         {data.value?.items.length ? (
-          <Panel className="overflow-hidden p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--line)] font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
-                    <th className="px-4 py-3 font-normal">Status</th>
-                    <th className="px-4 py-3 font-normal">
-                      {domain === "game"
-                        ? "User"
-                        : domain === "music"
-                          ? "Track"
-                          : "Title"}
-                    </th>
-                    <th className="px-4 py-3 font-normal">Attempts</th>
-                    <th className="px-4 py-3 font-normal">Created</th>
-                    <th className="px-4 py-3 font-normal">Finished</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.value.items.map((job) => (
-                    <tr
-                      key={job.id}
-                      className="border-t border-[var(--line)] align-top first:border-t-0"
-                    >
-                      <td className="px-4 py-3">
-                        <StatusPill status={job.status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-[var(--ink)]">
-                          {job.label}
-                        </div>
-                        <div className="mt-0.5 font-mono text-[10px] text-[var(--faint)]">
-                          {job.detail || job.refId.slice(0, 8)}
-                          {" · "}
-                          {job.id.slice(0, 8)}
-                        </div>
-                        {job.error ? (
-                          <p className="mt-1 max-w-md text-xs text-[var(--warm)]">
-                            {job.error}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs tabular-nums text-[var(--muted)]">
-                        {job.attempts ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[10px] text-[var(--muted)]">
-                        {formatWhen(job.createdAt)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[10px] text-[var(--muted)]">
-                        {job.completedAt ? formatWhen(job.completedAt) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+          <EnrichmentTable
+            items={data.value.items}
+            canRequeue={canRequeue}
+            busy={requeue.busy}
+            onRequeue={(item) => setConfirm({ kind: "one", item })}
+          />
         ) : (
           <EmptyState
             title="No jobs in this view"
@@ -196,12 +187,12 @@ export const AdminEnrichmentView = (props: Record<string, unknown>) => {
       </ResourceStatus>
 
       {data.value && data.value.total > data.value.pageSize ? (
-        <div className="mt-6 flex items-center justify-center gap-3">
+        <div className="mt-2 flex items-center justify-center gap-3">
           <Button
             variant="secondary"
+            size="sm"
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-3 py-1.5"
           >
             Previous
           </Button>
@@ -210,14 +201,21 @@ export const AdminEnrichmentView = (props: Record<string, unknown>) => {
           </span>
           <Button
             variant="secondary"
+            size="sm"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5"
           >
             Next
           </Button>
         </div>
       ) : null}
-    </>
+
+      <RequeueDialog
+        target={confirm}
+        busy={requeue.busy}
+        onCancel={() => setConfirm(null)}
+        onConfirm={onConfirm}
+      />
+    </div>
   );
 };

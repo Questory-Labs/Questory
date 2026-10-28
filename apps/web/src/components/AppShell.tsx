@@ -10,13 +10,15 @@ import { SyncStatusBar } from "@/components/SyncStatusBar";
 import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearchProvider";
 import { HeaderSearch } from "@/components/search/HeaderSearch";
+import { SidebarSearch } from "@/components/search/SidebarSearch";
 import { useGlobalSearchShortcut } from "@/components/search/useGlobalSearchShortcut";
 import { AccountMenu } from "@/components/nav/AccountMenu";
 import { NavLinks } from "@/components/nav/NavLinks";
-import { buildNavGroups } from "@/components/nav/nav-config";
+import { buildNavFooter, buildNavGroups } from "@/components/nav/nav-config";
 import { api } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useNavCounts } from "@/hooks/useNavCounts";
 import { useReadEnabled } from "@/hooks/useReadEnabled";
 import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
@@ -56,6 +58,24 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       }),
     [showEnterpriseNav, showMusicNav, showWatchNav, showReadNav],
   );
+
+  const navFooter = useMemo(
+    () =>
+      buildNavFooter({
+        music: showMusicNav,
+        watch: showWatchNav,
+        read: showReadNav,
+        admin: Boolean(user?.isAdmin),
+      }),
+    [showMusicNav, showWatchNav, showReadNav, user?.isAdmin],
+  );
+
+  const navCountsQuery = useNavCounts({ enabled: isAuthenticated });
+  const navCounts = useMemo(() => {
+    const c = navCountsQuery.value;
+    if (!c) return {};
+    return { games: c.library, music: c.musicListens, watch: c.watchTitles, read: c.readTitles };
+  }, [navCountsQuery.value]);
 
   const logout = useAction({
     run: () => api("/auth/logout", { method: "POST" }),
@@ -105,41 +125,46 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-[var(--line)] bg-[var(--bg-0)] lg:flex">
-        <div className="flex h-14 shrink-0 items-center px-4 shadow-[inset_0_-1px_0_0_var(--line)]">
-          <BrandMark
-            href="/dashboard"
-            size="sm"
-            wordmarkClassName="text-[1.35rem]"
-          />
-        </div>
+    <div className="min-h-screen lg:grid lg:grid-cols-[17rem_1fr]">
+      <aside className="sticky top-0 hidden h-screen p-3 pr-0 lg:block">
+        <div className="panel flex h-full flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center px-4 pb-2 pt-4">
+            <BrandMark
+              href="/dashboard"
+              size="sm"
+              wordmarkClassName="text-[1.35rem]"
+            />
+          </div>
 
-        <nav
-          className="min-h-0 flex-1 overflow-y-auto px-2 [--nav-sticky-bg:var(--bg-0)]"
-          aria-label="Primary"
-        >
-          <NavLinks pathname={pathname} groups={navGroups} />
-        </nav>
+          <div className="flex shrink-0 items-center gap-2 px-3 pb-1">
+            <SidebarSearch />
+            <NotificationBell align="left" />
+          </div>
 
-        <div className="chrome-hatch-rule" aria-hidden />
+          <nav
+            className="min-h-0 flex-1 overflow-y-auto px-2"
+            aria-label="Primary"
+          >
+            <NavLinks pathname={pathname} groups={navGroups} footer={navFooter} counts={navCounts} />
+          </nav>
 
-        <div className="border-t border-[var(--line)] p-3">
-          <AccountMenu
-            user={user}
-            onLogout={() => logout.submit()}
-            logoutPending={logout.busy}
-            placement="up"
-          />
+          <div className="border-t border-[var(--line)] p-3">
+            <AccountMenu
+              user={user}
+              onLogout={() => logout.submit()}
+              logoutPending={logout.busy}
+              placement="up"
+            />
+          </div>
         </div>
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-40 bg-[var(--bg-0)]">
+        <header className="sticky top-0 z-40 bg-[var(--bg-0)]/80 backdrop-blur-xl lg:hidden">
           <div className="flex h-14 shrink-0 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--line)] sm:px-6">
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center border border-[var(--line)] text-[var(--ink)] transition hover:border-[var(--line-strong)] lg:hidden"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)] text-[var(--ink)] transition hover:border-[var(--line-strong)]"
               aria-expanded={menuOpen}
               aria-controls={menuId}
               onClick={() => setMenuOpen((v) => !v)}
@@ -151,7 +176,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             <BrandMark
               href="/dashboard"
               size="sm"
-              className="shrink-0 lg:hidden"
+              className="shrink-0"
               wordmarkClassName="text-lg"
             />
 
@@ -159,26 +184,25 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
             <NotificationBell />
           </div>
-          <div className="chrome-hatch-rule lg:hidden" aria-hidden />
         </header>
 
         {menuOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <button
               type="button"
-              className="absolute inset-0 bg-[var(--bg-0)]/70 hatch-fill"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               aria-label="Close menu"
               onClick={() => setMenuOpen(false)}
             />
             <div
               id={menuId}
-              className="absolute left-0 top-0 flex h-full w-[min(18rem,86vw)] flex-col border-r border-[var(--line)] bg-[var(--bg-1)]"
+              className="q-in absolute bottom-2 left-2 top-2 flex w-[min(18rem,86vw)] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-[var(--line-strong)] bg-[var(--bg-1)]"
             >
               <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
                 <BrandMark href={null} size="sm" wordmarkClassName="text-lg" />
                 <button
                   type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center border border-[var(--line)]"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)]"
                   onClick={() => setMenuOpen(false)}
                 >
                   <span className="sr-only">Close</span>
@@ -187,12 +211,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               </div>
 
               <nav
-                className="min-h-0 flex-1 overflow-y-auto px-2 [--nav-sticky-bg:var(--bg-1)]"
+                className="min-h-0 flex-1 overflow-y-auto px-2"
                 aria-label="Mobile"
               >
                 <NavLinks
                   pathname={pathname}
                   groups={navGroups}
+                  footer={navFooter}
+                  counts={navCounts}
                   onNavigate={() => setMenuOpen(false)}
                 />
               </nav>
@@ -218,7 +244,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           />
         ) : null}
 
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">{children}</main>
       </div>
     </div>
   );

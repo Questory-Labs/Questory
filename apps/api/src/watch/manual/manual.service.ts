@@ -77,6 +77,7 @@ export class ManualService {
   }
 
   async log(userId: string, input: WatchCatalogLog) {
+    if (input.titleId) return this.logExisting(userId, input, input.titleId);
     const tmdbDetail = input.tmdbId
       ? input.type === "movie"
         ? await this.tmdb.getMovie(input.tmdbId)
@@ -157,6 +158,30 @@ export class ManualService {
       await this.catalog.linkGenres(title.id, anilistDetail.genres, "anilist");
     }
 
+    return this.record(userId, input, title.id, runtimeMinutes);
+  }
+
+  private async logExisting(
+    userId: string,
+    input: WatchCatalogLog,
+    titleId: string,
+  ) {
+    const title = await this.catalog.findTitleSummary(titleId);
+    if (!title) throw new NotFoundException("Title not found");
+    if (title.type !== input.type) {
+      throw new BadRequestException("Title type does not match");
+    }
+    return this.record(userId, input, title.id, title.runtimeMinutes);
+  }
+
+  private async record(
+    userId: string,
+    input: WatchCatalogLog,
+    titleId: string,
+    titleRuntime: number | null,
+  ) {
+    const title = { id: titleId };
+    let runtimeMinutes = titleRuntime;
     let episodeId: string | null = null;
     if (input.type === "show") {
       const episode = await this.catalog.upsertEpisode({
@@ -165,6 +190,7 @@ export class ManualService {
         episodeNumber: input.episodeNumber!,
       });
       episodeId = episode.id;
+      runtimeMinutes = episode.runtimeMinutes ?? titleRuntime;
     }
 
     const watchedAt = dayNoonUtc(input.watchedAt);

@@ -10,10 +10,11 @@ import { AnalyticsModule as WatchAnalyticsModule } from "../watch/analytics/anal
 import { ReadAnalyticsModule } from "../read/analytics/analytics.module";
 import { GamesModule } from "../games/games.module";
 import { MonthlyRecapService } from "./monthly-recap.service";
+import { DEFAULT_RECAP_SCHEDULE } from "./recap.constants";
 import { RecapController } from "./recap.controller";
 import { UnifiedRewindController } from "./unified-rewind.controller";
 
-export const DEFAULT_RECAP_SCHEDULE = "0 6 1 * *";
+export { DEFAULT_RECAP_SCHEDULE };
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ export const DEFAULT_RECAP_SCHEDULE = "0 6 1 * *";
   ],
   controllers: [RecapController, UnifiedRewindController],
   providers: [MonthlyRecapService],
+  exports: [MonthlyRecapService],
 })
 export class RecapModule implements OnModuleInit {
   private readonly logger = new Logger(RecapModule.name);

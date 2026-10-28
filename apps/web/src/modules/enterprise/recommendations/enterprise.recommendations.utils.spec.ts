@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RecommendationItem } from "@/lib/enterprise-types";
 import {
+  dayPartLabel,
   itemReactKey,
   uniqueRecommendationItems,
 } from "./enterprise.recommendations.utils";
@@ -108,5 +109,17 @@ describe("uniqueRecommendationItems", () => {
     ];
     expect(uniqueRecommendationItems(items)).toHaveLength(1);
     expect(itemReactKey(items[0]!)).toBe("game:Hades");
+  });
+});
+
+describe("dayPartLabel", () => {
+  it("names the weekday and the part of the day", () => {
+    const at = (hour: number) => new Date(2026, 9, 25, hour, 0, 0);
+    const weekday = at(9).toLocaleDateString(undefined, { weekday: "long" });
+    expect(dayPartLabel(at(2))).toBe(`${weekday} night`);
+    expect(dayPartLabel(at(9))).toBe(`${weekday} morning`);
+    expect(dayPartLabel(at(14))).toBe(`${weekday} afternoon`);
+    expect(dayPartLabel(at(19))).toBe(`${weekday} evening`);
+    expect(dayPartLabel(at(23))).toBe(`${weekday} night`);
   });
 });

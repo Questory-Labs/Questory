@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
 export const skeletonVariants = cva(
-  "motion-safe:animate-pulse rounded-md bg-[var(--line)]",
+  "motion-safe:animate-pulse rounded-[10px] bg-white/[0.06]",
 );
 
 export const skeletonTextVariants = cva("h-3", {
@@ -19,7 +19,7 @@ export const skeletonTextVariants = cva("h-3", {
 });
 
 export const skeletonTileVariants = cva(
-  "overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--bg-2)]",
+  "overflow-hidden rounded-[var(--radius-panel)] border border-[var(--line)] bg-white/[0.02]",
 );
 
 export const skeletonRowVariants = cva("flex items-center gap-3");
@@ -159,7 +159,7 @@ export function SkeletonListRows({
 export function SkeletonDetailHeader({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-4", className)} aria-busy="true">
-      <Skeleton className="h-40 w-full max-w-xl rounded-lg" />
+      <Skeleton className="h-40 w-full max-w-xl rounded-[var(--radius-panel)]" />
       <SkeletonText lines={3} />
     </div>
   );
@@ -181,7 +181,7 @@ export function SkeletonStatGrid({
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
-          className="rounded-lg border border-[var(--line)] bg-[var(--bg-2)] p-4"
+          className="rounded-[var(--radius-panel)] border border-[var(--line)] bg-white/[0.02] p-4"
         >
           <SkeletonStat />
         </div>

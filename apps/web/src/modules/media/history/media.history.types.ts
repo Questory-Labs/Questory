@@ -11,11 +11,15 @@ export type MediaHistoryViewProps<TItem> = {
   recent: UseResourceResult<MediaHistoryPage<TItem>>;
   page: number;
   setPage: (page: number) => void;
-  title: string;
-  description: string;
+  title: ReactNode;
+  eyebrow?: string;
+  description?: string;
   actions?: ReactNode;
+  toolbar?: ReactNode;
+  showCount?: boolean;
   emptyTitle: string;
   emptyDescription: string;
   errorMessage: string;
-  renderItem: (item: TItem) => ReactNode;
+  listLabel?: string;
+  renderItem: (item: TItem, index: number) => ReactNode;
 };

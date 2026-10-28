@@ -6,6 +6,7 @@ import {
   Res,
   UseGuards,
   BadRequestException,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-state";
@@ -50,4 +51,9 @@ export class BangumiController {
     return res.redirect(await listProviderConnectedUrl(this.flags, "bangumi"));
   }
 
+  @Delete()
+  @UseGuards(SessionUserGuard)
+  disconnect(@CurrentWatchUserId() userId: string) {
+    return this.bangumi.disconnect(userId);
+  }
 }

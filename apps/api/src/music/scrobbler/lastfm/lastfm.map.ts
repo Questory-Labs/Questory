@@ -1,4 +1,5 @@
 import type { IncomingListenMeta } from "../../catalog/catalog.service";
+import { LASTFM_SUBMISSION_CLIENT } from "../scrobbler.constants";
 
 export type LastFmRecentTrack = {
   name?: string;
@@ -62,7 +63,7 @@ export function mapLastFmTrack(
     releaseMbid,
     artistMbids: artistMbid ? [artistMbid] : undefined,
     musicService: "lastfm",
-    submissionClient: "questory_lastfm",
+    submissionClient: LASTFM_SUBMISSION_CLIENT,
   };
 }
 

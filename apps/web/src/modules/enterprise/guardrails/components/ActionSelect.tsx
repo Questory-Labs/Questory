@@ -1,7 +1,13 @@
 "use client";
 
+import { SegmentedControl } from "@/components/SegmentedControl";
 import type { GuardrailAction } from "@/lib/enterprise-api";
 import { ACTIONS } from "../enterprise.guardrails.constants";
+
+const OPTIONS = ACTIONS.map((action) => ({
+  value: action,
+  label: action[0].toUpperCase() + action.slice(1),
+}));
 
 export const ActionSelect = ({
   value,
@@ -12,16 +18,10 @@ export const ActionSelect = ({
   onChange: (value: GuardrailAction) => void;
   label: string;
 }) => (
-  <select
-    className="rounded border border-[var(--line)] bg-[var(--bg-0)] px-2 py-1.5 text-sm"
+  <SegmentedControl
+    label={label}
     value={value}
-    onChange={(e) => onChange(e.target.value as GuardrailAction)}
-    aria-label={label}
-  >
-    {ACTIONS.map((action) => (
-      <option key={action} value={action}>
-        {action}
-      </option>
-    ))}
-  </select>
+    onChange={onChange}
+    options={OPTIONS}
+  />
 );

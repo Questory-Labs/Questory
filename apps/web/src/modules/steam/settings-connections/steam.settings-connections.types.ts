@@ -1,5 +1,14 @@
-import type { UseResourceResult } from "@questorylabs/qhttp/react";
-import type { StoreAccountStatus, User } from "@questorylabs/shared";
+import type {
+  UseActionResult,
+  UseResourceResult,
+} from "@questorylabs/qhttp/react";
+import type {
+  ConnectionsOverview,
+  QmonitorDeviceList,
+  SourcesOverview,
+  StoreAccountStatus,
+  User,
+} from "@questorylabs/shared";
 import type { useSyncJobs } from "@/hooks/useSyncJobs";
 
 export type ConnectionsViewProps = {
@@ -13,4 +22,9 @@ export type ConnectionsViewProps = {
   showMusic: boolean;
   showWatch: boolean;
   showRead: boolean;
+  connections: UseResourceResult<ConnectionsOverview>;
+  sources: UseResourceResult<SourcesOverview>;
+  devices: UseResourceResult<QmonitorDeviceList>;
+  revokeDevice: UseActionResult<unknown, string>;
+  revokeError: string | null;
 };

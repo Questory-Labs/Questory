@@ -58,7 +58,7 @@ const baseProps = (): MusicSettingsViewProps => ({
 describe("MusicSettingsView", () => {
   afterEach(cleanup);
 
-  it("renders the sources heading", () => {
+  it("renders the sources intro", () => {
     const store = new ResourceStore({ retries: false });
     render(
       <ResourceProvider store={store}>
@@ -67,7 +67,7 @@ describe("MusicSettingsView", () => {
         />
       </ResourceProvider>,
     );
-    expect(screen.getByRole("heading", { name: "Sources" })).toBeInTheDocument();
+    expect(screen.getByText(/Connect Last.fm for live polling/)).toBeInTheDocument();
     expect(screen.getByText("History upload")).toBeInTheDocument();
   });
 });

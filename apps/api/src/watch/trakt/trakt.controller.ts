@@ -5,6 +5,7 @@ import {
   Res,
   UseGuards,
   BadRequestException,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-state";
@@ -49,8 +50,13 @@ export class TraktController {
       process.env.NEXT_PUBLIC_WEB_URL ||
       "http://localhost:3000";
     return res.redirect(
-      `${web.replace(/\/$/, "")}/watch/settings?trakt=connected`,
+      `${web.replace(/\/$/, "")}/sources?tab=watch&trakt=connected`,
     );
   }
 
+  @Delete()
+  @UseGuards(SessionUserGuard)
+  disconnect(@CurrentWatchUserId() userId: string) {
+    return this.trakt.disconnect(userId);
+  }
 }

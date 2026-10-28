@@ -1,39 +1,38 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { EmptyState, Panel, SkeletonTile } from "@questorylabs/ui";
-import { GameCover } from "@/components/GameCover";
+import { EmptyState, SkeletonTile } from "@questorylabs/ui";
 import type { PlayNextItem } from "@questorylabs/shared";
 import type { DashboardOccupancy } from "../dashboard-occupancy";
 
 export const PlayNextSection = ({
   occupancy,
   playNextEmpty,
-  featured,
-  restPicks,
+  picks,
   syncing,
   steamLinked,
 }: {
   occupancy: DashboardOccupancy;
   playNextEmpty: boolean;
-  featured: PlayNextItem | undefined;
-  restPicks: PlayNextItem[];
+  picks: PlayNextItem[];
   syncing: boolean;
   steamLinked: boolean;
 }) => (
-  <section className="mt-10">
-    <div className="mb-4 flex items-end justify-between gap-4">
-      <div>
-        <h2 className="font-display text-xl font-bold tracking-tight">Play next</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Backlog picks from genres you play, Deck fit, and forgotten gems
-        </p>
-      </div>
+  <section
+    aria-labelledby="dashboard-next"
+    className="panel q-lift q-in min-w-0 flex-[1_1_300px] px-3 pb-2.5 pt-[18px]"
+    style={{ "--i": 9 } as CSSProperties}
+  >
+    <div className="mx-2 mb-2 flex items-baseline justify-between gap-3">
+      <h2 id="dashboard-next" className="m-0 text-base font-normal">
+        Up next
+      </h2>
       <Link
         href="/library"
-        className="shrink-0 text-sm text-[var(--muted)] transition hover:text-[var(--accent)]"
+        className="text-[13px] text-[var(--muted)] transition hover:text-[var(--accent)]"
       >
-        Full library →
+        Full library
       </Link>
     </div>
     {occupancy.playNextError ? (
@@ -44,19 +43,40 @@ export const PlayNextSection = ({
       />
     ) : playNextEmpty ? (
       occupancy.showContinue ? (
-        <p className="text-sm text-[var(--muted)]">Picks loading…</p>
+        <p className="mx-2 text-sm text-[var(--muted)]">Picks loading…</p>
       ) : (
-        <SkeletonTile className="max-w-xl" />
+        <SkeletonTile className="mx-2" />
       )
-    ) : featured ? (
-      <div className="grid items-start gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <PlayNextFeatured pick={featured} />
-        <div className="space-y-2">
-          {restPicks.map((g) => (
-            <PlayNextRow key={g.appId} pick={g} />
-          ))}
-        </div>
-      </div>
+    ) : picks.length ? (
+      <ul className="m-0 list-none p-0">
+        {picks.map((pick, i) => (
+          <li key={pick.appId}>
+            <Link
+              href={`/library/${pick.appId}`}
+              className="q-row flex min-h-12 items-center gap-3 rounded-[14px] px-2 no-underline"
+            >
+              <span className="font-mono text-[10px] text-[var(--dim)]">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-normal">{pick.name}</span>
+                {pick.reasons.length ? (
+                  <span className="block truncate text-xs text-[var(--faint)]">
+                    {pick.reasons.slice(0, 2).join(" · ")}
+                  </span>
+                ) : null}
+              </span>
+              <span
+                className="text-xl font-extralight"
+                title={`${Math.round(pick.playtimeForever / 60)} hours played`}
+              >
+                {Math.round(pick.playtimeForever / 60)}
+                <span className="text-[11px] text-[var(--faint)]"> h</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     ) : (
       <EmptyState
         title={
@@ -69,36 +89,4 @@ export const PlayNextSection = ({
       />
     )}
   </section>
-);
-
-const PlayNextFeatured = ({ pick }: { pick: PlayNextItem }) => (
-  <Link href={`/library/${pick.appId}`} className="block">
-    <Panel size="md" className="overflow-hidden">
-      <GameCover src={pick.headerImage} className="w-full" />
-      <div className="border-t border-[var(--line)] px-4 py-3">
-        <h3 className="truncate font-medium">{pick.name}</h3>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          {pick.reasons.slice(0, 2).join(" · ") ||
-            `${Math.round(pick.playtimeForever / 60)}h`}
-        </p>
-      </div>
-    </Panel>
-  </Link>
-);
-
-const PlayNextRow = ({ pick }: { pick: PlayNextItem }) => (
-  <Link href={`/library/${pick.appId}`} className="block">
-    <Panel
-      variant="outline"
-      className="flex items-start gap-3 px-3 py-2 hover:border-[var(--line-strong)]"
-    >
-      <GameCover src={pick.headerImage} className="w-28 shrink-0" />
-      <div className="min-w-0 pt-0.5">
-        <h3 className="truncate text-sm font-medium">{pick.name}</h3>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          {pick.reasons.slice(0, 2).join(" · ")}
-        </p>
-      </div>
-    </Panel>
-  </Link>
 );

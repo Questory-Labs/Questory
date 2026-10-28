@@ -9,6 +9,9 @@ const NEW_ICONS: NavIconName[] = [
   "history",
   "rewind",
   "sources",
+  "goals",
+  "settings",
+  "admin",
 ];
 
 describe("NavIcon", () => {

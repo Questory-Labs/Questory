@@ -23,6 +23,9 @@ export const SearchGameHitSchema = z.object({
   name: z.string(),
   headerImage: z.string().nullable(),
   source: z.enum(["library", "wishlist", "catalog"]),
+  playtimeMinutes: z.number().optional(),
+  lastPlayedAt: z.string().nullable().optional(),
+  userStatus: z.string().nullable().optional(),
 });
 export type SearchGameHit = z.infer<typeof SearchGameHitSchema>;
 
@@ -44,6 +47,7 @@ export const SearchMusicTrackHitSchema = z.object({
   name: z.string(),
   artistName: z.string().nullable().optional(),
   albumName: z.string().nullable().optional(),
+  playCount: z.number().optional(),
 });
 export type SearchMusicTrackHit = z.infer<typeof SearchMusicTrackHitSchema>;
 

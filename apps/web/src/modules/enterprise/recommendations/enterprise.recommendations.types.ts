@@ -19,6 +19,7 @@ export type CurateOptions = {
 export type RecommendationsViewProps = {
   tab: RecsTab;
   setTab: Dispatch<SetStateAction<RecsTab>>;
+  dayPart: string;
   jobId: string | null;
   peekHeuristics: boolean;
   setPeekHeuristics: Dispatch<SetStateAction<boolean>>;

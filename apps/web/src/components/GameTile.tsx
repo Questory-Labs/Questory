@@ -25,7 +25,7 @@ export function GameTile({
   const body = (
     <HatchShadow
       size="sm"
-      faceClassName={`group panel flex flex-col hover:border-[var(--line-strong)] ${
+      faceClassName={`group panel q-lift flex flex-col hover:border-[var(--line-strong)] ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
@@ -40,13 +40,13 @@ export function GameTile({
           </div>
         ) : null}
       </GameCover>
-      <div className="shrink-0 border-t border-[var(--line)] px-3 py-2.5">
+      <div className="shrink-0 px-4 pt-3 pb-3.5">
         <div className="truncate text-sm font-medium text-[var(--ink)]">
           {name}
         </div>
         {badge ? <div className="mt-1.5">{badge}</div> : null}
         {meta && (
-          <div className="font-mono mt-1 text-[11px] text-[var(--muted)]">
+          <div className="font-mono mt-1 text-[11px] text-[var(--faint)]">
             {meta}
           </div>
         )}

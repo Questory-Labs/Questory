@@ -5,6 +5,8 @@ export type MusicScrobblerProviderId =
 
 export const LASTFM_PROVIDER = "lastfm" as const;
 
+export const LASTFM_SUBMISSION_CLIENT = "questory_lastfm";
+
 /** Stored on SourceConnection.lastError when the provider session is dead. */
 export const SCROBBLER_AUTH_FAILED = "auth_failed";
 

@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
 
 export type Domain = "music" | "watch" | "game";
+export type RequeueDomain = Extract<Domain, "music" | "watch">;
 export type StatusFilter = "all" | "pending" | "running" | "completed" | "failed";
 
 export type StatusBucket = {
@@ -10,6 +11,7 @@ export type StatusBucket = {
   completed: number;
   failed: number;
   total: number;
+  completed24h: number;
 };
 
 export type EnrichmentItem = {
@@ -38,6 +40,18 @@ export type EnrichmentResponse = {
   items: EnrichmentItem[];
 };
 
+export type RequeueInput = {
+  domain: RequeueDomain;
+  ids?: string[];
+  allFailed?: boolean;
+};
+
+export type RequeueResponse = {
+  ok: true;
+  domain: RequeueDomain;
+  requeued: number;
+};
+
 export type AdminEnrichmentViewProps = {
   domain: Domain;
   setDomain: Dispatch<SetStateAction<Domain>>;
@@ -47,4 +61,5 @@ export type AdminEnrichmentViewProps = {
   setPage: Dispatch<SetStateAction<number>>;
   data: UseResourceResult<EnrichmentResponse>;
   trigger: UseActionResult<unknown, void>;
+  requeue: UseActionResult<RequeueResponse, RequeueInput>;
 };

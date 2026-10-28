@@ -1,54 +1,53 @@
 "use client";
 
-import type { RewindTopItem } from "@questorylabs/shared";
-import { Panel } from "@questorylabs/ui";
+import type { CSSProperties } from "react";
+import type { RewindRankItem } from "../media.rewind.summary.types";
 
 export const RewindTopList = ({
   title,
   items,
-  unitLabel,
 }: {
   title: string;
-  items: RewindTopItem[];
-  unitLabel?: string;
+  items: RewindRankItem[];
 }) => {
   if (!items?.length) return null;
   return (
-    <Panel className="p-5 h-full">
-      <h3 className="text-[var(--muted)] text-sm font-medium uppercase tracking-wider mb-4">
-        {title}
-      </h3>
-      <div className="space-y-4">
+    <section
+      aria-label={title}
+      className="panel q-in px-3.5 pb-2.5 pt-5"
+      style={{ "--i": 10 } as CSSProperties}
+    >
+      <h2 className="mx-2 text-[17px] font-normal">{title}</h2>
+      <ol className="mt-2.5 list-none p-0">
         {items.map((item, i) => (
-          <div key={item.id} className="flex items-center gap-4">
-            <div className="w-6 text-center font-mono text-sm text-[var(--faint)]">
-              {i + 1}
-            </div>
+          <li
+            key={item.id}
+            className="q-row flex min-h-[46px] items-center gap-3.5 rounded-[14px] px-2"
+          >
+            <span className="w-[22px] font-mono text-[10px] text-[var(--dim)]">
+              {String(i + 1).padStart(2, "0")}
+            </span>
             {item.imageUrl ? (
               <img
                 src={item.imageUrl}
                 alt=""
-                className="w-10 h-10 object-cover rounded bg-[var(--bg-2)]"
+                className="size-8 shrink-0 rounded-lg bg-[var(--bg-3)] object-cover"
               />
-            ) : (
-              <div className="w-10 h-10 rounded bg-[var(--bg-2)]" />
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-[var(--ink)] font-medium truncate">
-                {item.name}
-              </div>
-              {item.subtitle && (
-                <div className="text-[var(--muted)] text-sm truncate">
-                  {item.subtitle}
-                </div>
-              )}
-            </div>
-            <div className="text-sm font-mono text-[var(--muted)]">
-              {item.count} {unitLabel}
-            </div>
-          </div>
+            ) : null}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-normal">{item.name}</span>
+              {item.subtitle ? (
+                <span className="block truncate text-xs text-muted">{item.subtitle}</span>
+              ) : null}
+            </span>
+            <span
+              className={`num-light shrink-0 text-xl ${i === 0 ? "text-white" : "text-[#a1a1a6]"}`}
+            >
+              {item.value}
+            </span>
+          </li>
         ))}
-      </div>
-    </Panel>
+      </ol>
+    </section>
   );
 };

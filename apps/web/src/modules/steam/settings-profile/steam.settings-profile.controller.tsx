@@ -16,6 +16,12 @@ import { useFeatureSources } from "@/hooks/useFeatureSources";
 import { useMusicEnabled } from "@/hooks/useMusicEnabled";
 import { useUser } from "@/hooks/useUser";
 import { useWatchEnabled } from "@/hooks/useWatchEnabled";
+import {
+  useChangePassword,
+  useDeleteAccount,
+  useProfileApiKeys,
+  useRecapSettings,
+} from "./steam.settings-profile.hooks";
 import type { PriceRegion } from "./steam.settings-profile.types";
 
 export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
@@ -29,6 +35,10 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
   const [error, setError] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
+  const apiKeys = useProfileApiKeys();
+  const recap = useRecapSettings();
+  const changePassword = useChangePassword();
+  const deleteAccount = useDeleteAccount();
   const prevImportStatus = useRef<string | undefined>(undefined);
   const awaitingImportCompletion = useRef(false);
 
@@ -176,5 +186,9 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
     onOpenImportConfirm: () => setImportConfirmOpen(true),
     onCloseImportConfirm: () => setImportConfirmOpen(false),
     runImport,
+    apiKeys,
+    recap,
+    changePassword,
+    deleteAccount,
   });
 };

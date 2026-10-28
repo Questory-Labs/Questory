@@ -1,17 +1,26 @@
 "use client";
 
-import { ApiKeyPanel } from "@/components/ApiKeyPanel";
 import {
   Button,
   EmptyState,
-  PageHeader,
-  Panel,
   ResourceStatus,
   SkeletonText,
 } from "@questorylabs/ui";
 import { getMusicUrl } from "@/lib/music";
 import { getWatchUrl } from "@/lib/watch";
-import { DEFAULT_PRICE_REGIONS } from "./steam.settings-profile.constants";
+import { SettingsHeader } from "../settings-shared/SettingsHeader";
+import { ProfileAccountCard } from "./components/ProfileAccountCard";
+import {
+  ProfileApiKeysSection,
+  type ProfileApiKeyRow,
+} from "./components/ProfileApiKeysSection";
+import { ProfileDangerZone } from "./components/ProfileDangerZone";
+import { ProfileRecapSection } from "./components/ProfileRecapSection";
+import { ProfileSection } from "./components/ProfileSection";
+import {
+  DEFAULT_PRICE_REGIONS,
+  PROFILE_INPUT_CLASS,
+} from "./steam.settings-profile.constants";
 import { ProfileDataPanel } from "./steam.settings-profile-data.panel";
 import type { ProfileSettingsViewProps } from "./steam.settings-profile.types";
 
@@ -38,21 +47,57 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
     onOpenImportConfirm,
     onCloseImportConfirm,
     runImport,
+    apiKeys,
+    recap,
+    changePassword,
+    deleteAccount,
   } = props as ProfileSettingsViewProps;
 
+  const keyRows: ProfileApiKeyRow[] = [
+    ...(showMusic
+      ? [
+          {
+            type: "music_ingest" as const,
+            title: "Music ingest (ListenBrainz)",
+            description:
+              "Generate a personal token for multi-scrobbler / ListenBrainz clients.",
+            endpointHint: `Endpoint: ${getMusicUrl()}/1/`,
+          },
+        ]
+      : []),
+    ...(showWatch
+      ? [
+          {
+            type: "watch_webhook" as const,
+            title: "Watch webhook key",
+            description: "Personal secret for Plex/Jellyfin webhooks.",
+            endpointHint: `POST ${getWatchUrl()}/webhooks/plex · ${getWatchUrl()}/webhooks/jellyfin`,
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <>
-      <PageHeader
-        size="sm"
-        title="Profile"
-        description="Set your Steam store price region. This controls Cost, wishlist deals, library value, and family pricing — pick India for INR."
+    <div className="mx-auto flex max-w-[820px] flex-col gap-3.5">
+      <SettingsHeader
+        active="profile"
+        title={
+          <>
+            Your account,{" "}
+            <span className="font-serif text-[#bdbdc2]">your rules</span>
+          </>
+        }
       />
 
-      <Panel wrapperClassName="max-w-lg" className="p-5">
-        <h2 className="font-display text-lg font-bold tracking-tight">
-          Price region
-        </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+      <ProfileAccountCard user={user} changePassword={changePassword} />
+
+      <ProfileSection
+        id="profile-region"
+        index={2}
+        title="Price region"
+        description="Set your Steam store price region. This controls Cost, wishlist deals, library value, and family pricing — pick India for INR."
+      >
+        <p className="mt-1 text-xs text-[var(--faint)]">
           {user?.priceRegionLocked
             ? "Locked to your choice — Steam login will not change it."
             : "Currently following Steam account country until you save a choice."}
@@ -74,38 +119,45 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
             />
           }
         >
-          <>
-            <label className="mt-4 block text-sm">
-              <span className="text-[var(--muted)]">Country / currency</span>
-              <select
-                value={countryCode}
-                onChange={(e) => onCountryChange(e.target.value)}
-                disabled={save.busy}
-                className="field"
-              >
-                {(regions.value || DEFAULT_PRICE_REGIONS).map((r) => (
-                  <option key={r.countryCode} value={r.countryCode}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+          <div className="mt-4 flex flex-wrap items-end gap-2.5">
+            <label className="label-mono flex flex-col gap-1.5 text-[10px]">
+              <span>Country / currency</span>
+              <span className="relative">
+                <select
+                  value={countryCode}
+                  onChange={(e) => onCountryChange(e.target.value)}
+                  disabled={save.busy}
+                  className={`${PROFILE_INPUT_CLASS} min-w-[260px] cursor-pointer appearance-none pr-[38px] [&>option]:bg-[#151517]`}
+                >
+                  {(regions.value || DEFAULT_PRICE_REGIONS).map((r) => (
+                    <option key={r.countryCode} value={r.countryCode}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="pointer-events-none absolute top-1/2 right-4 h-2.5 w-2.5 -translate-y-1/2 fill-none stroke-[var(--muted)] stroke-[2.4]"
+                  strokeLinecap="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </span>
             </label>
-
-            {selected && (
-              <p className="mt-2 font-mono text-xs text-[var(--faint)]">
-                Prices will use {selected.currency}
-              </p>
-            )}
-
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button
-                disabled={!dirty || save.busy || !countryCode}
-                onClick={() => save.submit(countryCode)}
-              >
-                {save.busy ? "Saving…" : "Save"}
-              </Button>
-            </div>
-          </>
+            <Button
+              className="min-h-[46px]"
+              disabled={!dirty || save.busy || !countryCode}
+              onClick={() => save.submit(countryCode)}
+            >
+              {save.busy ? "Saving…" : "Save"}
+            </Button>
+          </div>
+          {selected && (
+            <p className="mt-2 font-mono text-xs text-[var(--faint)]">
+              Prices will use {selected.currency}
+            </p>
+          )}
         </ResourceStatus>
 
         {message && (
@@ -119,7 +171,11 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
             Failed to update price region
           </p>
         ) : null}
-      </Panel>
+      </ProfileSection>
+
+      <ProfileApiKeysSection rows={keyRows} apiKeys={apiKeys} />
+
+      <ProfileRecapSection recap={recap} />
 
       <ProfileDataPanel
         exportStatus={exportStatus}
@@ -134,23 +190,7 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
         runImport={runImport}
       />
 
-      {showMusic && (
-        <ApiKeyPanel
-          type="music_ingest"
-          title="Music ingest (ListenBrainz)"
-          description="Generate a personal token for multi-scrobbler / ListenBrainz clients."
-          endpointHint={`Endpoint: ${getMusicUrl()}/1/`}
-        />
-      )}
-
-      {showWatch && (
-        <ApiKeyPanel
-          type="watch_webhook"
-          title="Watch webhook key"
-          description="Personal secret for Plex/Jellyfin webhooks."
-          endpointHint={`POST ${getWatchUrl()}/webhooks/plex · ${getWatchUrl()}/webhooks/jellyfin`}
-        />
-      )}
-    </>
+      <ProfileDangerZone deleteAccount={deleteAccount} />
+    </div>
   );
 };

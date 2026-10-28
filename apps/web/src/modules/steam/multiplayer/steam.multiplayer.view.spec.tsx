@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
   FriendsListResponse,
@@ -178,5 +178,36 @@ describe("MultiplayerView", () => {
         "No multiplayer titles found for this group. Try fewer friends, turn off strict matching, widen filters, or enable Suggested.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("summarises matches and shows the ownership badge", () => {
+    renderView({});
+    expect(screen.getByText(/match · 1 player · Any/)).toBeInTheDocument();
+    expect(screen.getByText("Everyone owns it")).toBeInTheDocument();
+  });
+
+  it("offers the most played together sort", () => {
+    const setSortBy = vi.fn();
+    renderView({ filters: { ...idleFilters, setSortBy } });
+    fireEvent.change(screen.getByLabelText("Sort"), {
+      target: { value: "playedTogether" },
+    });
+    expect(setSortBy).toHaveBeenCalledWith("playedTogether");
+  });
+
+  it("toggles strict matching through a switch", () => {
+    const setStrictLibraryMatching = vi.fn();
+    renderView({ filters: { ...idleFilters, setStrictLibraryMatching } });
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Strict library matching" }),
+    );
+    expect(setStrictLibraryMatching).toHaveBeenCalledWith(true);
+  });
+
+  it("opens the game sidebar from a card", () => {
+    const setSelectedAppId = vi.fn();
+    renderView({ setSelectedAppId });
+    fireEvent.click(screen.getByRole("button", { name: "It Takes Two" }));
+    expect(setSelectedAppId).toHaveBeenCalledWith(10);
   });
 });

@@ -1,119 +1,67 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Button,
-  EmptyState,
-  PageHeader,
-  Panel,
-  ResourceStatus,
-  SkeletonTileGrid,
-} from "@questorylabs/ui";
-import { FRIENDS_PAGE_SIZE } from "@/lib/pagination";
+import { CountUp, EmptyState, Panel } from "@questorylabs/ui";
+import { FriendCompareView } from "../friend-compare/steam.friend-compare.view";
+import { FriendsListPanel } from "./components/FriendsListPanel";
 import type { FriendsViewProps } from "./steam.friends.types";
 
 export const FriendsView = (props: Record<string, unknown>) => {
-  const { friends, page, setPage } = props as FriendsViewProps;
-  const list = friends.value?.friends || [];
+  const viewProps = props as FriendsViewProps;
+  const { friends, activeSteamId, compare } = viewProps;
   const meta = friends.value?.meta;
-  const total = friends.value?.total ?? 0;
-  const pageSize = friends.value?.pageSize ?? FRIENDS_PAGE_SIZE;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const total = meta?.totalFriends ?? friends.value?.total ?? 0;
+  const online = meta?.onlineCount;
 
   return (
-    <>
-      <PageHeader
-        size="sm"
-        title="Friends"
-        description={
-          <>
-            <p>
-              {total > 0
-                ? `${total} friends · compare libraries and find mutual ground`
-                : "Compare libraries and find mutual ground"}
-            </p>
-            {meta ? (
-              <p className="mt-2 font-mono text-[11px] text-[var(--faint)]">
-                {meta.librariesCached}/{meta.totalFriends} libraries cached
-                {meta.truncated
-                  ? ` · truncated (up to ${meta.libraryCacheLimit} friends, ${meta.gamesPerFriendLimit} games each)`
-                  : ""}
-                {meta.lastSyncedAt
-                  ? ` · synced ${new Date(meta.lastSyncedAt).toLocaleDateString()}`
-                  : ""}
-              </p>
-            ) : null}
-          </>
-        }
-      />
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-4">
+      <header className="q-in px-1 pt-2 pb-1">
+        {online != null ? (
+          <p className="label-mono flex items-center gap-2 !text-[11px]">
+            <span
+              aria-hidden="true"
+              className="dot q-live h-[5px] w-[5px] text-[var(--ok)]"
+            />
+            <CountUp value={online} /> online now
+          </p>
+        ) : null}
+        <h1 className="mt-1.5 text-[clamp(34px,4vw,52px)] leading-none font-light tracking-[-0.035em]">
+          {total > 0 ? (
+            <>
+              <CountUp value={total} /> friends,{" "}
+            </>
+          ) : (
+            "Friends, "
+          )}
+          <span className="font-serif text-[#a1a1a6]">one shared shelf</span>
+        </h1>
+        {meta ? (
+          <p className="mt-2 font-mono text-[11px] text-[var(--faint)]">
+            {meta.librariesCached}/{meta.totalFriends} libraries cached
+            {meta.truncated
+              ? ` · truncated (up to ${meta.libraryCacheLimit} friends, ${meta.gamesPerFriendLimit} games each)`
+              : ""}
+            {meta.lastSyncedAt
+              ? ` · synced ${new Date(meta.lastSyncedAt).toLocaleDateString()}`
+              : ""}
+          </p>
+        ) : null}
+      </header>
 
-      <ResourceStatus
-        failed={friends.failed}
-        empty={friends.empty}
-        loading={<SkeletonTileGrid count={6} />}
-        error={
-          <EmptyState
-            title={
-              <span className="text-[var(--danger)]">Could not load friends.</span>
-            }
-          />
-        }
-      >
-        {list.length ? (
-          <Panel variant="outline" className="divide-y divide-[var(--line)]">
-            {list.map((f) => (
-              <Link
-                key={f.steamId}
-                href={`/friends/${f.steamId}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-2)]"
-              >
-                {f.avatarUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={f.avatarUrl}
-                    alt=""
-                    className="h-10 w-10 rounded-full"
-                  />
-                )}
-                <div className="min-w-0">
-                  <div className="font-medium">{f.personaName}</div>
-                  <div className="text-xs text-[var(--muted)]">
-                    {f.libraryCached
-                      ? "Library cached · Compare"
-                      : "Compare (no library cache)"}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </Panel>
-        ) : (
-          <EmptyState title="No friends synced yet. Make sure your Steam friends list is public." />
-        )}
-      </ResourceStatus>
-
-      {total > pageSize && (
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-3 py-1.5"
-          >
-            Previous
-          </Button>
-          <span className="font-mono text-xs text-[var(--muted)]">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="px-3 py-1.5"
-          >
-            Next
-          </Button>
-        </div>
-      )}
-    </>
+      <div className="flex flex-wrap items-start gap-4">
+        <FriendsListPanel {...viewProps} />
+        <section
+          aria-label="Library comparison"
+          className="flex min-w-0 flex-[2_1_560px] flex-col gap-4"
+        >
+          {activeSteamId ? (
+            <FriendCompareView compare={compare} />
+          ) : friends.ready ? (
+            <Panel className="p-6">
+              <EmptyState title="Pick a friend to compare libraries." />
+            </Panel>
+          ) : null}
+        </section>
+      </div>
+    </div>
   );
 };

@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type { LibraryEntry } from "@questorylabs/shared";
 import { LibraryView } from "./steam.library.view";
@@ -50,6 +50,15 @@ const listValue: LibraryListResponse = {
   total: 1,
   page: 1,
   pageSize: 48,
+  currency: "USD",
+  facets: {
+    all: 12,
+    neverPlayed: 3,
+    playing: 2,
+    backlog: 4,
+    finished: 1,
+    dropped: 0,
+  },
   items: [portal],
 };
 
@@ -79,6 +88,12 @@ const renderView = (patch: Partial<LibraryViewProps>) =>
         setDeck: noop,
         page: 1,
         setPage: noop,
+        status: "all",
+        setStatus: noop,
+        sort: "lastPlayed",
+        setSort: noop,
+        layout: "grid",
+        setLayout: noop,
         ...patch,
       } as LibraryViewProps)}
     />,
@@ -105,7 +120,63 @@ describe("LibraryView", () => {
   it("renders games when ready", () => {
     renderView({});
     expect(screen.getByText("Portal")).toBeInTheDocument();
-    expect(screen.getByText("2h · Puzzle")).toBeInTheDocument();
+    expect(screen.getByText("Puzzle")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "12 games, 3 untouched",
+    );
+  });
+
+  it("shows status, value per hour and achievements on cards", () => {
+    renderView({
+      library: resource<LibraryListResponse>({
+        empty: false,
+        failed: false,
+        value: {
+          ...listValue,
+          items: [
+            {
+              ...portal,
+              userStatus: "playing",
+              costPerHour: 2.5,
+              valueAmount: 5,
+              achievementPct: 40,
+              achievementTotal: 10,
+            },
+          ],
+        },
+      }),
+    });
+    expect(screen.getAllByText("Playing").length).toBeGreaterThan(0);
+    expect(screen.getByText("$2.5 / h")).toBeInTheDocument();
+    expect(screen.getByText("40% achievements")).toBeInTheDocument();
+  });
+
+  it("shows status chips with facet counts and reports picks", () => {
+    const setStatus = vi.fn();
+    const setPage = vi.fn();
+    renderView({ setStatus, setPage });
+    const chip = screen.getByRole("button", { name: /4\s*Backlog/ });
+    fireEvent.click(chip);
+    expect(setStatus).toHaveBeenCalledWith("backlog");
+    expect(setPage).toHaveBeenCalledWith(1);
+  });
+
+  it("changes sort through the select", () => {
+    const setSort = vi.fn();
+    renderView({ setSort });
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "valuePerHour" },
+    });
+    expect(setSort).toHaveBeenCalledWith("valuePerHour");
+  });
+
+  it("renders a table layout", () => {
+    renderView({ layout: "table" });
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Portal" })).toHaveAttribute(
+      "href",
+      "/library/game-1",
+    );
   });
 
   it("shows collection empty when ready with no items", () => {

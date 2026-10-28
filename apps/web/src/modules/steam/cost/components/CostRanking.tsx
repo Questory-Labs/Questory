@@ -25,17 +25,21 @@ export const CostRanking = ({
   const copy = COST_SORT_COPY[sort];
 
   return (
-    <section className="mt-10">
-      <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <section
+      aria-labelledby="cost-rank"
+      className="panel q-in px-2 pb-2 pt-[18px]"
+      style={{ ["--i" as string]: 4 }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 px-3">
         <div className="min-w-0">
-          <h2 className="font-display text-xl font-bold tracking-tight">
-            {copy.title}
+          <h2 id="cost-rank" className="text-[26px] font-light tracking-[-0.02em]">
+            Ranking, <em className="font-serif font-normal text-[var(--muted)]">per hour</em>
           </h2>
-          <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            {copy.description}
+          <p className="mt-1 max-w-xl text-[13px] text-[var(--muted)]">
+            {copy.title} · {copy.description}
           </p>
         </div>
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6">
+        <div className="flex flex-wrap gap-2">
           <CostFilterGroup
             value={sort}
             onChange={(id) => setSort(id as CostRoiSort)}
@@ -52,7 +56,7 @@ export const CostRanking = ({
           />
         </div>
       </div>
-      {children}
+      <div className="mt-2.5">{children}</div>
     </section>
   );
 };

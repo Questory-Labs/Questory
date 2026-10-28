@@ -27,6 +27,7 @@ import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { MusicModule } from "./music/music.module";
 import { WatchModule } from "./watch/watch.module";
 import { ReadModule } from "./read/read.module";
+import { SourcesModule } from "./sources/sources.module";
 import { ShellModule } from "./shell/shell.module";
 import { HealthController, ApiHealthController } from "./health.controller";
 import { FeaturesModule } from "./features/features.module";
@@ -35,6 +36,7 @@ import { ProfileDataModule } from "./profile-data/profile-data.module";
 import { QmonitorModule } from "./qmonitor/qmonitor.module";
 import { TagsModule } from "./tags/tags.module";
 import { RecapModule } from "./recap/recap.module";
+import { GoalsModule } from "./goals/goals.module";
 
 const rootEnv = resolve(process.cwd(), "../../.env");
 const localEnv = resolve(process.cwd(), ".env");
@@ -72,12 +74,14 @@ const localEnv = resolve(process.cwd(), ".env");
     MusicModule,
     WatchModule,
     ReadModule,
+    SourcesModule,
     ShellModule,
     CronModule,
     AdminModule,
     EnterpriseModule,
     TagsModule,
     RecapModule,
+    GoalsModule,
     QmonitorModule,
     ProfileDataModule,
   ],

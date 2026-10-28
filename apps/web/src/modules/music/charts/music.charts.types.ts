@@ -1,6 +1,7 @@
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
   MusicBreakdownResponse,
+  MusicMoversResponse,
   MusicRange,
   MusicTopsResponse,
 } from "@questorylabs/shared";
@@ -14,6 +15,7 @@ export type MusicChartsViewProps = {
   page: number;
   setPage: (page: number) => void;
   tops: UseResourceResult<MusicTopsResponse>;
+  movers: UseResourceResult<MusicMoversResponse>;
   years: UseResourceResult<MusicBreakdownResponse>;
   services: UseResourceResult<MusicBreakdownResponse>;
 };

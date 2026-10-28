@@ -3,7 +3,6 @@
 import { LastFmScrobblerCard } from "./components/LastFmScrobblerCard";
 import { MultiScrobblerCard } from "./components/MultiScrobblerCard";
 import { MusicSectionHeading } from "./components/MusicSourceCard";
-import { PageHeader } from "@/components/ui";
 import { HistoryImportSection } from "./components/HistoryImportSection";
 import type { MusicSettingsViewProps } from "./music.settings.types";
 
@@ -16,11 +15,9 @@ export const MusicSettingsView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <PageHeader size="sm"
-        eyebrow="Music"
-        title="Sources"
-        description="Connect Last.fm for live polling, or point multi-scrobbler at the ListenBrainz ingest API. Native scrobbling and ListenBrainz ingest cannot run at the same time."
-      />
+      <p className="mb-6 text-sm text-[var(--muted)]">
+        Connect Last.fm for live polling, or point multi-scrobbler at the ListenBrainz ingest API. Native scrobbling and ListenBrainz ingest cannot run at the same time.
+      </p>
 
       {view.lastfmFlash === "connected" ? (
         <p className="mb-4 text-sm text-[var(--accent)]">

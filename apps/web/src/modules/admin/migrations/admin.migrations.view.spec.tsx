@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
 import { AdminMigrationsView } from "./admin.migrations.view";
 import type {
@@ -46,6 +46,7 @@ const migration: MigrationItem = {
   runCount: 0,
   lastStartedAt: null,
   lastCompletedAt: null,
+  lastFailedAt: null,
   lastError: null,
   lastResult: null,
   canRun: true,
@@ -90,6 +91,29 @@ describe("AdminMigrationsView", () => {
     renderView({});
     expect(screen.getByText("Backfill foo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run" })).toBeInTheDocument();
+  });
+
+  it("asks for confirmation before running", () => {
+    const setConfirmKey = vi.fn();
+    renderView({ setConfirmKey });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(setConfirmKey).toHaveBeenCalledWith("backfill-foo");
+  });
+
+  it("runs the confirmed migration from the dialog", () => {
+    const submit = vi.fn();
+    const setConfirmKey = vi.fn();
+    renderView({
+      confirmKey: "backfill-foo",
+      setConfirmKey,
+      run: { ...idleRun, submit } as typeof idleRun,
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Run migration?")).toBeInTheDocument();
+    const runButtons = screen.getAllByRole("button", { name: "Run" });
+    fireEvent.click(runButtons[runButtons.length - 1]);
+    expect(submit).toHaveBeenCalledWith("backfill-foo");
+    expect(setConfirmKey).toHaveBeenCalledWith(null);
   });
 
   it("shows collection empty when ready with no migrations", () => {

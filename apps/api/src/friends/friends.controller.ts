@@ -22,13 +22,15 @@ export class FriendsController {
     @CurrentUser() user: { userId: string },
     @Query("page") pageRaw?: string,
     @Query("pageSize") pageSizeRaw?: string,
+    @Query("q") qRaw?: string,
   ) {
     const page = parsePageParam(pageRaw, 1);
     const pageSize = parsePageSizeParam(pageSizeRaw, FRIENDS_PAGE_SIZE);
     if (page == null || pageSize == null) {
       throw new BadRequestException("Invalid page or pageSize");
     }
-    return this.friends.list(user.userId, { page, pageSize });
+    const q = typeof qRaw === "string" ? qRaw : undefined;
+    return this.friends.list(user.userId, { page, pageSize, q });
   }
 
   @Get(":steamId/compare")

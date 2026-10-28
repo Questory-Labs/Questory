@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
   ResourceProvider,
   ResourceStore,
@@ -78,6 +78,8 @@ const populatedStats: PlaySessionStats = {
   uniqueGames: 1,
   lastPlayedAt: item.endedAt,
   byDay: [{ day: "2026-01-01", durationSecs: 3600, sessionCount: 1 }],
+  window: { sessionCount: 1, totalDurationSecs: 3600, avgDurationSecs: 3600 },
+  byHour: Array.from({ length: 24 }, (_, h) => (h === 22 ? 3600 : 0)),
   topGames: [
     {
       key: "g1",
@@ -109,6 +111,8 @@ const renderView = (patch: Partial<SessionsViewProps>) => {
           }),
           page: 1,
           setPage: () => undefined,
+          range: "14",
+          setRange: () => undefined,
           dayGroups: [
             { dayKey: "2026-01-01", label: "Thu, Jan 1", items: [item] },
           ],
@@ -144,6 +148,26 @@ describe("SessionsView", () => {
     renderView({});
     expect(screen.getByText("Played")).toBeInTheDocument();
     expect(screen.getAllByText("Dota 2").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "The log" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete session" })).toBeInTheDocument();
+  });
+
+  it("titles the page with the window count and dominant daypart", () => {
+    renderView({});
+    expect(
+      screen.getByRole("heading", { level: 1, name: "1 session, mostly after dark" }),
+    ).toBeInTheDocument();
+  });
+
+  it("switches the stats range from the segmented control", () => {
+    const setRange = vi.fn();
+    renderView({ setRange });
+    expect(screen.getByRole("button", { name: "14 d" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "90 d" }));
+    expect(setRange).toHaveBeenCalledWith("90");
   });
 
   it("shows collection empty when ready with no sessions", () => {

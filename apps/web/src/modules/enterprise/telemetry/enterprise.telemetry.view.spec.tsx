@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
   ResourceProvider,
   ResourceStore,
@@ -150,8 +150,8 @@ describe("TelemetryView", () => {
     renderView({
       usage: resource<OtelUsage>({ empty: true, failed: false }),
     });
-    expect(screen.getByText("Telemetry")).toBeInTheDocument();
-    expect(screen.queryByText("Requests")).not.toBeInTheDocument();
+    expect(screen.getByText("under the hood")).toBeInTheDocument();
+    expect(screen.queryByText("Input tokens")).not.toBeInTheDocument();
   });
 
   it("shows an error when usage failed, even if empty", () => {
@@ -159,19 +159,20 @@ describe("TelemetryView", () => {
       usage: resource<OtelUsage>({ empty: true, failed: true }),
     });
     expect(screen.getByText("Usage unavailable: fail")).toBeInTheDocument();
-    expect(screen.queryByText("Requests")).not.toBeInTheDocument();
+    expect(screen.queryByText("Input tokens")).not.toBeInTheDocument();
   });
 
   it("renders stats when ready", () => {
     renderView();
-    expect(screen.getByText("Requests")).toBeInTheDocument();
+    expect(screen.getByText("Input tokens")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
-    expect(screen.getByText("Healthy")).toBeInTheDocument();
+    expect(screen.getByText("Collector healthy")).toBeInTheDocument();
   });
 
   it("labels provider-reported cost", () => {
     renderView({ pricingConfigured: true, costSource: "reported", costUsd: 0.25 });
-    expect(screen.getByText("Cost")).toBeInTheDocument();
+    expect(screen.getByText("Cost · 24h")).toBeInTheDocument();
+    expect(screen.getByText("$0.2500")).toBeInTheDocument();
     expect(screen.getByText("Reported by the provider")).toBeInTheDocument();
   });
 
@@ -180,5 +181,88 @@ describe("TelemetryView", () => {
     expect(
       screen.getByText("No traces yet. Run a curation job with OTLP export enabled."),
     ).toBeInTheDocument();
+  });
+
+  it("shows the collector as down with its error", () => {
+    renderView({ collectorOk: false, collectorError: "connection refused" });
+    expect(screen.getByText("Collector down")).toBeInTheDocument();
+    expect(screen.getByText("connection refused")).toBeInTheDocument();
+  });
+
+  it("switches range through the segmented control", () => {
+    const setRange = vi.fn();
+    renderView({ setRange });
+    const button = screen.getByRole("button", { name: "7d" });
+    fireEvent.click(button);
+    expect(setRange).toHaveBeenCalledWith("7d");
+    expect(screen.getByRole("button", { name: "24h" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("opens the pricing editor from the summary", () => {
+    const setPricingOpen = vi.fn();
+    renderView({ setPricingOpen });
+    fireEvent.click(screen.getByRole("button", { name: "Edit pricing" }));
+    expect(setPricingOpen).toHaveBeenCalled();
+    expect(screen.queryByText("Save rates")).not.toBeInTheDocument();
+  });
+
+  it("renders the pricing editor when open", () => {
+    renderView({ pricingOpen: true });
+    expect(screen.getByRole("button", { name: "Save rates" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close editor" })).toBeInTheDocument();
+  });
+
+  it("renders model rows in the by-model table", () => {
+    renderView({
+      modelRows: [
+        {
+          model: "gpt-x",
+          request_count: 7,
+          input_tokens: 1200,
+          output_tokens: 300,
+          cached_tokens: 0,
+          reasoning_tokens: 0,
+          total_tokens: 1500,
+          cost_usd: 0,
+          priced: false,
+        },
+      ],
+    });
+    expect(screen.getByText("By model")).toBeInTheDocument();
+    expect(screen.getByText("gpt-x")).toBeInTheDocument();
+    expect(screen.getByText("1.2k / 300")).toBeInTheDocument();
+  });
+
+  it("renders trace rows with a status pill and selects a trace", () => {
+    const setSelectedTraceId = vi.fn();
+    renderView({
+      setSelectedTraceId,
+      totalTraces: 1,
+      traces: resource<OtelTracesPage>({
+        empty: false,
+        failed: false,
+        value: {
+          traces: [
+            {
+              trace_id: "abcdef1234567890",
+              root_span: "recap.monthly",
+              status: "OK",
+              span_count: 4,
+              duration_ns: 2_000_000,
+            },
+          ],
+          total: 1,
+          limit: 15,
+          offset: 0,
+        },
+      }),
+    });
+    expect(screen.getByText("recap.monthly")).toBeInTheDocument();
+    expect(screen.getByText("OK")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "abcdef123456…" }));
+    expect(setSelectedTraceId).toHaveBeenCalledWith("abcdef1234567890");
   });
 });

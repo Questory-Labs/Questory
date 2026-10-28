@@ -2,27 +2,43 @@
 
 import { useUser } from "@/hooks/useUser";
 import { DASHBOARD_ACTIVITY_LIMIT } from "@/lib/dashboard";
-import {
-  EmptyState,
-  PageHeader,
-  ResourceStatus,
-  SkeletonTile,
-} from "@questorylabs/ui";
+import { EmptyState, ResourceStatus, SkeletonTile } from "@questorylabs/ui";
 import Link from "next/link";
 import { dashboardOccupancy } from "./dashboard-occupancy";
 import {
   collectActivityItems,
-  gameContinueCaption,
   mergeDashboardActivity,
 } from "./dashboard-activity";
+import { musicNowCard, readNowCard, watchNowCard } from "./dashboard-now";
+import { timePlayedModel } from "./dashboard-time";
+import { DASHBOARD_DEFAULT_TIME_RANGE } from "./steam.dashboard.constants";
 import type { DashboardViewProps } from "./steam.dashboard.types";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { ContinueHero } from "./components/ContinueHero";
+import { DashboardHeader } from "./components/DashboardHeader";
 import { GlanceMediaCards } from "./components/GlanceMediaCards";
 import { GlanceStats } from "./components/GlanceStats";
+import { GoalsCard } from "./components/GoalsCard";
 import { LibraryMix } from "./components/LibraryMix";
+import { NowCard } from "./components/NowCard";
 import { PlayNextSection } from "./components/PlayNextSection";
 import { RecsSnippet } from "./components/RecsSnippet";
+import { SummaryTiles } from "./components/SummaryTiles";
+import { TimePlayedHero } from "./components/TimePlayedHero";
+
+const unlinkedState = (
+  <EmptyState
+    title="Link Steam from Connections to sync your library."
+    description={
+      <Link
+        href="/settings/connections"
+        className="text-[var(--accent)] hover:underline"
+      >
+        Open Connections
+      </Link>
+    }
+  />
+);
 
 export const DashboardView = (props: Record<string, unknown>) => {
   const {
@@ -37,11 +53,16 @@ export const DashboardView = (props: Record<string, unknown>) => {
     showEnterprise = false,
     musicInsights,
     musicRecent,
+    musicPlayingNow,
     watchInsights,
     watchRecent,
     readInsights,
     readRecent,
     recs,
+    goals,
+    range = DASHBOARD_DEFAULT_TIME_RANGE,
+    setRange,
+    now = null,
   } = props as DashboardViewProps;
   const { user } = useUser();
   const name = user?.personaName?.trim();
@@ -59,16 +80,12 @@ export const DashboardView = (props: Record<string, unknown>) => {
   });
   const isHome = showMusic || showWatch || showRead;
 
-  const playNextRows = (nextUp ?? []).filter(
-    (g) => g.appId !== continueGame?.appId,
-  );
-  const featured = playNextRows[0];
-  const restPicks = playNextRows.slice(1);
+  const picks = (nextUp ?? []).filter((g) => g.appId !== continueGame?.appId);
 
   const activity = mergeDashboardActivity(
     collectActivityItems({
       recentlyPlayed: recentlyPlayed ?? [],
-      continueAppId: isHome ? undefined : continueGame?.appId,
+      continueAppId: continueGame?.appId,
       showMusic,
       showWatch,
       showRead,
@@ -91,24 +108,30 @@ export const DashboardView = (props: Record<string, unknown>) => {
     showRead ? "read" : null,
   ].filter(Boolean);
 
+  const mediaCards = [
+    showMusic && now
+      ? musicNowCard({
+          playingNow: musicPlayingNow ?? undefined,
+          recent: musicRecent?.value?.items[0],
+          insights: musicInsights?.value,
+          now,
+        })
+      : null,
+    showWatch ? watchNowCard(watchRecent?.value?.items[0]) : null,
+    showRead ? readNowCard(readRecent?.value?.items[0]) : null,
+  ].filter((c): c is NonNullable<typeof c> => c != null);
+
+  const timeModel =
+    value?.timePlayed && now ? timePlayedModel(value.timePlayed, range, now) : null;
+  const hasSummary = value?.syncedSources != null || value?.needsYou != null;
+
   return (
-    <>
-      <PageHeader
-        size="sm"
-        eyebrow={
-          showMusic || showWatch || showRead || showEnterprise
-            ? "Home"
-            : "Library overview"
-        }
-        title={
-          name ? (
-            <>
-              Hey, <span className="text-[var(--accent)]">{name}</span>
-            </>
-          ) : (
-            "Dashboard"
-          )
-        }
+    <div className="flex flex-col gap-3.5">
+      <DashboardHeader
+        now={now}
+        name={name}
+        range={value?.timePlayed ? range : undefined}
+        onRangeChange={setRange}
         description={
           syncing ? (
             <>
@@ -117,75 +140,55 @@ export const DashboardView = (props: Record<string, unknown>) => {
               {` · ${sync.doneCount}/${sync.total}`}. Stats will fill in as jobs
               finish.
             </>
-          ) : showMusic || showWatch || showRead || showEnterprise ? (
-            <>This week across {enabledNames.join(", ")}.</>
           ) : (
-            <>Continue, mix, and cost — not eight equal tiles.</>
+            <>This week across {enabledNames.join(", ")}.</>
           )
         }
       />
 
-      {occupancy.statsError ? null : isHome ? (
-        occupancy.showUnlinked ? (
-          <EmptyState
-            title="Link Steam from Connections to sync your library."
-            description={
-              <Link
-                href="/settings/connections"
-                className="text-[var(--accent)] hover:underline"
-              >
-                Open Connections
-              </Link>
-            }
-          />
-        ) : null
-      ) : occupancy.continueSkeleton ? (
-        <SkeletonTile className="max-w-xl" />
-      ) : occupancy.showContinue && continueGame ? (
-        <ContinueHero
-          href={`/library/${continueGame.appId}`}
-          name={continueGame.name}
-          headerImage={continueGame.headerImage}
-          caption={gameContinueCaption(
-            continueGame.lastPlayedAt,
-            continueGame.playtimeForever,
-          )}
-        />
-      ) : occupancy.showUnlinked ? (
-        <EmptyState
-          title="Link Steam from Connections to sync your library."
-          description={
-            <Link
-              href="/settings/connections"
-              className="text-[var(--accent)] hover:underline"
-            >
-              Open Connections
-            </Link>
-          }
-        />
-      ) : null}
+      <div className="flex flex-wrap items-stretch gap-3.5">
+        {hasSummary || timeModel ? (
+          <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3.5">
+            <SummaryTiles syncedSources={value?.syncedSources} needsYou={value?.needsYou} />
+            {timeModel ? <TimePlayedHero model={timeModel} /> : null}
+          </div>
+        ) : stats.empty && !stats.failed ? (
+          <div className="min-w-0 flex-[1_1_400px]">
+            <SkeletonTile />
+          </div>
+        ) : null}
 
-      <div
-        className={
-          showEnterprise ? "grid items-start gap-8 lg:grid-cols-2" : undefined
-        }
-      >
+        <div className="grid min-w-0 flex-[1.35_1_520px] grid-cols-[repeat(auto-fit,minmax(250px,1fr))] content-start gap-3.5">
+          {occupancy.statsError ? null : occupancy.continueSkeleton ? (
+            <SkeletonTile />
+          ) : occupancy.showContinue && continueGame ? (
+            <ContinueHero game={continueGame} />
+          ) : occupancy.showUnlinked ? (
+            unlinkedState
+          ) : null}
+          {mediaCards.map((card, i) => (
+            <NowCard key={card.key} card={card} index={5 + i} />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3.5">
+        {showEnterprise && recs ? <RecsSnippet recs={recs} /> : null}
         <PlayNextSection
           occupancy={occupancy}
           playNextEmpty={playNext.empty}
-          featured={featured}
-          restPicks={restPicks}
+          picks={picks}
           syncing={syncing}
           steamLinked={isSteamLinked}
         />
-        {showEnterprise && recs ? <RecsSnippet recs={recs} /> : null}
+        {showEnterprise && goals ? <GoalsCard goals={goals} /> : null}
       </div>
 
       <GlanceStats
         stats={stats}
         sync={sync}
         extra={
-          showMusic || showWatch || showRead ? (
+          isHome ? (
             <GlanceMediaCards
               showMusic={showMusic}
               showWatch={showWatch}
@@ -198,11 +201,9 @@ export const DashboardView = (props: Record<string, unknown>) => {
         }
       />
 
-      {showMusic || showWatch || showRead ? (
-        <section className="mt-10">
-          <h2 className="mb-3 font-display text-xl font-bold tracking-tight">
-            Recent activity
-          </h2>
+      {isHome ? (
+        <section className="mt-6">
+          <h2 className="mb-3 text-[17px] font-normal">Recent activity</h2>
           {activityFailed ? (
             <EmptyState
               title={
@@ -219,10 +220,8 @@ export const DashboardView = (props: Record<string, unknown>) => {
           )}
         </section>
       ) : (
-        <section className="mt-10">
-          <h2 className="mb-3 font-display text-xl font-bold tracking-tight">
-            Recently played
-          </h2>
+        <section className="mt-6">
+          <h2 className="mb-3 text-[17px] font-normal">Recently played</h2>
           <ResourceStatus
             failed={stats.failed}
             empty={stats.empty}
@@ -247,6 +246,6 @@ export const DashboardView = (props: Record<string, unknown>) => {
       )}
 
       {value && value.librarySize > 0 ? <LibraryMix value={value} /> : null}
-    </>
+    </div>
   );
 };

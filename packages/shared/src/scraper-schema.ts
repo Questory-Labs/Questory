@@ -105,6 +105,8 @@ export const ScraperProviderSummarySchema = z.object({
   enabled: z.boolean(),
   hasPublished: z.boolean(),
   hasOpenIteration: z.boolean(),
+  publishedVersion: z.number().int().positive().nullable(),
+  publishedAt: z.string().nullable(),
 });
 export type ScraperProviderSummary = z.infer<
   typeof ScraperProviderSummarySchema

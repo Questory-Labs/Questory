@@ -6,6 +6,7 @@ import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import type {
   MusicBreakdownResponse,
+  MusicMoversResponse,
   MusicRange,
   MusicTopsResponse,
 } from "@questorylabs/shared";
@@ -13,6 +14,8 @@ import { musicFetch } from "@/lib/music";
 import { MUSIC_CHARTS_PAGE_SIZE } from "@/lib/pagination";
 import type { TopsKind } from "./music.charts.constants";
 import { parseKind } from "./music.charts.utils";
+
+const MUSIC_MOVERS_LIMIT = 5;
 
 export const MusicChartsController = ({ children }: PropsWithChildren) => {
   const router = useRouter();
@@ -41,6 +44,14 @@ export const MusicChartsController = ({ children }: PropsWithChildren) => {
       ),
   });
 
+  const movers = useResource({
+    id: ["music-movers", kind, range],
+    load: () =>
+      musicFetch<MusicMoversResponse>(
+        `/analytics/movers?kind=${kind}&range=${range}&limit=${MUSIC_MOVERS_LIMIT}`,
+      ),
+  });
+
   const years = useResource({
     id: ["music-breakdown-years", range],
     load: () =>
@@ -65,6 +76,7 @@ export const MusicChartsController = ({ children }: PropsWithChildren) => {
     page,
     setPage,
     tops,
+    movers,
     years,
     services,
   });

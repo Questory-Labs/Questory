@@ -98,7 +98,7 @@ describe("AdminCronView", () => {
     renderView({
       status: resource<CronStatus>({ empty: true, failed: false }),
     });
-    expect(screen.queryByText("In-process:")).not.toBeInTheDocument();
+    expect(screen.queryByText("In-process scheduler on")).not.toBeInTheDocument();
   });
 
   it("shows an error when status failed, even if empty", () => {
@@ -106,13 +106,59 @@ describe("AdminCronView", () => {
       status: resource<CronStatus>({ empty: true, failed: true }),
     });
     expect(screen.getByText("fail")).toBeInTheDocument();
-    expect(screen.queryByText("In-process:")).not.toBeInTheDocument();
+    expect(screen.queryByText("In-process scheduler on")).not.toBeInTheDocument();
   });
 
   it("renders scheduler jobs when status is ready", () => {
     renderView({});
     expect(screen.getAllByText("daily-refresh").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Run" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run daily-refresh now" })).toBeInTheDocument();
+  });
+
+  it("shows scheduler and secret chips", () => {
+    renderView({
+      status: resource<CronStatus>({
+        empty: false,
+        failed: false,
+        value: { ...statusValue, enabled: false, secretConfigured: false },
+      }),
+    });
+    expect(screen.getByText("In-process scheduler off")).toBeInTheDocument();
+    expect(screen.getByText("HTTP cron secret unset")).toBeInTheDocument();
+  });
+
+  it("marks failed last runs and offers the new triggerable jobs", () => {
+    renderView({
+      status: resource<CronStatus>({
+        empty: false,
+        failed: false,
+        value: {
+          ...statusValue,
+          jobs: [
+            {
+              name: "monthly-recap",
+              schedule: "0 6 1 * *",
+              registered: true,
+              running: false,
+              nextDate: null,
+              lastRun: { ...runsValue.runs[0], jobName: "monthly-recap", status: "failed" },
+            },
+            {
+              name: "letterboxd-scrape",
+              schedule: null,
+              registered: true,
+              running: false,
+              nextDate: null,
+              lastRun: null,
+            },
+          ],
+        },
+      }),
+    });
+    expect(screen.getByText(/^Failed /)).toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run monthly-recap now" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run letterboxd-scrape now" })).toBeInTheDocument();
   });
 
   it("shows an error when runs failed, even if empty", () => {

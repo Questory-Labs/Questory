@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
-import { HatchShadow } from "@/components/HatchShadow";
-import { LandingBackground } from "@/components/LandingBackground";
+import { DotCanvas } from "@/components/dots/DotCanvas";
+import {
+  createGlyphPainter,
+  DOT_INK,
+  DOT_TINTS,
+  GLYPH_GRID,
+} from "@/components/dots/dot-painters";
 import { RotatingTagline } from "@/components/RotatingTagline";
 import { Button } from "@/components/ui";
 
-export type StatusPageTone = "mint" | "warm" | "danger";
+export type StatusPageTone = "mint" | "warm" | "danger" | "warn" | "ink";
 
 export type StatusPageAction = {
   label: string;
@@ -21,12 +26,14 @@ export type StatusPageProps = {
   code: string;
   eyebrow: string;
   title: string;
+  titleAccent?: string;
   /** Fixed copy; omit with `taglineContext` set for a random iconic quote. */
   description?: string;
   /** Show a random quote from this pool when no `description` is given. */
   taglineContext?: "notFound" | "serverError";
   /** Mono quest-log line shown under the panel. */
   logLine?: string;
+  reference?: string;
   tone?: StatusPageTone;
   primary: StatusPageAction;
   secondary?: StatusPageAction;
@@ -35,89 +42,41 @@ export type StatusPageProps = {
   children?: ReactNode;
 };
 
-const toneFace: Record<StatusPageTone, string> = {
-  mint: "border-[var(--accent)]/25 bg-[var(--accent-dim)]",
-  warm: "border-[var(--warm)]/30 bg-[var(--warm)]/10",
-  danger: "border-[var(--danger)]/30 bg-[var(--danger)]/10",
+const toneTint: Record<StatusPageTone, string> = {
+  mint: DOT_TINTS.games,
+  warm: DOT_TINTS.watch,
+  danger: DOT_TINTS.danger,
+  warn: DOT_TINTS.warn,
+  ink: DOT_INK,
 };
 
-const toneCode: Record<StatusPageTone, string> = {
+const toneDot: Record<StatusPageTone, string> = {
   mint: "text-[var(--accent)]",
   warm: "text-[var(--warm)]",
   danger: "text-[var(--danger)]",
+  warn: "text-[var(--warn)]",
+  ink: "text-[#a1a1a6]",
 };
-
-const hatchPrimaryFace =
-  "bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--bg-0)] hover:brightness-110";
-const hatchSecondaryFace =
-  "border border-[var(--line)] bg-[var(--bg-1)] px-5 py-3 text-sm font-semibold text-[var(--ink)] hover:border-[var(--line-strong)]";
-
-function HatchCta({
-  faceClassName,
-  label,
-  href,
-  onClick,
-}: {
-  faceClassName: string;
-  label: string;
-  href?: string;
-  onClick?: () => void;
-}) {
-  const face = (
-    <HatchShadow size="sm" faceClassName={faceClassName}>
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          className="m-0 w-full cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
-        >
-          {label}
-        </button>
-      ) : (
-        label
-      )}
-    </HatchShadow>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className="inline-block">
-        {face}
-      </Link>
-    );
-  }
-
-  return <span className="inline-block">{face}</span>;
-}
 
 function StatusAction({
   action,
   fallbackVariant,
-  ctaStyle,
 }: {
   action: StatusPageAction;
   fallbackVariant: "primary" | "secondary";
-  ctaStyle: "button" | "hatch";
 }) {
-  const variant = action.variant ?? fallbackVariant;
-  const buttonVariant = variant === "primary" ? "primary" : "secondary";
-
-  if (ctaStyle === "hatch") {
-    const faceClassName =
-      variant === "primary" ? hatchPrimaryFace : hatchSecondaryFace;
-    return (
-      <HatchCta
-        faceClassName={faceClassName}
-        label={action.label}
-        href={action.href}
-        onClick={action.onClick}
-      />
-    );
-  }
+  const variant =
+    (action.variant ?? fallbackVariant) === "primary" ? "primary" : "ghost";
+  const size = "min-h-12 px-[22px] text-[15px]";
 
   if (action.onClick) {
     return (
-      <Button type="button" variant={buttonVariant} onClick={action.onClick}>
+      <Button
+        type="button"
+        variant={variant}
+        className={size}
+        onClick={action.onClick}
+      >
         {action.label}
       </Button>
     );
@@ -126,9 +85,21 @@ function StatusAction({
   if (!action.href) return null;
 
   return (
-    <Link href={action.href} className={`btn btn-${buttonVariant}`}>
+    <Link href={action.href} className={`btn btn-${variant} ${size}`}>
       {action.label}
     </Link>
+  );
+}
+
+export function StatusReference({ id }: { id: string }) {
+  return (
+    <p className="q-in mt-[22px] mb-0 text-[13px] text-[var(--faint)] [--i:5]">
+      Reference{" "}
+      <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[#bdbdc2] select-all">
+        {id}
+      </span>{" "}
+      · share this with the admin
+    </p>
   );
 }
 
@@ -136,71 +107,75 @@ function StatusContent({
   code,
   eyebrow,
   title,
+  titleAccent,
   description,
   taglineContext,
   logLine,
-  tone = "mint",
+  reference,
+  tone = "ink",
   primary,
   secondary,
   children,
-  ctaStyle,
-}: Omit<StatusPageProps, "layout"> & { ctaStyle: "button" | "hatch" }) {
-  return (
-    <>
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
-        {eyebrow}
-      </p>
+}: Omit<StatusPageProps, "layout">) {
+  const paint = useMemo(
+    () => createGlyphPainter(code, toneTint[tone]),
+    [code, tone],
+  );
 
-      <HatchShadow
-        className="mt-5 max-w-lg"
-        size="lg"
-        faceClassName={`panel border px-6 py-8 sm:px-8 ${toneFace[tone]}`}
+  return (
+    <div className="mx-auto w-full max-w-[560px] text-center">
+      <DotCanvas
+        paint={paint}
+        width={GLYPH_GRID.w * GLYPH_GRID.step}
+        height={GLYPH_GRID.h * GLYPH_GRID.step}
+        label={code}
+        staticTime={2}
+        className="mx-auto w-full max-w-[520px]"
+      />
+      <p className="q-in mt-[18px] mb-0 inline-flex items-center gap-2 rounded-full border border-white/10 px-3.5 py-[5px] font-mono text-[11px] tracking-[0.06em] text-[#a1a1a6] [--i:1]">
+        <span aria-hidden className={`dot h-[5px] w-[5px] ${toneDot[tone]}`} />
+        <span>{code}</span>
+        <span aria-hidden>·</span>
+        <span>{eyebrow}</span>
+      </p>
+      <h1
+        id="status-page-title"
+        className="q-in mt-4 mb-0 text-[clamp(34px,4.4vw,52px)] font-light leading-[1.02] tracking-[-0.045em] text-[var(--ink)] [--i:2]"
       >
-        <p
-          className={`font-display text-6xl leading-none tracking-tight sm:text-7xl ${toneCode[tone]}`}
-          aria-hidden
-        >
-          {code}
-        </p>
-        <h1
-          id="status-page-title"
-          className="mt-4 font-display text-3xl tracking-tight text-[var(--ink)] sm:text-4xl"
-        >
-          {title}
-        </h1>
+        {title}
+        {titleAccent ? (
+          <>
+            {" "}
+            <span className="font-serif tracking-[-0.02em] text-[#a1a1a6]">
+              {titleAccent}
+            </span>
+          </>
+        ) : null}
+      </h1>
+      <div className="q-in mx-auto mt-3 max-w-[440px] text-[#8d8d92] [--i:3]">
         {description ? (
-          <p className="mt-3 text-[var(--muted)]">{description}</p>
+          <p className="m-0">{description}</p>
         ) : taglineContext ? (
-          <RotatingTagline
-            context={taglineContext}
-            rotate={false}
-            className="mt-3"
-          />
+          <RotatingTagline context={taglineContext} rotate={false} />
         ) : null}
         {children}
-      </HatchShadow>
+      </div>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <StatusAction
-          action={primary}
-          fallbackVariant="primary"
-          ctaStyle={ctaStyle}
-        />
+      <div className="q-in mt-7 flex flex-wrap justify-center gap-2.5 [--i:4]">
+        <StatusAction action={primary} fallbackVariant="primary" />
         {secondary ? (
-          <StatusAction
-            action={secondary}
-            fallbackVariant="secondary"
-            ctaStyle={ctaStyle}
-          />
+          <StatusAction action={secondary} fallbackVariant="secondary" />
         ) : null}
       </div>
 
+      {reference ? <StatusReference id={reference} /> : null}
+
       {logLine ? (
-        <p className="mt-8 max-w-lg font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
+        <p className="mx-auto mt-8 max-w-lg font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--dim)]">
           {logLine}
         </p>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -214,23 +189,25 @@ export function StatusPage({
     return () => document.documentElement.classList.remove("landing-active");
   }, [layout]);
 
-  const ctaStyle = layout === "embedded" ? "button" : "hatch";
-
   if (layout === "embedded") {
     return (
-      <section aria-labelledby="status-page-title">
-        <StatusContent {...props} ctaStyle={ctaStyle} />
+      <section
+        aria-labelledby="status-page-title"
+        className="grid place-items-center px-4 pt-6 pb-16"
+      >
+        <StatusContent {...props} />
       </section>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <LandingBackground />
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
-        <BrandMark href="/" size="md" className="mb-10" />
-        <StatusContent {...props} ctaStyle={ctaStyle} />
-      </div>
+    <div className="flex min-h-screen flex-col bg-[var(--bg-0)] text-[var(--ink)]">
+      <header className="px-6 pt-6">
+        <BrandMark href="/" size="sm" wordmarkClassName="text-lg" />
+      </header>
+      <main className="grid flex-1 place-items-center px-4 pt-6 pb-16">
+        <StatusContent {...props} />
+      </main>
     </div>
   );
 }

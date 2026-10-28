@@ -186,4 +186,21 @@ describe("CostView", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Least value" }));
     expect(setSort).toHaveBeenCalledWith("worst");
   });
+
+  it("refreshes prices and switches value grouping to publisher", () => {
+    const submit = vi.fn();
+    renderView({
+      refreshPrices: {
+        submit,
+        busy: false,
+        failed: false,
+      } as unknown as CostViewProps["refreshPrices"],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh prices" }));
+    expect(submit).toHaveBeenCalled();
+    expect(screen.getByRole("img", { name: "40% of games priced" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Group by"), { target: { value: "publisher" } });
+    expect(screen.getByText("Valve")).toBeInTheDocument();
+    expect(screen.queryByText("Action")).not.toBeInTheDocument();
+  });
 });

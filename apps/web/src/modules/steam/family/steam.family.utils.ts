@@ -32,3 +32,24 @@ export const memberLabel = (m: {
       : m.personaName;
   return m.isMe ? `${name} (me)` : name;
 };
+
+export const libraryMix = (
+  m: { librarySize: number; sharedCount?: number; uniqueCount?: number },
+  maxLibrary: number,
+) => {
+  const scale = maxLibrary > 0 ? 100 / maxLibrary : 0;
+  const shared = Math.max(0, m.sharedCount ?? 0);
+  const unique = Math.max(0, m.uniqueCount ?? 0);
+  const other = Math.max(0, m.librarySize - shared - unique);
+  const pct = (n: number) => Math.round(n * scale * 10) / 10;
+  return { shared: pct(shared), unique: pct(unique), other: pct(other) };
+};
+
+export const shareableLabel = (item: {
+  direction: "toYou" | "fromYou";
+  ownerName: string;
+  wantedByName: string;
+}) =>
+  item.direction === "toYou"
+    ? `${item.ownerName} → you`
+    : `You → ${item.wantedByName}`;

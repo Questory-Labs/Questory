@@ -167,4 +167,32 @@ describe("SearchView", () => {
     });
     expect(screen.getByText("No results found.")).toBeInTheDocument();
   });
+
+  it("shows playtime, status and last played on game hits", () => {
+    renderView({
+      result: resource<SearchResult>({
+        empty: false,
+        failed: false,
+        value: {
+          ...emptyResult,
+          games: [
+            {
+              appId: 570,
+              gameId: "g1",
+              name: "Dota 2",
+              headerImage: null,
+              source: "library",
+              playtimeMinutes: 30,
+              userStatus: "playing",
+            },
+          ],
+          developers: ["Valve"],
+        },
+      }),
+    });
+    expect(screen.getByText("Playing · 30m total")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Dota 2/ })).toHaveAttribute("href", "/library/g1");
+    expect(screen.getByText("Valve")).toBeInTheDocument();
+    expect(screen.getByText("Developers")).toBeInTheDocument();
+  });
 });

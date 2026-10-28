@@ -9,7 +9,7 @@ import {
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { CacheService } from "../../cache/cache.service";
 import { resolveSessionSecret } from "@questorylabs/shared/session";
-import type { AuthChallengeKind } from "@questorylabs/shared";
+import type { AbuseLimit, AuthChallengeKind } from "@questorylabs/shared";
 
 const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 
@@ -27,6 +27,17 @@ const LIMITS = {
   loginEmail: { max: 8, ttl: 900 },
   challengeIp: { max: 40, ttl: 900 },
 } as const;
+
+export const LOGIN_LOCKOUT_TIERS = [
+  { fails: 5, cooldownSec: 60 },
+  { fails: 10, cooldownSec: 5 * 60 },
+  { fails: 20, cooldownSec: 15 * 60 },
+] as const;
+
+export type LoginFailureState = {
+  attemptsLeft: number;
+  retryAfterSec?: number;
+};
 
 type AbuseMetrics = {
   honeypotRegister: number;
@@ -261,7 +272,10 @@ export class AuthAbuseService {
     await this.assertLoginLockout(ip, email);
   }
 
-  async recordLoginFailure(ip: string, email: string): Promise<void> {
+  async recordLoginFailure(
+    ip: string,
+    email: string,
+  ): Promise<LoginFailureState> {
     const ipH = this.hashIp(ip);
     const emailH = this.hashEmail(email);
     const ipFails = await this.cache.incr(`auth:login:fail:ip:${ipH}`, 900);
@@ -273,19 +287,21 @@ export class AuthAbuseService {
       this.cooldownSeconds(ipFails),
       this.cooldownSeconds(emailFails),
     );
+    const attemptsLeft = this.attemptsBeforeLockout(
+      Math.max(ipFails, emailFails),
+    );
     if (cooldown > 0) {
-      await this.cache.setString(
-        `auth:login:lock:ip:${ipH}`,
-        "1",
-        cooldown,
-      );
+      const until = String(Date.now() + cooldown * 1000);
+      await this.cache.setString(`auth:login:lock:ip:${ipH}`, until, cooldown);
       await this.cache.setString(
         `auth:login:lock:email:${emailH}`,
-        "1",
+        until,
         cooldown,
       );
       this.metrics.loginLockout += 1;
+      return { attemptsLeft: 0, retryAfterSec: cooldown };
     }
+    return { attemptsLeft };
   }
 
   async clearLoginFailures(email: string): Promise<void> {
@@ -298,30 +314,57 @@ export class AuthAbuseService {
     return { ...this.metrics };
   }
 
+  getLimits(): AbuseLimit[] {
+    return Object.entries(LIMITS).map(([key, limit]) => ({
+      key,
+      max: limit.max,
+      windowSeconds: limit.ttl,
+    }));
+  }
+
   private async assertLoginLockout(ip: string, email: string): Promise<void> {
     const ipH = this.hashIp(ip);
     const emailH = this.hashEmail(email);
-    const locked =
-      (await this.cache.getString(`auth:login:lock:ip:${ipH}`)) ||
-      (await this.cache.getString(`auth:login:lock:email:${emailH}`));
-    if (locked) {
+    const locks = [
+      await this.cache.getString(`auth:login:lock:ip:${ipH}`),
+      await this.cache.getString(`auth:login:lock:email:${emailH}`),
+    ].filter((v): v is string => Boolean(v));
+    if (locks.length) {
       this.metrics.loginLockout += 1;
+      const retryAfterSec = Math.max(
+        ...locks.map((v) => this.lockRemainingSeconds(v)),
+      );
       throw new HttpException(
         {
           statusCode: 429,
           message: "Too many attempts, try again later",
-          retryAfter: 60,
+          retryAfter: retryAfterSec,
+          retryAfterSec,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
   }
 
+  private lockRemainingSeconds(value: string): number {
+    const until = Number(value);
+    if (!Number.isFinite(until) || until < 1e12) {
+      return LOGIN_LOCKOUT_TIERS[0].cooldownSec;
+    }
+    return Math.max(1, Math.ceil((until - Date.now()) / 1000));
+  }
+
   private cooldownSeconds(fails: number): number {
-    if (fails >= 20) return 15 * 60;
-    if (fails >= 10) return 5 * 60;
-    if (fails >= 5) return 60;
-    return 0;
+    let cooldown = 0;
+    for (const tier of LOGIN_LOCKOUT_TIERS) {
+      if (fails >= tier.fails) cooldown = tier.cooldownSec;
+    }
+    return cooldown;
+  }
+
+  private attemptsBeforeLockout(fails: number): number {
+    const next = LOGIN_LOCKOUT_TIERS.find((t) => fails < t.fails);
+    return next ? next.fails - fails : 0;
   }
 
   private async hitLimit(
@@ -337,6 +380,7 @@ export class AuthAbuseService {
           statusCode: 429,
           message: "Too many attempts, try again later",
           retryAfter: ttlSeconds,
+          retryAfterSec: ttlSeconds,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );

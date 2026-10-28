@@ -4,7 +4,17 @@ import { StoresService } from "../../src/stores/stores.service";
 describe("token leakage", () => {
   it("store status responses never include access/refresh tokens", async () => {
     const service = new StoresService(
-      {} as any,
+      {
+        account: {
+          findFirst: async () => ({
+            providerAccountId: "765",
+            displayName: "Me",
+            accessToken: "secret-access",
+            refreshToken: "secret-refresh",
+          }),
+        },
+        user: { findUnique: async () => ({ lastSyncedAt: null }) },
+      } as any,
       {} as any,
       {} as any,
     );

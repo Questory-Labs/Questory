@@ -3,7 +3,7 @@
 import { useState, type PropsWithChildren } from "react";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { Collection } from "@questorylabs/shared";
+import type { Collection, TasteClusterPreview } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { useEnterpriseEnabled } from "@/providers/EnterpriseEnabledProvider";
 
@@ -33,10 +33,33 @@ export const CollectionsController = ({ children }: PropsWithChildren) => {
         "/recommendations/clusters/collections",
         { method: "POST" },
       ),
-    onSuccess: () => store.touch(["collections"]),
+    onSuccess: () => {
+      store.touch(["collections"]);
+      store.touch(["taste-clusters"]);
+    },
+  });
+
+  const tastePreview = useResource({
+    id: ["taste-clusters"],
+    load: () => api<TasteClusterPreview>("/recommendations/clusters/preview"),
+    when: Boolean(tasteAvailable),
+  });
+
+  const saveCluster = useAction({
+    run: (clusterId: string) =>
+      api<{ available: boolean; saved: boolean }>(
+        "/recommendations/clusters/save",
+        { method: "POST", body: JSON.stringify({ clusterId }) },
+      ),
+    onSuccess: () => {
+      store.touch(["collections"]);
+      store.touch(["taste-clusters"]);
+    },
   });
 
   return cloneElements(children, {
+    tastePreview,
+    saveCluster,
     list,
     create,
     name,

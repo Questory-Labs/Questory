@@ -1,7 +1,15 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { parseStringArray } from "../lib/json-arrays";
-import { COLLECTION_GAMES_PAGE_SIZE } from "./collections.constants";
+import {
+  BACKLOG_QUICK_MAX_MINUTES,
+  COLLECTION_COVER_PREVIEWS,
+  FORGOTTEN_FAVOURITE_MIN_MINUTES,
+  FORGOTTEN_FAVOURITE_IDLE_DAYS,
+  NEAR_COMPLETION_MIN_PCT,
+  SHORT_AND_SWEET_MAX_HOURS,
+  COLLECTION_GAMES_PAGE_SIZE,
+} from "./collections.constants";
 
 export const CLUSTER_RULE_PREFIX = "cluster:";
 const MAX_CLUSTERS = 12;
@@ -35,7 +43,11 @@ const AUTO_RULES: {
     playtimeForever: number;
     lastPlayedAt: Date | null;
     purchasedAt: Date | null;
+    userStatus?: string | null;
+    achievementPct?: number | null;
+    friendOwned?: boolean;
     game: {
+      hltbMainHours?: number | null;
       genres: string[];
       tags: string[];
       categories: string[];
@@ -113,7 +125,52 @@ const AUTO_RULES: {
         /souls|soulslike/i.test(t),
       ),
   },
-
+  {
+    key: "backlog_under_1h",
+    name: "Backlog Under 1h",
+    description: "Started but barely touched",
+    match: (e) =>
+      e.playtimeForever > 0 &&
+      e.playtimeForever < BACKLOG_QUICK_MAX_MINUTES &&
+      e.userStatus !== "finished" &&
+      e.userStatus !== "dropped",
+  },
+  {
+    key: "near_completion",
+    name: "Near Completion",
+    description: "Most achievements already unlocked",
+    match: (e) =>
+      e.achievementPct != null &&
+      e.achievementPct >= NEAR_COMPLETION_MIN_PCT &&
+      e.achievementPct < 100,
+  },
+  {
+    key: "forgotten_favourites",
+    name: "Forgotten Favourites",
+    description: "Lots of hours, not played in six months",
+    match: (e) =>
+      e.playtimeForever >= FORGOTTEN_FAVOURITE_MIN_MINUTES &&
+      e.lastPlayedAt != null &&
+      Date.now() - e.lastPlayedAt.getTime() >
+        FORGOTTEN_FAVOURITE_IDLE_DAYS * 86_400_000,
+  },
+  {
+    key: "coop_with_friends",
+    name: "Co-op With Friends",
+    description: "Co-op games your friends also own",
+    match: (e) =>
+      Boolean(e.friendOwned) &&
+      e.game.categories.some((c) => /co-op/i.test(c)),
+  },
+  {
+    key: "short_and_sweet",
+    name: "Short and Sweet",
+    description: "Main story in five hours or less",
+    match: (e) =>
+      e.game.hltbMainHours != null &&
+      e.game.hltbMainHours > 0 &&
+      e.game.hltbMainHours <= SHORT_AND_SWEET_MAX_HOURS,
+  },
   {
     key: "steam_deck_ready",
     name: "Steam Deck Ready",
@@ -132,6 +189,12 @@ export class CollectionsService {
       where: { userId },
       include: { game: true },
     });
+    const friendOwned = await this.friendOwnedAppIds(
+      userId,
+      library
+        .map((e) => e.game.appId)
+        .filter((id): id is number => id != null),
+    );
 
     for (const rule of AUTO_RULES) {
       const matched = library.filter((e) =>
@@ -139,7 +202,11 @@ export class CollectionsService {
           playtimeForever: e.playtimeForever,
           lastPlayedAt: e.lastPlayedAt,
           purchasedAt: e.purchasedAt,
+          userStatus: e.userStatus,
+          achievementPct: e.achievementPct,
+          friendOwned: e.game.appId != null && friendOwned.has(e.game.appId),
           game: {
+            hltbMainHours: e.game.hltbMainHours,
             genres: parseStringArray(e.game.genres),
             tags: parseStringArray(e.game.tags),
             categories: parseStringArray(e.game.categories),
@@ -191,8 +258,25 @@ export class CollectionsService {
     }
   }
 
-  async applyClusterCollections(userId: string, raw: unknown): Promise<number> {
-    const clusters = parseClusters(raw);
+  private async friendOwnedAppIds(userId: string, appIds: number[]) {
+    if (!appIds.length) return new Set<number>();
+    const friendships = await this.prisma.friendship.findMany({
+      where: { userId },
+      select: { friendSteamId: true },
+    });
+    if (!friendships.length) return new Set<number>();
+    const rows = await this.prisma.friendLibraryCache.findMany({
+      where: {
+        ownerSteamId: { in: friendships.map((f) => f.friendSteamId) },
+        gameAppId: { in: appIds },
+      },
+      select: { gameAppId: true },
+      distinct: ["gameAppId"],
+    });
+    return new Set(rows.map((r) => r.gameAppId));
+  }
+
+  private async clusterContext(userId: string) {
     const owned = new Set(
       (
         await this.prisma.libraryEntry.findMany({
@@ -207,54 +291,78 @@ export class CollectionsService {
     });
     const byRule = new Map(existing.filter((c) => c.ruleKey).map((c) => [c.ruleKey!, c]));
     const takenNames = new Map(existing.map((c) => [c.name.toLowerCase(), c.id]));
+    return { owned, existing, byRule, takenNames };
+  }
+
+  private eligibleClusterGames(cluster: ClusterInput, owned: Set<string>) {
+    const gameIds = cluster.gameIds.filter((g) => owned.has(g));
+    if (gameIds.length < 3) return null;
+    if (AUTO_RULES.some((r) => r.name.toLowerCase() === cluster.name.toLowerCase())) return null;
+    return gameIds;
+  }
+
+  private async writeCluster(
+    userId: string,
+    cluster: ClusterInput,
+    gameIds: string[],
+    ctx: Awaited<ReturnType<CollectionsService["clusterContext"]>>,
+  ): Promise<string | null> {
+    const { byRule, takenNames } = ctx;
+    const ruleKey = `${CLUSTER_RULE_PREFIX}${cluster.id}`;
+    const current = byRule.get(ruleKey);
+    const holder = takenNames.get(cluster.name.toLowerCase());
+    const nameFree = !holder || holder === current?.id;
+    let collectionId: string;
+    if (current) {
+      if (nameFree && current.name !== cluster.name) {
+        takenNames.delete(current.name.toLowerCase());
+        takenNames.set(cluster.name.toLowerCase(), current.id);
+      }
+      await this.prisma.collection.update({
+        where: { id: current.id },
+        data: {
+          ...(nameFree ? { name: cluster.name } : {}),
+          description: "Grouped by taste from games you own",
+        },
+      });
+      collectionId = current.id;
+    } else {
+      if (!nameFree) return null;
+      const created = await this.prisma.collection.create({
+        data: {
+          userId,
+          name: cluster.name,
+          type: "auto",
+          ruleKey,
+          description: "Grouped by taste from games you own",
+        },
+      });
+      takenNames.set(cluster.name.toLowerCase(), created.id);
+      collectionId = created.id;
+    }
+    await this.prisma.collectionItem.deleteMany({ where: { collectionId } });
+    await this.prisma.collectionItem.createMany({
+      data: gameIds.map((gameId) => ({ collectionId, gameId })),
+    });
+    return ruleKey;
+  }
+
+  async applyClusterCollections(userId: string, raw: unknown): Promise<number> {
+    const clusters = parseClusters(raw);
+    const ctx = await this.clusterContext(userId);
     const kept = new Set<string>();
     let written = 0;
 
     for (const cluster of clusters) {
-      const ruleKey = `${CLUSTER_RULE_PREFIX}${cluster.id}`;
-      const gameIds = cluster.gameIds.filter((g) => owned.has(g));
-      if (gameIds.length < 3) continue;
-      if (AUTO_RULES.some((r) => r.name.toLowerCase() === cluster.name.toLowerCase())) continue;
-      const current = byRule.get(ruleKey);
-      const holder = takenNames.get(cluster.name.toLowerCase());
-      const nameFree = !holder || holder === current?.id;
-      let collectionId: string;
-      if (current) {
-        if (nameFree && current.name !== cluster.name) {
-          takenNames.delete(current.name.toLowerCase());
-          takenNames.set(cluster.name.toLowerCase(), current.id);
-        }
-        await this.prisma.collection.update({
-          where: { id: current.id },
-          data: {
-            ...(nameFree ? { name: cluster.name } : {}),
-            description: "Grouped by taste from games you own",
-          },
-        });
-        collectionId = current.id;
-      } else {
-        if (!nameFree) continue;
-        const created = await this.prisma.collection.create({
-          data: {
-            userId,
-            name: cluster.name,
-            type: "auto",
-            ruleKey,
-            description: "Grouped by taste from games you own",
-          },
-        });
-        takenNames.set(cluster.name.toLowerCase(), created.id);
-        collectionId = created.id;
-      }
+      const gameIds = this.eligibleClusterGames(cluster, ctx.owned);
+      if (!gameIds) continue;
+      const ruleKey = await this.writeCluster(userId, cluster, gameIds, ctx);
+      if (!ruleKey) continue;
       kept.add(ruleKey);
-      await this.prisma.collectionItem.deleteMany({ where: { collectionId } });
-      await this.prisma.collectionItem.createMany({
-        data: gameIds.map((gameId) => ({ collectionId, gameId })),
-      });
       written += 1;
     }
 
-    const stale = existing
+    const stale = ctx.existing
       .filter((c) => c.ruleKey?.startsWith(CLUSTER_RULE_PREFIX) && !kept.has(c.ruleKey))
       .map((c) => c.id);
     if (stale.length) {
@@ -263,11 +371,45 @@ export class CollectionsService {
     return written;
   }
 
+  async previewClusters(userId: string, raw: unknown) {
+    const ctx = await this.clusterContext(userId);
+    return parseClusters(raw).flatMap((cluster) => {
+      const gameIds = this.eligibleClusterGames(cluster, ctx.owned);
+      if (!gameIds) return [];
+      return [
+        {
+          id: cluster.id,
+          name: cluster.name,
+          gameCount: gameIds.length,
+          saved: ctx.byRule.has(`${CLUSTER_RULE_PREFIX}${cluster.id}`),
+        },
+      ];
+    });
+  }
+
+  async saveCluster(userId: string, raw: unknown, clusterId: string) {
+    const cluster = parseClusters(raw).find((c) => c.id === clusterId);
+    if (!cluster) throw new NotFoundException("Taste group not found");
+    const ctx = await this.clusterContext(userId);
+    const gameIds = this.eligibleClusterGames(cluster, ctx.owned);
+    if (!gameIds) throw new NotFoundException("Taste group not found");
+    const ruleKey = await this.writeCluster(userId, cluster, gameIds, ctx);
+    return { saved: ruleKey != null };
+  }
+
   async list(userId: string) {
     await this.ensureAutos(userId);
     const collections = await this.prisma.collection.findMany({
       where: { userId },
-      include: { _count: { select: { items: true } } },
+      include: {
+        _count: { select: { items: true } },
+        items: {
+          where: { game: { headerImage: { not: null } } },
+          select: { game: { select: { headerImage: true } } },
+          orderBy: { game: { name: "asc" } },
+          take: COLLECTION_COVER_PREVIEWS,
+        },
+      },
       orderBy: [{ type: "asc" }, { name: "asc" }],
     });
     return collections.map((c) => ({
@@ -276,6 +418,11 @@ export class CollectionsService {
       type: c.type as "auto" | "custom",
       ruleKey: c.ruleKey,
       description: c.description,
+      color: c.color ?? null,
+      updatedAt: c.updatedAt.toISOString(),
+      covers: (c.items ?? [])
+        .map((i) => i.game.headerImage)
+        .filter((h): h is string => Boolean(h)),
       gameCount: c._count.items,
     }));
   }
@@ -323,6 +470,7 @@ export class CollectionsService {
       type: collection.type,
       ruleKey: collection.ruleKey,
       description: collection.description,
+      color: collection.color,
       total,
       page: safePage,
       pageSize: take,
@@ -349,7 +497,7 @@ export class CollectionsService {
   async updateCustom(
     userId: string,
     id: string,
-    data: { name?: string; description?: string },
+    data: { name?: string; description?: string; color?: string | null },
   ) {
     const existing = await this.prisma.collection.findFirst({
       where: { id, userId, type: "custom" },

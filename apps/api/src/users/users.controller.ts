@@ -1,13 +1,31 @@
-import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Patch,
+  Req,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
+import type { Request, Response } from "express";
+import { DeleteAccountSchema } from "@questorylabs/shared";
 import { UsersService } from "./users.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { currencyFromCountry } from "../lib/currency";
+import { clearSession } from "../auth/session";
+import { AuthAbuseService } from "../auth/abuse/auth-abuse.service";
 
 @Controller("users")
 @UseGuards(SteamAuthGuard)
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly abuse: AuthAbuseService,
+  ) {}
 
   @Get("me")
   async me(@CurrentUser() session: { userId: string }) {
@@ -23,6 +41,7 @@ export class UsersController {
         countryCode: user.countryCode,
         priceRegionLocked: user.priceRegionLocked,
         currency: currencyFromCountry(user.countryCode),
+        createdAt: user.createdAt.toISOString(),
       },
     };
   }
@@ -38,5 +57,26 @@ export class UsersController {
     @Body() body: { countryCode?: string | null },
   ) {
     return this.users.updateProfile(session.userId, body);
+  }
+
+  @Delete("me")
+  @HttpCode(200)
+  async deleteMe(
+    @CurrentUser() session: { userId: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body() body: unknown,
+  ) {
+    this.abuse.assertOriginAllowed(
+      (req.headers.origin as string | undefined) ||
+        (req.headers.referer as string | undefined),
+    );
+    const parsed = DeleteAccountSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException("Type DELETE to confirm");
+    }
+    const result = await this.users.deleteAccount(session.userId);
+    clearSession(res, req);
+    return result;
   }
 }

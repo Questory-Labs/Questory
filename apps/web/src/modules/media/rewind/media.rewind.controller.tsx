@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type PropsWithChildren } from "react";
+import { useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import { musicFetch } from "@/lib/music";
@@ -20,8 +20,12 @@ import {
   latestCompletedRewindMonth,
 } from "@questorylabs/shared";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
+import { useMusicEnabled } from "@/hooks/useMusicEnabled";
+import { useReadEnabled } from "@/hooks/useReadEnabled";
+import { useWatchEnabled } from "@/hooks/useWatchEnabled";
 import { CURRENT_YEAR } from "./media.rewind.constants";
 import type { RewindMonth, RewindScope } from "./media.rewind.types";
+import { buildRewindSummary } from "./media.rewind.summary";
 
 const allFetch = <T,>(path: string, init?: RequestInit): Promise<T> =>
   api<T>(path.replace(/^\/analytics\/rewind/, "/rewind"), init);
@@ -47,6 +51,9 @@ export const RewindController = ({
   );
   const [forceRedo, setForceRedo] = useState(false);
   const { when: enterpriseEnabled } = useEnterpriseEnabled();
+  const { showMusicNav } = useMusicEnabled();
+  const { enabled: watchEnabled } = useWatchEnabled();
+  const { showReadNav } = useReadEnabled();
 
   const fetcher = REWIND_FETCHERS[domain];
 
@@ -79,6 +86,12 @@ export const RewindController = ({
     when: enterpriseEnabled && aiGenerationAllowed,
   });
 
+  const statsValue = statsQuery.value;
+  const summary = useMemo(
+    () => (statsValue ? buildRewindSummary(statsValue) : null),
+    [statsValue],
+  );
+
   const availableMonths = completedRewindMonths(year);
   const hasCompletedMonths = availableMonths.length > 0;
 
@@ -106,6 +119,7 @@ export const RewindController = ({
 
   return cloneElements(children, {
     domain,
+    enabledDomains: { music: showMusicNav, watch: watchEnabled, read: showReadNav },
     year,
     month,
     setMonth,
@@ -113,6 +127,7 @@ export const RewindController = ({
     handleRedo,
     enterpriseEnabled,
     statsQuery,
+    summary,
     aiQuery,
     availableMonths,
     hasCompletedMonths,

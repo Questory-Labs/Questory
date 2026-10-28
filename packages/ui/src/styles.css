@@ -1,75 +1,83 @@
 @source "./";
 
 :root {
-  --bg-0: #101012;
-  --bg-1: #16161a;
-  --bg-2: #0f0f11;
-  --bg-3: #2a2a31;
-  --ink: #f2efe8;
-  --muted: #9a958c;
-  --faint: #777168;
-  --accent: #7dd3c0;
-  --accent-dim: rgba(125, 211, 192, 0.14);
-  --warm: #e0b86a;
-  --danger: #e06b56;
-  --line: rgba(242, 239, 232, 0.09);
-  --line-strong: rgba(242, 239, 232, 0.18);
-  --hatch: rgba(242, 239, 232, 0.08);
-  --hatch-strong: rgba(242, 239, 232, 0.14);
-  --hatch-shadow: #121214;
-  --hatch-line: rgba(242, 239, 232, 0.02);
-  --surface: rgba(242, 239, 232, 0.04);
-  --surface-2: #2c2c34;
-  --paper: #141416;
-  --radius: 8px;
-  --header-control-height: 2rem;
-  --shadow-offset: 6px;
-  --shadow-offset-sm: 4px;
-  --shadow-offset-lg: 10px;
+  --bg-0: #09090a;
+  --bg-1: #121214;
+  --bg-2: #0e0e10;
+  --bg-3: #1d1d21;
+  --ink: #ededee;
+  --muted: #8d8d92;
+  --faint: #6c6c71;
+  --dim: #5c5c61;
+  --accent: #8fd6c4;
+  --accent-dim: rgba(143, 214, 196, 0.12);
+  --warm: #e6c27a;
+  --danger: #f04f4f;
+  --ok: #5fd38a;
+  --warn: #f5a524;
+  --games: #8fd6c4;
+  --music: #f0a8b8;
+  --watch: #e6c27a;
+  --read: #aeb9f2;
+  --qengine-bg: rgba(230, 194, 122, 0.07);
+  --qengine-line: rgba(230, 194, 122, 0.16);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --hatch: rgba(255, 255, 255, 0.07);
+  --hatch-strong: rgba(255, 255, 255, 0.12);
+  --hatch-shadow: transparent;
+  --hatch-line: transparent;
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.016));
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --paper: #111113;
+  --radius: 14px;
+  --radius-panel: 24px;
+  --radius-pill: 999px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --header-control-height: 2.25rem;
+  --shadow-offset: 0px;
+  --shadow-offset-sm: 0px;
+  --shadow-offset-lg: 0px;
 }
 
 @theme inline {
-  --font-display: "Bricolage Grotesque", sans-serif;
-  --font-body: "Figtree", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --font-display: "Outfit", system-ui, sans-serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --color-bg-0: var(--bg-0);
   --color-bg-1: var(--bg-1);
   --color-bg-2: var(--bg-2);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
   --color-warm: var(--warm);
   --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-games: var(--games);
+  --color-music: var(--music);
+  --color-watch: var(--watch);
+  --color-read: var(--read);
   --color-line: var(--line);
 }
 
-/* Pencil hatch fill (surfaces, not shadows) */
 .hatch-fill {
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 2px,
-    var(--hatch) 2px,
-    var(--hatch) 3px
-  );
+  background-image: radial-gradient(circle, var(--hatch) 0.8px, transparent 1.2px);
+  background-size: 6px 6px;
 }
 
 .hatch-fill-dense {
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 1px,
-    var(--hatch-strong) 1px,
-    var(--hatch-strong) 2px
-  );
+  background-image: radial-gradient(circle, var(--hatch-strong) 0.8px, transparent 1.2px);
+  background-size: 4px 4px;
 }
 
 /*
- * Pencil hatch cast shadows
- * Structure (see HatchShadow):
- *   .hatch-shadow > .hatch-cast  (offset slab, behind)
- *   .hatch-shadow > .hatch-face  (opaque surface, in front)
- * Never use ::before with z-index:-1 — it stacks over content.
+ * Cast shadow wrapper (see HatchShadow). The glass system has no cast slab;
+ * the structure stays so offsets can return without touching callers.
  */
 .hatch-shadow {
   --_shadow-offset: var(--shadow-offset);
@@ -94,70 +102,58 @@
 }
 
 .hatch-cast {
-  position: absolute;
-  top: var(--_shadow-offset);
-  left: var(--_shadow-offset);
-  width: calc(100% - var(--_shadow-offset));
-  height: calc(100% - var(--_shadow-offset));
-  z-index: 0;
-  pointer-events: none;
-  border-radius: var(--radius);
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent 0,
-    transparent 3px,
-    var(--hatch-line) 3px,
-    var(--hatch-line) 4px
-  );
+  display: none;
 }
 
 .hatch-face {
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
   overflow: hidden;
 }
 
-/* Opaque panels — elevated surface above page bg */
 .panel {
-  background-color: var(--surface);
+  background-color: transparent;
+  background-image: var(--glass);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--glass-edge), 0 30px 60px -40px rgba(0, 0, 0, 0.9);
 }
 
 .panel-accent {
-  background-color: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background-color: var(--qengine-bg);
+  background-image: linear-gradient(160deg, rgba(230, 194, 122, 0.06), rgba(255, 255, 255, 0.01) 60%);
+  border: 1px solid var(--qengine-line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--glass-edge);
 }
 
-/* Non-elevated bordered section (lists, filters, dense metrics) */
 .panel-outline {
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
 }
 
 /*
- * Modal surface. Must stay unlayered and after `.panel`: `--surface` is 4%
- * alpha, and that rule beats Tailwind `bg-*` utilities (layers).
+ * Modal surface. Must stay unlayered and after `.panel`: the glass wash is
+ * translucent, and that rule beats Tailwind `bg-*` utilities (layers).
  */
 .dialog-face {
   background-color: var(--bg-1);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background-image: var(--glass);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--glass-edge), 0 40px 80px -20px rgba(0, 0, 0, 0.8);
 }
 
-/* Same opacity rule as `.dialog-face`: unlayered so `.panel`'s 4% wash cannot win. */
 .date-field-face {
   background-color: var(--bg-1);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
   padding: 0.625rem;
 }
 
 .hatch-face.dialog-face {
-  /* DateField (and other popovers) must paint outside the padded body. */
   overflow: visible;
 }
 
@@ -166,14 +162,32 @@
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  border-radius: var(--radius);
-  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  padding: 0.5rem 1.1rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.5s var(--ease-out),
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.4s ease,
+    color 0.3s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
@@ -182,41 +196,41 @@
 }
 
 .btn-sm {
-  padding: 0.25rem 0.625rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.75rem;
 }
 
 .btn-lg {
-  padding: 0.625rem 1.25rem;
+  padding: 0.7rem 1.4rem;
 }
 
 .btn-primary {
-  background-color: var(--accent);
-  color: var(--bg-0);
-  border-color: var(--accent);
+  background-image: linear-gradient(180deg, #f4f4f5, #cfcfd3);
+  color: #0a0a0b;
+  border-color: #2a2a2e;
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #a6a6ab;
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #a6a6ab, 0 10px 30px -12px rgba(255, 255, 255, 0.35);
 }
 
 .btn-secondary {
-  background-color: var(--bg-3);
+  background-color: rgba(255, 255, 255, 0.05);
   color: var(--ink);
-  border-color: transparent;
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  border-color: var(--line-strong);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  filter: brightness(1.1);
-  box-shadow: inset 0 0 0 1px var(--muted);
+  background-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .btn-ghost {
   background-color: transparent;
-  color: var(--accent);
+  color: var(--muted);
   border-color: transparent;
-  padding-inline: 0.25rem;
+  padding-inline: 0.5rem;
 }
 
 .btn-ghost:hover:not(:disabled) {
@@ -224,20 +238,20 @@
 }
 
 .btn-danger {
-  background-color: var(--danger);
-  color: var(--bg-0);
-  border-color: var(--danger);
+  background-color: rgba(240, 79, 79, 0.14);
+  color: #ffb3b3;
+  border-color: rgba(240, 79, 79, 0.4);
 }
 
 .btn-danger:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background-color: rgba(240, 79, 79, 0.24);
 }
 
 .btn-ghost-danger {
   background-color: transparent;
   color: var(--danger);
   border-color: transparent;
-  padding-inline: 0.25rem;
+  padding-inline: 0.5rem;
 }
 
 .btn-ghost-danger:hover:not(:disabled) {
@@ -246,30 +260,25 @@
 
 /* Chrome divider — not `.nav-hatch` (that class is the active underline) */
 .chrome-hatch-rule {
-  height: 3px;
-  opacity: 0.6;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--hatch-strong),
-    var(--hatch-strong) 3px,
-    transparent 3px,
-    transparent 7px
-  );
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
 }
 
 .field {
   margin-top: 0.25rem;
   width: 100%;
   border: 1px solid var(--line);
-  background: var(--bg-1);
+  background: rgba(0, 0, 0, 0.3);
   color: var(--ink);
   border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.9rem;
   outline: none;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 .field:focus {
-  border-color: var(--line-strong);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .field-check {
@@ -282,7 +291,7 @@
 }
 
 .field-check input {
-  accent-color: var(--accent);
+  accent-color: var(--ink);
 }
 
 /* Page-header row: primary + segmented control share one height */
@@ -300,14 +309,6 @@
 
 .header-control.btn {
   padding-block: 0;
-}
-
-.font-display {
-  font-family: var(--font-display);
-}
-
-.font-mono {
-  font-family: var(--font-mono);
 }
 
 .overflow-marquee {
@@ -347,5 +348,239 @@
   }
   100% {
     transform: translateX(-50%);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.035em;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.num-light {
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.num-dim {
+  color: var(--dim);
+}
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.dot-matrix {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0.8px, transparent 1.25px);
+  background-size: 5px 5px;
+}
+
+.tick-track {
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 4px);
+}
+
+.tick-fill {
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.85) 0 1px, transparent 1px 4px);
+  transition: width 0.9s var(--ease-out);
+}
+
+.q-in {
+  animation: q-in 1s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.q-lift {
+  transition: transform 0.6s var(--ease-out), border-color 0.4s ease, background-color 0.4s ease;
+}
+
+.q-lift:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+}
+
+.q-row {
+  transition: background-color 0.3s ease, transform 0.5s var(--ease-out);
+}
+
+.q-row:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+  transform: translateX(2px);
+}
+
+.q-grow {
+  transform-origin: bottom;
+  animation: q-grow 1s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 18ms);
+}
+
+.q-grow-x {
+  transform-origin: left;
+  animation: q-grow-x 1.1s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.q-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: q-draw 1.8s var(--ease-out) forwards;
+}
+
+.q-pop {
+  animation: q-pop 0.7s var(--ease-out) backwards;
+  animation-delay: calc(0.6s + var(--i, 0) * 40ms);
+}
+
+.q-live {
+  animation: q-live 2.2s ease-in-out infinite;
+}
+
+.q-spin {
+  animation: q-spin 6s linear infinite;
+}
+
+.q-twinkle {
+  animation: q-twinkle 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.4s);
+}
+
+.q-eq {
+  transform-origin: bottom;
+  animation: q-eq 0.9s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i, 0) * -0.17s);
+}
+
+.q-slide {
+  transition: transform 0.6s var(--ease-out), width 0.6s var(--ease-out);
+}
+
+.q-bar {
+  transition: width 0.9s var(--ease-out);
+}
+
+@keyframes q-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(8px);
+  }
+}
+
+@keyframes q-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes q-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes q-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes q-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes q-live {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes q-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes q-twinkle {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes q-eq {
+  from {
+    transform: scaleY(0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-in,
+  .q-grow,
+  .q-grow-x,
+  .q-pop,
+  .q-live,
+  .q-spin,
+  .q-twinkle,
+  .q-eq {
+    animation: none;
+  }
+
+  .q-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .btn,
+  .q-lift,
+  .q-row,
+  .q-slide,
+  .q-bar,
+  .tick-fill,
+  .field {
+    transition: none;
+  }
+
+  .btn:hover:not(:disabled),
+  .q-lift:hover,
+  .q-row:hover {
+    transform: none;
   }
 }

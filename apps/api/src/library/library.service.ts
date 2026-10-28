@@ -1,4 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type {
+  LibraryFacets,
+  LibrarySort,
+  LibraryStatusFilter,
+  LibraryUserStatus,
+} from "@questorylabs/shared";
 import { Prisma } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -6,7 +12,8 @@ import {
   includesIgnoreCase,
   parseStringArray,
 } from "../lib/json-arrays";
-import { currencyFromCountry } from "../lib/currency";
+import { currencyFromCountry, resolveDisplayCurrency } from "../lib/currency";
+import { buildPaidByGame, buildRoiRow } from "../cost/cost-roi";
 import { isStoreId, StoreId } from "../stores/store.constants";
 
 export type LibraryFilters = {
@@ -25,9 +32,32 @@ export type LibraryFilters = {
   controller?: boolean;
   publisher?: string;
   developer?: string;
+  sort?: LibrarySort;
+  status?: LibraryStatusFilter;
   page?: number;
   pageSize?: number;
 };
+
+const USER_STATUSES: LibraryUserStatus[] = [
+  "playing",
+  "backlog",
+  "finished",
+  "dropped",
+];
+
+function matchesStatus(
+  e: { playtimeForever: number; userStatus: string | null },
+  status: LibraryStatusFilter,
+) {
+  if (status === "neverPlayed") return e.playtimeForever === 0;
+  return e.userStatus === status;
+}
+
+function asUserStatus(value: string | null): LibraryUserStatus | null {
+  return USER_STATUSES.includes(value as LibraryUserStatus)
+    ? (value as LibraryUserStatus)
+    : null;
+}
 
 @Injectable()
 export class LibraryService {
@@ -56,18 +86,24 @@ export class LibraryService {
     }
 
     const gameWhere: Prisma.GameWhereInput = {};
-    if (filters.q) gameWhere.name = { contains: filters.q };
     if (filters.deck) gameWhere.deckStatus = { in: ["verified", "playable"] };
     if (Object.keys(gameWhere).length) where.game = gameWhere;
 
-    const all = await this.prisma.libraryEntry.findMany({
-      where,
-      include: {
-        game: { include: { storeListings: true } },
-        ownerships: { include: { listing: true } },
-      },
-      orderBy: [{ lastPlayedAt: "desc" }, { playtimeForever: "desc" }],
-    });
+    const [all, purchases, user] = await Promise.all([
+      this.prisma.libraryEntry.findMany({
+        where,
+        include: {
+          game: { include: { storeListings: true } },
+          ownerships: { include: { listing: true } },
+        },
+        orderBy: [{ lastPlayedAt: "desc" }, { playtimeForever: "desc" }],
+      }),
+      this.prisma.purchase.findMany({
+        where: { userId },
+        select: { gameId: true, appId: true, amount: true, currency: true },
+      }),
+      this.prisma.user.findUnique({ where: { id: userId } }),
+    ]);
 
     const filtered = all.filter((e) => {
       const genres = parseStringArray(e.game.genres);
@@ -103,19 +139,114 @@ export class LibraryService {
           multiplayerCaps.some((c) => /co-op/i.test(c));
         if (!ok) return false;
       }
-      if (filters.q && !containsIgnoreCase(e.game.name, filters.q)) return false;
+      if (filters.q) {
+        const q = filters.q;
+        const ok =
+          containsIgnoreCase(e.game.name, q) ||
+          tags.some((t) => containsIgnoreCase(t, q)) ||
+          publishers.some((p) => containsIgnoreCase(p, q));
+        if (!ok) return false;
+      }
       return true;
     });
 
-    const total = filtered.length;
-    const items = filtered.slice((page - 1) * pageSize, page * pageSize);
+    const facets: LibraryFacets = {
+      all: filtered.length,
+      neverPlayed: 0,
+      playing: 0,
+      backlog: 0,
+      finished: 0,
+      dropped: 0,
+    };
+    for (const e of filtered) {
+      if (e.playtimeForever === 0) facets.neverPlayed += 1;
+      const s = asUserStatus(e.userStatus);
+      if (s) facets[s] += 1;
+    }
+
+    const paidByGame = buildPaidByGame(all, purchases);
+    const valueByEntry = new Map(
+      filtered.map((e) => {
+        const row = buildRoiRow(e, paidByGame);
+        return [
+          e.id,
+          { amount: row?.amount ?? null, costPerHour: row?.costPerHour ?? null },
+        ];
+      }),
+    );
+
+    const statusFiltered = filters.status
+      ? filtered.filter((e) => matchesStatus(e, filters.status!))
+      : filtered;
+    const sorted = this.sortEntries(statusFiltered, filters.sort, valueByEntry);
+
+    const total = sorted.length;
+    const items = sorted.slice((page - 1) * pageSize, page * pageSize);
 
     return {
       total,
       page,
       pageSize,
-      items: items.map((e) => this.mapEntry(e)),
+      currency: resolveDisplayCurrency({
+        purchaseCurrency: purchases[0]?.currency,
+        countryCode: user?.countryCode,
+      }),
+      facets,
+      items: items.map((e) => this.mapEntry(e, valueByEntry.get(e.id))),
     };
+  }
+
+  private sortEntries<
+    T extends {
+      id: string;
+      playtimeForever: number;
+      lastPlayedAt: Date | null;
+      game: { name: string };
+    },
+  >(
+    entries: T[],
+    sort: LibrarySort | undefined,
+    values: Map<string, { costPerHour: number | null }>,
+  ): T[] {
+    if (!sort || sort === "lastPlayed") return entries;
+    const copy = [...entries];
+    if (sort === "hours") {
+      return copy.sort((a, b) => b.playtimeForever - a.playtimeForever);
+    }
+    if (sort === "name") {
+      return copy.sort((a, b) =>
+        a.game.name.localeCompare(b.game.name, undefined, { sensitivity: "base" }),
+      );
+    }
+    return copy.sort((a, b) => {
+      const av = values.get(a.id)?.costPerHour ?? null;
+      const bv = values.get(b.id)?.costPerHour ?? null;
+      if (av == null && bv == null) return b.playtimeForever - a.playtimeForever;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return av - bv;
+    });
+  }
+
+  async setStatus(
+    userId: string,
+    gameId: string,
+    status: LibraryUserStatus | null,
+  ) {
+    const entry = await this.prisma.libraryEntry.findFirst({
+      where: { userId, gameId },
+      select: { id: true },
+    });
+    if (!entry) throw new NotFoundException("Game not in your library");
+    const updated = await this.prisma.libraryEntry.update({
+      where: { id: entry.id },
+      data: { userStatus: status, userStatusAt: status ? new Date() : null },
+      include: {
+        game: { include: { storeListings: true } },
+        ownerships: { include: { listing: true } },
+      },
+    });
+    return this.mapEntry(updated);
   }
 
   async getOne(userId: string, gameId: string) {
@@ -226,63 +357,71 @@ export class LibraryService {
     return this.mapEntry(updated);
   }
 
-  private mapEntry(e: {
-    id: string;
-    playtimeForever: number;
-    playtime2Weeks: number | null;
-    lastPlayedAt: Date | null;
-    pricePaid: number | null;
-    purchasedAt: Date | null;
-    isFamilyShared: boolean;
-    hidden: boolean;
-    ownerships: Array<{
-      store: string;
+  private mapEntry(
+    e: {
+      id: string;
       playtimeForever: number;
+      playtime2Weeks: number | null;
       lastPlayedAt: Date | null;
       pricePaid: number | null;
+      purchasedAt: Date | null;
       isFamilyShared: boolean;
-      listing: {
-        id: string;
+      hidden: boolean;
+      achievementUnlocked?: number | null;
+      achievementTotal?: number | null;
+      achievementPct?: number | null;
+      userStatus?: string | null;
+      userStatusAt?: Date | null;
+      ownerships: Array<{
         store: string;
-        externalId: string;
-        headerImage: string | null;
-        storeUrl: string | null;
-        isFree: boolean;
-        currentPrice: number | null;
-        lowestPrice: number | null;
-        priceCurrency: string | null;
-      } | null;
-    }>;
-    game: {
-      id: string;
-      appId: number | null;
-      name: string;
-      headerImage: string | null;
-      genres: string;
-      categories: string;
-      tags: string;
-      developers: string;
-      publishers: string;
-      reviewScore: number | null;
-      isFree: boolean;
-      currentPrice: number | null;
-      lowestPrice: number | null;
-      deckStatus: string | null;
-      controllers: string;
-      multiplayerCaps: string;
-      storeListings?: Array<{
-        id: string;
-        store: string;
-        externalId: string;
-        headerImage: string | null;
-        storeUrl: string | null;
-        isFree: boolean;
-        currentPrice: number | null;
-        lowestPrice: number | null;
-        priceCurrency: string | null;
+        playtimeForever: number;
+        lastPlayedAt: Date | null;
+        pricePaid: number | null;
+        isFamilyShared: boolean;
+        listing: {
+          id: string;
+          store: string;
+          externalId: string;
+          headerImage: string | null;
+          storeUrl: string | null;
+          isFree: boolean;
+          currentPrice: number | null;
+          lowestPrice: number | null;
+          priceCurrency: string | null;
+        } | null;
       }>;
-    };
-  }) {
+      game: {
+        id: string;
+        appId: number | null;
+        name: string;
+        headerImage: string | null;
+        genres: string;
+        categories: string;
+        tags: string;
+        developers: string;
+        publishers: string;
+        reviewScore: number | null;
+        isFree: boolean;
+        currentPrice: number | null;
+        lowestPrice: number | null;
+        deckStatus: string | null;
+        controllers: string;
+        multiplayerCaps: string;
+        storeListings?: Array<{
+          id: string;
+          store: string;
+          externalId: string;
+          headerImage: string | null;
+          storeUrl: string | null;
+          isFree: boolean;
+          currentPrice: number | null;
+          lowestPrice: number | null;
+          priceCurrency: string | null;
+        }>;
+      };
+    },
+    value?: { amount: number | null; costPerHour: number | null },
+  ) {
     const stores = [
       ...new Set(e.ownerships.map((o) => o.store).filter(isStoreId)),
     ];
@@ -307,6 +446,14 @@ export class LibraryService {
       purchasedAt: e.purchasedAt?.toISOString() ?? null,
       isFamilyShared: e.isFamilyShared,
       hidden: e.hidden,
+      achievementUnlocked: e.achievementUnlocked ?? null,
+      achievementTotal: e.achievementTotal ?? null,
+      achievementPct: e.achievementPct ?? null,
+      userStatus: asUserStatus(e.userStatus ?? null),
+      userStatusAt: e.userStatusAt?.toISOString() ?? null,
+      ...(value
+        ? { valueAmount: value.amount, costPerHour: value.costPerHour }
+        : {}),
       stores,
       ownerships: e.ownerships.map((o) => ({
         store: o.store as StoreId,

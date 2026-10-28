@@ -32,7 +32,7 @@ describe("LoginView", () => {
 
   it("shows the Sign in heading", () => {
     renderView({});
-    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sign\s+in/ })).toBeInTheDocument();
   });
 
   it("shows Retry when there is no challenge and loading is done", () => {
@@ -44,5 +44,18 @@ describe("LoginView", () => {
     renderView({});
     expect(screen.getByLabelText("Email")).toHaveClass("field");
     expect(screen.getByLabelText("Password")).toHaveClass("field");
+  });
+
+  it("marks credentials invalid and links to register", () => {
+    renderView({ error: "Email or password is wrong. 2 tries left before sign-in pauses.", credentialError: true });
+    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getAllByRole("alert").some((n) => n.textContent?.includes("2 tries left"))).toBe(true);
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/register");
+  });
+
+  it("disables submit with a countdown while sign-in is paused", () => {
+    renderView({ lockSecondsLeft: 75 });
+    expect(screen.getByRole("button", { name: "Try again in 1:15" })).toBeDisabled();
+    expect(screen.getByText(/Sign-in pauses after 5 failed tries/)).toBeInTheDocument();
   });
 });

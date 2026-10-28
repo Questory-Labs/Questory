@@ -12,6 +12,7 @@ describe("WishlistService.list pagination", () => {
     findMany.mockReset();
     const prisma = {
       wishlistItem: { count, findMany },
+      user: { findUnique: vi.fn().mockResolvedValue({ countryCode: "IN" }) },
     } as any;
     service = new WishlistService(prisma);
   });

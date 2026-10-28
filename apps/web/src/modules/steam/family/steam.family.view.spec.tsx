@@ -190,14 +190,57 @@ describe("FamilyView", () => {
 
   it("renders insights when ready", () => {
     renderView({});
-    expect(screen.getByText("Members")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Members" })).toBeInTheDocument();
+    expect(screen.getByText("Steam Family · 1 of 6 seats")).toBeInTheDocument();
     expect(screen.getByText("Portal")).toBeInTheDocument();
+  });
+
+  it("lists shareable games and wishlist gaps from linked members", () => {
+    const setSelectedAppId = vi.fn();
+    renderView({
+      setSelectedAppId,
+      insights: resource<FamilyInsights>({
+        empty: false,
+        failed: false,
+        value: {
+          ...insightsValue,
+          linkedMemberCount: 2,
+          shareableNow: [
+            {
+              appId: 20,
+              name: "Celeste",
+              headerImage: null,
+              direction: "toYou",
+              ownerSteamId: "2",
+              ownerName: "Alex",
+              wantedBySteamId: "1",
+              wantedByName: "Sam",
+            },
+          ],
+          wishlistGaps: [
+            {
+              appId: 30,
+              name: "Hades II",
+              headerImage: null,
+              currentPrice: null,
+              wantedBy: ["Sam", "Alex"],
+            },
+          ],
+        },
+      }),
+    });
+    expect(screen.getByText("Alex → you")).toBeInTheDocument();
+    expect(screen.getByText("2 members")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Only members who linked a Questory account/).length,
+    ).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: /Celeste/ }));
+    expect(setSelectedAppId).toHaveBeenCalledWith(20);
   });
 
   it("groups the steam id field with add member, not import", () => {
     renderView({});
-    const input = screen.getByPlaceholderText("Add member SteamID64");
+    const input = screen.getByLabelText("SteamID64");
     const add = screen.getByRole("button", { name: "Add member" });
     const form = input.closest("form");
     expect(form).not.toBeNull();

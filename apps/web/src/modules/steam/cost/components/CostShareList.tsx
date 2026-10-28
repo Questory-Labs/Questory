@@ -10,7 +10,7 @@ export const CostShareList = ({
   rows,
   currency,
 }: {
-  title: string;
+  title?: string;
   rows: CostShareRow[];
   currency: string;
 }) => {
@@ -21,31 +21,25 @@ export const CostShareList = ({
 
   return (
     <div>
-      <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-        {title}
-      </h3>
-      <ul className="mt-3 space-y-2.5">
+      {title ? <h3 className="label-mono text-[var(--faint)]">{title}</h3> : null}
+      <ul className="mt-3.5 flex flex-col gap-3.5">
         {rows.map((row) => {
           const pct = costBarPct(row.amount, max);
           return (
-            <li key={row.name}>
-              <div className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate" title={row.name}>
-                  {row.name}
-                </span>
-                <span className="shrink-0 font-mono text-[11px] tabular-nums text-[var(--muted)]">
-                  {money(row.amount)}
-                </span>
-              </div>
-              <div
-                className="mt-1.5 h-1 overflow-hidden bg-[var(--line)]"
-                aria-hidden
-              >
-                <div
-                  className="h-full bg-[var(--accent)]"
+            <li
+              key={row.name}
+              className="grid grid-cols-[minmax(0,96px)_1fr_84px] items-center gap-3.5 text-sm"
+            >
+              <span className="truncate text-[var(--muted)]" title={row.name}>
+                {row.name}
+              </span>
+              <span aria-hidden="true" className="h-[3px] rounded-sm bg-white/[0.06]">
+                <span
+                  className="q-bar block h-[3px] rounded-sm bg-[var(--ink)] shadow-[0_0_10px_rgba(255,255,255,0.35)]"
                   style={{ width: `${pct}%` }}
                 />
-              </div>
+              </span>
+              <span className="text-right font-light tabular-nums">{money(row.amount)}</span>
             </li>
           );
         })}

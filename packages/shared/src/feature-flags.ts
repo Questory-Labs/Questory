@@ -103,10 +103,18 @@ export const PatchFeatureFlagsSchema = z.object({
 });
 export type PatchFeatureFlags = z.infer<typeof PatchFeatureFlagsSchema>;
 
+export const AbuseLimitSchema = z.object({
+  key: z.string(),
+  max: z.number().int().nonnegative(),
+  windowSeconds: z.number().int().positive(),
+});
+export type AbuseLimit = z.infer<typeof AbuseLimitSchema>;
+
 export const AdminInstanceSettingsSchema = z.object({
   signupEnabled: z.boolean(),
   signupOpen: z.boolean(),
   abuse: z.record(z.string(), z.number()),
+  limits: z.array(AbuseLimitSchema),
   features: AdminDomainFlagsSchema,
   sources: AdminSourceFlagsSchema,
 });

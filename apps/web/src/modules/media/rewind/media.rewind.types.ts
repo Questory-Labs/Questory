@@ -4,6 +4,7 @@ import type {
   RewindInsightResponse,
   RewindStatsResponse,
 } from "@questorylabs/shared";
+import type { RewindSummary } from "./media.rewind.summary.types";
 
 export type RewindDomain = "music" | "watch" | "read" | "games";
 
@@ -103,6 +104,7 @@ export type EmphasisSegment = {
 
 export type RewindViewProps = {
   domain: RewindScope;
+  enabledDomains: Partial<Record<RewindDomain, boolean>>;
   year: number;
   month: RewindMonth;
   setMonth: Dispatch<SetStateAction<RewindMonth>>;
@@ -110,6 +112,7 @@ export type RewindViewProps = {
   handleRedo: () => void;
   enterpriseEnabled: boolean;
   statsQuery: UseResourceResult<RewindStatsResponse>;
+  summary: RewindSummary | null;
   aiQuery: UseResourceResult<RewindInsightResponse>;
   availableMonths: number[];
   hasCompletedMonths: boolean;

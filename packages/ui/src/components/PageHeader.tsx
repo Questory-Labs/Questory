@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
-export const pageHeaderVariants = cva("", {
+export const pageHeaderVariants = cva("q-in", {
   variants: {
     size: {
       sm: "mb-5",
@@ -14,11 +14,11 @@ export const pageHeaderVariants = cva("", {
   },
 });
 
-export const pageHeaderTitleVariants = cva("font-display tracking-tight", {
+export const pageHeaderTitleVariants = cva("font-display leading-none", {
   variants: {
     size: {
-      sm: "text-2xl sm:text-3xl",
-      md: "text-4xl sm:text-5xl",
+      sm: "text-[28px] sm:text-[32px]",
+      md: "text-[clamp(34px,4vw,52px)]",
     },
   },
   defaultVariants: {
@@ -27,11 +27,11 @@ export const pageHeaderTitleVariants = cva("font-display tracking-tight", {
 });
 
 export const pageHeaderRowVariants = cva(
-  "flex flex-wrap items-start justify-between gap-4",
+  "flex flex-wrap items-end justify-between gap-4",
   {
     variants: {
       eyebrow: {
-        true: "mt-2",
+        true: "mt-1.5",
         false: "",
       },
     },
@@ -61,7 +61,7 @@ export function PageHeader({
   return (
     <header className={cn(pageHeaderVariants({ size }), className)}>
       {eyebrow ? (
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--faint)]">
           {eyebrow}
         </p>
       ) : null}
@@ -69,7 +69,7 @@ export function PageHeader({
         <div className="min-w-0">
           <h1 className={pageHeaderTitleVariants({ size })}>{title}</h1>
           {description ? (
-            <div className="mt-3 max-w-2xl text-[var(--muted)]">{description}</div>
+            <div className="mt-3 max-w-2xl text-sm text-[var(--muted)]">{description}</div>
           ) : null}
         </div>
         {actions ? (

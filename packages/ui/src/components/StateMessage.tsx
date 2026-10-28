@@ -28,7 +28,7 @@ export const StateMessage = ({
       </div>
 
       <p
-        className={`text-xs font-semibold uppercase tracking-wider ${
+        className={`label-mono ${
           isError ? "text-[var(--danger)]" : "text-[var(--muted)]"
         }`}
       >

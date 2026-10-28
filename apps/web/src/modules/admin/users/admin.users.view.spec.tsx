@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import { AdminUsersView } from "./admin.users.view";
 import type { AdminUsersResponse, AdminUsersViewProps } from "./admin.users.types";
-import type { AdminUser } from "./components/AdminUserCard";
+import type { AdminUser } from "./admin.users.types";
 
-vi.mock("./components/AdminUserCard", () => ({
-  AdminUserCard: ({ user }: { user: AdminUser }) => <div>{user.personaName}</div>,
+vi.mock("./components/AdminUsersTable", () => ({
+  AdminUsersTable: ({ users }: { users: AdminUser[] }) => (
+    <div>
+      {users.map((u) => (
+        <div key={u.id}>{u.personaName}</div>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock("./components/AdminAddUserDialog", () => ({
@@ -40,9 +46,19 @@ const alice: AdminUser = {
   lastSyncedAt: null,
 };
 
+const bob: AdminUser = {
+  ...alice,
+  id: "user-2",
+  email: "bob@example.com",
+  isAdmin: false,
+  personaName: "Bob",
+  steamId: null,
+};
+
 const usersValue: AdminUsersResponse = {
-  users: [alice],
+  users: [alice, bob],
   startFreshEnabled: true,
+  failingSyncCount: 1,
 };
 
 const renderView = (patch: Partial<AdminUsersViewProps>) =>
@@ -84,5 +100,23 @@ describe("AdminUsersView", () => {
   it("renders users when ready", () => {
     renderView({});
     expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("1 out of sync")).toBeInTheDocument();
+    expect(screen.getByText("1 admin")).toBeInTheDocument();
+  });
+
+  it("filters users by search", () => {
+    renderView({});
+    fireEvent.change(screen.getByPlaceholderText("Search by email or name"), {
+      target: { value: "bob" },
+    });
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+  });
+
+  it("opens the add user dialog", () => {
+    const setAddOpen = vi.fn();
+    renderView({ setAddOpen });
+    fireEvent.click(screen.getByRole("button", { name: "Add user" }));
+    expect(setAddOpen).toHaveBeenCalledWith(true);
   });
 });

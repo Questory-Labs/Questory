@@ -14,27 +14,42 @@ export class TrendingController {
   }
 
   @Get("friends")
-  friends(@CurrentUser() user: { userId: string }) {
-    return this.trending.getFriendsShelf(user.userId);
+  async friends(@CurrentUser() user: { userId: string }) {
+    return this.trending.withLibraryFlags(
+      user.userId,
+      await this.trending.getFriendsShelf(user.userId),
+    );
   }
 
   @Get("global")
-  global() {
-    return this.trending.getGlobalShelf();
+  async global(@CurrentUser() user: { userId: string }) {
+    return this.trending.withLibraryFlags(
+      user.userId,
+      await this.trending.getGlobalShelf(),
+    );
   }
 
   @Get("concurrent")
-  concurrent() {
-    return this.trending.getConcurrentShelf();
+  async concurrent(@CurrentUser() user: { userId: string }) {
+    return this.trending.withLibraryFlags(
+      user.userId,
+      await this.trending.getConcurrentShelf(),
+    );
   }
 
   @Get("deck")
-  deck() {
-    return this.trending.getDeckShelf();
+  async deck(@CurrentUser() user: { userId: string }) {
+    return this.trending.withLibraryFlags(
+      user.userId,
+      await this.trending.getDeckShelf(),
+    );
   }
 
   @Get("top-releases")
-  topReleases() {
-    return this.trending.getTopReleasesShelf();
+  async topReleases(@CurrentUser() user: { userId: string }) {
+    return this.trending.withLibraryFlags(
+      user.userId,
+      await this.trending.getTopReleasesShelf(),
+    );
   }
 }

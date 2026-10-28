@@ -26,7 +26,7 @@ vi.mock("./components/AgentProgress", () => ({
 }));
 
 vi.mock("./components/PlanHero", () => ({
-  PlanHero: () => null,
+  PlanHero: () => <div data-testid="plan-hero" />,
 }));
 
 vi.mock("./components/PreviousSlates", () => ({
@@ -55,6 +55,7 @@ const hadesResponse: RecommendationResponse = {
 const baseProps = (): RecommendationsViewProps => ({
   tab: "all",
   setTab: () => undefined,
+  dayPart: "Sunday evening",
   jobId: null,
   peekHeuristics: false,
   setPeekHeuristics: () => undefined,
@@ -309,5 +310,51 @@ describe("RecommendationsView", () => {
       },
     });
     expect(screen.getByText(/heuristic order \(model unavailable\)/)).toBeInTheDocument();
+  });
+
+  it("puts the day part and city in the eyebrow and counts the picks", () => {
+    renderView({
+      settings: mockResource<UserSettings>({
+        empty: false,
+        failed: false,
+        value: { city: "Bengaluru" },
+      }),
+    });
+    expect(screen.getByText("Sunday evening · Bengaluru")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Location" })).toBeInTheDocument();
+    expect(screen.getByText(/· 1 pick$/)).toBeInTheDocument();
+  });
+
+  it("asks for a location when none is set", () => {
+    renderView({});
+    expect(screen.getByText("Sunday evening")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Set your location" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("shows the plan only for a curated all-domains slate", () => {
+    const curated: RecommendationResponse = {
+      ...hadesResponse,
+      plan: { title: "One run, one album", steps: [{ itemIndex: 0, note: "Start here" }] },
+    };
+    renderView({ curated });
+    expect(screen.getByTestId("plan-hero")).toBeInTheDocument();
+    cleanup();
+    renderView({ curated, tab: "games" });
+    expect(screen.queryByTestId("plan-hero")).not.toBeInTheDocument();
+  });
+
+  it("marks a cached curated slate", () => {
+    renderView({
+      curated: { ...hadesResponse, moodSummary: "short and calm" },
+      fromCache: true,
+    });
+    expect(screen.getByText("Cached")).toBeInTheDocument();
+    expect(screen.getByText(/short and calm/)).toBeInTheDocument();
   });
 });

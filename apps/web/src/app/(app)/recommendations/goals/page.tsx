@@ -1,16 +1,10 @@
-"use client";
+import { GoalsController } from "@/modules/enterprise/goals/enterprise.goals.controller";
+import { GoalsView } from "@/modules/enterprise/goals/enterprise.goals.view";
 
-import { SmartGoalsPanel } from "@/modules/enterprise/recommendations/components/SmartGoalsPanel";
-import { PageHeader } from "@/components/ui";
+const SmartGoalsPage = () => (
+  <GoalsController>
+    <GoalsView />
+  </GoalsController>
+);
 
-export default function SmartGoalsPage() {
-  return (
-    <>
-      <PageHeader size="sm"
-        title="Smart Goals"
-        description="Unfinished games, watchlist titles, and in-progress reads — sized to the timeframe you pick."
-      />
-      <SmartGoalsPanel />
-    </>
-  );
-}
+export default SmartGoalsPage;

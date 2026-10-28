@@ -3,15 +3,23 @@ import { PrismaService } from "../prisma/prisma.service";
 import { resolveDisplayCurrency } from "../lib/currency";
 import { parseStringArray } from "../lib/json-arrays";
 import {
+  DASHBOARD_FAILED_SYNC_LOOKBACK_DAYS,
+  DASHBOARD_PURCHASE_LOOKBACK_DAYS,
+  DASHBOARD_PURCHASE_TAKE,
+  DASHBOARD_SESSION_LOOKBACK_DAYS,
+  DASHBOARD_SESSION_TAKE,
   PLAY_NEXT_DEFAULT_LIMIT,
   RECENTLY_PLAYED_TAKE,
 } from "./dashboard.constants";
+import { bucketTimePlayed, sumMonthSpend } from "./dashboard-activity";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getStats(userId: string) {
+  async getStats(userId: string, timeZone = "UTC", now = new Date()) {
     const [
       user,
       librarySize,
@@ -25,6 +33,7 @@ export class DashboardService {
       wishlist,
       purchase,
       nearCompletionCount,
+      activity,
     ] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.libraryEntry.count({ where: { userId, hidden: false } }),
@@ -81,6 +90,7 @@ export class DashboardService {
           achievementPct: { gte: 80, lt: 100 },
         },
       }),
+      this.loadActivity(userId, timeZone, now),
     ]);
 
     const totalMinutes = playAgg._sum.playtimeForever || 0;
@@ -145,6 +155,67 @@ export class DashboardService {
             finishedAt: latestSync.finishedAt?.toISOString() ?? null,
           }
         : null,
+      ...activity,
+    };
+  }
+
+  private async loadActivity(userId: string, timeZone: string, now: Date) {
+    const [
+      sessions,
+      purchases,
+      failedSyncs,
+      unmatchedSessions,
+      unreadNotifications,
+      storeAccounts,
+      sourceConnections,
+    ] = await Promise.all([
+      this.prisma.playSession.findMany({
+        where: {
+          userId,
+          startedAt: {
+            gte: new Date(now.getTime() - DASHBOARD_SESSION_LOOKBACK_DAYS * DAY_MS),
+          },
+        },
+        orderBy: { startedAt: "desc" },
+        take: DASHBOARD_SESSION_TAKE,
+        select: { startedAt: true, durationSecs: true },
+      }),
+      this.prisma.purchase.findMany({
+        where: {
+          userId,
+          purchasedAt: {
+            gte: new Date(now.getTime() - DASHBOARD_PURCHASE_LOOKBACK_DAYS * DAY_MS),
+          },
+        },
+        orderBy: { purchasedAt: "desc" },
+        take: DASHBOARD_PURCHASE_TAKE,
+        select: { amount: true, currency: true, purchasedAt: true },
+      }),
+      this.prisma.syncJob.count({
+        where: {
+          userId,
+          status: "failed",
+          createdAt: {
+            gte: new Date(now.getTime() - DASHBOARD_FAILED_SYNC_LOOKBACK_DAYS * DAY_MS),
+          },
+        },
+      }),
+      this.prisma.playSession.count({ where: { userId, gameId: null } }),
+      this.prisma.notification.count({ where: { userId, readAt: null } }),
+      this.prisma.storeAccount.count({ where: { userId } }),
+      this.prisma.sourceConnection.count({ where: { userId } }),
+    ]);
+
+    return {
+      timePlayed: bucketTimePlayed(sessions, timeZone, now),
+      needsYou: {
+        total: failedSyncs + unmatchedSessions + unreadNotifications,
+        failedSyncs,
+        unmatchedSessions,
+        unreadNotifications,
+      },
+      syncedSources: storeAccounts + sourceConnections,
+      monthSpend: sumMonthSpend(purchases, timeZone, now),
     };
   }
 

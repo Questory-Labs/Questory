@@ -6,17 +6,18 @@ export default function AppNotFound() {
     <StatusPage
       layout="embedded"
       code="404"
-      eyebrow="Side quest expired"
-      title="No save file at this URL"
+      eyebrow="Not found"
+      title="We couldn’t"
+      titleAccent="find that"
       taglineContext="notFound"
       logLine="quest log › app_route — result: null · hint: check the address bar"
-      tone="mint"
+      tone="ink"
       primary={{ label: "Open library", href: "/library" }}
       secondary={{ label: "Dashboard", href: "/dashboard" }}
     >
       <p className="mt-4 text-sm text-[var(--faint)]">
         Know a game this should be?{" "}
-        <Link href="/search" className="text-[var(--accent)] hover:underline">
+        <Link href="/search" className="text-[var(--ink)] underline decoration-[var(--line-strong)] underline-offset-4">
           Try search
         </Link>
       </p>

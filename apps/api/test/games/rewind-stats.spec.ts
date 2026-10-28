@@ -36,6 +36,7 @@ type Data = {
   library?: { gameId: string; playtimeForever: number }[];
   owned?: number;
   unplayed?: number;
+  perfect?: number;
   priorSessions?: { gameId: string; _sum: { durationSecs: number } }[];
   priorCapped?: { gameId: string; _count: { _all: number } }[];
 };
@@ -54,8 +55,13 @@ function makeService(data: Data) {
     );
   const libraryCount = vi
     .fn()
-    .mockImplementation(async (args: { where: { playtimeForever?: number } }) =>
-      args.where.playtimeForever === 0 ? (data.unplayed ?? 0) : (data.owned ?? 0),
+    .mockImplementation(
+      async (args: { where: { playtimeForever?: number; achievementPct?: unknown } }) =>
+        args.where.achievementPct
+          ? (data.perfect ?? 0)
+          : args.where.playtimeForever === 0
+            ? (data.unplayed ?? 0)
+            : (data.owned ?? 0),
     );
   const libraryFindMany = vi
     .fn()
@@ -123,8 +129,10 @@ describe("GamesRewindService.rewindStats", () => {
       library: [{ gameId: "g1", playtimeForever: 500 }],
       owned: 30,
       unplayed: 12,
+      perfect: 1,
     });
     const stats = await service.rewindStats("u1", "2025", "UTC");
+    expect(stats.perfectGames).toBe(1);
     expect(stats.sessions).toBe(3);
     expect(stats.sessionsAvailable).toBe(true);
     expect(stats.totalMinutes).toBe(465);

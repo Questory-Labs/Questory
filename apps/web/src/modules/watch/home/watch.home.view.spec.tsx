@@ -65,6 +65,8 @@ const renderView = (patch: Partial<WatchHomeViewProps> = {}) =>
         dow: emptyBuckets,
         years: emptyBreakdown,
         sources: emptyBreakdown,
+        tops: mockResource({ empty: false, failed: false, value: [] }),
+        continuing: mockResource({ empty: false, failed: false, value: { items: [] } }),
         ...patch,
       } as WatchHomeViewProps)}
     />,
@@ -91,15 +93,11 @@ describe("WatchHomeView", () => {
 
   it("renders stats when ready", () => {
     renderView();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("2 hours");
     expect(screen.getByText("Watching time")).toBeInTheDocument();
-    expect(screen.getByText("2h")).toBeInTheDocument();
     expect(screen.getByText("Coverage")).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Runtime coverage" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add" })).toHaveClass(
-      "btn-sm",
-      "header-control",
-    );
+    expect(screen.getByRole("button", { name: "Log a watch" })).toHaveClass("header-control");
     expect(screen.getByRole("group", { name: "Media type" })).toHaveClass(
       "header-control",
     );
@@ -114,11 +112,13 @@ describe("WatchHomeController", () => {
     vi.mocked(watchFetch).mockImplementation(async (path) => {
       if (String(path).includes("/analytics/insights")) return insights;
       if (String(path).includes("/analytics/timeseries")) return [];
+      if (String(path).includes("/analytics/tops")) return [];
+      if (String(path).includes("/analytics/continue")) return { items: [] };
       return { periodWatches: 4, items: [] };
     });
   });
 
-  it("loads all-time analytics without a date range picker", async () => {
+  it("loads the last 30 days without a date range picker", async () => {
     const store = new ResourceStore({ retries: false });
     render(
       <ResourceProvider store={store}>
@@ -128,13 +128,13 @@ describe("WatchHomeController", () => {
       </ResourceProvider>,
     );
 
-    expect(await screen.findByRole("heading", { name: "Watch" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "2 hours" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Media type" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Time range" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Day" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Week" })).not.toBeInTheDocument();
     expect(watchFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/analytics/insights?range=all"),
+      expect.stringContaining("/analytics/insights?range=month"),
     );
   });
 });

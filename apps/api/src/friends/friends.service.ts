@@ -2,8 +2,11 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccountsService } from "../accounts/accounts.service";
 import { parseStringArray } from "../lib/json-arrays";
+import { containsInsensitive } from "../search/search-text";
 import {
+  COMMON_GAME_LIST_LIMIT,
   FRIENDS_PAGE_SIZE,
+  FRIENDS_QUERY_MAX_LENGTH,
   GAMES_PER_FRIEND_LIMIT,
   LIBRARY_CACHE_LIMIT,
 } from "./friends.constants";
@@ -17,29 +20,41 @@ export class FriendsService {
 
   async list(
     userId: string,
-    opts: { page?: number; pageSize?: number } = {},
+    opts: { page?: number; pageSize?: number; q?: string } = {},
   ) {
     const take = Math.min(Math.max(opts.pageSize ?? FRIENDS_PAGE_SIZE, 1), 100);
     const safePage = Math.max(opts.page ?? 1, 1);
     const skip = (safePage - 1) * take;
+    const q = opts.q?.trim().slice(0, FRIENDS_QUERY_MAX_LENGTH) ?? "";
+    const where = q
+      ? { userId, personaName: containsInsensitive(q) }
+      : { userId };
 
-    const [total, friends, allSteamIds, librarySync] = await Promise.all([
-      this.prisma.friendship.count({ where: { userId } }),
-      this.prisma.friendship.findMany({
-        where: { userId },
-        orderBy: { personaName: "asc" },
-        skip,
-        take,
-      }),
-      this.prisma.friendship.findMany({
-        where: { userId },
-        select: { friendSteamId: true },
-      }),
-      this.prisma.syncJob.findFirst({
-        where: { userId, type: "library-sync", status: "completed" },
-        orderBy: { finishedAt: "desc" },
-      }),
-    ]);
+    const [total, friends, allSteamIds, librarySync, onlineCount, presence] =
+      await Promise.all([
+        this.prisma.friendship.count({ where }),
+        this.prisma.friendship.findMany({
+          where,
+          orderBy: { personaName: "asc" },
+          skip,
+          take,
+        }),
+        this.prisma.friendship.findMany({
+          where: { userId },
+          select: { friendSteamId: true },
+        }),
+        this.prisma.syncJob.findFirst({
+          where: { userId, type: "library-sync", status: "completed" },
+          orderBy: { finishedAt: "desc" },
+        }),
+        this.prisma.friendship.count({
+          where: { userId, personaState: { gt: 0 } },
+        }),
+        this.prisma.friendship.aggregate({
+          where: { userId },
+          _max: { presenceSyncedAt: true },
+        }),
+      ]);
 
     const steamIds = allSteamIds.map((f) => f.friendSteamId);
     const cachedOwners = steamIds.length
@@ -64,22 +79,30 @@ export class FriendsService {
         avatarUrl: f.avatarUrl,
         friendUserId: f.friendUserId,
         libraryCached: cachedSet.has(f.friendSteamId),
+        personaState: f.personaState ?? null,
+        currentAppId: f.currentAppId ?? null,
+        currentGameName: f.currentGameName ?? null,
+        lastLogoffAt: f.lastLogoffAt?.toISOString() ?? null,
+        presenceSyncedAt: f.presenceSyncedAt?.toISOString() ?? null,
       })),
       total,
       page: safePage,
       pageSize: take,
       meta: {
-        totalFriends: total,
+        totalFriends: steamIds.length,
         librariesCached: cachedSet.size,
         libraryCacheLimit: LIBRARY_CACHE_LIMIT,
         gamesPerFriendLimit: GAMES_PER_FRIEND_LIMIT,
         truncated:
-          total > LIBRARY_CACHE_LIMIT ||
+          steamIds.length > LIBRARY_CACHE_LIMIT ||
           cachedOwners.some((c) => c._count._all >= GAMES_PER_FRIEND_LIMIT),
         lastSyncedAt:
           lastSyncedAt?.toISOString() ??
           librarySync?.finishedAt?.toISOString() ??
           null,
+        onlineCount,
+        presenceSyncedAt:
+          presence?._max?.presenceSyncedAt?.toISOString() ?? null,
       },
     };
   }
@@ -170,14 +193,26 @@ export class FriendsService {
     }, 0);
     const libraryValueFriend = 0;
 
-    const commonGameList = common.slice(0, 24).map((appId) => {
-      const yours = yourApps.get(appId)!;
-      return {
-        appId,
-        name: yours.game.name,
-        headerImage: yours.game.headerImage,
-      };
-    });
+    const commonGameList = common
+      .map((appId) => {
+        const yours = yourApps.get(appId)!;
+        const theirs = friendApps.get(appId)!;
+        return {
+          appId,
+          name: yours.game.name,
+          headerImage: yours.game.headerImage,
+          yourPlaytimeMinutes: yours.playtimeForever,
+          friendPlaytimeMinutes: theirs.playtimeForever,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.yourPlaytimeMinutes +
+            b.friendPlaytimeMinutes -
+            (a.yourPlaytimeMinutes + a.friendPlaytimeMinutes) ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, COMMON_GAME_LIST_LIMIT);
 
     const friendAppIds = friendCache.map((c) => c.gameAppId);
     const friendGames = friendAppIds.length

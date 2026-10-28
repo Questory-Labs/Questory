@@ -2,27 +2,32 @@
 
 import { useState } from "react";
 import { useAction, useStore } from "@questorylabs/qhttp/react";
-import type { FamilyMemberSummary } from "@questorylabs/shared";
+import type { FamilyInsights, FamilyMemberSummary } from "@questorylabs/shared";
 import { Button, Dialog } from "@questorylabs/ui";
 import { api } from "@/lib/api";
 import {
   canRemoveFamilyMember,
+  libraryMix,
   memberLabel,
   parseApiError,
 } from "../steam.family.utils";
+import { FamilyMemberAvatar } from "./FamilyMemberAvatar";
+
+const num = "px-3 py-3 text-right text-[var(--muted)] tabular-nums";
 
 export const FamilyMembersTable = ({
   members,
-  suggestedPurchaserSteamId,
+  suggestedPurchaser,
   money,
 }: {
   members: FamilyMemberSummary[];
-  suggestedPurchaserSteamId?: string | null;
+  suggestedPurchaser?: FamilyInsights["suggestedPurchaser"];
   money: (n: number | null | undefined) => string;
 }) => {
   const store = useStore();
   const [pending, setPending] = useState<FamilyMemberSummary | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const maxLibrary = Math.max(1, ...members.map((m) => m.librarySize));
 
   const remove = useAction({
     run: (steamId: string) =>
@@ -44,77 +49,77 @@ export const FamilyMembersTable = ({
 
   return (
     <>
-      <table className="w-full min-w-[800px] text-left text-sm">
+      <table className="w-full min-w-[920px] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-[var(--line)] text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
-            <th className="px-4 py-3 font-medium">Member</th>
-            <th className="px-3 py-3 font-medium tabular-nums">Games</th>
-            <th className="px-3 py-3 font-medium tabular-nums">Shared</th>
-            <th className="px-3 py-3 font-medium tabular-nums">Unique</th>
-            <th className="px-3 py-3 font-medium tabular-nums">Value</th>
-            <th className="px-3 py-3 font-medium tabular-nums">
-              Wishlist gaps
+          <tr className="label-mono text-left">
+            <th scope="col" className="px-3 py-2.5 font-normal">Member</th>
+            <th scope="col" className="w-[22%] px-3 py-2.5 font-normal">Library mix</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Games</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Hours</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Shared</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Unique</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Unplayed</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Wishlist gaps</th>
+            <th scope="col" className="px-3 py-2.5 text-right font-normal">Value</th>
+            <th scope="col" className="px-3 py-2.5">
+              <span className="sr-only">Actions</span>
             </th>
-            <th className="px-3 py-3 font-medium tabular-nums">Unplayed</th>
-            <th className="px-3 py-3 font-medium tabular-nums">Hours</th>
-            <th className="px-3 py-3 font-medium">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {members.map((m) => {
+          {members.map((m, index) => {
             const removable = canRemoveFamilyMember(m);
+            const mix = libraryMix(m, maxLibrary);
+            const suggested = suggestedPurchaser?.steamId === m.steamId;
             return (
               <tr
                 key={m.steamId}
-                className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--bg-2)]"
+                className="border-t border-white/[0.05] transition-colors duration-300 hover:bg-white/[0.035]"
               >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {m.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={m.avatarUrl}
-                        alt=""
-                        className="h-7 w-7 rounded-full"
-                      />
-                    ) : (
-                      <span className="h-7 w-7 rounded-full bg-[var(--bg-2)]" />
-                    )}
-                    <span className="truncate font-medium">{memberLabel(m)}</span>
-                    {suggestedPurchaserSteamId === m.steamId && (
-                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--accent)]">
-                        &bull;
+                <td className="px-3 py-3">
+                  <span className="flex items-center gap-2.5">
+                    <FamilyMemberAvatar
+                      name={m.personaName}
+                      avatarUrl={m.avatarUrl}
+                      index={index}
+                    />
+                    <span className="truncate">{memberLabel(m)}</span>
+                    {suggested ? (
+                      <span
+                        className="pill shrink-0 text-[10px] text-[var(--accent)]"
+                        title={suggestedPurchaser?.reason}
+                      >
+                        Suggested buyer
                       </span>
-                    )}
+                    ) : null}
+                  </span>
+                </td>
+                <td className="px-3 py-3">
+                  <div className="flex h-1 overflow-hidden rounded-sm bg-white/[0.06]">
+                    <div className="q-bar bg-[var(--ink)]" style={{ width: `${mix.shared}%` }} />
+                    <div className="q-bar bg-[var(--accent)]" style={{ width: `${mix.unique}%` }} />
+                    <div className="q-bar bg-white/[0.18]" style={{ width: `${mix.other}%` }} />
                   </div>
                 </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
+                <td className="px-3 py-3 text-right text-[17px] font-light tabular-nums">
                   {m.librarySize}
                 </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
-                  {m.sharedCount ?? "—"}
+                <td className={num}>
+                  {m.playtimeHours != null ? `${m.playtimeHours.toLocaleString()}h` : "—"}
                 </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
-                  {m.uniqueCount ?? "—"}
-                </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
+                <td className={num}>{m.sharedCount ?? "—"}</td>
+                <td className={num}>{m.uniqueCount ?? "—"}</td>
+                <td className={num}>{m.unusedCount ?? "—"}</td>
+                <td className={num}>{m.wishlistGaps ?? "—"}</td>
+                <td className="px-3 py-3 text-right tabular-nums">
                   {m.trackedSpend != null ? money(m.trackedSpend) : "—"}
                 </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
-                  {m.wishlistGaps ?? "—"}
-                </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
-                  {m.unusedCount ?? "—"}
-                </td>
-                <td className="px-3 py-3 font-mono tabular-nums">
-                  {m.playtimeHours != null ? `${m.playtimeHours}h` : "—"}
-                </td>
-                <td className="px-3 py-3 text-right">
+                <td className="px-3 py-1.5 text-right">
                   {removable ? (
                     <Button
                       variant="ghost-danger"
                       size="sm"
-                      className="h-8 px-2"
+                      className="min-h-9 px-3"
                       onClick={() => {
                         setRemoveError(null);
                         setPending(m);
@@ -122,7 +127,11 @@ export const FamilyMembersTable = ({
                     >
                       Remove
                     </Button>
-                  ) : null}
+                  ) : (
+                    <span className="px-3 text-[var(--faint)]" aria-hidden="true">
+                      —
+                    </span>
+                  )}
                 </td>
               </tr>
             );

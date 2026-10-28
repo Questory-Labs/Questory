@@ -5,6 +5,7 @@ import {
   Query,
   Res,
   UseGuards,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import {
@@ -49,8 +50,13 @@ export class ReadShikimoriController {
       process.env.NEXT_PUBLIC_WEB_URL ||
       "http://localhost:3000";
     return res.redirect(
-      `${web.replace(/\/$/, "")}/read/settings?shikimori=connected`,
+      `${web.replace(/\/$/, "")}/sources?tab=read&shikimori=connected`,
     );
   }
 
+  @Delete()
+  @UseGuards(ReadSessionUserGuard)
+  disconnect(@CurrentReadUserId() userId: string) {
+    return this.shikimori.disconnect(userId);
+  }
 }

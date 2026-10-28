@@ -10,6 +10,6 @@ describe("Skeleton", () => {
 
   it("renders stat grid", () => {
     const { container } = render(<SkeletonStatGrid count={2} />);
-    expect(container.querySelectorAll(".rounded-lg.border").length).toBe(2);
+    expect(container.querySelectorAll(".border").length).toBe(2);
   });
 });

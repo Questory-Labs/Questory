@@ -6,12 +6,17 @@ import type {
   ScraperProviderSummary,
 } from "@questorylabs/shared";
 
+export type ScraperProviderRow = ScraperProviderSummary & {
+  publishedVersion?: number | null;
+  publishedAt?: string | null;
+};
+
 export type AdminScrapersViewProps = {
   providerKey: string;
   setProviderKey: Dispatch<SetStateAction<string>>;
   viewIterationId: string | null;
   setViewIterationId: Dispatch<SetStateAction<string | null>>;
-  providers: UseResourceResult<ScraperProviderSummary[]>;
+  providers: UseResourceResult<ScraperProviderRow[]>;
   detail: UseResourceResult<ScraperProviderDetail>;
   toggleEnabled: UseActionResult<ScraperProviderDetail, boolean>;
   viewing: ScraperIterationRecord | null;

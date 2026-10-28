@@ -126,6 +126,9 @@ export async function searchGames(
       name: e.game.name,
       headerImage: e.game.headerImage,
       source: "library" as const,
+      playtimeMinutes: e.playtimeForever,
+      lastPlayedAt: e.lastPlayedAt?.toISOString() ?? null,
+      userStatus: e.userStatus ?? null,
     })),
     ...wishlist.map((w) => ({
       appId: w.appId,

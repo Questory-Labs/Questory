@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type { GameDetail, LibraryEntry, PlaySessionPage } from "@questorylabs/shared";
 import { LibraryGameView } from "./steam.library-game.view";
@@ -114,7 +114,7 @@ describe("LibraryGameView", () => {
       detail: resource<GameDetail>({ empty: true, failed: false }),
     });
     expect(screen.queryByText("Portal")).not.toBeInTheDocument();
-    expect(screen.queryByText("Your playtime")).not.toBeInTheDocument();
+    expect(screen.queryByText("Played")).not.toBeInTheDocument();
   });
 
   it("shows an error when the entry failed", () => {
@@ -125,13 +125,39 @@ describe("LibraryGameView", () => {
   });
 
   it("renders the game header when the entry is ready", () => {
-    const { container } = renderView({});
+    renderView({});
     expect(screen.getByRole("heading", { name: "Portal" })).toBeInTheDocument();
-    expect(screen.getByText("Your playtime")).toBeInTheDocument();
+    expect(screen.getByText("Played")).toBeInTheDocument();
     expect(screen.getByText("3h")).toBeInTheDocument();
-    expect(screen.getByText("HowLongToBeat")).toBeInTheDocument();
-    const cover = container.querySelector(".aspect-\\[460\\/215\\]")?.parentElement;
-    expect(cover?.className).not.toContain("grow");
+    expect(screen.getByText("How long to beat")).toBeInTheDocument();
+  });
+
+  it("switches tabs and submits status changes", () => {
+    const setTab = vi.fn();
+    const submit = vi.fn();
+    const setStatus = {
+      submit,
+      busy: false,
+      failed: false,
+    } as unknown as LibraryGameViewProps["setStatus"];
+    const { rerender } = renderView({ setTab, setStatus });
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+    expect(setTab).toHaveBeenCalledWith("catalog");
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "playing" } });
+    expect(submit).toHaveBeenCalledWith("playing");
+    rerender(
+      <LibraryGameView
+        {...({
+          gameId: "game-1",
+          entry: resource<LibraryEntry>({ empty: false, failed: false, value: entryValue }),
+          detail: resource<GameDetail>({ empty: false, failed: false, value: detailValue }),
+          sessions: resource<PlaySessionPage>({ empty: false, failed: false, value: emptySessions }),
+          tab: "market",
+        } as LibraryGameViewProps)}
+      />,
+    );
+    expect(screen.getByText("Price history")).toBeInTheDocument();
+    expect(screen.queryByText("How long to beat")).not.toBeInTheDocument();
   });
 
   it("shows a detail error without hiding the entry header", () => {

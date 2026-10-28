@@ -45,18 +45,53 @@ export const sessionHttp = new QHttp({
   responseType: "json",
 }).setRetry({ retries: 2, backoff: "exponential", jitter: true });
 
-export function mapQHttpError(err: unknown): Error & { status?: number } {
+export type MappedHttpError = Error & {
+  status?: number;
+  data?: unknown;
+  requestId?: string;
+};
+
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
+
+function headerValue(
+  headers: Record<string, string> | undefined,
+  name: string,
+): string | undefined {
+  if (!headers) return undefined;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key ? headers[key] : undefined;
+}
+
+function serverRequestId(
+  headers: Record<string, string> | undefined,
+  data: unknown,
+): string | undefined {
+  const fromHeader = headerValue(headers, "x-request-id");
+  const fromBody =
+    data && typeof data === "object"
+      ? (data as { requestId?: unknown }).requestId
+      : undefined;
+  const id =
+    fromHeader ?? (typeof fromBody === "string" ? fromBody : undefined);
+  return id && REQUEST_ID_PATTERN.test(id) ? id : undefined;
+}
+
+export function mapQHttpError(err: unknown): MappedHttpError {
   if (isQHttpError(err)) {
     const message =
       typeof err.message === "string" && err.message.length > 0
         ? err.message
         : `Request failed: ${err.httpStatus ?? "unknown"}`;
-    const mapped = new Error(message) as Error & { status?: number };
+    const mapped = new Error(message) as MappedHttpError;
     if (typeof err.httpStatus === "number") mapped.status = err.httpStatus;
+    const data = err.result?.data;
+    if (data !== undefined) mapped.data = data;
+    const requestId = serverRequestId(err.result?.headers, data);
+    if (requestId) mapped.requestId = requestId;
     return mapped;
   }
-  if (err instanceof Error) return err as Error & { status?: number };
-  return new Error("Request failed") as Error & { status?: number };
+  if (err instanceof Error) return err as MappedHttpError;
+  return new Error("Request failed") as MappedHttpError;
 }
 
 export async function requestJson<T>(

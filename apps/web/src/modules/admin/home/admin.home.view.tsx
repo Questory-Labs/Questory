@@ -1,24 +1,48 @@
 "use client";
 
-import { StatCard } from "@/components/StatCard";
+import { ResourceStatus, SkeletonStatGrid } from "@questorylabs/ui";
+import { AdminStat } from "../shared/components/AdminStat";
 import {
-  PageHeader,
-  Panel,
-  ResourceStatus,
-  SkeletonStatGrid,
-} from "@questorylabs/ui";
-import type { AdminHomeViewProps } from "./admin.home.types";
+  attentionHeadline,
+  buildAttention,
+  healthLabel,
+  healthTone,
+  uptimeLabel,
+} from "./admin.home.utils";
+import type { AdminHomeViewProps, Overview } from "./admin.home.types";
+import { AbuseCountersPanel } from "./components/AbuseCountersPanel";
+import { AttentionPanel } from "./components/AttentionPanel";
+import { RecentJobsPanel } from "./components/RecentJobsPanel";
+
+const eyebrowParts = (d: Overview | undefined) => {
+  if (!d) return ["Instance"];
+  const uptime = uptimeLabel(d.uptimeSeconds);
+  return [
+    "Instance",
+    d.version ? `v${d.version}` : null,
+    uptime ? `up ${uptime}` : null,
+  ].filter((p): p is string => Boolean(p));
+};
 
 export const AdminHomeView = (props: Record<string, unknown>) => {
   const { overview } = props as AdminHomeViewProps;
   const d = overview.value;
+  const attention = d ? buildAttention(d) : [];
 
   return (
-    <>
-      <PageHeader size="sm"
-        title="Admin dashboard"
-        description="Instance health, users, sync queues, and recent cron activity."
-      />
+    <div className="flex flex-col gap-3.5">
+      <header className="q-in px-1 pb-2.5 pt-2">
+        <p className="label-mono flex items-center gap-2">
+          <span className="dot q-live text-[var(--ok)]" aria-hidden />
+          {eyebrowParts(d).join(" · ")}
+        </p>
+        <h1 className="mt-1.5 text-[clamp(34px,4vw,52px)] font-light leading-none tracking-[-0.035em]">
+          Instance,{" "}
+          <span className="font-serif text-[var(--muted)]">
+            {d ? attentionHeadline(attention.length) : "checking in"}
+          </span>
+        </h1>
+      </header>
 
       <ResourceStatus
         failed={overview.failed}
@@ -26,7 +50,7 @@ export const AdminHomeView = (props: Record<string, unknown>) => {
         loading={
           <>
             <SkeletonStatGrid count={4} />
-            <SkeletonStatGrid count={4} className="mt-6" />
+            <SkeletonStatGrid count={4} className="mt-3.5" />
           </>
         }
         error={
@@ -35,85 +59,61 @@ export const AdminHomeView = (props: Record<string, unknown>) => {
           </p>
         }
       >
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Users" value={d?.users.total ?? "—"} delay={0} />
-            <StatCard label="Admins" value={d?.users.admins ?? "—"} delay={0.05} />
-            <StatCard
-              label="Signup"
-              value={d ? (d.signup.open ? "Open" : "Closed") : "—"}
-              delay={0.1}
-            />
-            <StatCard
-              label="Sync failed"
-              value={d?.syncJobs.failed ?? "—"}
-              delay={0.15}
-            />
-          </div>
+        {d ? (
+          <>
+            <AttentionPanel items={attention} />
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Music"
-              value={d?.music?.ok ? "Up" : d ? "Down" : "—"}
-              delay={0.05}
-            />
-            <StatCard
-              label="Watch"
-              value={d?.watch?.ok ? "Up" : d ? "Down" : "—"}
-              delay={0.1}
-            />
-            <StatCard
-              label="Music enrich pending"
-              value={d?.enrichment.musicPending ?? "—"}
-              delay={0.15}
-            />
-            <StatCard
-              label="Watch enrich pending"
-              value={d?.enrichment.watchPending ?? "—"}
-              delay={0.2}
-            />
-          </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+              <AdminStat label="Users" value={d.users.total} index={2} />
+              <AdminStat label="Admins" value={d.users.admins} index={3} />
+              <AdminStat
+                label="Signup"
+                value={d.signup.open ? "Open" : "Closed"}
+                index={4}
+              />
+              <AdminStat
+                label="Sync failed"
+                value={d.syncJobs.failed}
+                tone={d.syncJobs.failed > 0 ? "danger" : "muted"}
+                index={5}
+              />
+              <AdminStat
+                label="Music service"
+                value={healthLabel(d.music)}
+                tone={healthTone(d.music)}
+                valueTone={healthTone(d.music) === "muted" ? undefined : healthTone(d.music)}
+                live={healthTone(d.music) === "ok"}
+                index={6}
+              />
+              <AdminStat
+                label="Watch service"
+                value={healthLabel(d.watch)}
+                tone={healthTone(d.watch)}
+                valueTone={healthTone(d.watch) === "muted" ? undefined : healthTone(d.watch)}
+                live={healthTone(d.watch) === "ok"}
+                index={7}
+              />
+              <AdminStat
+                label="Music enrich pending"
+                value={d.enrichment.musicPending}
+                tone={d.enrichment.musicPending > 0 ? "warn" : "muted"}
+                index={8}
+              />
+              <AdminStat
+                label="Watch enrich pending"
+                value={d.enrichment.watchPending}
+                tone={d.enrichment.watchPending > 0 ? "warn" : "muted"}
+                index={9}
+              />
+            </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            <Panel className="p-4">
-              <h2 className="font-display text-lg font-bold">Abuse counters</h2>
-              <ul className="mt-3 space-y-1 font-mono text-xs text-[var(--muted)]">
-                {d
-                  ? Object.entries(d.abuse).map(([k, v]) => (
-                      <li key={k} className="flex justify-between gap-4">
-                        <span>{k}</span>
-                        <span className="text-[var(--ink)]">{v}</span>
-                      </li>
-                    ))
-                  : null}
-              </ul>
-            </Panel>
-
-            <Panel className="p-4">
-              <h2 className="font-display text-lg font-bold">Recent cron</h2>
-              <ul className="mt-3 space-y-2 text-sm">
-                {(d?.recentCronRuns || []).map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex justify-between gap-3 border-t border-[var(--line)] pt-2 first:border-0 first:pt-0"
-                  >
-                    <span>
-                      {r.jobName}{" "}
-                      <span className="text-[var(--muted)]">· {r.status}</span>
-                    </span>
-                    <span className="font-mono text-[10px] text-[var(--faint)]">
-                      {new Date(r.startedAt).toLocaleString()}
-                    </span>
-                  </li>
-                ))}
-                {!d?.recentCronRuns?.length ? (
-                  <li className="text-[var(--muted)]">No runs yet.</li>
-                ) : null}
-              </ul>
-            </Panel>
-          </div>
-        </>
+            <div className="flex flex-wrap gap-3.5">
+              <RecentJobsPanel runs={d.recentCronRuns} />
+              <AbuseCountersPanel abuse={d.abuse} />
+            </div>
+          </>
+        ) : null}
       </ResourceStatus>
-    </>
+    </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, UseGuards, Delete } from "@nestjs/common";
 import { KitsuService } from "../../watch/kitsu/kitsu.service";
 import { ReadSessionUserGuard } from "../auth/session-user.guard";
 import { CurrentReadUserId } from "../auth/current-read-user.decorator";
@@ -22,4 +22,9 @@ export class ReadKitsuController {
     return this.kitsu.connect(body.email ?? "", body.password ?? "", userId);
   }
 
+  @Delete()
+  @UseGuards(ReadSessionUserGuard)
+  disconnect(@CurrentReadUserId() userId: string) {
+    return this.kitsu.disconnect(userId);
+  }
 }

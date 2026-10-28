@@ -9,6 +9,7 @@ import {
   readTitleHref,
   watchTitleHref,
 } from "@/components/search/search-links";
+import { SEARCH_ROW_CLASS, SearchResultIcon } from "@/components/search/SearchRowBody";
 import type { SearchMode } from "../steam.search.types";
 
 const DOMAIN_LABEL: Record<SemanticSearchItem["domain"], string> = {
@@ -31,26 +32,39 @@ export function meaningHref(item: SemanticSearchItem): string {
   }
 }
 
+const MODES: { value: SearchMode; label: string }[] = [
+  { value: "exact", label: "Exact" },
+  { value: "meaning", label: "By meaning" },
+];
+
 export function SearchModeToggle({ q, mode }: { q: string; mode: SearchMode }) {
   const base = `/search?q=${encodeURIComponent(q)}`;
-  const tab = (active: boolean) =>
-    `border px-3 py-1 text-xs font-mono ${
-      active
-        ? "border-[var(--ink)] text-[var(--ink)]"
-        : "border-[var(--line)] text-[var(--muted)] hover:text-[var(--ink)]"
-    }`;
+  const index = Math.max(0, MODES.findIndex((m) => m.value === mode));
   return (
-    <nav aria-label="Search mode" className="flex gap-2">
-      <Link href={base} className={tab(mode === "exact")} aria-current={mode === "exact" ? "page" : undefined}>
-        Exact
-      </Link>
-      <Link
-        href={`${base}&mode=meaning`}
-        className={tab(mode === "meaning")}
-        aria-current={mode === "meaning" ? "page" : undefined}
-      >
-        By meaning
-      </Link>
+    <nav
+      aria-label="Search mode"
+      className="relative inline-grid grid-cols-2 rounded-full border border-line bg-white/[0.04] p-1"
+    >
+      <span
+        aria-hidden="true"
+        className="q-slide absolute bottom-1 left-1 top-1 w-[calc((100%-8px)/2)] rounded-full bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+        style={{ transform: `translateX(${index * 100}%)` }}
+      />
+      {MODES.map((m) => {
+        const active = m.value === mode;
+        return (
+          <Link
+            key={m.value}
+            href={m.value === "meaning" ? `${base}&mode=meaning` : base}
+            aria-current={active ? "page" : undefined}
+            className={`relative inline-flex min-h-[34px] items-center justify-center px-4 text-[13px] transition-colors duration-300 ${
+              active ? "text-white" : "text-muted hover:text-ink"
+            }`}
+          >
+            {m.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
@@ -63,32 +77,25 @@ export function MeaningResults({ meaning }: { meaning: UseResourceResult<Semanti
       loading={<SkeletonListRows count={4} />}
       error={
         <EmptyState
-          title={<span className="text-[var(--danger)]">Search failed. Try again.</span>}
+          title={<span className="text-danger">Search failed. Try again.</span>}
         />
       }
     >
       {!meaning.value?.available ? (
-        <p className="text-sm text-[var(--muted)]">
+        <p className="text-sm text-muted">
           Meaning search is warming up. Try again in a few minutes.
         </p>
       ) : meaning.value.items.length === 0 ? (
-        <p className="text-sm text-[var(--muted)]">Nothing in your library matched that idea.</p>
+        <p className="text-sm text-muted">Nothing in your library matched that idea.</p>
       ) : (
-        <ul className="divide-y divide-[var(--line)] border border-[var(--line)]">
-          {meaning.value.items.map((item) => (
-            <li key={item.key}>
-              <Link
-                href={meaningHref(item)}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--bg-2)]"
-              >
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt="" className="h-10 w-10 shrink-0 object-cover" />
-                ) : (
-                  <span className="h-10 w-10 shrink-0 bg-[var(--bg-2)]" aria-hidden />
-                )}
+        <ul className="panel-accent p-2.5">
+          {meaning.value.items.map((item, i) => (
+            <li key={item.key} className="q-in" style={{ "--i": i } as React.CSSProperties}>
+              <Link href={meaningHref(item)} className={SEARCH_ROW_CLASS}>
+                <SearchResultIcon item={{ label: item.name, image: item.imageUrl, domain: item.domain }} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-[var(--ink)]">{item.name}</span>
-                  <span className="block text-xs text-[var(--muted)]">
+                  <span className="block truncate font-normal text-ink">{item.name}</span>
+                  <span className="block text-xs text-muted">
                     {DOMAIN_LABEL[item.domain]}
                     {item.year ? ` · ${item.year}` : ""}
                   </span>

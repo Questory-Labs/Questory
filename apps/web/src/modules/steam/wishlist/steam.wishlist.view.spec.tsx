@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type { DealAlert, WishlistItem } from "@questorylabs/shared";
 import { WishlistView } from "./steam.wishlist.view";
@@ -124,5 +124,51 @@ describe("WishlistView", () => {
   it("renders wishlist items when ready", () => {
     renderView({});
     expect(screen.getByText("Team Fortress 2")).toBeInTheDocument();
+  });
+
+  it("shows deal cut, why and best price columns", () => {
+    const startEdit = vi.fn();
+    const rich: WishlistItem = {
+      ...item,
+      discountPercent: 60,
+      regularPrice: 25,
+      bestPrice: 8,
+      bestStore: "gog",
+      reasons: ["Near historical low", "On wishlist a while", "Genre fit"],
+    };
+    renderView({
+      list: resource<WishlistResponse>({
+        empty: false,
+        failed: false,
+        value: { ...listValue, items: [rich] },
+      }),
+      startEdit,
+    });
+    expect(screen.getByText("−60%")).toBeInTheDocument();
+    expect(screen.getByText("Near historical low · On wishlist a while")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("GOG")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit price target for Team Fortress 2" }));
+    expect(startEdit).toHaveBeenCalledWith("steam:440", "5");
+  });
+
+  it("renders deal alert cards with the cut and reason", () => {
+    const deal: DealAlert = {
+      store: "steam",
+      externalId: "440",
+      appId: 440,
+      name: "Deal Game",
+      headerImage: null,
+      currentPrice: 4,
+      lowestPrice: 4,
+      targetPrice: 5,
+      shouldBuyScore: 80,
+      discountPercent: 75,
+      reason: "target",
+    };
+    renderView({ filteredDeals: [deal] });
+    expect(screen.getByText("Deal Game")).toBeInTheDocument();
+    expect(screen.getByText("−75%")).toBeInTheDocument();
+    expect(screen.getByText(/Target hit · target/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("1 wishes, 1 deal alerts");
   });
 });

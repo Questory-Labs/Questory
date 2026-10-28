@@ -1,9 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import type { PlaySessionStats } from "@questorylabs/shared";
-import { zonedDayKey, zonedDayKeysEndingToday } from "../lib/timezone";
+import {
+  zonedDayKey,
+  zonedDayKeysEndingToday,
+  zonedHour,
+} from "../lib/timezone";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   PLAY_SESSION_STATS_DAYS,
+  PLAY_SESSION_STATS_HOUR_SPLIT_MAX_SECS,
   PLAY_SESSION_STATS_TOP_GAMES,
   PLAY_SESSION_STATS_WEEK_DAYS,
   PLAY_SESSION_STATS_WINDOW_CAP,
@@ -11,6 +16,7 @@ import {
 } from "./qmonitor.constants";
 
 type WindowRow = {
+  startedAt: Date;
   endedAt: Date;
   durationSecs: number;
   gameId: string | null;
@@ -31,15 +37,12 @@ export class QmonitorSessionStatsService {
     userId: string,
     timeZone: string,
     now = new Date(),
+    days: number = PLAY_SESSION_STATS_DAYS,
   ): Promise<PlaySessionStats> {
-    const dayKeys = zonedDayKeysEndingToday(
-      timeZone,
-      PLAY_SESSION_STATS_DAYS,
-      now,
-    );
+    const dayKeys = zonedDayKeysEndingToday(timeZone, days, now);
     const since = new Date(
       now.getTime() -
-        (PLAY_SESSION_STATS_DAYS + PLAY_SESSION_STATS_WINDOW_PAD_DAYS) *
+        (days + PLAY_SESSION_STATS_WINDOW_PAD_DAYS) *
           24 *
           60 *
           60 *
@@ -72,6 +75,7 @@ export class QmonitorSessionStatsService {
           orderBy: { endedAt: "desc" },
           take: PLAY_SESSION_STATS_WINDOW_CAP,
           select: {
+            startedAt: true,
             endedAt: true,
             durationSecs: true,
             gameId: true,
@@ -92,12 +96,14 @@ export class QmonitorSessionStatsService {
       dayKeys.map((day) => [day, { durationSecs: 0, sessionCount: 0 }]),
     );
     const dayKeySet = new Set(dayKeys);
+    const byHour = Array.from({ length: 24 }, () => 0);
     for (const row of windowRows as WindowRow[]) {
       const day = zonedDayKey(row.endedAt, timeZone);
       const bucket = byDayMap.get(day);
       if (!bucket) continue;
       bucket.durationSecs += row.durationSecs;
       bucket.sessionCount += 1;
+      addHourShares(byHour, row, timeZone);
     }
 
     const byDay = dayKeys.map((day) => ({
@@ -106,6 +112,8 @@ export class QmonitorSessionStatsService {
       sessionCount: byDayMap.get(day)?.sessionCount ?? 0,
     }));
     const weekSlice = byDay.slice(-PLAY_SESSION_STATS_WEEK_DAYS);
+    const windowSessionCount = byDay.reduce((sum, d) => sum + d.sessionCount, 0);
+    const windowDurationSecs = byDay.reduce((sum, d) => sum + d.durationSecs, 0);
 
     return {
       sessionCount: totals._count._all,
@@ -116,11 +124,41 @@ export class QmonitorSessionStatsService {
       unmatchedCount,
       uniqueGames: uniqueGroups.length,
       lastPlayedAt: last?.endedAt.toISOString() ?? null,
-      windowDays: PLAY_SESSION_STATS_DAYS,
+      windowDays: days,
       weekDays: PLAY_SESSION_STATS_WEEK_DAYS,
       byDay,
       topGames: topGamesInWindow(windowRows as WindowRow[], dayKeySet, timeZone),
+      window: {
+        sessionCount: windowSessionCount,
+        totalDurationSecs: windowDurationSecs,
+        avgDurationSecs:
+          windowSessionCount > 0
+            ? Math.round(windowDurationSecs / windowSessionCount)
+            : 0,
+      },
+      byHour: byHour.map((v) => Math.round(v)),
     };
+  }
+}
+
+const SLICE_MS = 15 * 60 * 1000;
+
+export function addHourShares(
+  byHour: number[],
+  row: Pick<WindowRow, "startedAt" | "durationSecs">,
+  timeZone: string,
+) {
+  const total = Math.min(
+    Math.max(0, row.durationSecs),
+    PLAY_SESSION_STATS_HOUR_SPLIT_MAX_SECS,
+  );
+  let cursor = row.startedAt.getTime();
+  const end = cursor + total * 1000;
+  while (cursor < end) {
+    const next = Math.min(end, (Math.floor(cursor / SLICE_MS) + 1) * SLICE_MS);
+    const hour = zonedHour(new Date(cursor), timeZone);
+    byHour[hour] = (byHour[hour] ?? 0) + (next - cursor) / 1000;
+    cursor = next;
   }
 }
 

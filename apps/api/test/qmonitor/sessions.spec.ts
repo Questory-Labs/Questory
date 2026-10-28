@@ -139,6 +139,17 @@ describe("play-sessions list", () => {
     await request(app.getHttpServer()).get("/v1/play-sessions/stats").expect(401);
   });
 
+  it("rejects unsupported stats days", async () => {
+    const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
+      { userId, steamId: "76561198000000000" },
+      secret,
+    )}`;
+    await request(app.getHttpServer())
+      .get("/v1/play-sessions/stats?days=7")
+      .set("Cookie", cookie)
+      .expect(400);
+  });
+
   it("rejects invalid page params", async () => {
     const cookie = `${SESSION_COOKIE_NAME}=${encodeSessionCookie(
       { userId, steamId: "76561198000000000" },

@@ -19,6 +19,8 @@ import { resolveProviderDate } from "../lib/resolve-date";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { resolveListSyncHalves } from "../../features/list-sync-scope";
 import type { ListSyncScope } from "@questorylabs/shared";
+import { isDroppedListStatus } from "../catalog/list-status";
+import { disconnectSourceConnection } from "../lib/disconnect";
 
 type KitsuLibraryEntry = {
   id: string;
@@ -132,6 +134,10 @@ export class KitsuService {
     }
 
     return { ok: true, userId: user.id };
+  }
+
+  disconnect(userId: string) {
+    return disconnectSourceConnection(this.prisma, this.users, userId, "kitsu");
   }
 
   async getConnection(userId?: string) {
@@ -360,6 +366,14 @@ export class KitsuService {
               listedAt: updatedAt,
             });
           }
+
+          await this.catalog.syncDroppedListState({
+            userId,
+            titleId: title.id,
+            source: "kitsu",
+            dropped: isDroppedListStatus(status),
+            listedAt: updatedAt,
+          });
 
           this.enrichment.enqueueTitle(title.id);
         } else {

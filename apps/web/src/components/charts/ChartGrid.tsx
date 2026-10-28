@@ -62,7 +62,7 @@ export const ChartHoverCard = ({
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute top-1 z-10 rounded border border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 font-mono text-[10px] text-[var(--ink)]"
+      className="pointer-events-none absolute top-1 z-10 rounded-[10px] border border-[var(--line-strong)] bg-[var(--bg-1)]/95 px-3 py-2 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.8)] backdrop-blur-md font-mono text-[10px] text-[var(--ink)]"
       style={{
         left: `${Math.min(Math.max(xPct, 14), 86)}%`,
         transform: "translateX(-50%)",

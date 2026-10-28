@@ -28,7 +28,7 @@ describe("ReadSettingsView", () => {
         <ReadSettingsView />
       </ResourceProvider>,
     );
-    expect(screen.getByRole("heading", { name: "Sources" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Live sources" })).toBeInTheDocument();
     expect(screen.getByText("AniList")).toBeInTheDocument();
   });
 });

@@ -183,6 +183,25 @@ export const PlaySessionTopGameSchema = z.object({
 });
 export type PlaySessionTopGame = z.infer<typeof PlaySessionTopGameSchema>;
 
+export const PLAY_SESSION_STATS_DAY_OPTIONS = [14, 30, 90] as const;
+export const PlaySessionStatsDaysSchema = z.coerce
+  .number()
+  .int()
+  .refine(
+    (n) => (PLAY_SESSION_STATS_DAY_OPTIONS as readonly number[]).includes(n),
+    { message: "days must be 14, 30 or 90" },
+  );
+export type PlaySessionStatsDays = (typeof PLAY_SESSION_STATS_DAY_OPTIONS)[number];
+
+export const PlaySessionWindowTotalsSchema = z.object({
+  sessionCount: z.number().int().nonnegative(),
+  totalDurationSecs: z.number().int().nonnegative(),
+  avgDurationSecs: z.number().int().nonnegative(),
+});
+export type PlaySessionWindowTotals = z.infer<
+  typeof PlaySessionWindowTotalsSchema
+>;
+
 export const PlaySessionStatsSchema = z.object({
   sessionCount: z.number().int().nonnegative(),
   totalDurationSecs: z.number().int().nonnegative(),
@@ -196,5 +215,7 @@ export const PlaySessionStatsSchema = z.object({
   weekDays: z.number().int().positive(),
   byDay: z.array(PlaySessionDayBucketSchema),
   topGames: z.array(PlaySessionTopGameSchema),
+  window: PlaySessionWindowTotalsSchema.optional(),
+  byHour: z.array(z.number().int().nonnegative()).length(24).optional(),
 });
 export type PlaySessionStats = z.infer<typeof PlaySessionStatsSchema>;

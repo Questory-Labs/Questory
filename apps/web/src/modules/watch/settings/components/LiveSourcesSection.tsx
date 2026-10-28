@@ -1,7 +1,6 @@
 "use client";
 
 import { ApiKeyPanel } from "@/components/ApiKeyPanel";
-import { ListProviderCard } from "@/components/sources/ListProviderCard";
 import { SourcesSectionHeading } from "@/components/sources/SourcesSectionHeading";
 import { LetterboxdConnectCard } from "./LetterboxdConnectCard";
 import { Panel } from "@/components/ui";
@@ -11,6 +10,8 @@ import type { WatchSettingsViewProps } from "../watch.settings.types";
 import { formatLastSync } from "../watch.settings.utils";
 import { SourceCard } from "./SourceCard";
 import { StatusPill } from "./StatusPill";
+import { DisconnectButton } from "@/modules/media/sources/components/DisconnectButton";
+import { ListProviderRow } from "@/modules/media/sources/components/ListProviderRow";
 
 type LiveProps = Pick<
   WatchSettingsViewProps,
@@ -113,11 +114,12 @@ export const LiveSourcesSection = ({
     ) : null}
 
     {showingLive ? (
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="flex flex-col gap-2.5">
         {showTrakt ? (
           <SourceCard
             label="OAuth"
             title="Trakt"
+            tone={traktConnected ? "ok" : "idle"}
             blurb={
               traktConnected
                 ? `Connected · last sync ${formatLastSync(trakt.value?.lastSyncedAt)}`
@@ -127,20 +129,32 @@ export const LiveSourcesSection = ({
               traktConnected ? (
                 <StatusPill tone="ok">Connected</StatusPill>
               ) : (
-                <StatusPill tone="idle">Connect</StatusPill>
+                <StatusPill tone="idle">Not connected</StatusPill>
               )
             }
-          >
-            <div className="flex flex-wrap gap-3">
-              <a href={watchUrl("/trakt/authorize")} className="btn btn-secondary">
-                {traktConnected ? "Reconnect Trakt" : "Connect Trakt"}
-              </a>
-            </div>
-          </SourceCard>
+            action={
+              <>
+                <a
+                  href={watchUrl("/trakt/authorize")}
+                  className={traktConnected ? "btn btn-secondary" : "btn btn-primary"}
+                >
+                  {traktConnected ? "Reconnect Trakt" : "Connect Trakt"}
+                </a>
+                {traktConnected ? (
+                  <DisconnectButton
+                    title="Trakt"
+                    path="/trakt"
+                    fetchFn={watchFetch}
+                    touches={["trakt-status", "watch-sync-status"]}
+                  />
+                ) : null}
+              </>
+            }
+          />
         ) : null}
 
         {showAnilist ? (
-          <ListProviderCard
+          <ListProviderRow
             provider={WATCH_ANILIST}
             queryKeyPrefix="watch"
             fetchFn={watchFetch}
@@ -152,6 +166,7 @@ export const LiveSourcesSection = ({
           <SourceCard
             label="Live ingest"
             title="Plex / Jellyfin"
+            tone={webhookActive ? "ok" : "idle"}
             blurb="Point player webhooks at these URLs, then generate a personal key."
             status={
               webhookActive ? (

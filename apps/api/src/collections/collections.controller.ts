@@ -10,7 +10,11 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { parsePageParam, parsePageSizeParam } from "@questorylabs/shared";
+import {
+  CollectionColorSchema,
+  parsePageParam,
+  parsePageSizeParam,
+} from "@questorylabs/shared";
 import { z } from "zod";
 import { COLLECTION_GAMES_PAGE_SIZE } from "./collections.constants";
 import { CollectionsService } from "./collections.service";
@@ -25,6 +29,7 @@ const CreateCollectionSchema = z.object({
 const UpdateCollectionSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().trim().max(2000).optional(),
+  color: CollectionColorSchema.nullable().optional(),
 });
 
 const AddGameSchema = z.object({

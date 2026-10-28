@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { providerFetch } from "../../lib/qhttp-outbound";
 import { resolveTmdbApiKey } from "../lib/runtime-config";
+import { TMDB_REQUEST_TIMEOUT_MS } from "./tmdb.constants";
 
 export type TmdbMovie = {
   id: number;
@@ -18,6 +19,34 @@ export type TmdbMovie = {
   genres?: { id: number; name: string }[];
   imdb_id?: string;
   episode_run_time?: number[];
+  status?: string;
+  last_air_date?: string | null;
+  number_of_episodes?: number;
+  seasons?: TmdbSeasonSummary[];
+};
+
+export type TmdbSeasonSummary = {
+  id?: number;
+  season_number: number;
+  episode_count?: number;
+  name?: string;
+  poster_path?: string | null;
+};
+
+export type TmdbSeasonDetail = {
+  id?: number;
+  season_number: number;
+  name?: string;
+  episodes?: {
+    id?: number;
+    episode_number: number;
+    season_number?: number;
+    name?: string;
+    overview?: string;
+    air_date?: string | null;
+    runtime?: number | null;
+    still_path?: string | null;
+  }[];
 };
 
 @Injectable()
@@ -59,6 +88,7 @@ export class TmdbService {
           headers: useBearer
             ? this.headers()
             : { Accept: "application/json" },
+          signal: AbortSignal.timeout(TMDB_REQUEST_TIMEOUT_MS),
         },
         opts?.retries != null ? { retries: opts.retries } : undefined,
       );
@@ -84,6 +114,10 @@ export class TmdbService {
 
   async getTv(tmdbId: number) {
     return this.get<TmdbMovie>(`/tv/${tmdbId}`);
+  }
+
+  async getTvSeason(tmdbId: number, seasonNumber: number) {
+    return this.get<TmdbSeasonDetail>(`/tv/${tmdbId}/season/${seasonNumber}`);
   }
 
   async searchMovie(name: string, year?: number | null) {

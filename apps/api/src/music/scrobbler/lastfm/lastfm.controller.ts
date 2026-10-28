@@ -47,7 +47,7 @@ export class LastFmController {
     const web = webOrigin();
     const fail = (reason: string) =>
       res.redirect(
-        `${web}/music/settings?lastfm=error&reason=${encodeURIComponent(reason)}`,
+        `${web}/sources?tab=music&lastfm=error&reason=${encodeURIComponent(reason)}`,
       );
 
     if (!token) return fail("missing_token");
@@ -61,7 +61,7 @@ export class LastFmController {
       const message = err instanceof Error ? err.message : "callback_failed";
       return fail(message);
     }
-    return res.redirect(`${web}/music/settings?lastfm=connected`);
+    return res.redirect(`${web}/sources?tab=music&lastfm=connected`);
   }
 
   @Delete()

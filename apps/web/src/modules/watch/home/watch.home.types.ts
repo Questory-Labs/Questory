@@ -1,8 +1,10 @@
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
   WatchBreakdownResponse,
+  WatchContinueResponse,
   WatchInsights,
   WatchTimeBucket,
+  WatchTopItem,
 } from "@questorylabs/shared";
 
 export type WatchMediaFilter = "all" | "movie" | "show";
@@ -15,4 +17,6 @@ export type WatchHomeViewProps = {
   dow: UseResourceResult<WatchTimeBucket[]>;
   years: UseResourceResult<WatchBreakdownResponse>;
   sources: UseResourceResult<WatchBreakdownResponse>;
+  tops: UseResourceResult<WatchTopItem[]>;
+  continuing: UseResourceResult<WatchContinueResponse>;
 };

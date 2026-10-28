@@ -39,6 +39,6 @@ describe("GuardrailsController", () => {
     );
     expect(await screen.findByText("Illegal activity")).toBeInTheDocument();
     expect(screen.getByText("Profanity")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /save guardrails/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
   });
 });

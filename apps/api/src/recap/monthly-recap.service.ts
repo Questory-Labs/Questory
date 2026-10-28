@@ -8,6 +8,9 @@ import { AnalyticsService as MusicAnalyticsService } from "../music/analytics/an
 import { AnalyticsService as WatchAnalyticsService } from "../watch/analytics/analytics.service";
 import { ReadAnalyticsService } from "../read/analytics/analytics.service";
 import { GamesRewindService } from "../games/rewind/games-rewind.service";
+import { previousRewindPeriod } from "@questorylabs/shared";
+import { zonedPeriodBounds } from "../lib/rewind-stats";
+import { busiestSincePeriod, combineDaily } from "./rewind-combined";
 
 export const RECAP_GLOBAL_KEY = "recap.monthly.enabled";
 export const RECAP_USER_PREFIX = "recap.monthly.user:";
@@ -15,6 +18,7 @@ export const RECAP_NOTIFICATION_TYPE = "monthly-recap";
 const USER_PAGE = 200;
 const MAX_USERS_PER_RUN = 2000;
 const MAX_CONSECUTIVE_FAILURES = 3;
+const BUSIEST_LOOKBACK_MONTHS = 12;
 
 type RecapDomain = Exclude<RewindAiDomain, "all">;
 
@@ -180,13 +184,74 @@ export class MonthlyRecapService {
 
   async combinedStats(userId: string, period: string, timeZone: string): Promise<RewindAllStats> {
     const domains: RewindAllStats["domains"] = {};
-    for (const domain of await this.enabledDomains()) {
+    const enabled = await this.enabledDomains();
+    for (const domain of enabled) {
       const stats = await this.loadStats(domain, userId, period, timeZone);
       if (statsHaveActivity(stats)) {
         (domains as Record<string, RewindStatsResponse>)[domain] = stats;
       }
     }
-    return { domain: "all", period, domains };
+    return {
+      domain: "all",
+      period,
+      domains,
+      daily: combineDaily(domains),
+      busiestSince:
+        period.length === 7
+          ? await this.busiestSince(userId, period, timeZone, enabled)
+          : null,
+    };
+  }
+
+  private async busiestSince(
+    userId: string,
+    period: string,
+    timeZone: string,
+    domains: RecapDomain[],
+  ): Promise<string | null> {
+    const current = await this.activityCount(userId, period, timeZone, domains);
+    if (current <= 0) return null;
+    const prior: { period: string; count: number }[] = [];
+    let cursor = period;
+    for (let i = 0; i < BUSIEST_LOOKBACK_MONTHS; i += 1) {
+      cursor = previousRewindPeriod(cursor);
+      const count = await this.activityCount(userId, cursor, timeZone, domains);
+      prior.push({ period: cursor, count });
+      if (count > current) break;
+    }
+    return busiestSincePeriod(current, prior);
+  }
+
+  private async activityCount(
+    userId: string,
+    period: string,
+    timeZone: string,
+    domains: RecapDomain[],
+  ): Promise<number> {
+    const { start, end } = zonedPeriodBounds(period, timeZone);
+    const counts = await Promise.all(
+      domains.map((domain) => {
+        switch (domain) {
+          case "music":
+            return this.prisma.listen.count({
+              where: { userId, listenedAt: { gte: start, lt: end } },
+            });
+          case "watch":
+            return this.prisma.watchEvent.count({
+              where: { userId, watchedAt: { gte: start, lt: end } },
+            });
+          case "read":
+            return this.prisma.readEvent.count({
+              where: { userId, readAt: { gte: start, lt: end } },
+            });
+          case "games":
+            return this.prisma.playSession.count({
+              where: { userId, endedAt: { gte: start, lt: end } },
+            });
+        }
+      }),
+    );
+    return counts.reduce((a, b) => a + b, 0);
   }
 
   private async enabledDomains(): Promise<RecapDomain[]> {

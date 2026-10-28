@@ -56,12 +56,12 @@ describe("MoodBar", () => {
     );
 
     fireEvent.change(screen.getByRole("textbox", { name: "Mood" }), {
-      target: { value: "Cozy evening" },
+      target: { value: "Short and calm" },
     });
 
     await waitFor(() =>
       expect(peek).toHaveBeenCalledWith(
-        expect.objectContaining({ mood: "Cozy evening" }),
+        expect.objectContaining({ mood: "Short and calm" }),
       ),
     );
     // Wait until the peek result has flipped cacheAvailable (no dual buttons).
@@ -75,7 +75,7 @@ describe("MoodBar", () => {
     expect(screen.queryByRole("button", { name: "Force Curate" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Curate" }));
-    expect(onUseCached).toHaveBeenCalledWith("Cozy evening");
+    expect(onUseCached).toHaveBeenCalledWith("Short and calm");
     expect(onCurate).not.toHaveBeenCalled();
   });
 
@@ -85,9 +85,13 @@ describe("MoodBar", () => {
     render(
       <MoodBar busy={false} onCurate={onCurate} onUseCached={onUseCached} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Surprise me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Something new" }));
     expect(screen.getByRole("textbox", { name: "Mood" })).toHaveValue(
-      "Surprise me",
+      "Something new",
+    );
+    expect(screen.getByRole("button", { name: "Something new" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     );
     await waitFor(() => expect(peek).toHaveBeenCalled());
     expect(onCurate).not.toHaveBeenCalled();
@@ -100,6 +104,6 @@ describe("MoodBar", () => {
     );
     expect(screen.getByRole("button", { name: "Curating…" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "Mood" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cozy evening" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Short and calm" })).toBeDisabled();
   });
 });

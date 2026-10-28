@@ -1,5 +1,11 @@
-export type NavItem = { href: string; label: string; icon: NavIconName };
-export type NavGroup = { label: string; items: NavItem[] };
+export type NavItem = { href: string; label: string; icon: NavIconName; also?: string[] };
+export type NavSectionKey = "everywhere" | "games" | "music" | "watch" | "read";
+export type NavGroup = {
+  key: NavSectionKey;
+  label: string;
+  items: NavItem[];
+  collapsible: boolean;
+};
 
 export type NavIconName =
   | "dashboard"
@@ -20,36 +26,28 @@ export type NavIconName =
   | "charts"
   | "history"
   | "rewind"
-  | "sources";
+  | "sources"
+  | "goals"
+  | "settings"
+  | "admin";
 
-const STEAM_GROUPS: NavGroup[] = [
-  {
-    label: "Overview",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-      { href: "/trending", label: "Trending", icon: "trending" },
-      { href: "/rewind", label: "Rewind", icon: "rewind" },
-    ],
-  },
-  {
-    label: "Your games",
-    items: [
-      { href: "/library", label: "Library", icon: "library" },
-      { href: "/wishlist", label: "Wishlist", icon: "wishlist" },
-      { href: "/collections", label: "Collections", icon: "collections" },
-      { href: "/sessions", label: "Sessions", icon: "sessions" },
-      { href: "/library/rewind", label: "Rewind", icon: "rewind" },
-      { href: "/cost", label: "Cost", icon: "cost" },
-    ],
-  },
-  {
-    label: "People",
-    items: [
-      { href: "/friends", label: "Friends", icon: "friends" },
-      { href: "/multiplayer", label: "Multiplayer", icon: "multiplayer" },
-      { href: "/family", label: "Family", icon: "family" },
-    ],
-  },
+const REWIND: NavItem = {
+  href: "/rewind",
+  label: "Rewind",
+  icon: "rewind",
+  also: ["/library/rewind", "/music/rewind", "/watch/rewind", "/read/rewind"],
+};
+
+const GAMES: NavItem[] = [
+  { href: "/library", label: "Library", icon: "library" },
+  { href: "/wishlist", label: "Wishlist", icon: "wishlist" },
+  { href: "/collections", label: "Collections", icon: "collections" },
+  { href: "/sessions", label: "Sessions", icon: "sessions" },
+  { href: "/cost", label: "Cost", icon: "cost" },
+  { href: "/trending", label: "Trending", icon: "trending" },
+  { href: "/friends", label: "Friends", icon: "friends" },
+  { href: "/multiplayer", label: "Multiplayer", icon: "multiplayer" },
+  { href: "/family", label: "Family", icon: "family" },
 ];
 
 export const ACCOUNT_LINKS = [
@@ -62,48 +60,68 @@ export const ACCOUNT_LINKS = [
 ] as const;
 
 export const MUSIC_SUBNAV: NavItem[] = [
-  { href: "/music", label: "Home", icon: "music" },
+  { href: "/music", label: "Overview", icon: "music" },
   { href: "/music/listening", label: "Listening", icon: "listening" },
-  { href: "/music/charts", label: "Charts", icon: "charts" },
-  { href: "/music/rewind", label: "Rewind", icon: "rewind" },
-  { href: "/music/settings", label: "Sources", icon: "sources" },
+  { href: "/music/charts", label: "Top charts", icon: "charts" },
 ];
 
 export const WATCH_SUBNAV: NavItem[] = [
-  { href: "/watch", label: "Home", icon: "watch" },
+  { href: "/watch", label: "Overview", icon: "watch" },
   { href: "/watch/history", label: "History", icon: "history" },
-  { href: "/watch/rewind", label: "Rewind", icon: "rewind" },
-  { href: "/watch/settings", label: "Sources", icon: "sources" },
 ];
 
 export const READ_SUBNAV: NavItem[] = [
-  { href: "/read", label: "Home", icon: "read" },
-  { href: "/read/library", label: "Library", icon: "library" },
-  { href: "/read/history", label: "History", icon: "history" },
-  { href: "/read/rewind", label: "Rewind", icon: "rewind" },
-  { href: "/read/settings", label: "Sources", icon: "sources" },
+  { href: "/read", label: "Overview", icon: "read" },
+  {
+    href: "/read/library",
+    label: "Library & history",
+    icon: "library",
+    also: ["/read/history"],
+  },
 ];
 
-export const buildNavGroups = (flags: {
+export type NavFlags = {
   music?: boolean;
   watch?: boolean;
   read?: boolean;
   enterprise?: boolean;
-}): NavGroup[] => {
-  const groups = STEAM_GROUPS.map((g) => ({
-    ...g,
-    items: [...g.items],
-  }));
+};
+
+export const buildNavGroups = (flags: NavFlags): NavGroup[] => {
+  const everywhere: NavItem[] = [{ href: "/dashboard", label: "Home", icon: "dashboard" }];
   if (flags.enterprise) {
-    groups.splice(1, 0, {
-      label: "For you",
-      items: [{ href: "/recommendations", label: "Recommendations", icon: "recs" }],
+    everywhere.push(
+      { href: "/recommendations", label: "For you", icon: "recs" },
+      { href: "/recommendations/goals", label: "Goals", icon: "goals" },
+    );
+  }
+  everywhere.push(REWIND);
+  const groups: NavGroup[] = [
+    { key: "everywhere", label: "Everywhere", items: everywhere, collapsible: false },
+    { key: "games", label: "Games", items: GAMES, collapsible: true },
+  ];
+  if (flags.music)
+    groups.push({ key: "music", label: "Music", items: MUSIC_SUBNAV, collapsible: true });
+  if (flags.watch)
+    groups.push({ key: "watch", label: "Watch", items: WATCH_SUBNAV, collapsible: true });
+  if (flags.read)
+    groups.push({ key: "read", label: "Read", items: READ_SUBNAV, collapsible: true });
+  return groups;
+};
+
+export const buildNavFooter = (flags: NavFlags & { admin?: boolean }): NavItem[] => {
+  const items: NavItem[] = [];
+  if (flags.music || flags.watch || flags.read) {
+    items.push({
+      href: "/sources",
+      label: "Sources",
+      icon: "sources",
+      also: ["/music/settings", "/watch/settings", "/read/settings"],
     });
   }
-  if (flags.music) groups.push({ label: "Music", items: MUSIC_SUBNAV });
-  if (flags.watch) groups.push({ label: "Watch", items: WATCH_SUBNAV });
-  if (flags.read) groups.push({ label: "Read", items: READ_SUBNAV });
-  return groups;
+  items.push({ href: "/settings/connections", label: "Settings", icon: "settings", also: ["/settings"] });
+  if (flags.admin) items.push({ href: "/admin", label: "Admin", icon: "admin" });
+  return items;
 };
 
 export const pathMatches = (pathname: string, href: string) => {
@@ -121,3 +139,34 @@ export const isActive = (pathname: string, href: string, candidates: string[]) =
     .reduce((a, b) => (b.length > a.length ? b : a));
   return best === pathOnly;
 };
+
+const itemPaths = (item: NavItem) => [item.href, ...(item.also ?? [])];
+
+export const activeNavHref = (pathname: string, items: NavItem[]) => {
+  let best: { href: string; length: number } | null = null;
+  for (const item of items) {
+    for (const path of itemPaths(item)) {
+      const pathOnly = path.split("?")[0];
+      if (!pathMatches(pathname, pathOnly)) continue;
+      if (!best || pathOnly.length > best.length) best = { href: item.href, length: pathOnly.length };
+    }
+  }
+  return best?.href ?? null;
+};
+
+export const activeSectionKey = (pathname: string, groups: NavGroup[]) => {
+  const href = activeNavHref(
+    pathname,
+    groups.flatMap((g) => g.items),
+  );
+  return groups.find((g) => g.items.some((i) => i.href === href))?.key ?? null;
+};
+
+const NAV_COUNT_FORMAT = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+export function formatNavCount(n: number): string {
+  return NAV_COUNT_FORMAT.format(n).toLowerCase();
+}

@@ -52,17 +52,17 @@ export const AccountMenu = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex w-full items-center gap-2.5 rounded-md px-1 py-1 text-left transition hover:bg-[var(--bg-2)]"
+        className="flex w-full items-center gap-2.5 rounded-full p-1 pr-2.5 text-left transition-colors hover:bg-white/[0.05] aria-expanded:bg-white/[0.05]"
       >
         {user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.avatarUrl}
             alt=""
-            className="h-8 w-8 border border-[var(--line)] object-cover"
+            className="h-8 w-8 rounded-full border border-[var(--line)] object-cover"
           />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center border border-[var(--line)] bg-[var(--bg-2)] text-xs text-[var(--muted)]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line)] bg-white/[0.06] text-xs text-[var(--muted)]">
             {user.personaName.slice(0, 1)}
           </div>
         )}
@@ -83,19 +83,19 @@ export const AccountMenu = ({
       {open && (
         <div
           role="menu"
-          className={`absolute left-0 right-0 z-50 border border-[var(--line)] bg-[var(--bg-1)] ${
+          className={`panel q-pop absolute left-0 right-0 z-50 overflow-hidden rounded-[18px] p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-[18px] ${
             placement === "up" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
-          <div className="border-b border-[var(--line)] px-3 py-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
+          <div className="px-3 pt-2 pb-2.5">
+            <div className="label-mono text-[var(--faint)]">
               Account
             </div>
             <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
               {user.personaName}
             </div>
           </div>
-          <ul className="py-1">
+          <ul className="flex flex-col gap-0.5 border-t border-[var(--line)] p-0 pt-1.5">
             {ACCOUNT_LINKS.map((item) => {
               const active = isActive(
                 pathname,
@@ -108,13 +108,13 @@ export const AccountMenu = ({
                     href={item.href}
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className={`block px-3 py-2.5 transition ${
+                    className={`block rounded-xl px-3 py-2.5 transition-colors ${
                       active
-                        ? "bg-[var(--accent-dim)] text-[var(--ink)]"
-                        : "text-[var(--ink)] hover:bg-[var(--bg-2)]"
+                        ? "bg-white/[0.08] text-[var(--ink)]"
+                        : "text-[var(--ink)] hover:bg-white/[0.05]"
                     }`}
                   >
-                    <div className="text-sm font-medium">{item.label}</div>
+                    <div className="text-sm">{item.label}</div>
                     <div className="mt-0.5 text-[11px] text-[var(--muted)]">
                       {item.hint}
                     </div>
@@ -128,9 +128,9 @@ export const AccountMenu = ({
                   href="/admin"
                   role="menuitem"
                   onClick={() => setOpen(false)}
-                  className="block px-3 py-2.5 text-[var(--ink)] transition hover:bg-[var(--bg-2)]"
+                  className="block rounded-xl px-3 py-2.5 text-[var(--ink)] transition-colors hover:bg-white/[0.05]"
                 >
-                  <div className="text-sm font-medium">Admin</div>
+                  <div className="text-sm">Admin</div>
                   <div className="mt-0.5 text-[11px] text-[var(--muted)]">
                     Instance overview & ops
                   </div>
@@ -138,7 +138,7 @@ export const AccountMenu = ({
               </li>
             ) : null}
           </ul>
-          <div className="border-t border-[var(--line)] p-1">
+          <div className="mt-1.5 border-t border-[var(--line)] pt-1.5">
             <button
               type="button"
               role="menuitem"
@@ -147,7 +147,7 @@ export const AccountMenu = ({
                 setOpen(false);
                 onLogout();
               }}
-              className="w-full px-3 py-2 text-left text-sm text-[var(--muted)] transition hover:bg-[var(--bg-2)] hover:text-[var(--ink)] disabled:opacity-50"
+              className="w-full rounded-xl px-3 py-2 text-left text-sm text-[var(--muted)] transition-colors hover:bg-white/[0.05] hover:text-[var(--ink)] disabled:opacity-50"
             >
               Log out
             </button>

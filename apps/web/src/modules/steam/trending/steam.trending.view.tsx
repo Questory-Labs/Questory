@@ -1,20 +1,12 @@
 "use client";
 
-import { GameShelf, GameShelfItem } from "@/modules/steam/trending/components/GameShelf";
-import { GameTile } from "@/components/GameTile";
-import { EmptyState, PageHeader } from "@questorylabs/ui";
-import { motion } from "framer-motion";
-import { formatHours, formatPeak, formatPlayers, friendAvatars, rankBadge } from "./steam.trending.utils";
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
+import { TRENDING_TABS } from "./steam.trending.constants";
 import type { TrendingViewProps } from "./steam.trending.types";
+import { GameShelves } from "./components/GameShelves";
 import { MediaWorldShelves } from "./components/MediaWorldShelves";
 import { TrendingInsightHero } from "./components/TrendingInsightHero";
-
-const shelfError = (title: string) => (
-  <EmptyState
-    title={<span className="text-[var(--danger)]">{title}</span>}
-  />
-);
+import { TrendingTabs } from "./components/TrendingTabs";
 
 export const TrendingView = (props: Record<string, unknown>) => {
   const {
@@ -33,213 +25,59 @@ export const TrendingView = (props: Record<string, unknown>) => {
     digest,
     selectedAppId,
     setSelectedAppId,
+    tab = "games",
+    setTab = () => undefined,
   } = props as TrendingViewProps;
 
+  const enabled = { games: true, music: showMusic, watch: showWatch, read: showRead };
+  const tabs = TRENDING_TABS.filter((t) => enabled[t.value]).map((t) => t.value);
+  const current = tabs.includes(tab) ? tab : "games";
+  const accent = TRENDING_TABS.find((t) => t.value === current)?.color;
+
   return (
-    <>
-      <section className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 opacity-60 gen-orb"
-          aria-hidden
-        />
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <PageHeader
-            size="sm"
-            eyebrow="What's hot"
-            title="Trending"
-            description="Worldwide public charts. What your friends played appears first."
-          />
-        </motion.div>
-      </section>
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-[26px]">
+      <header className="q-in flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+        <div>
+          <p className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
+            Worldwide public charts · friends first
+          </p>
+          <h1 className="mt-1.5 text-[clamp(34px,4vw,52px)] font-light leading-none tracking-[-0.035em]">
+            Trending{" "}
+            <em className="font-serif" style={{ color: accent }}>
+              right now
+            </em>
+          </h1>
+        </div>
+        <TrendingTabs tabs={tabs} value={current} onChange={setTab} />
+      </header>
 
       {showEnterprise && digest ? <TrendingInsightHero digest={digest} /> : null}
 
-      <GameShelf
-        title="Among friends"
-        description="Most played by your friends over the last two weeks"
-        failed={friends.failed}
-        empty={friends.empty}
-        error={shelfError(
-          "Could not load friend trending. Steam may be rate-limiting — try again shortly.",
-        )}
-        emptyContent={
-          friends.value && !friends.value.games?.length ? (
-            <EmptyState title="No recent friend playtime yet. Make sure your friends list is public and Steam is linked." />
-          ) : undefined
-        }
-        meta={
-          friends.value
-            ? `${friends.value.meta.friendsWithData}/${friends.value.meta.friendsSampled} friends with recent play${
-                friends.value.meta.truncated
-                  ? ` · sampled ${friends.value.meta.friendsSampled}/${friends.value.meta.friendsTotal}`
-                  : ""
-              }${friends.value.meta.cached ? " · cached" : ""}${
-                friends.refreshing && friends.value.meta.cached
-                  ? " · refreshing"
-                  : ""
-              }`
-            : friends.empty
-              ? "sampling friends…"
-              : undefined
-        }
-      >
-        {(friends.value?.games || []).map((g, i) => (
-          <GameShelfItem key={g.appId}>
-            <GameTile
-              name={g.name}
-              headerImage={g.headerImage}
-              index={i}
-              onClick={() => setSelectedAppId(g.appId)}
-              meta={`${g.friendCount} friend${
-                (g.friendCount || 0) === 1 ? "" : "s"
-              } · ${formatHours(g.totalPlaytimeMinutes || 0)} combined`}
-              badge={friendAvatars(g)}
-            />
-          </GameShelfItem>
-        ))}
-      </GameShelf>
-
-      <GameShelf
-        title="Global most played"
-        description="Steam Charts weekly rollup — same source as the store charts page"
-        failed={global.failed}
-        empty={global.empty}
-        error={shelfError("Could not load Steam Charts.")}
-        emptyContent={
-          global.value && !global.value.games?.length ? (
-            <EmptyState title="Steam Charts unavailable right now." />
-          ) : undefined
-        }
-        meta={
-          global.value?.meta.rollupDate
-            ? `week of ${new Date(global.value.meta.rollupDate).toLocaleDateString()}`
-            : undefined
-        }
-      >
-        {(global.value?.games || []).map((g, i) => (
-          <GameShelfItem key={g.appId}>
-            <GameTile
-              name={g.name}
-              headerImage={g.headerImage}
-              index={i}
-              onClick={() => setSelectedAppId(g.appId)}
-              meta={
-                g.peakPlayers != null ? formatPeak(g.peakPlayers) : undefined
-              }
-              corner={rankBadge(g)}
-            />
-          </GameShelfItem>
-        ))}
-      </GameShelf>
-
-      <GameShelf
-        title="Playing now"
-        description="Live concurrent players across Steam"
-        failed={concurrent.failed}
-        empty={concurrent.empty}
-        error={shelfError("Could not load concurrent charts.")}
-        emptyContent={
-          concurrent.value && !concurrent.value.games?.length ? (
-            <EmptyState title="Concurrent chart unavailable right now." />
-          ) : undefined
-        }
-        meta={
-          concurrent.value?.meta.lastUpdate
-            ? `updated ${new Date(concurrent.value.meta.lastUpdate).toLocaleTimeString()}`
-            : undefined
-        }
-      >
-        {(concurrent.value?.games || []).map((g, i) => (
-          <GameShelfItem key={g.appId}>
-            <GameTile
-              name={g.name}
-              headerImage={g.headerImage}
-              index={i}
-              onClick={() => setSelectedAppId(g.appId)}
-              meta={
-                g.concurrentPlayers != null
-                  ? `${formatPlayers(g.concurrentPlayers)} in-game`
-                  : g.peakPlayers != null
-                    ? formatPeak(g.peakPlayers)
-                    : undefined
-              }
-              corner={rankBadge(g)}
-            />
-          </GameShelfItem>
-        ))}
-      </GameShelf>
-
-      <GameShelf
-        title="Top releases"
-        description={
-          topReleases.value?.meta.pageName ||
-          "Steam Charts curated new-release standouts"
-        }
-        failed={topReleases.failed}
-        empty={topReleases.empty}
-        error={shelfError("Could not load top releases.")}
-        emptyContent={
-          topReleases.value && !topReleases.value.games?.length ? (
-            <EmptyState title="Top releases unavailable right now." />
-          ) : undefined
-        }
-      >
-        {(topReleases.value?.games || []).map((g, i) => (
-          <GameShelfItem key={g.appId}>
-            <GameTile
-              name={g.name}
-              headerImage={g.headerImage}
-              index={i}
-              onClick={() => setSelectedAppId(g.appId)}
-              corner={rankBadge(g)}
-            />
-          </GameShelfItem>
-        ))}
-      </GameShelf>
-
-      <GameShelf
-        title="Steam Deck most played"
-        description="What Deck players are jumping into"
-        failed={deck.failed}
-        empty={deck.empty}
-        error={shelfError("Could not load Deck charts.")}
-        emptyContent={
-          deck.value && !deck.value.games?.length ? (
-            <EmptyState title="Deck chart unavailable right now." />
-          ) : undefined
-        }
-      >
-        {(deck.value?.games || []).map((g, i) => (
-          <GameShelfItem key={g.appId}>
-            <GameTile
-              name={g.name}
-              headerImage={g.headerImage}
-              index={i}
-              onClick={() => setSelectedAppId(g.appId)}
-              corner={rankBadge(g)}
-            />
-          </GameShelfItem>
-        ))}
-      </GameShelf>
-
-      <MediaWorldShelves
-        showMusic={showMusic}
-        showWatch={showWatch}
-        showRead={showRead}
-        music={music}
-        watch={watch}
-        read={read}
-      />
+      {current === "games" ? (
+        <GameShelves
+          friends={friends}
+          global={global}
+          concurrent={concurrent}
+          deck={deck}
+          topReleases={topReleases}
+          onSelect={setSelectedAppId}
+        />
+      ) : (
+        <MediaWorldShelves
+          showMusic={current === "music"}
+          showWatch={current === "watch"}
+          showRead={current === "read"}
+          music={music}
+          watch={watch}
+          read={read}
+        />
+      )}
 
       <FamilyGameSidebar
         appId={selectedAppId}
         variant="friends"
         onClose={() => setSelectedAppId(null)}
       />
-    </>
+    </div>
   );
 };

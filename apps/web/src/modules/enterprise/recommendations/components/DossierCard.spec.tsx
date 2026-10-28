@@ -74,13 +74,15 @@ describe("DossierCard", () => {
     expect(container.querySelector("section")).toBeNull();
   });
 
-  it("expands to show the dossier identity", async () => {
+  it("shows the identity and expands to the per-domain sections", async () => {
     renderCard();
     const toggle = await screen.findByRole("button", {
       name: /your taste fingerprint/i,
     });
-    fireEvent.click(toggle);
     expect(screen.getByText("A roguelike devotee.")).toBeInTheDocument();
+    expect(screen.queryByText("You grind roguelikes.")).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(screen.getByText("You grind roguelikes.")).toBeInTheDocument();
   });
 
   it("lists recently liked and passed works when expanded", async () => {

@@ -33,12 +33,15 @@ export const settingsToDraft = (
   };
 };
 
-export const draftToPayload = (draft: DraftState): GuardrailSettings => ({
-  categories: draft.categories,
-  blocklist: draft.blocklistText
+export const blocklistEntries = (text: string): string[] =>
+  text
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean),
+    .filter(Boolean);
+
+export const draftToPayload = (draft: DraftState): GuardrailSettings => ({
+  categories: draft.categories,
+  blocklist: blocklistEntries(draft.blocklistText),
   blocklistAction: draft.blocklistAction,
   regexRules: draft.regexRules
     .map((r) => ({

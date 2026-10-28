@@ -108,6 +108,8 @@ export interface RewindWatchStats extends RewindCommonExtras {
   topRated?: RewindTopItem[];
   unfinished?: RewindTopItem[];
   bingeRuns?: RewindTopItem[];
+  completedSeasons?: number;
+  droppedTitles?: number;
 }
 
 export interface RewindReadStats extends RewindCommonExtras {
@@ -123,6 +125,7 @@ export interface RewindReadStats extends RewindCommonExtras {
   peakDow: RewindPeakBucket | null;
   statusBreakdown?: { completed: number; dropped: number; repeating: number };
   volumesRead?: number;
+  inProgress?: number;
 }
 
 export interface RewindGamesStats extends RewindCommonExtras {
@@ -142,6 +145,12 @@ export interface RewindGamesStats extends RewindCommonExtras {
   backlog: number | null;
   abandoned?: RewindTopItem[];
   achievementsInPeriod: number | null;
+  perfectGames?: number;
+}
+
+export interface RewindAllDailyBucket {
+  date: string;
+  counts: Partial<Record<"music" | "watch" | "read" | "games", number>>;
 }
 
 export interface RewindAllStats {
@@ -153,6 +162,8 @@ export interface RewindAllStats {
     read?: RewindReadStats;
     games?: RewindGamesStats;
   };
+  daily?: RewindAllDailyBucket[];
+  busiestSince?: string | null;
 }
 
 export type RewindStatsResponse =

@@ -59,6 +59,7 @@ export const WatchCatalogLogSchema = z
   .object({
     tmdbId: z.number().int().positive().optional(),
     anilistId: z.number().int().positive().optional(),
+    titleId: z.string().trim().min(1).max(64).optional(),
     type: z.enum(["movie", "show"]),
     watchedAt: z
       .string()
@@ -78,9 +79,10 @@ export const WatchCatalogLogSchema = z
       .max(WATCH_EPISODE_NUMBER_MAX)
       .optional(),
   })
-  .refine((d) => d.tmdbId != null || d.anilistId != null, {
-    message: "tmdbId or anilistId is required",
-  })
+  .refine(
+    (d) => d.tmdbId != null || d.anilistId != null || d.titleId != null,
+    { message: "tmdbId, anilistId or titleId is required" },
+  )
   .refine(
     (d) =>
       d.type !== "show" ||

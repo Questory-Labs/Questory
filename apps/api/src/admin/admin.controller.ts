@@ -16,6 +16,8 @@ import { AdminGuard } from "../auth/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { AdminService } from "./admin.service";
 import { AdminUserOpsService } from "./admin-user-ops.service";
+import { AdminEnrichmentService } from "./admin-enrichment.service";
+import { REQUEUE_IDS_MAX } from "./admin.constants";
 import { MigrationsService } from "./migrations/migrations.service";
 
 const CreateUserSchema = z.object({
@@ -44,8 +46,20 @@ const TriggerCronSchema = z.object({
     "kitsu-sync",
     "bangumi-sync",
     "shikimori-sync",
+    "monthly-recap",
+    "letterboxd-scrape",
   ]),
 });
+
+const RequeueEnrichmentSchema = z
+  .object({
+    domain: z.enum(["music", "watch"]),
+    ids: z.array(z.string().min(1)).min(1).max(REQUEUE_IDS_MAX).optional(),
+    allFailed: z.literal(true).optional(),
+  })
+  .refine((v) => (v.ids ? !v.allFailed : v.allFailed === true), {
+    message: "Provide either ids or allFailed",
+  });
 
 const TriggerEnrichmentSchema = z.object({
   action: z.enum(["catalog-sync", "recover-failed-sync"]),
@@ -81,6 +95,7 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly adminUserOps: AdminUserOpsService,
     private readonly migrations: MigrationsService,
+    private readonly adminEnrichment: AdminEnrichmentService,
   ) {}
 
   @Get("overview")
@@ -190,6 +205,15 @@ export class AdminController {
       return { error: "Invalid body" };
     }
     return this.admin.triggerEnrichment(parsed.data.action, user.userId);
+  }
+
+  @Post("enrichment/requeue")
+  requeueEnrichment(@Body() body: unknown) {
+    const parsed = RequeueEnrichmentSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.adminEnrichment.requeueFailed(parsed.data);
   }
 
   @Post("ops/refresh-prices")

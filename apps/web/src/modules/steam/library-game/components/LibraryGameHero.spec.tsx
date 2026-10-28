@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { LibraryEntry } from "@questorylabs/shared";
 import { LibraryGameHero } from "./LibraryGameHero";
 
@@ -26,7 +26,7 @@ const entry: LibraryEntry = {
 
 describe("LibraryGameHero", () => {
   it("shows playtime, play, and a back link", () => {
-    const { container } = render(<LibraryGameHero entry={entry} />);
+    render(<LibraryGameHero entry={entry} />);
     expect(screen.getByRole("heading", { name: "Portal" })).toBeInTheDocument();
     expect(screen.getByText("3h")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Library" })).toHaveAttribute(
@@ -34,8 +34,41 @@ describe("LibraryGameHero", () => {
       "/library",
     );
     expect(screen.getByRole("link", { name: "Play Portal" })).toBeInTheDocument();
-    const cover = container.querySelector(".aspect-\\[460\\/215\\]")?.parentElement;
-    expect(cover?.className).not.toContain("grow");
+  });
+
+  it("renders the editable status and achievement ring", () => {
+    const onStatusChange = vi.fn();
+    render(
+      <LibraryGameHero
+        entry={{ ...entry, pricePaid: 6 }}
+        status="playing"
+        onStatusChange={onStatusChange}
+        detail={{
+          appId: 400,
+          name: "Portal",
+          headerImage: null,
+          genres: [],
+          categories: [],
+          tags: [],
+          developers: [],
+          publishers: [],
+          minPlayers: 1,
+          maxPlayers: 4,
+          youOwn: true,
+          yourPlaytimeHours: 3,
+          friendOwners: [],
+          price: { current: 9.99, lowest: null, historicalLow: null, historicalHigh: null, currency: "USD", history: [] },
+          review: null,
+          hltb: null,
+          achievements: { unlocked: 5, total: 10, pct: 50, global: [] },
+        }}
+      />,
+    );
+    expect(screen.getByText("1–4 players")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "50% achievements" })).toBeInTheDocument();
+    expect(screen.getByText("Per hour")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "finished" } });
+    expect(onStatusChange).toHaveBeenCalledWith("finished");
   });
 
   it("uses queue copy when unplayed", () => {

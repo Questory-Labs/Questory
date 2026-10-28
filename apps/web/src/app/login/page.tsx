@@ -1,16 +1,16 @@
 import { Suspense } from "react";
-import { LandingBackground } from "@/components/LandingBackground";
+import { AuthMorphAside } from "@/components/auth/AuthMorphAside";
+import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
 import { LoginController } from "@/modules/auth/login/auth.login.controller";
 import { LoginView } from "@/modules/auth/login/auth.login.view";
 
 const LoginPage = () => (
-  <div className="relative min-h-screen overflow-hidden">
-    <LandingBackground />
+  <AuthSplitLayout aside={<AuthMorphAside />}>
     <Suspense fallback={null}>
       <LoginController>
         <LoginView />
       </LoginController>
     </Suspense>
-  </div>
+  </AuthSplitLayout>
 );
 export default LoginPage;

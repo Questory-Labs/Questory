@@ -28,7 +28,7 @@ describe("listProviderConnectedUrl", () => {
       isDomainEnabled: async (domain: string) => domain === "read",
     } as unknown as FeatureFlagsService;
     expect(await listProviderConnectedUrl(flags, "anilist")).toBe(
-      "http://localhost:3000/read/settings?anilist=connected",
+      "http://localhost:3000/sources?tab=read&anilist=connected",
     );
   });
 
@@ -38,7 +38,7 @@ describe("listProviderConnectedUrl", () => {
       isDomainEnabled: async (domain: string) => domain === "watch",
     } as unknown as FeatureFlagsService;
     expect(await listProviderConnectedUrl(flags, "mal")).toBe(
-      "https://app.example/watch/settings?mal=connected",
+      "https://app.example/sources?tab=watch&mal=connected",
     );
   });
 });

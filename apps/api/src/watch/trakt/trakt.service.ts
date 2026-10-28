@@ -15,6 +15,7 @@ import {
 } from "../lib/runtime-config";
 import { providerFetch } from "../../lib/qhttp-outbound";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { disconnectSourceConnection } from "../lib/disconnect";
 
 type TraktIds = {
   trakt?: number;
@@ -151,6 +152,10 @@ export class TraktService {
     }
 
     return { ok: true, userId: user.id };
+  }
+
+  disconnect(userId: string) {
+    return disconnectSourceConnection(this.prisma, this.users, userId, "trakt");
   }
 
   async getConnection(userId?: string) {

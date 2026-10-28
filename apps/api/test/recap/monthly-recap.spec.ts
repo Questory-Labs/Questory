@@ -17,6 +17,7 @@ type Opts = {
   existingNotice?: boolean;
   serveFails?: boolean;
   musicPlays?: number;
+  monthlyListens?: Record<string, number>;
 };
 
 function make(opts: Opts) {
@@ -44,6 +45,15 @@ function make(opts: Opts) {
       findFirst: vi.fn().mockResolvedValue(opts.existingNotice ? { id: "n" } : null),
       create: notificationCreate,
     },
+    listen: {
+      count: vi
+        .fn()
+        .mockImplementation(async ({ where }: { where: { listenedAt: { gte: Date } } }) => {
+          const key = where.listenedAt.gte.toISOString().slice(0, 7);
+          return opts.monthlyListens?.[key] ?? 0;
+        }),
+    },
+    playSession: { count: vi.fn().mockResolvedValue(0) },
   } as unknown as PrismaService;
   const flags = {
     isDomainEnabled: vi.fn().mockImplementation(async (d: string) => d === "music"),
@@ -53,9 +63,15 @@ function make(opts: Opts) {
     : vi.fn().mockResolvedValue({ content: "x" });
   const rewindAi = { serve } as unknown as RewindAiService;
   const music = {
-    rewindStats: vi
-      .fn()
-      .mockResolvedValue({ domain: "music", period: "2026-09", totalPlays: opts.musicPlays ?? 10 }),
+    rewindStats: vi.fn().mockResolvedValue({
+      domain: "music",
+      period: "2026-09",
+      totalPlays: opts.musicPlays ?? 10,
+      monthly: [
+        { month: "2026-09-01", count: 4 },
+        { month: "2026-09-02", count: 6 },
+      ],
+    }),
   };
   const games = {
     rewindStats: vi.fn().mockResolvedValue({
@@ -120,6 +136,33 @@ describe("monthly recap", () => {
     expect(combined.domain).toBe("all");
     expect(Object.keys(combined.domains)).toEqual(["music"]);
     expect(music.rewindStats).toHaveBeenCalledWith("u1", "2026-09", "Asia/Kolkata");
+    expect(combined.daily).toEqual([
+      { date: "2026-09-01", counts: { music: 4 } },
+      { date: "2026-09-02", counts: { music: 6 } },
+    ]);
+  });
+
+  it("reports the most recent busier month for the unified rewind", async () => {
+    const { service } = make({
+      monthlyListens: { "2026-09": 50, "2026-08": 20, "2026-07": 30, "2026-06": 80 },
+    });
+    const combined = await service.combinedStats("u1", "2026-09", "UTC");
+    expect(combined.busiestSince).toBe("2026-06");
+  });
+
+  it("names the oldest month checked when the current month beats the whole lookback", async () => {
+    const { service } = make({
+      monthlyListens: { "2026-09": 50, "2026-08": 20, "2026-07": 30 },
+    });
+    const combined = await service.combinedStats("u1", "2026-09", "UTC");
+    expect(combined.busiestSince).toMatch(/^\d{4}-\d{2}$/);
+    expect(combined.busiestSince! < "2026-07").toBe(true);
+  });
+
+  it("omits busiest-since when the previous month was busier", async () => {
+    const { service } = make({ monthlyListens: { "2026-09": 10, "2026-08": 20 } });
+    const combined = await service.combinedStats("u1", "2026-09", "UTC");
+    expect(combined.busiestSince).toBeNull();
   });
 
   it("aborts after repeated generation failures", async () => {

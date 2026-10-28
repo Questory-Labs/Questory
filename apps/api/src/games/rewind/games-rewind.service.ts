@@ -32,6 +32,7 @@ import {
 const MAX_SESSIONS = 20_000;
 const MAX_SNAPSHOTS = 50_000;
 const ACHIEVEMENT_GAMES = 5;
+const PERFECT_GAME_CANDIDATES = 500;
 const DROP_CANDIDATES = 20;
 const ABANDON_QUIET_MS = 30 * 86_400_000;
 
@@ -128,13 +129,14 @@ export class GamesRewindService {
       .sort((a, b) => a.getTime() - b.getTime())[0];
     const coverage = earliest != null && earliest <= prior.start;
 
-    const [priorItems, newGames, backlog, abandoned, achievementsInPeriod] =
+    const [priorItems, newGames, backlog, abandoned, achievementsInPeriod, perfectGames] =
       await Promise.all([
         this.priorMinutes(userId, prior, hidden),
         this.newGames(userId, bounds, minutes, baseline),
         this.backlog(userId),
         period.length === 4 ? this.abandoned(userId, bounds) : Promise.resolve(undefined),
         this.achievements(userId, bounds, minutes, info),
+        this.perfectGames(userId, minutes, info),
       ]);
 
     const currentIds = new Set(minutes.keys());
@@ -161,6 +163,7 @@ export class GamesRewindService {
       backlog,
       ...(abandoned ? { abandoned } : {}),
       achievementsInPeriod,
+      perfectGames,
       ...dayExtras(dayEvents, period),
       prior: compareToPrior({
         total: totalMinutes,
@@ -334,6 +337,21 @@ export class GamesRewindService {
       count: r.playtimeForever,
       imageUrl: r.game.headerImage,
     }));
+  }
+
+  private async perfectGames(
+    userId: string,
+    minutes: Map<string, number>,
+    info: Map<string, GameInfoRow>,
+  ): Promise<number> {
+    const gameIds = [...minutes.entries()]
+      .filter(([id, m]) => m > 0 && info.has(id))
+      .map(([id]) => id)
+      .slice(0, PERFECT_GAME_CANDIDATES);
+    if (!gameIds.length) return 0;
+    return this.prisma.libraryEntry.count({
+      where: { userId, gameId: { in: gameIds }, achievementPct: { gte: 100 } },
+    });
   }
 
   private async achievements(
