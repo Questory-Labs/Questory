@@ -1,56 +1,33 @@
 "use client";
 
-import { GameTile } from "@/components/GameTile";
+import { ListPager } from "@/components/ListPager";
 import { GAME_GRID_PAGE_SIZE } from "@/lib/pagination";
 import {
-  formatPlayerMaxLabel,
-  type MultiplayerPlanGame,
-} from "@questorylabs/shared";
-import {
-  Button,
+  CountUp,
   EmptyState,
   ResourceStatus,
   SkeletonTileGrid,
 } from "@questorylabs/ui";
+import { MODE_OPTIONS } from "../steam.multiplayer.constants";
 import type { MultiplayerViewProps } from "../steam.multiplayer.types";
-import { OwnershipBadge } from "./OwnershipBadge";
-
-const playerMaxCorner = (g: MultiplayerPlanGame) => {
-  const maxes = g.playerMaxes?.length
-    ? g.playerMaxes
-    : g.maxPlayers != null
-      ? [g.maxPlayers]
-      : null;
-  const label = formatPlayerMaxLabel(maxes);
-  if (!label) return undefined;
-  return (
-    <span
-      className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-[var(--bg-0)] shadow-sm"
-      title={
-        g.playerCountSource === "igdb"
-          ? "IGDB mode maxes"
-          : g.playerCountSource === "steam_tag"
-            ? "Steam tag"
-            : undefined
-      }
-    >
-      {label}
-    </span>
-  );
-};
+import { PlanCard } from "./PlanCard";
 
 export const PlanResults = ({
   plan,
   pageGames,
   page,
   setPage,
-  totalPages,
   setSelectedAppId,
+  filters,
 }: Pick<
   MultiplayerViewProps,
-  "plan" | "pageGames" | "page" | "setPage" | "totalPages" | "setSelectedAppId"
+  "plan" | "pageGames" | "page" | "setPage" | "setSelectedAppId" | "filters"
 >) => {
   const games = plan.value?.games || [];
+  const friendCount = plan.value?.friendCount ?? filters.selected.length;
+  const modeLabel =
+    MODE_OPTIONS.find((m) => m.value === filters.mode)?.label ?? "Any";
+  const players = friendCount + 1;
 
   return (
     <ResourceStatus
@@ -68,62 +45,37 @@ export const PlanResults = ({
       }
     >
       <>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {pageGames.map((g, index) => (
-            <GameTile
-              key={`${g.isSuggested ? "s" : "o"}-${g.appId}`}
-              name={g.name}
-              headerImage={g.headerImage}
-              index={index}
-              onClick={() => setSelectedAppId(g.appId)}
-              meta={[
-                g.genres.slice(0, 2).join(", ") || null,
-                g.releaseYear ? String(g.releaseYear) : null,
-                g.reviewScore != null ? `★ ${g.reviewScore}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-              corner={playerMaxCorner(g)}
-              badge={
-                g.isSuggested || g.ownership !== "shared" ? (
-                  <OwnershipBadge
-                    ownership={g.ownership}
-                    ownedByYou={g.ownedByYou}
-                    ownedByFriends={g.ownedByFriends}
-                    missingFriends={g.missingFriends}
-                    isSuggested={g.isSuggested}
-                  />
-                ) : undefined
-              }
-            />
-          ))}
+        <div className="q-in flex items-baseline gap-3.5 px-1 pt-1.5 [--i:2]">
+          <p className="text-[44px] leading-none font-extralight tracking-[-0.04em]">
+            <CountUp value={games.length} />
+          </p>
+          <p className="text-sm text-[var(--muted)]">
+            {games.length === 1 ? "match" : "matches"} · {players}{" "}
+            {players === 1 ? "player" : "players"} · {modeLabel}
+          </p>
         </div>
+        {pageGames.length ? (
+          <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(330px,100%),1fr))] gap-3.5">
+            {pageGames.map((g, index) => (
+              <PlanCard
+                key={`${g.isSuggested ? "s" : "o"}-${g.appId}`}
+                game={g}
+                index={index}
+                friendCount={friendCount}
+                onSelect={setSelectedAppId}
+              />
+            ))}
+          </ul>
+        ) : null}
         {plan.ready && !games.length && (
           <EmptyState title="No multiplayer titles found for this group. Try fewer friends, turn off strict matching, widen filters, or enable Suggested." />
         )}
-        {games.length > GAME_GRID_PAGE_SIZE && (
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <Button
-              variant="secondary"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1.5"
-            >
-              Previous
-            </Button>
-            <span className="font-mono text-xs text-[var(--muted)]">
-              {page} / {totalPages}
-            </span>
-            <Button
-              variant="secondary"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5"
-            >
-              Next
-            </Button>
-          </div>
-        )}
+        <ListPager
+          page={page}
+          total={games.length}
+          pageSize={GAME_GRID_PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </>
     </ResourceStatus>
   );

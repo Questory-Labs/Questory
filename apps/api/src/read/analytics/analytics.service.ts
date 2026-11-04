@@ -8,7 +8,21 @@ import {
   zonedWeekday,
 } from "../../lib/timezone";
 import { UsersService } from "../../watch/users/users.service";
-import { TITLE_DETAIL_EVENTS_LIMIT } from "./analytics.constants";
+import {
+  READ_REWIND_IN_PROGRESS_CAP,
+  TITLE_DETAIL_EVENTS_LIMIT,
+} from "./analytics.constants";
+import {
+  commonExtras,
+  priorPeriodBounds,
+  zonedPeriodBounds,
+} from "../../lib/rewind-stats";
+import { enrichReadRewind } from "./rewind-enrich";
+import {
+  percentDelta,
+  readTitleExtras,
+  readTitleWeeklySeries,
+} from "./read-shelf";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type FormatFilter =
@@ -388,15 +402,22 @@ export class ReadAnalyticsService {
     const durationMs = rangeDurationMs(range);
     let previousEvents: number | null = null;
     let deltaPct: number | null = null;
+    let previousChapters: number | null = null;
+    let chaptersDeltaPct: number | null = null;
     if (since && durationMs != null) {
       const prevStart = new Date(since.getTime() - durationMs);
-      previousEvents = await this.prisma.readEvent.count({
+      const previous = await this.prisma.readEvent.aggregate({
         where: {
           userId: user.id,
           readAt: { gte: prevStart, lt: since },
           ...(format ? { readTitle: { format } } : {}),
         },
+        _count: { _all: true },
+        _sum: { chaptersRead: true },
       });
+      previousEvents = previous._count._all;
+      previousChapters = previous._sum.chaptersRead ?? 0;
+      chaptersDeltaPct = percentDelta(chaptersLogged, previousChapters);
       if (previousEvents > 0) {
         deltaPct =
           Math.round(
@@ -437,6 +458,8 @@ export class ReadAnalyticsService {
       compare: {
         previousEvents,
         deltaPct,
+        previousChapters,
+        chaptersDeltaPct,
       },
     };
   }
@@ -543,6 +566,7 @@ export class ReadAnalyticsService {
           coverUrl: r.readTitle.coverUrl,
           genres: r.readTitle.genres.map((g) => g.genre.name),
         },
+        titleChapters: r.readTitle.chapters ?? null,
       })),
     };
   }
@@ -562,7 +586,7 @@ export class ReadAnalyticsService {
       ...(since ? { readAt: { gte: since } } : {}),
     };
 
-    const [eventCount, first, latest, events, listState] = await Promise.all([
+    const [eventCount, first, latest, events, listState, extras] = await Promise.all([
       this.prisma.readEvent.count({ where: rangeWhere }),
       this.prisma.readEvent.findFirst({
         where: { userId: user.id, readTitleId: titleId },
@@ -582,6 +606,7 @@ export class ReadAnalyticsService {
         select: { listStatus: true },
         orderBy: { updatedAt: "desc" },
       }),
+      readTitleExtras(this.prisma, user.id, title),
     ]);
 
     return {
@@ -599,8 +624,14 @@ export class ReadAnalyticsService {
         chapters: title.chapters,
         volumes: title.volumes,
         genres: title.genres.map((g) => g.genre.name),
+        anilistId: title.anilistId ?? null,
+        malId: title.malId ?? null,
       },
       listStatus: listState?.listStatus ?? null,
+      progressChapters: extras.progressChapters,
+      progressVolumes: extras.progressVolumes,
+      score: extras.score,
+      pace: extras.pace,
       eventCount,
       firstReadAt: first?.readAt.toISOString() ?? null,
       latestReadAt: latest?.readAt.toISOString() ?? null,
@@ -613,6 +644,11 @@ export class ReadAnalyticsService {
         volumesRead: e.volumesRead,
       })),
     };
+  }
+
+  async titleTimeseries(userId: string, titleId: string, weeks: number) {
+    const user = await this.resolveUser(userId);
+    return readTitleWeeklySeries(this.prisma, user.id, titleId, weeks);
   }
 
   private async computeStreak(userId: string, timeZone = "UTC") {
@@ -630,24 +666,8 @@ export class ReadAnalyticsService {
 
   async rewindStats(userId: string, period: string, timeZone = "UTC") {
     const user = await this.resolveUser(userId);
-    let start: Date;
-    let end: Date;
-
-    if (period.length === 4) {
-      const year = parseInt(period, 10);
-      start = new Date(`${year}-01-01T00:00:00.000Z`);
-      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-    } else if (period.length === 7) {
-      const [yearStr, monthStr] = period.split("-");
-      const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10);
-      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextMonth = month === 12 ? 1 : month + 1;
-      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-    } else {
-      throw new Error("Invalid period format");
-    }
+    const { start, end } = zonedPeriodBounds(period, timeZone);
+    const priorBounds = priorPeriodBounds(period, timeZone);
 
     const events = await this.prisma.readEvent.findMany({
       where: {
@@ -658,6 +678,8 @@ export class ReadAnalyticsService {
         readTitleId: true,
         readAt: true,
         chaptersRead: true,
+        volumesRead: true,
+        status: true,
         readTitle: {
           select: {
             name: true,
@@ -710,6 +732,11 @@ export class ReadAnalyticsService {
       ? { index: peakDowIdx, label: DOW_LABELS[peakDowIdx], count: dowBuckets[peakDowIdx] }
       : null;
 
+    const [extras, inProgress] = await Promise.all([
+      this.readRewindExtras(user.id, period, timeZone, priorBounds, events),
+      this.readInProgressCount(user.id, [...titleCounts.keys()]),
+    ]);
+
     return {
       domain: "read" as const,
       period,
@@ -729,6 +756,84 @@ export class ReadAnalyticsService {
         .sort((a, b) => b.count - a.count),
       peakHour,
       peakDow,
+      ...extras,
+      inProgress,
+    };
+  }
+
+  private async readInProgressCount(userId: string, titleIds: string[]) {
+    if (!titleIds.length) return 0;
+    const rows = await this.prisma.readListState.findMany({
+      where: {
+        userId,
+        listStatus: "reading",
+        readTitleId: { in: titleIds.slice(0, READ_REWIND_IN_PROGRESS_CAP) },
+      },
+      select: { readTitleId: true },
+      distinct: ["readTitleId"],
+      take: READ_REWIND_IN_PROGRESS_CAP,
+    });
+    return rows.length;
+  }
+
+  private async readRewindExtras(
+    userId: string,
+    period: string,
+    timeZone: string,
+    priorBounds: { start: Date; end: Date },
+    events: Array<{
+      readTitleId: string;
+      readAt: Date;
+      status: string | null;
+      volumesRead: number | null;
+      readTitle: { name: string };
+    }>,
+  ) {
+    const [priorTitles, earliest] = await Promise.all([
+      this.prisma.readEvent.groupBy({
+        by: ["readTitleId"],
+        where: {
+          userId,
+          readAt: { gte: priorBounds.start, lt: priorBounds.end },
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.readEvent.aggregate({
+        where: { userId },
+        _min: { readAt: true },
+      }),
+    ]);
+    const current = new Set(events.map((e) => e.readTitleId));
+    const dropCandidates = priorTitles
+      .filter((r) => !current.has(r.readTitleId))
+      .sort((a, b) => b._count._all - a._count._all)
+      .slice(0, 20);
+    const names = dropCandidates.length
+      ? await this.prisma.readTitle.findMany({
+          where: { id: { in: dropCandidates.map((r) => r.readTitleId) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameOf = new Map(names.map((t) => [t.id, t.name]));
+
+    return {
+      ...commonExtras({
+        period,
+        timeZone,
+        events: events.map((e) => ({
+          at: e.readAt,
+          itemId: e.readTitleId,
+          name: e.readTitle.name,
+        })),
+        prior: priorTitles.map((r) => ({
+          id: r.readTitleId,
+          name: nameOf.get(r.readTitleId) ?? "",
+          count: r._count._all,
+        })),
+        priorStart: priorBounds.start,
+        earliestEventAt: earliest._min.readAt,
+      }),
+      ...enrichReadRewind(events),
     };
   }
 }

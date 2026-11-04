@@ -4,11 +4,17 @@ import { useMemo, useState, type PropsWithChildren } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { Store } from "@questorylabs/shared";
+import type {
+  Collection,
+  LibrarySort,
+  LibraryStatusFilter,
+  Store,
+} from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { LIBRARY_PAGE_SIZE } from "@/lib/pagination";
 import { useSyncJobs } from "@/hooks/useSyncJobs";
 import type { LibraryListResponse } from "./steam.library.types";
+import type { LibraryLayout } from "./steam.library.constants";
 
 export const LibraryController = ({ children }: PropsWithChildren) => {
   const router = useRouter();
@@ -25,6 +31,9 @@ export const LibraryController = ({ children }: PropsWithChildren) => {
   const [multiplayer, setMultiplayer] = useState(false);
   const [deck, setDeck] = useState(false);
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<LibraryStatusFilter | "all">("all");
+  const [sort, setSort] = useState<LibrarySort>("lastPlayed");
+  const [layout, setLayout] = useState<LibraryLayout>("grid");
 
   const setStore = (store: Store | "all") => {
     setPage(1);
@@ -43,16 +52,22 @@ export const LibraryController = ({ children }: PropsWithChildren) => {
     if (multiplayer) p.set("multiplayer", "true");
     if (deck) p.set("deck", "true");
     if (activeStore !== "all") p.set("store", activeStore);
+    if (status !== "all") p.set("status", status);
+    if (sort !== "lastPlayed") p.set("sort", sort);
     p.set("page", String(page));
     p.set("pageSize", String(LIBRARY_PAGE_SIZE));
     return p.toString();
-  }, [q, genre, unplayed, multiplayer, deck, activeStore, page]);
+  }, [q, genre, unplayed, multiplayer, deck, activeStore, status, sort, page]);
 
   const sync = useSyncJobs();
   const library = useResource({
     id: ["library", params],
     load: () => api<LibraryListResponse>(`/library?${params}`),
     refreshEvery: sync.active ? 3_000 : false,
+  });
+  const collections = useResource({
+    id: ["collections"],
+    load: () => api<Collection[]>("/collections"),
   });
 
   return cloneElements(children, {
@@ -72,5 +87,12 @@ export const LibraryController = ({ children }: PropsWithChildren) => {
     setDeck,
     page,
     setPage,
+    status,
+    setStatus,
+    sort,
+    setSort,
+    layout,
+    setLayout,
+    collections,
   });
 };

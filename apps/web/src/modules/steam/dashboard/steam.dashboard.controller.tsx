@@ -1,5 +1,6 @@
 "use client";
 
+import { useMusicPlayingNow } from "@/hooks/useMusicPlayingNow";
 import { useSyncJobs } from "@/hooks/useSyncJobs";
 import { useUser } from "@/hooks/useUser";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
@@ -15,6 +16,7 @@ import {
 } from "@/lib/dashboard";
 import { withTz } from "@/lib/dates";
 import { fetchRecommendations } from "@/lib/enterprise-api";
+import { fetchGoals } from "@/lib/goals";
 import { musicFetch } from "@/lib/music";
 import { readFetch } from "@/lib/read";
 import { watchFetch } from "@/lib/watch";
@@ -30,7 +32,12 @@ import type {
   WatchRecentPage,
 } from "@questorylabs/shared";
 import { cloneElements } from "@questorylabs/ui";
-import { type PropsWithChildren } from "react";
+import { useEffect, useState, type PropsWithChildren } from "react";
+import {
+  DASHBOARD_DEFAULT_TIME_RANGE,
+  DASHBOARD_GOALS_LIMIT,
+  type DashboardTimeRange,
+} from "./steam.dashboard.constants";
 
 export const DashboardController = ({ children }: PropsWithChildren) => {
   const { user } = useUser();
@@ -41,7 +48,7 @@ export const DashboardController = ({ children }: PropsWithChildren) => {
 
   const stats = useResource({
     id: ["dashboard"],
-    load: () => api<DashboardStats>("/dashboard/stats"),
+    load: () => api<DashboardStats>(withTz("/dashboard/stats")),
   });
 
   const playNext = useResource({
@@ -111,6 +118,19 @@ export const DashboardController = ({ children }: PropsWithChildren) => {
     retries: 1,
   });
 
+  const goals = useResource({
+    id: ["goals", "dashboard", DASHBOARD_GOALS_LIMIT],
+    load: () => fetchGoals({ status: "active", limit: DASHBOARD_GOALS_LIMIT }),
+    when: showEnterpriseNav,
+  });
+
+  const playingNow = useMusicPlayingNow({ enabled: showMusicNav });
+  const [range, setRange] = useState<DashboardTimeRange>(DASHBOARD_DEFAULT_TIME_RANGE);
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
+
   const steamConnected = Boolean(user?.steamId);
   const sync = useSyncJobs({ enabled: steamConnected });
 
@@ -137,5 +157,10 @@ export const DashboardController = ({ children }: PropsWithChildren) => {
     readInsights,
     readRecent,
     recs,
+    goals,
+    musicPlayingNow: showMusicNav ? (playingNow.value ?? undefined) : undefined,
+    range,
+    setRange,
+    now,
   });
 };

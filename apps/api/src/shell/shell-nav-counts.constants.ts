@@ -1,0 +1,3 @@
+export const NAV_COUNTS_CACHE_TTL_SEC = 60;
+
+export const NAV_COUNTS_DISTINCT_CAP = 100_000;

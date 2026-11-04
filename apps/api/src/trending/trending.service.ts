@@ -20,6 +20,7 @@ import {
   MAX_FRIENDS,
   RECENT_PER_FRIEND,
   SAMPLE_FRIENDS,
+  TRENDING_FLAG_LOOKUP_CAP,
 } from "./trending.constants";
 
 type FriendAgg = {
@@ -34,6 +35,25 @@ type FriendAgg = {
     avatarUrl: string | null;
   }[];
 };
+
+type LibraryFlags = {
+  deck: Map<number, string | null>;
+  owned: Set<number>;
+};
+
+function applyFlags<T extends { games: TrendingGame[] }>(
+  shelf: T,
+  flags: LibraryFlags,
+): T {
+  return {
+    ...shelf,
+    games: shelf.games.map((g) => ({
+      ...g,
+      deckStatus: flags.deck.get(g.appId) ?? g.deckStatus ?? null,
+      owned: flags.owned.has(g.appId),
+    })),
+  };
+}
 
 @Injectable()
 export class TrendingService {
@@ -53,7 +73,60 @@ export class TrendingService {
       this.getDeckShelf(),
       this.getTopReleasesShelf(),
     ]);
-    return { friends, global, concurrent, deck, topReleases };
+    const flags = await this.libraryFlags(userId, [
+      ...friends.games,
+      ...global.games,
+      ...concurrent.games,
+      ...deck.games,
+      ...topReleases.games,
+    ]);
+    return {
+      friends: applyFlags(friends, flags),
+      global: applyFlags(global, flags),
+      concurrent: applyFlags(concurrent, flags),
+      deck: applyFlags(deck, flags),
+      topReleases: applyFlags(topReleases, flags),
+    };
+  }
+
+  async withLibraryFlags<T extends { games: TrendingGame[] }>(
+    userId: string,
+    shelf: T,
+  ): Promise<T> {
+    const flags = await this.libraryFlags(userId, shelf.games);
+    return applyFlags(shelf, flags);
+  }
+
+  private async libraryFlags(
+    userId: string,
+    games: TrendingGame[],
+  ): Promise<LibraryFlags> {
+    const appIds = [...new Set(games.map((g) => g.appId))].slice(
+      0,
+      TRENDING_FLAG_LOOKUP_CAP,
+    );
+    if (!appIds.length) return { deck: new Map(), owned: new Set() };
+    const [catalog, owned] = await Promise.all([
+      this.prisma.game.findMany({
+        where: { appId: { in: appIds } },
+        select: { appId: true, deckStatus: true },
+        take: TRENDING_FLAG_LOOKUP_CAP,
+      }),
+      this.prisma.libraryEntry.findMany({
+        where: { userId, game: { appId: { in: appIds } } },
+        select: { game: { select: { appId: true } } },
+        take: TRENDING_FLAG_LOOKUP_CAP,
+      }),
+    ]);
+    const deck = new Map<number, string | null>();
+    for (const g of catalog) {
+      if (g.appId != null) deck.set(g.appId, g.deckStatus);
+    }
+    const ownedSet = new Set<number>();
+    for (const e of owned) {
+      if (e.game.appId != null) ownedSet.add(e.game.appId);
+    }
+    return { deck, owned: ownedSet };
   }
 
   async getFriendsShelf(

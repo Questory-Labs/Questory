@@ -3,10 +3,12 @@ import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
 import { loadEnvFiles } from "./load-env";
 import { AppModule } from "./app.module";
+import { RequestIdExceptionFilter, requestIdMiddleware } from "./lib/request-id";
 import {
   assertModeConfig,
   isAllowlistEnabled,
   resolveAppMode,
+  resolveAllowedOrigins,
   resolveDbProvider,
   resolveSyncMode,
 } from "./lib/runtime-config";
@@ -25,9 +27,11 @@ async function bootstrap() {
       http.set("trust proxy", 1);
     }
   }
+  app.use(requestIdMiddleware);
+  app.useGlobalFilters(new RequestIdExceptionFilter());
   app.use(cookieParser(process.env.SESSION_SECRET || "dev-secret"));
   app.enableCors({
-    origin: process.env.WEB_ORIGIN || "http://localhost:3000",
+    origin: resolveAllowedOrigins(),
     credentials: true,
   });
   app.enableVersioning({

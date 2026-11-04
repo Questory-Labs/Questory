@@ -19,9 +19,10 @@ export const YEAR_MIN = 2000;
 export const YEAR_MAX = new Date().getFullYear();
 
 export const SORT_OPTIONS: { value: MultiplayerPlanSort; label: string }[] = [
-  { value: "popularity", label: "Popularity" },
+  { value: "popularity", label: "Best match" },
+  { value: "playedTogether", label: "Most played together" },
+  { value: "release", label: "Newest" },
   { value: "trending", label: "Trending" },
-  { value: "release", label: "Release date" },
   { value: "review", label: "Reviews" },
   { value: "name", label: "Name" },
 ];
@@ -32,3 +33,13 @@ export type MultiplayerMode =
   | "pvp"
   | "crossplay"
   | "";
+
+export const MODE_OPTIONS: { value: MultiplayerMode; label: string }[] = [
+  { value: "", label: "Any" },
+  { value: "online_coop", label: "Online co-op" },
+  { value: "local_coop", label: "Local co-op" },
+  { value: "pvp", label: "PvP" },
+  { value: "crossplay", label: "Crossplay" },
+];
+
+export const PARTY_PICKER_LIMIT = 12;

@@ -1,100 +1,78 @@
 "use client";
 
-import { HourDowSources } from "@/components/media/HourDowSources";
-import { MediaHomeSlots } from "@/components/media/MediaHomeSlots";
-import { StatCard } from "@/components/StatCard";
-import {
-  PageHeader,
-  ResourceStatus,
-  SkeletonStatGrid,
-  SkeletonTileGrid,
-  StateMessage,
-} from "@/components/ui";
-import { formatDeltaPct, formatShare } from "@/lib/read";
+import { CountUp } from "@questorylabs/ui";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import { PageHeader, ResourceStatus, SkeletonStatGrid, StateMessage } from "@/components/ui";
 import { featureErrorMessage } from "@/lib/app-status";
+import { formatRelativePlayed } from "@/lib/dates";
+import { CurrentlyReading } from "./components/CurrentlyReading";
+import { ReadCharts } from "./components/ReadCharts";
+import { ReadKpis } from "./components/ReadKpis";
 import type { ReadHomeViewProps } from "./read.home.types";
+import { dayPartPhrase, latestReadSync, rangeLong, READ_HOME_RANGES } from "./read.home.utils";
 
 export const ReadHomeView = (props: Record<string, unknown>) => {
-  const { insights, hour, dow, formats, sources } = props as ReadHomeViewProps;
+  const view = props as ReadHomeViewProps;
+  const { insights, range, setRange } = view;
   const d = insights.value;
-  const peakCaption = [
-    d?.peakHour ? `Peak ${d.peakHour.label}` : null,
-    d?.topGenre ? d.topGenre.name : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const phrase = dayPartPhrase(d?.peakHour?.hour);
+  const sync = latestReadSync(view.overview?.value);
 
   return (
-    <MediaHomeSlots
-      header={
-        <PageHeader
-          size="sm"
-          title="Read"
-          description="Manga, manhwa, and print analytics from AniList. Connect under Read → Sources."
-        />
-      }
-      kpis={
-        <ResourceStatus
-          failed={insights.failed}
-          empty={insights.empty}
-          loading={
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-3.5">
+      <PageHeader
+        className="mb-0 px-1 pb-2.5 pt-2"
+        eyebrow={
+          sync
+            ? `Read · synced from ${sync.provider} ${formatRelativePlayed(sync.at)}`
+            : `Read · ${rangeLong(range)}`
+        }
+        title={
+          d ? (
             <>
-              <SkeletonStatGrid count={4} />
-              <SkeletonTileGrid count={4} className="mt-6" />
+              <CountUp value={d.chaptersLogged} /> {d.chaptersLogged === 1 ? "chapter" : "chapters"}
+              {phrase ? (
+                <>
+                  , <span className="font-serif text-[#c9d1f6]">{phrase}</span>
+                </>
+              ) : null}
             </>
-          }
-          error={
-            <StateMessage variant="error">
-              {featureErrorMessage(
-                insights.error,
-                "Could not load read analytics.",
-              )}
-            </StateMessage>
-          }
-        >
-          {d ? (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatCard
-                label="Events"
-                value={d.periodEvents}
-                hint={
-                  d.compare.deltaPct != null
-                    ? `${formatDeltaPct(d.compare.deltaPct)} vs prior`
-                    : undefined
-                }
-              />
-              <StatCard label="Chapters logged" value={d.chaptersLogged} />
-              <StatCard label="New titles" value={d.newTitles} />
-              <StatCard label="Unique titles" value={d.uniqueTitles} />
-            </div>
-          ) : null}
-        </ResourceStatus>
-      }
-      charts={
-        <>
-          {peakCaption ? (
-            <p className="mt-6 text-xs text-[var(--muted)]">{peakCaption}</p>
-          ) : null}
-          <HourDowSources
-            hour={hour}
-            dow={dow}
-            extra={formats}
-            sources={sources}
-            extraTitle="Formats"
-            hourError="Could not load hour-of-day events."
-            dowError="Could not load day-of-week events."
-            extraError="Could not load formats."
-            sourcesError="Could not load read sources."
-            hourData={hour.value || []}
-            dowData={dow.value || []}
-            extraData={formats.value?.items || []}
-            sourceItems={sources.value?.items || []}
-            valueLabel="events"
-            periodTotal={sources.value?.periodEvents ?? 0}
-            formatShare={formatShare}
+          ) : (
+            "Read"
+          )
+        }
+        actions={
+          <SegmentedControl
+            label="Range"
+            value={range}
+            onChange={setRange}
+            options={READ_HOME_RANGES}
           />
-        </>
-      }
-    />
+        }
+      />
+
+      {view.reading ? <CurrentlyReading reading={view.reading} /> : null}
+
+      <ResourceStatus
+        failed={insights.failed}
+        empty={insights.empty}
+        loading={<SkeletonStatGrid count={4} />}
+        error={
+          <StateMessage variant="error">
+            {featureErrorMessage(insights.error, "Could not load read analytics.")}
+          </StateMessage>
+        }
+      >
+        {d ? <ReadKpis d={d} rangeLabel={rangeLong(range)} /> : null}
+      </ResourceStatus>
+
+      <ReadCharts
+        insights={insights}
+        hour={view.hour}
+        dow={view.dow}
+        formats={view.formats}
+        sources={view.sources}
+      />
+    </div>
   );
 };

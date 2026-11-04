@@ -3,11 +3,11 @@
 import { EmptyState } from "@questorylabs/ui";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type { MediaTrendingShelf } from "@questorylabs/shared";
-import { CoverStrip, CoverStripItem } from "./CoverStrip";
+import { GameShelf } from "./GameShelf";
 import { PortraitTile } from "./PortraitTile";
 
 const shelfError = (title: string) => (
-  <EmptyState title={<span className="text-[var(--danger)]">{title}</span>} />
+  <EmptyState title={<span className="text-danger">{title}</span>} />
 );
 
 const MediaShelf = ({
@@ -16,46 +16,45 @@ const MediaShelf = ({
   resource,
   failTitle,
   emptyTitle,
+  aspectClassName,
 }: {
   title: string;
   description: string;
   resource: UseResourceResult<MediaTrendingShelf>;
   failTitle: string;
   emptyTitle: string;
-}) => {
-  return (
-    <CoverStrip
-      title={title}
-      description={description}
-      failed={resource.failed}
-      empty={resource.empty}
-      error={shelfError(failTitle)}
-      emptyContent={
-        resource.value && !resource.value.items?.length ? (
-          <EmptyState title={emptyTitle} />
-        ) : undefined
-      }
-      meta={
-        resource.value
-          ? `${resource.value.meta.windowLabel}${
-              resource.value.meta.cached ? " · cached" : ""
-            }`
-          : undefined
-      }
-    >
-      {(resource.value?.items ?? []).map((item) => (
-        <CoverStripItem key={item.id}>
-          <PortraitTile
-            name={item.name}
-            imageUrl={item.imageUrl}
-            meta={item.subtitle ?? (item.rank != null ? `#${item.rank}` : undefined)}
-            href={item.href}
-          />
-        </CoverStripItem>
-      ))}
-    </CoverStrip>
-  );
-};
+  aspectClassName: string;
+}) => (
+  <GameShelf
+    title={title}
+    description={description}
+    aspectClassName={aspectClassName}
+    failed={resource.failed}
+    empty={resource.empty}
+    error={shelfError(failTitle)}
+    emptyContent={
+      resource.value && !resource.value.items?.length ? <EmptyState title={emptyTitle} /> : undefined
+    }
+    meta={
+      resource.value
+        ? `${resource.value.meta.windowLabel}${resource.value.meta.cached ? " · cached" : ""}`
+        : undefined
+    }
+  >
+    {(resource.value?.items ?? []).map((item, i) => (
+      <PortraitTile
+        key={item.id}
+        name={item.name}
+        imageUrl={item.imageUrl}
+        meta={item.subtitle ?? undefined}
+        href={item.href}
+        rank={item.rank ?? i + 1}
+        index={i}
+        aspectClassName={aspectClassName}
+      />
+    ))}
+  </GameShelf>
+);
 
 export const MediaWorldShelves = ({
   showMusic,
@@ -80,6 +79,7 @@ export const MediaWorldShelves = ({
         resource={music}
         failTitle="Could not load ListenBrainz sitewide charts."
         emptyTitle="ListenBrainz sitewide chart unavailable right now."
+        aspectClassName="aspect-square"
       />
     ) : null}
     {showWatch && watch ? (
@@ -89,6 +89,7 @@ export const MediaWorldShelves = ({
         resource={watch}
         failTitle="Could not load TMDB trending."
         emptyTitle="TMDB trending unavailable right now."
+        aspectClassName="aspect-[2/3]"
       />
     ) : null}
     {showRead && read ? (
@@ -98,6 +99,7 @@ export const MediaWorldShelves = ({
         resource={read}
         failTitle="Could not load AniList trending."
         emptyTitle="AniList trending unavailable right now."
+        aspectClassName="aspect-[2/3]"
       />
     ) : null}
   </>

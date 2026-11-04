@@ -56,7 +56,7 @@ describe("LastFmController callback", () => {
       .expect(302);
     expect(complete).toHaveBeenCalledWith("lfm-token", "u1");
     expect(res.headers.location).toBe(
-      "http://localhost:3000/music/settings?lastfm=connected",
+      "http://localhost:3000/sources?tab=music&lastfm=connected",
     );
   });
 

@@ -1,10 +1,13 @@
-import { AdminCronController } from "@/modules/admin/cron/admin.cron.controller";
-import { AdminCronView } from "@/modules/admin/cron/admin.cron.view";
+import { redirect } from "next/navigation";
+import {
+  adminTabHref,
+  type AdminSearchParams,
+} from "@/modules/admin/shared/admin.redirect";
 
-const AdminCronPage = () => (
-  <AdminCronController>
-    <AdminCronView />
-  </AdminCronController>
-);
-
-export default AdminCronPage;
+export default async function AdminCronRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<AdminSearchParams>;
+}) {
+  redirect(adminTabHref("/admin/jobs", "cron", await searchParams));
+}

@@ -2,11 +2,12 @@ import { Module } from "@nestjs/common";
 import { ReadAuthModule } from "../auth/auth.module";
 import { ReadAnalyticsController } from "./analytics.controller";
 import { ReadAnalyticsService } from "./analytics.service";
-import { RewindController } from "./rewind.controller";
+import { ReadRewindController } from "./rewind.controller";
+import { RewindModule } from "../../rewind/rewind.module";
 
 @Module({
-  imports: [ReadAuthModule],
-  controllers: [ReadAnalyticsController, RewindController],
+  imports: [ReadAuthModule, RewindModule],
+  controllers: [ReadAnalyticsController, ReadRewindController],
   providers: [ReadAnalyticsService],
   exports: [ReadAnalyticsService],
 })

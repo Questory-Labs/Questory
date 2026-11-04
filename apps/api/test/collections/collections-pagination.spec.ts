@@ -27,6 +27,7 @@ describe("CollectionsService.getOne pagination", () => {
       type: "auto",
       ruleKey: "never_played",
       description: "Games still waiting",
+      color: "#e6c27a",
     });
     count.mockResolvedValue(42);
     findMany.mockResolvedValue([
@@ -47,6 +48,7 @@ describe("CollectionsService.getOne pagination", () => {
       page: 2,
       pageSize: 15,
       name: "Never Played",
+      color: "#e6c27a",
     });
     expect(result.games).toHaveLength(1);
     expect(result.games[0]).toMatchObject({ appId: 570, name: "Dota 2" });

@@ -21,14 +21,14 @@ export const LibraryFilters = ({
   onMultiplayerChange: (value: boolean) => void;
   onDeckChange: (value: boolean) => void;
 }) => (
-  <Panel variant="outline" className="mb-6 flex flex-wrap items-end gap-4 p-3">
-    <label className="min-w-[10rem] text-sm">
+  <Panel variant="outline" className="flex flex-wrap items-center gap-x-5 gap-y-3 p-3">
+    <label className="flex items-center gap-2.5 text-sm">
       <span className="text-[var(--muted)]">Genre</span>
       <input
         value={genre}
         onChange={(e) => onGenreChange(e.target.value)}
         placeholder="Any"
-        className="field"
+        className="field !mt-0 !w-[220px] max-w-full"
       />
     </label>
     <label className="field-check">

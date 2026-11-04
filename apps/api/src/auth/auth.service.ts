@@ -210,6 +210,34 @@ export class AuthService {
     return { ...user, steamId };
   }
 
+  async passwordEmail(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, passwordHash: true },
+    });
+    return user?.email && user.passwordHash ? user.email : null;
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!user?.passwordHash) return false;
+    const ok = await verifyPassword(user.passwordHash, currentPassword);
+    if (!ok) return false;
+    const passwordHash = await hashPassword(newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return true;
+  }
+
   async getUser(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
@@ -228,6 +256,7 @@ export class AuthService {
     countryCode?: string | null;
     priceRegionLocked?: boolean;
     steamId?: string | null;
+    createdAt?: Date | null;
   }) {
     return {
       id: user.id,
@@ -240,6 +269,7 @@ export class AuthService {
       profileUrl: user.profileUrl ?? null,
       countryCode: user.countryCode ?? null,
       priceRegionLocked: user.priceRegionLocked ?? false,
+      createdAt: user.createdAt?.toISOString(),
     };
   }
 }

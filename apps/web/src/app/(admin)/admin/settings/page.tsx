@@ -1,10 +1,13 @@
-import { AdminSettingsController } from "@/modules/admin/settings/admin.settings.controller";
-import { AdminSettingsView } from "@/modules/admin/settings/admin.settings.view";
+import { redirect } from "next/navigation";
+import {
+  adminTabHref,
+  type AdminSearchParams,
+} from "@/modules/admin/shared/admin.redirect";
 
-const AdminSettingsPage = () => (
-  <AdminSettingsController>
-    <AdminSettingsView />
-  </AdminSettingsController>
-);
-
-export default AdminSettingsPage;
+export default async function AdminSettingsRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<AdminSearchParams>;
+}) {
+  redirect(adminTabHref("/admin/system", "settings", await searchParams));
+}

@@ -66,7 +66,7 @@ describe("QmonitorAuthorizePage", () => {
     vi.mocked(apiOnce).mockResolvedValue({ user: null });
     wrap(<QmonitorAuthorizePage />);
 
-    expect(await screen.findByText("qMonitor")).toBeInTheDocument();
+    expect((await screen.findAllByText("qMonitor")).length).toBeGreaterThan(0);
     expect(document.querySelector("img")).toHaveAttribute(
       "src",
       "/qmonitor-mark.svg",
@@ -76,6 +76,10 @@ describe("QmonitorAuthorizePage", () => {
     expect(login).toHaveClass("btn", "btn-primary");
     expect(login).toHaveTextContent("Log in");
     expect(screen.getByRole("button", { name: "Decline" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Send play sessions for games on this PC"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Waiting for approval")).toBeInTheDocument();
   });
 
   it("shows Authorize once the session is ready", async () => {
@@ -89,5 +93,7 @@ describe("QmonitorAuthorizePage", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Authorize" })).not.toBeDisabled();
     });
+    expect(screen.getByText("a@b.co")).toBeInTheDocument();
+    expect(screen.getByText("Having trouble?")).toBeInTheDocument();
   });
 });

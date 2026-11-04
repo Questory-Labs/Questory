@@ -41,18 +41,22 @@ describe("SessionRow", () => {
   it("opens a confirmation dialog before delete", () => {
     wrap(<SessionRow item={item} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete session" }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText(/Permanently delete this play session/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Delete session?" })).toBeInTheDocument();
   });
 
-  it("puts duration on the row and keeps assign as a ghost control", () => {
-    wrap(<SessionRow item={item} dayMaxSecs={3600} />);
+  it("puts duration on the row and offers edit for matched sessions", () => {
+    wrap(<SessionRow item={item} />);
     expect(screen.getByText("1h")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assign" })).toHaveClass("btn-ghost");
-    expect(screen.queryByText("Unmatched")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.queryByText(/unmatched/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dota 2" })).toHaveAttribute(
+      "href",
+      "/library/g1",
+    );
   });
 
   it("marks sessions that are not linked to a library game", () => {
@@ -62,7 +66,8 @@ describe("SessionRow", () => {
       />,
     );
     expect(screen.getByText("unknown.exe")).toBeInTheDocument();
-    expect(screen.getByText("Unmatched")).toBeInTheDocument();
+    expect(screen.getByText("(unmatched)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assign game" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "unknown.exe" })).not.toBeInTheDocument();
   });
 });

@@ -1,10 +1,20 @@
 "use client";
 
 import type { ScraperIterationRecord } from "@questorylabs/shared";
+import { TONE_TEXT, type AdminTone } from "../../shared/admin.tone";
+import { AdminStatusDot } from "../../shared/components/AdminStatusPill";
 
 const formatWhen = (iso: string | null) => {
   if (!iso) return "—";
   return new Date(iso).toLocaleString();
+};
+
+const formatDay = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 };
 
 const statusLabel = (status: ScraperIterationRecord["status"]) => {
@@ -22,64 +32,74 @@ const statusLabel = (status: ScraperIterationRecord["status"]) => {
   }
 };
 
-type IterationCardProps = {
-  iteration: ScraperIterationRecord;
-  highlight?: boolean;
-  onSelect?: () => void;
+type Stage = "open" | "live" | "retired";
+
+const STAGE: Record<Stage, { tone: AdminTone; live: boolean }> = {
+  open: { tone: "warn", live: false },
+  live: { tone: "ok", live: true },
+  retired: { tone: "muted", live: false },
 };
 
-const IterationCard = ({
-  iteration,
-  highlight,
-  onSelect,
-}: IterationCardProps) => {
-  const content = (
-    <>
-      <span className="font-medium">
-        v{iteration.version}
-        {iteration.label ? ` · ${iteration.label}` : ""}
-      </span>
-      <span className="mt-0.5 block font-mono text-[10px] text-[var(--faint)]">
-        {statusLabel(iteration.status)}
-        {iteration.publishedAt
-          ? ` · published ${formatWhen(iteration.publishedAt)}`
-          : iteration.validatedAt
-            ? ` · validated ${formatWhen(iteration.validatedAt)}`
-            : ` · updated ${formatWhen(iteration.updatedAt)}`}
-      </span>
-    </>
-  );
+const rowMeta = (iteration: ScraperIterationRecord, stage: Stage) => {
+  if (stage === "open") return statusLabel(iteration.status).toLowerCase();
+  const day = formatDay(iteration.publishedAt ?? iteration.updatedAt);
+  if (stage === "live") return day ? `published ${day}` : "published";
+  return day ?? "retired";
+};
 
-  if (!onSelect) {
-    return (
-      <div
-        className={`rounded border px-3 py-2 text-sm ${
-          highlight
-            ? "border-[var(--accent)] bg-[var(--accent-dim)]"
-            : "border-[var(--line)] bg-[var(--bg-2)]"
+const badge = (iteration: ScraperIterationRecord, stage: Stage) => {
+  if (stage === "live") return "Live";
+  if (stage === "retired") return "Retired";
+  return statusLabel(iteration.status);
+};
+
+type TimelineRowProps = {
+  iteration: ScraperIterationRecord;
+  stage: Stage;
+  selected: boolean;
+  index: number;
+  onSelect: () => void;
+};
+
+const TimelineRow = ({
+  iteration,
+  stage,
+  selected,
+  index,
+  onSelect,
+}: TimelineRowProps) => {
+  const { tone, live } = STAGE[stage];
+  return (
+    <li className="q-in relative" style={{ "--i": index } as React.CSSProperties}>
+      <button
+        type="button"
+        aria-pressed={selected}
+        title={`Updated ${formatWhen(iteration.updatedAt)}`}
+        onClick={onSelect}
+        className={`q-row flex min-h-10 w-full items-center gap-3.5 rounded-2xl px-2 text-left ${
+          selected ? "bg-white/[0.06]" : ""
         }`}
       >
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={`w-full rounded border px-3 py-2 text-left text-sm ${
-        highlight
-          ? "border-[var(--accent)] bg-[var(--accent-dim)]"
-          : "border-[var(--line)] bg-[var(--bg-2)] hover:bg-[var(--bg-1)]"
-      }`}
-      onClick={onSelect}
-    >
-      {content}
-    </button>
+        <AdminStatusDot tone={tone} live={live} />
+        <span
+          className={`flex-1 ${
+            stage === "retired" ? "text-[var(--muted)]" : "text-[var(--ink)]"
+          }`}
+        >
+          v{iteration.version}
+          {iteration.label ? ` · ${iteration.label}` : ""} ·{" "}
+          {rowMeta(iteration, stage)}
+        </span>
+        <span className={`text-[13px] ${TONE_TEXT[tone]}`}>
+          {badge(iteration, stage)}
+        </span>
+      </button>
+    </li>
   );
 };
 
 type Props = {
+  open?: ScraperIterationRecord | null;
   current: ScraperIterationRecord | null;
   previous: ScraperIterationRecord[];
   selectedId: string | null;
@@ -87,51 +107,43 @@ type Props = {
 };
 
 export const ScraperIterationList = ({
+  open = null,
   current,
   previous,
   selectedId,
   onSelect,
 }: Props) => {
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
-          Current iteration
-        </p>
-        <div className="mt-2">
-          {current ? (
-            <IterationCard
-              iteration={current}
-              highlight={current.id === selectedId}
-              onSelect={() => onSelect(current.id)}
-            />
-          ) : (
-            <p className="text-sm text-[var(--muted)]">No published iteration yet.</p>
-          )}
-        </div>
-      </div>
+  const rows: { iteration: ScraperIterationRecord; stage: Stage }[] = [
+    ...(open && open.id !== current?.id
+      ? [{ iteration: open, stage: "open" as const }]
+      : []),
+    ...(current ? [{ iteration: current, stage: "live" as const }] : []),
+    ...previous.map((iteration) => ({ iteration, stage: "retired" as const })),
+  ];
 
-      <div>
-        <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--faint)]">
-          Previous iterations
-        </p>
-        <div className="mt-2 space-y-2">
-          {previous.length ? (
-            previous.map((iteration) => (
-              <IterationCard
-                key={iteration.id}
-                iteration={iteration}
-                highlight={iteration.id === selectedId}
-                onSelect={() => onSelect(iteration.id)}
-              />
-            ))
-          ) : (
-            <p className="text-sm text-[var(--muted)]">No archived versions yet.</p>
-          )}
-        </div>
-      </div>
-    </div>
+  if (!rows.length) {
+    return (
+      <p className="text-sm text-[var(--muted)]">No published iteration yet.</p>
+    );
+  }
+
+  return (
+    <ol
+      aria-label="Iterations"
+      className="relative list-none before:absolute before:bottom-3.5 before:left-[11px] before:top-3.5 before:w-px before:bg-white/10 before:content-['']"
+    >
+      {rows.map(({ iteration, stage }, index) => (
+        <TimelineRow
+          key={iteration.id}
+          iteration={iteration}
+          stage={stage}
+          index={index}
+          selected={iteration.id === selectedId}
+          onSelect={() => onSelect(iteration.id)}
+        />
+      ))}
+    </ol>
   );
 };
 
-export { IterationCard, formatWhen, statusLabel };
+export { formatWhen, statusLabel };

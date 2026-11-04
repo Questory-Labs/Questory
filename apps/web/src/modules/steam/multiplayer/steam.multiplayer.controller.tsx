@@ -6,8 +6,10 @@ import { GAME_GRID_PAGE_SIZE } from "@/lib/pagination";
 import { useResource } from "@questorylabs/qhttp/react";
 import type { MultiplayerPlanResponse } from "@questorylabs/shared";
 import { cloneElements } from "@questorylabs/ui";
+import { useSearchParams } from "next/navigation";
 import { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { useMultiplayerPlanFilters } from "./steam.multiplayer.hooks";
+import { parseFriendsParam } from "./steam.multiplayer.utils";
 
 export const MultiplayerController = ({ children }: PropsWithChildren) => {
   const friends = useResource({
@@ -15,7 +17,11 @@ export const MultiplayerController = ({ children }: PropsWithChildren) => {
     load: fetchAllFriends,
   });
   const friendList = friends.value?.friends || [];
-  const filters = useMultiplayerPlanFilters(friendList);
+  const searchParams = useSearchParams();
+  const [initialSelected] = useState(() =>
+    parseFriendsParam(searchParams.get("friends")),
+  );
+  const filters = useMultiplayerPlanFilters(friendList, initialSelected);
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
 

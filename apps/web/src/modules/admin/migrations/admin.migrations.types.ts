@@ -10,6 +10,7 @@ export type MigrationItem = {
   runCount: number;
   lastStartedAt: string | null;
   lastCompletedAt: string | null;
+  lastFailedAt: string | null;
   lastError: string | null;
   lastResult: string | null;
   canRun: boolean;

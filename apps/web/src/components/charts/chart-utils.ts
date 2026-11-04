@@ -28,6 +28,19 @@ export function niceTicks(max: number, count = 4): number[] {
   return ticks;
 }
 
+export function fractionalTicks(max: number, count = 4): number[] {
+  if (max <= 0) return [0, 1];
+  const rough = max / (count - 1);
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step =
+    [1, 2, 5, 10].map((m) => m * magnitude).find((s) => s >= rough) ??
+    10 * magnitude;
+  const steps = Math.ceil(max / step - 1e-9);
+  return Array.from({ length: steps + 1 }, (_, i) =>
+    Number((i * step).toPrecision(12)),
+  );
+}
+
 export function shortDate(label: string): string {
   const d = new Date(label.includes("T") ? label : `${label}T12:00:00`);
   if (Number.isNaN(d.getTime())) return label;

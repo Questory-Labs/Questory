@@ -1,366 +1,237 @@
 "use client";
 
-import { useAction, useStore } from "@questorylabs/qhttp/react";
 import { useState } from "react";
-import { Button, Dialog, Panel } from "@/components/ui";
-import { api } from "@/lib/api";
+import { Button } from "@/components/ui";
+import { ADMIN_MONO_DIM, ADMIN_ROW, ADMIN_TD } from "../../shared/admin.styles";
+import { AdminMenu } from "../../shared/components/AdminMenu";
+import { SYNC_ACTIONS } from "../admin.users.copy";
+import type { AdminUser, ConfirmAction } from "../admin.users.types";
+import {
+  MODULE_KEYS,
+  joinedLabel,
+  syncSummary,
+  userInitial,
+} from "../admin.users.utils";
 
-export type AdminUser = {
-  id: string;
-  email: string | null;
-  isAdmin: boolean;
-  personaName: string;
-  steamId: string | null;
-  createdAt: string;
-  lastSyncedAt: string | null;
-};
+export type { AdminUser } from "../admin.users.types";
 
-type SyncTarget = "music" | "movie" | "read" | "catalog" | "price";
+const PILL =
+  "inline-flex min-h-[34px] items-center rounded-full px-3 text-[13px] font-normal transition hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50";
 
-type ConfirmAction =
-  | { kind: "role"; user: AdminUser; promote: boolean }
-  | { kind: "delete"; user: AdminUser }
-  | { kind: "sync"; user: AdminUser; target: SyncTarget }
-  | { kind: "start-fresh"; user: AdminUser };
-
-const SYNC_ACTIONS: Array<{ target: SyncTarget; label: string }> = [
-  { target: "music", label: "Sync music" },
-  { target: "movie", label: "Sync movie" },
-  { target: "read", label: "Sync read" },
-  { target: "catalog", label: "Sync catalog" },
-  { target: "price", label: "Sync price" },
-];
-
-const userLabel = (user: AdminUser) => user.email || user.personaName;
-
-const syncDialogCopy = (target: SyncTarget, user: AdminUser) => {
-  const name = userLabel(user);
-  switch (target) {
-    case "music":
-      return {
-        title: "Sync music?",
-        body: `Queue metadata enrichment for tracks listened by ${name}. This does not pull new scrobbles from external services.`,
-      };
-    case "movie":
-      return {
-        title: "Sync movie?",
-        body: `Re-sync connected watch providers (Trakt, Letterboxd, anime lists) for ${name}. Skips providers that are not connected.`,
-      };
-    case "read":
-      return {
-        title: "Sync read?",
-        body: `Re-sync connected manga/list providers for ${name}. Skips providers that are not connected.`,
-      };
-    case "catalog":
-      return {
-        title: "Sync catalog?",
-        body: `Enqueue a full Steam library, wishlist, friends, and metadata refresh for ${name}. Requires a linked Steam account.`,
-      };
-    case "price":
-      return {
-        title: "Sync price?",
-        body: `Refresh regional prices for ${name}'s library and wishlist.`,
-      };
-  }
-};
+const INPUT =
+  "mt-1 w-full rounded-full border border-white/[0.08] bg-black/25 px-4 py-2 text-sm text-[var(--ink)] outline-none focus:border-white/20";
 
 type AdminUserCardProps = {
   user: AdminUser;
   startFreshEnabled: boolean;
-  onMessage: (message: string) => void;
+  pending: boolean;
+  editing: boolean;
+  savePending?: boolean;
+  onConfirm: (action: ConfirmAction) => void;
+  onEdit: (editing: boolean) => void;
+  onSave: (body: { email?: string; password?: string }) => void;
 };
 
 export const AdminUserCard = ({
   user,
   startFreshEnabled,
-  onMessage,
+  pending,
+  editing,
+  savePending = false,
+  onConfirm,
+  onEdit,
+  onSave,
 }: AdminUserCardProps) => {
-  const store = useStore();
-  const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState(user.email || "");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
-
-  const patch = useAction({
-    run: (body: {
-      email?: string;
-      password?: string;
-      isAdmin?: boolean;
-    }) =>
-      api(`/admin/users/${user.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      }),
-    onSuccess: () => {
-      onMessage("Updated");
-      setPassword("");
-      setEditing(false);
-      store.touch(["admin-users"]);
-    },
-    onError: (e: Error) => onMessage(e.message),
-  });
-
-  const del = useAction({
-    run: () => api(`/admin/users/${user.id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      onMessage("Deleted");
-      store.touch(["admin-users"]);
-    },
-    onError: (e: Error) => onMessage(e.message),
-  });
-
-  const resetData = useAction({
-    run: () =>
-      api(`/admin/users/${user.id}/reset-data`, { method: "POST" }),
-    onSuccess: () => {
-      onMessage("Started fresh — user kept, all other data wiped");
-      store.touch(["admin-users"]);
-    },
-    onError: (e: Error) => onMessage(e.message),
-  });
-
-  const syncTarget = useAction({
-    run: (target: SyncTarget) =>
-      api("/admin/ops/user-sync-target", {
-        method: "POST",
-        body: JSON.stringify({ userId: user.id, target }),
-      }),
-    onSuccess: (_data, target) => {
-      onMessage(`Sync ${target} started`);
-    },
-    onError: (e: Error) => onMessage(e.message),
-  });
+  const sync = syncSummary(user);
+  const modules = user.modules;
+  const enabledModules = MODULE_KEYS.filter((m) => modules?.[m.key]);
 
   const startEdit = () => {
     setEmail(user.email || "");
     setPassword("");
-    setEditing(true);
+    onEdit(true);
   };
 
   const cancelEdit = () => {
     setEmail(user.email || "");
     setPassword("");
-    setEditing(false);
+    onEdit(false);
   };
 
-  const saveEdit = () => {
-    patch.submit({
-      email: email || undefined,
-      password: password || undefined,
-    });
-  };
-
-  const handleConfirm = () => {
-    if (!confirm) return;
-
-    if (confirm.kind === "role") {
-      patch.submit({ isAdmin: confirm.promote });
-    } else if (confirm.kind === "delete") {
-      del.submit();
-    } else if (confirm.kind === "sync") {
-      syncTarget.submit(confirm.target);
-    } else if (confirm.kind === "start-fresh") {
-      resetData.submit();
-    }
-
-    setConfirm(null);
-  };
-
-  const pending =
-    patch.busy ||
-    del.busy ||
-    resetData.busy ||
-    syncTarget.busy;
-
-  const dialog = (() => {
-    if (!confirm) return null;
-
-    if (confirm.kind === "role") {
-      const promote = confirm.promote;
-      return {
-        title: promote ? "Promote to admin?" : "Demote admin?",
-        body: promote
-          ? `Grant admin access to ${userLabel(confirm.user)}? They will be able to use the admin console.`
-          : `Remove admin access from ${userLabel(confirm.user)}?`,
-        confirmLabel: promote ? "Promote" : "Demote",
-        destructive: !promote,
-      };
-    }
-
-    if (confirm.kind === "delete") {
-      return {
-        title: "Delete user?",
-        body: `Permanently delete ${userLabel(confirm.user)} and all associated data. This cannot be undone.`,
-        confirmLabel: "Delete",
-        destructive: true,
-      };
-    }
-
-    if (confirm.kind === "start-fresh") {
-      return {
-        title: "Start fresh?",
-        body: `Wipe library, wishlist, friends, family, collections, music, watch, API keys, and sync history for ${userLabel(confirm.user)} while keeping the account and Steam link.`,
-        confirmLabel: "Start fresh",
-        destructive: true,
-      };
-    }
-
-    const copy = syncDialogCopy(confirm.target, confirm.user);
-    return {
-      title: copy.title,
-      body: copy.body,
-      confirmLabel: "Sync",
-      destructive: false,
-    };
-  })();
+  const moreItems = [
+    {
+      key: "role",
+      label: user.isAdmin ? "Demote admin" : "Promote to admin",
+      onSelect: () => onConfirm({ kind: "role", user, promote: !user.isAdmin }),
+      disabled: pending,
+    },
+    { key: "password", label: "Reset password", onSelect: startEdit },
+    ...(startFreshEnabled
+      ? [
+          {
+            key: "start-fresh",
+            label: "Start fresh (clear synced data)",
+            onSelect: () => onConfirm({ kind: "start-fresh", user }),
+            disabled: pending,
+          },
+        ]
+      : []),
+    {
+      key: "delete",
+      label: "Delete user…",
+      onSelect: () => onConfirm({ kind: "delete", user }),
+      disabled: pending,
+      danger: true,
+      separatorBefore: true,
+    },
+  ];
 
   return (
     <>
-      <Panel className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="font-medium">{user.personaName}</div>
-            <div className="font-mono text-xs text-[var(--muted)]">
-              {user.email || "no email"} · {user.isAdmin ? "admin" : "user"}
-              {user.steamId ? ` · ${user.steamId}` : " · no steam"}
-            </div>
-
-            <div className="mt-2 font-mono text-xs">
-              {SYNC_ACTIONS.map(({ target, label }, index) => (
-                <span key={target}>
-                  {index > 0 ? (
-                    <span className="text-[var(--muted)]"> · </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="text-[var(--accent)] hover:text-[var(--ink)] hover:underline disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                    disabled={
-                      pending || (target === "catalog" && !user.steamId)
-                    }
-                    onClick={() =>
-                      setConfirm({ kind: "sync", user, target })
-                    }
-                  >
-                    {label}
-                  </button>
+      <tr className={ADMIN_ROW}>
+        <td className={ADMIN_TD}>
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="grid h-8 w-8 flex-none place-items-center rounded-full bg-[linear-gradient(140deg,#3a3a3f,#1b1b1e)] text-[11px] font-medium"
+            >
+              {userInitial(user)}
+            </span>
+            <span className="min-w-0">
+              <span className="block font-normal">{user.personaName}</span>
+              <span className={`block truncate ${ADMIN_MONO_DIM} text-[11px] text-[var(--faint)]`}>
+                {user.email || "no email"}
+                {user.steamId ? ` · ${user.steamId}` : " · no steam"}
+              </span>
+            </span>
+          </div>
+        </td>
+        <td className={ADMIN_TD}>
+          <span
+            className={`inline-flex rounded-full border px-2.5 py-[3px] text-xs ${
+              user.isAdmin
+                ? "border-[rgba(230,194,122,0.3)] bg-[rgba(230,194,122,0.1)] text-[#f0d9a6]"
+                : "border-white/10 text-[var(--muted)]"
+            }`}
+          >
+            {user.isAdmin ? "Admin" : "User"}
+          </span>
+        </td>
+        <td className={ADMIN_TD}>
+          {modules ? (
+            <span
+              role="img"
+              aria-label={enabledModules.map((m) => m.label).join(", ") || "None"}
+              className="inline-flex gap-1.5"
+            >
+              {MODULE_KEYS.map((m) => (
+                <span
+                  key={m.key}
+                  className={`grid h-[22px] w-[22px] place-items-center rounded-full border font-mono text-[10px] ${
+                    modules[m.key] ? m.on : "border-white/[0.06] text-[#3a3a3f]"
+                  }`}
+                >
+                  {m.label.charAt(0)}
                 </span>
               ))}
-              {startFreshEnabled ? (
-                <span>
-                  <span className="text-[var(--muted)]"> · </span>
-                  <button
-                    type="button"
-                    className="text-[var(--danger)] hover:text-[var(--ink)] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={pending}
-                    onClick={() =>
-                      setConfirm({ kind: "start-fresh", user })
-                    }
-                  >
-                    Start fresh
-                  </button>
-                </span>
-              ) : null}
-            </div>
+            </span>
+          ) : (
+            <span className={ADMIN_MONO_DIM}>—</span>
+          )}
+        </td>
+        <td className={ADMIN_TD}>
+          <span
+            className={`inline-flex items-center gap-2 font-mono text-xs ${
+              sync.failed ? "text-[#ff9a9a]" : "text-[#bdbdc2]"
+            }`}
+          >
+            <span
+              aria-hidden
+              className={`dot ${
+                sync.failed
+                  ? "q-live text-[var(--danger)] shadow-[0_0_8px_var(--danger)]"
+                  : "text-[var(--ok)] shadow-[0_0_8px_var(--ok)]"
+              }`}
+            />
+            {sync.label}
+          </span>
+        </td>
+        <td className={`${ADMIN_TD} font-mono text-xs text-[var(--muted)]`}>
+          {joinedLabel(user.createdAt)}
+        </td>
+        <td className="whitespace-nowrap px-3.5 py-1.5 text-right">
+          <div className="inline-flex items-center gap-1">
+            <AdminMenu
+              trigger="Sync ▾"
+              triggerLabel={`Sync ${user.personaName}`}
+              title={`Sync · ${user.personaName}`}
+              triggerClassName={`${PILL} border border-white/[0.12] bg-white/[0.04] text-[var(--ink)]`}
+              items={SYNC_ACTIONS.map(({ target, label }) => ({
+                key: target,
+                label,
+                disabled: pending || (target === "catalog" && !user.steamId),
+                onSelect: () => onConfirm({ kind: "sync", user, target }),
+              }))}
+            />
+            <button
+              type="button"
+              className={`${PILL} border border-transparent text-[var(--muted)]`}
+              onClick={editing ? cancelEdit : startEdit}
+            >
+              {editing ? "Close" : "Edit"}
+            </button>
+            <AdminMenu
+              trigger="⋯"
+              triggerLabel={`More actions for ${user.personaName}`}
+              title={`More actions · ${user.personaName}`}
+              triggerClassName={`${PILL} min-w-[34px] justify-center border border-transparent text-base text-[var(--muted)]`}
+              items={moreItems}
+            />
           </div>
-
-          <div className="flex flex-wrap justify-end gap-2">
-            {editing ? (
-              <>
-                <Button
-                  variant="secondary"
-                  className="px-2 py-1 text-xs"
-                  disabled={patch.busy}
-                  onClick={cancelEdit}
-                >
+        </td>
+      </tr>
+      {editing ? (
+        <tr className="border-t border-white/[0.05]">
+          <td colSpan={6} className="px-3.5 pb-4 pt-2">
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <label className="text-sm">
+                <span className="label-mono">Email</span>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={INPUT}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="label-mono">New password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={10}
+                  className={INPUT}
+                />
+              </label>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" disabled={savePending} onClick={cancelEdit}>
                   Cancel
                 </Button>
                 <Button
-                  className="px-2 py-1 text-xs"
-                  disabled={patch.busy}
-                  onClick={saveEdit}
+                  size="sm"
+                  disabled={savePending}
+                  onClick={() =>
+                    onSave({ email: email || undefined, password: password || undefined })
+                  }
                 >
                   Save
                 </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="secondary"
-                  className="px-2 py-1 text-xs"
-                  onClick={startEdit}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant={user.isAdmin ? "ghost-danger" : "secondary"}
-                  className="px-2 py-1 text-xs"
-                  disabled={pending}
-                  onClick={() =>
-                    setConfirm({
-                      kind: "role",
-                      user,
-                      promote: !user.isAdmin,
-                    })
-                  }
-                >
-                  {user.isAdmin ? "Demote" : "Promote"}
-                </Button>
-                <Button
-                  variant="ghost-danger"
-                  className="px-2 py-1 text-xs"
-                  disabled={pending}
-                  onClick={() => setConfirm({ kind: "delete", user })}
-                >
-                  Delete
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {editing ? (
-          <div className="mt-4 grid gap-2 border-t border-[var(--line)] pt-4 sm:grid-cols-2">
-            <label className="text-sm">
-              <span className="text-[var(--muted)]">Email</span>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="text-[var(--muted)]">New password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={10}
-                className="mt-1 w-full border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm"
-              />
-            </label>
-          </div>
-        ) : null}
-      </Panel>
-
-      <Dialog
-        open={dialog != null}
-        onClose={() => setConfirm(null)}
-        title={dialog?.title ?? ""}
-      >
-        <p className="text-sm text-[var(--muted)]">{dialog?.body}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setConfirm(null)}>
-            Cancel
-          </Button>
-          <Button
-            variant={dialog?.destructive ? "danger" : "primary"}
-            onClick={handleConfirm}
-            disabled={pending}
-          >
-            {dialog?.confirmLabel ?? "Confirm"}
-          </Button>
-        </div>
-      </Dialog>
+              </div>
+            </div>
+          </td>
+        </tr>
+      ) : null}
     </>
   );
 };

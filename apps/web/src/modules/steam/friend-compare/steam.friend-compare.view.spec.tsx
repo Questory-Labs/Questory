@@ -77,9 +77,62 @@ describe("FriendCompareView", () => {
 
   it("renders comparison stats when ready", () => {
     renderView({});
-    expect(screen.getByText("Gaben")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "You and Gaben" })).toBeInTheDocument();
     expect(screen.getByText("Portal")).toBeInTheDocument();
     expect(screen.getByText("Half-Life")).toBeInTheDocument();
+    expect(screen.getByText("Taste overlap")).toBeInTheDocument();
+  });
+
+  it("links Plan a session to the multiplayer planner with the friend", () => {
+    renderView({});
+    expect(screen.getByRole("link", { name: "Plan a session" })).toHaveAttribute(
+      "href",
+      "/multiplayer?friends=765",
+    );
+  });
+
+  it("shows per-game hours for both players", () => {
+    renderView({
+      compare: resource<FriendCompare>({
+        empty: false,
+        failed: false,
+        value: {
+          ...compareValue,
+          commonGameList: [
+            {
+              appId: 2,
+              name: "Half-Life",
+              headerImage: null,
+              yourPlaytimeMinutes: 90,
+              friendPlaytimeMinutes: 600,
+            },
+          ],
+        },
+      }),
+    });
+    const row = screen.getByText("Half-Life").closest("tr")!;
+    expect(row).toHaveTextContent("1.5 h");
+    expect(row).toHaveTextContent("10 h");
+  });
+
+  it("warns when the friend library is truncated", () => {
+    renderView({
+      compare: resource<FriendCompare>({
+        empty: false,
+        failed: false,
+        value: {
+          ...compareValue,
+          meta: {
+            friendLibraryCached: true,
+            friendLibraryTruncated: true,
+            gamesPerFriendLimit: 200,
+          },
+        },
+      }),
+    });
+    expect(
+      screen.getByText(/Friend library cache may be truncated/),
+    ).toBeInTheDocument();
   });
 
   it("shows collection empty when lists have no games", () => {

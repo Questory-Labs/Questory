@@ -37,6 +37,8 @@ export class MigrationsService {
           runCount: row?.runCount ?? 0,
           lastStartedAt: row?.lastStartedAt?.toISOString() ?? null,
           lastCompletedAt: row?.lastCompletedAt?.toISOString() ?? null,
+          lastFailedAt:
+            row?.status === "failed" ? row.updatedAt.toISOString() : null,
           lastError: row?.lastError ?? null,
           lastResult: row?.lastResult ?? null,
           canRun: !row || row.status !== "running",

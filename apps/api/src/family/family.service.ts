@@ -15,7 +15,14 @@ import {
   currencyFromCountry,
   normalizePriceCountry,
 } from "../lib/currency";
-import { FAMILY_LIBRARY_PAGE_SIZE } from "./family.constants";
+import {
+  FAMILY_LIBRARY_PAGE_SIZE,
+  FAMILY_WISHLIST_ROWS_LIMIT,
+} from "./family.constants";
+import {
+  buildFamilyWishlistInsights,
+  wishlistVisibleUserIds,
+} from "./family-wishlist-insights";
 
 type MemberGame = {
   appId: number;
@@ -404,6 +411,52 @@ export class FamilyService {
       .map((w) => w.appId)
       .filter((id): id is number => id != null);
 
+    const linkedOthers = memberLibraries.filter(
+      (m) => m.userId != null && m.userId !== userId,
+    );
+    const friendRows = linkedOthers.length
+      ? await this.prisma.friendship.findMany({
+          where: {
+            userId,
+            friendSteamId: { in: linkedOthers.map((m) => m.steamId) },
+          },
+          select: { friendSteamId: true },
+        })
+      : [];
+    const otherLinkedUserIds = wishlistVisibleUserIds(
+      linkedOthers,
+      userId,
+      friendRows.map((f) => f.friendSteamId),
+    );
+    const otherWishlists = otherLinkedUserIds.length
+      ? await this.prisma.wishlistItem.findMany({
+          where: { userId: { in: otherLinkedUserIds }, appId: { not: null } },
+          select: {
+            userId: true,
+            appId: true,
+            name: true,
+            headerImage: true,
+            currentPrice: true,
+          },
+          orderBy: { priority: "asc" },
+          take: FAMILY_WISHLIST_ROWS_LIMIT,
+        })
+      : [];
+    const wishlistInsights = buildFamilyWishlistInsights({
+      viewerUserId: userId,
+      members: memberLibraries,
+      wishlists: [
+        ...wishlist.map((w) => ({
+          userId,
+          appId: w.appId,
+          name: w.name,
+          headerImage: w.headerImage,
+          currentPrice: w.currentPrice,
+        })),
+        ...otherWishlists,
+      ],
+    });
+
     return {
       memberCount: group.members.length,
       totalUniqueGames: allUnique.size,
@@ -444,6 +497,7 @@ export class FamilyService {
         };
       }),
       conflicts: [],
+      ...wishlistInsights,
     };
   }
 

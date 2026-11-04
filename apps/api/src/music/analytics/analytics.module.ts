@@ -6,11 +6,13 @@ import { AnalyticsController } from "./analytics.controller";
 import { AnalyticsService } from "./analytics.service";
 import { HeatmapService } from "./heatmap.service";
 import { SessionUserGuard } from "../auth/session-user.guard";
-import { RewindController } from "./rewind.controller";
+import { MusicRewindController } from "./rewind.controller";
+import { RewindModule } from "../../rewind/rewind.module";
 
 @Module({
-  imports: [UsersModule, PlayingNowModule, CorrectionsModule],
-  controllers: [AnalyticsController, RewindController],
+  imports: [UsersModule, PlayingNowModule, CorrectionsModule, RewindModule],
+  controllers: [AnalyticsController, MusicRewindController],
   providers: [AnalyticsService, HeatmapService, SessionUserGuard],
+  exports: [AnalyticsService],
 })
 export class AnalyticsModule {}

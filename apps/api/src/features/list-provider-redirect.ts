@@ -15,5 +15,5 @@ export async function listProviderConnectedUrl(
 ): Promise<string> {
   const watchOn = await flags.isDomainEnabled("watch");
   const section = watchOn ? "watch" : "read";
-  return `${webOrigin()}/${section}/settings?${provider}=connected`;
+  return `${webOrigin()}/sources?tab=${section}&${provider}=connected`;
 }

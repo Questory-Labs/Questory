@@ -121,8 +121,10 @@ export class ScraperProvidersService {
       const provider = await this.ensureProvider(entry.key);
       const iterations = await this.prisma.scraperIteration.findMany({
         where: { providerId: provider.id },
-        select: { status: true },
+        select: { status: true, version: true, publishedAt: true },
+        orderBy: { version: "desc" },
       });
+      const published = iterations.find((row) => row.status === "published");
       summaries.push({
         key: provider.key,
         label: provider.label,
@@ -132,6 +134,8 @@ export class ScraperProvidersService {
         hasOpenIteration: iterations.some(
           (row) => row.status === "draft" || row.status === "validated",
         ),
+        publishedVersion: published?.version ?? null,
+        publishedAt: published?.publishedAt?.toISOString() ?? null,
       });
     }
 
@@ -163,6 +167,8 @@ export class ScraperProvidersService {
       enabled: provider.enabled,
       hasPublished: current !== null,
       hasOpenIteration: openIteration !== null,
+      publishedVersion: current?.version ?? null,
+      publishedAt: current?.publishedAt ?? null,
       current,
       previous,
       openIteration,

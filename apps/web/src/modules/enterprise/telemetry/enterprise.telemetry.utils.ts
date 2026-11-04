@@ -1,4 +1,9 @@
-import type { OtelSpan, OtelUsage } from "@/lib/enterprise-api";
+import type {
+  OtelCostSource,
+  OtelSpan,
+  OtelUsage,
+} from "@/lib/enterprise-api";
+import type { AdminTone } from "@/modules/admin/shared/admin.tone";
 import type { SpanNode } from "./enterprise.telemetry.types";
 
 export const formatDurationNs = (ns?: number): string => {
@@ -27,6 +32,16 @@ export const formatUsd = (amount: number | undefined): string => {
   return `$${amount.toFixed(4)}`;
 };
 
+export const costSourceHint = (
+  pricingConfigured: boolean,
+  source: OtelCostSource | undefined,
+): string | undefined => {
+  if (!pricingConfigured) return "Set model rates below to estimate spend";
+  if (source === "reported") return "Reported by the provider";
+  if (source === "mixed") return "Provider-reported, rest from your rates";
+  return undefined;
+};
+
 export const formatBucketLabel = (iso: string, granularity?: string): string => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
@@ -47,11 +62,11 @@ export const usageNumber = (
   return undefined;
 };
 
-export const statusTone = (status?: string): string => {
+export const traceTone = (status?: string): AdminTone => {
   const s = (status || "").toUpperCase();
-  if (s === "ERROR" || s === "2") return "text-[var(--danger)]";
-  if (s === "OK" || s === "1") return "text-[var(--accent)]";
-  return "text-[var(--muted)]";
+  if (s === "ERROR" || s === "2") return "danger";
+  if (s === "OK" || s === "1") return "ok";
+  return "muted";
 };
 
 export const attrString = (

@@ -73,4 +73,24 @@ describe("LetterboxdConnectCard", () => {
       );
     });
   });
+
+  it("confirms before disconnecting", async () => {
+    vi.mocked(watchFetch).mockImplementation(async (path, init) => {
+      if (path === "/letterboxd/status") {
+        return { connected: true, username: "me", lastSyncedAt: null, syncCursor: "entry-1" };
+      }
+      if (path === "/letterboxd/connect" && init?.method === "DELETE") return { ok: true };
+      throw new Error(`unexpected ${path}`);
+    });
+
+    wrap(<LetterboxdConnectCard />);
+    fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+    expect(screen.getByText("Latest entry: entry-1")).toBeInTheDocument();
+    expect(watchFetch).not.toHaveBeenCalledWith("/letterboxd/connect", expect.anything());
+    const buttons = screen.getAllByRole("button", { name: "Disconnect" });
+    fireEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() => {
+      expect(watchFetch).toHaveBeenCalledWith("/letterboxd/connect", { method: "DELETE" });
+    });
+  });
 });

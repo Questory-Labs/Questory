@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
+import { CountUp } from "@questorylabs/ui";
 import { ListPager } from "@/components/ListPager";
-import { Button, EmptyState, PageHeader, ResourceStatus, SkeletonListRows, StateMessage } from "@/components/ui";
+import { EmptyState, PageHeader, ResourceStatus, SkeletonTileGrid, StateMessage } from "@/components/ui";
 import { MEDIA_HISTORY_PAGE_SIZE } from "@/lib/pagination";
-import {
-  LIBRARY_CATEGORIES,
-  LIBRARY_FORMATS,
-  LIBRARY_STATUSES,
-} from "./read.library.constants";
+import { PillSelect } from "@/modules/media/shelf/components/PillSelect";
+import { ShelfSearchField } from "@/modules/media/shelf/components/ShelfSearchField";
+import { LibraryCard } from "./components/LibraryCard";
+import { ReadShelfTabs } from "./components/ReadShelfTabs";
+import { StatusChips } from "./components/StatusChips";
+import { LIBRARY_CATEGORIES, LIBRARY_FORMATS, LIBRARY_SORTS } from "./read.library.constants";
 import type { ReadLibraryViewProps } from "./read.library.types";
 
 export const ReadLibraryView = (props: Record<string, unknown>) => {
@@ -22,140 +23,86 @@ export const ReadLibraryView = (props: Record<string, unknown>) => {
     setFormat,
     category,
     setCategory,
+    genre,
+    setGenre,
+    sort,
+    setSort,
     qDraft,
     setQDraft,
     onSearch,
   } = props as ReadLibraryViewProps;
 
-  const items = library.value?.items ?? [];
-  const total = library.value?.total ?? 0;
-  const pageSize = library.value?.pageSize ?? MEDIA_HISTORY_PAGE_SIZE;
+  const value = library.value;
+  const items = value?.items ?? [];
+  const total = value?.total ?? 0;
+  const pageSize = value?.pageSize ?? MEDIA_HISTORY_PAGE_SIZE;
+  const counts = value?.statusCounts;
+  const allTitles = counts ? counts.reduce((a, c) => a + c.count, 0) : null;
+  const reading = counts?.find((c) => c.status === "reading")?.count ?? 0;
+  const genreOptions = [
+    { value: "", label: "All genres" },
+    ...(value?.genreOptions ?? []).map((g) => ({ value: g, label: g })),
+  ];
+  const resetting = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setPage(1);
+  };
 
   return (
-    <>
-      <PageHeader size="sm"
-        title="Library"
-        description="Your manga and print list from AniList."
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-3.5">
+      <PageHeader
+        className="mb-0 px-1 pb-2.5 pt-2"
+        eyebrow="Read · Library"
+        title={
+          allTitles != null ? (
+            <>
+              <CountUp value={allTitles} /> titles,{" "}
+              <span className="font-serif text-[#c9d1f6]">
+                <CountUp value={reading} /> on the nightstand
+              </span>
+            </>
+          ) : (
+            "Library"
+          )
+        }
+        actions={<ReadShelfTabs active="library" />}
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value as typeof status);
-            setPage(1);
-          }}
-          className="rounded border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm text-[var(--ink)]"
-        >
-          {LIBRARY_STATUSES.map((s) => (
-            <option key={s.label} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={format}
-          onChange={(e) => {
-            setFormat(e.target.value);
-            setPage(1);
-          }}
-          className="rounded border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm text-[var(--ink)]"
-        >
-          {LIBRARY_FORMATS.map((f) => (
-            <option key={f.label} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            setPage(1);
-          }}
-          className="rounded border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm text-[var(--ink)]"
-        >
-          {LIBRARY_CATEGORIES.map((c) => (
-            <option key={c.label} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSearch();
-          }}
-        >
-          <input
+      <div className="q-in flex flex-col gap-2.5 [--i:1]">
+        <StatusChips value={status} counts={counts} onChange={resetting(setStatus)} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PillSelect label="Format" value={format} options={LIBRARY_FORMATS} onChange={resetting(setFormat)} />
+          <PillSelect label="Category" value={category} options={LIBRARY_CATEGORIES} onChange={resetting(setCategory)} />
+          {genreOptions.length > 1 || genre ? (
+            <PillSelect label="Genre" value={genre} options={genreOptions} onChange={resetting(setGenre)} />
+          ) : null}
+          <PillSelect label="Sort" value={sort} options={LIBRARY_SORTS} onChange={resetting(setSort)} />
+          <ShelfSearchField
+            label="Search library"
+            placeholder="Search titles"
             value={qDraft}
-            onChange={(e) => setQDraft(e.target.value)}
-            placeholder="Search titles…"
-            className="w-48 rounded border border-[var(--line)] bg-[var(--bg-1)] px-2 py-1.5 text-sm text-[var(--ink)]"
+            onChange={setQDraft}
+            onSubmit={onSearch}
           />
-          <Button type="submit" variant="secondary" className="px-3 py-1.5">
-            Search
-          </Button>
-        </form>
+        </div>
       </div>
 
       <ResourceStatus
         failed={library.failed}
         empty={library.empty}
-        loading={<SkeletonListRows />}
-        error={
-          <StateMessage variant="error">Could not load library.</StateMessage>
-        }
+        loading={<SkeletonTileGrid />}
+        error={<StateMessage variant="error">Could not load library.</StateMessage>}
       >
         {items.length === 0 ? (
           <EmptyState
             title="No titles yet"
-            description="Connect AniList under Read → Sources to sync your manga list."
+            description="Connect AniList or another list under Sources to sync your reading list."
           />
         ) : (
           <>
-            <ul className="space-y-3">
-              {items.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex gap-3 border-b border-[var(--line)] pb-3 text-sm"
-                >
-                  {item.title.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.title.coverUrl}
-                      alt=""
-                      className="h-16 w-12 shrink-0 object-cover"
-                    />
-                  ) : (
-                    <div className="h-16 w-12 shrink-0 bg-[var(--bg-2)]" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <Link
-                        href={`/read/titles/${item.title.id}`}
-                        className="text-[var(--ink)] hover:text-[var(--accent)]"
-                      >
-                        {item.title.name}
-                      </Link>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
-                        {item.listStatus} · {item.title.format}
-                        {item.title.category && ` · ${item.title.category}`}
-                      </span>
-                    </div>
-                    <p className="mt-1 font-mono text-xs text-[var(--muted)]">
-                      Ch. {item.progressChapters}
-                      {item.title.chapters != null
-                        ? ` / ${item.title.chapters}`
-                        : ""}
-                      {item.progressVolumes > 0
-                        ? ` · Vol. ${item.progressVolumes}`
-                        : ""}
-                      {item.score != null ? ` · Score ${item.score}` : ""}
-                    </p>
-                  </div>
-                </li>
+            <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-3 p-0">
+              {items.map((item, i) => (
+                <LibraryCard key={item.id} item={item} index={i} />
               ))}
             </ul>
             <ListPager
@@ -168,6 +115,6 @@ export const ReadLibraryView = (props: Record<string, unknown>) => {
           </>
         )}
       </ResourceStatus>
-    </>
+    </div>
   );
 };

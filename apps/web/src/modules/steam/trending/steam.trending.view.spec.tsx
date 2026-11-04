@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
-import type { TrendingResponse } from "@questorylabs/shared";
+import type { TrendingGame, TrendingResponse } from "@questorylabs/shared";
 import { TrendingView } from "./steam.trending.view";
 
 vi.mock("@/components/FamilyGameSidebar", () => ({
@@ -35,7 +35,7 @@ const game = {
   sampleFriends: [],
 };
 
-const steamShelf = (games = [game]) =>
+const steamShelf = (games: TrendingGame[] = [game]) =>
   resource<TrendingResponse["global"]>({
     empty: false,
     failed: false,
@@ -93,14 +93,15 @@ describe("TrendingView", () => {
       />,
     );
     const headings = screen.getAllByRole("heading").map((el) => el.textContent);
-    expect(headings[0]).toBe("Trending");
+    expect(headings[0]).toBe("Trending right now");
     expect(headings.slice(1, 6)).toEqual([
       "Among friends",
-      "Global most played",
       "Playing now",
-      "Top releases",
+      "Global most played",
       "Steam Deck most played",
+      "Top releases",
     ]);
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
   it("adds AniList as trending now, not last week", () => {
@@ -116,6 +117,7 @@ describe("TrendingView", () => {
           showWatch: false,
           showRead: true,
           showEnterprise: false,
+          tab: "read",
           read: resource({
             empty: false,
             failed: false,
@@ -216,5 +218,58 @@ describe("TrendingView", () => {
     expect(
       screen.getByRole("heading", { name: "Global most played" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows owned and deck badges and opens the game panel", () => {
+    const setSelectedAppId = vi.fn();
+    render(
+      <TrendingView
+        {...({
+          friends,
+          global: steamShelf([{ ...game, appId: 9, name: "Balatro", owned: true, deckStatus: "verified" }]),
+          concurrent: chart,
+          deck: chart,
+          topReleases: chart,
+          showMusic: false,
+          showWatch: false,
+          showRead: false,
+          showEnterprise: false,
+          selectedAppId: null,
+          setSelectedAppId,
+        } as Record<string, unknown>)}
+      />,
+    );
+    expect(screen.getByText("Owned")).toBeInTheDocument();
+    expect(screen.getByText("Deck Verified")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Balatro/ }));
+    expect(setSelectedAppId).toHaveBeenCalledWith(9);
+  });
+
+  it("switches medium tabs when media shelves are enabled", () => {
+    const setTab = vi.fn();
+    render(
+      <TrendingView
+        {...({
+          friends,
+          global: steamShelf(),
+          concurrent: chart,
+          deck: chart,
+          topReleases: chart,
+          showMusic: true,
+          showWatch: false,
+          showRead: false,
+          showEnterprise: false,
+          tab: "games",
+          setTab,
+          selectedAppId: null,
+          setSelectedAppId: () => undefined,
+        } as Record<string, unknown>)}
+      />,
+    );
+    const tabs = screen.getAllByRole("tab").map((el) => el.textContent);
+    expect(tabs).toEqual(["Games", "Music"]);
+    fireEvent.click(screen.getByRole("tab", { name: "Music" }));
+    expect(setTab).toHaveBeenCalledWith("music");
+    expect(screen.queryByRole("heading", { name: "ListenBrainz this week" })).not.toBeInTheDocument();
   });
 });

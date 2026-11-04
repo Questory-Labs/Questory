@@ -1,12 +1,11 @@
 "use client";
 
 import type { FeatureSource } from "@questorylabs/shared";
-import { ListProviderCard } from "@/components/sources/ListProviderCard";
 import { SourcesSectionHeading } from "@/components/sources/SourcesSectionHeading";
-import { PageHeader } from "@/components/ui";
 import { useFeatureSources } from "@/hooks/useFeatureSources";
 import { sourceEnabled } from "@/lib/app-status";
 import { readFetch, readUrl } from "@/lib/read";
+import { ListProviderRow } from "@/modules/media/sources/components/ListProviderRow";
 import { MANGA_PROVIDERS, READ_ANILIST } from "./read.settings.constants";
 
 export const ReadSettingsView = () => {
@@ -18,10 +17,9 @@ export const ReadSettingsView = () => {
 
   return (
     <>
-      <PageHeader size="sm"
-        title="Sources"
-        description="Connect anime/manga list providers to sync manga into Read. Anime from the same connections syncs into Watch."
-      />
+      <p className="mb-6 text-sm text-[var(--muted)]">
+        Connect anime/manga list providers to sync manga into Read. Anime from the same connections syncs into Watch.
+      </p>
 
       {showAnilist ? (
         <section className="mb-10">
@@ -30,8 +28,8 @@ export const ReadSettingsView = () => {
             title="Live sources"
             description="Active connections that sync ongoing manga (and shared Watch anime)."
           />
-          <div className="grid gap-4 md:grid-cols-2">
-            <ListProviderCard
+          <div className="flex flex-col gap-2.5">
+            <ListProviderRow
               provider={READ_ANILIST}
               queryKeyPrefix="read"
               fetchFn={readFetch}
@@ -48,9 +46,9 @@ export const ReadSettingsView = () => {
             title="MAL, Kitsu, Bangumi, Shikimori"
             description="Import manga into Read from additional list providers. Anime from the same connections syncs into Watch."
           />
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2.5">
             {mangaProviders.map((provider) => (
-              <ListProviderCard
+              <ListProviderRow
                 key={provider.id}
                 provider={provider}
                 queryKeyPrefix="read"

@@ -11,6 +11,7 @@ x-api-env-common: &api-env-common
   STEAM_RETURN_URL: ${STEAM_RETURN_URL:-http://localhost:4000/auth/steam/callback}
   API_PORT: 4000
   WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+  FE_CORS_ALLOWED: ${FE_CORS_ALLOWED:-}
   COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
   ALLOWED_STEAM_IDS: ${ALLOWED_STEAM_IDS:-}
   ITAD_API_KEY: ${ITAD_API_KEY:-}
@@ -31,6 +32,7 @@ x-api-env-common: &api-env-common
   CRON_WATCH_SCHEDULE: ${CRON_WATCH_SCHEDULE:-0 */6 * * *}
   CRON_CATALOG_SCHEDULE: ${CRON_CATALOG_SCHEDULE:-0 4 * * *}
   CRON_PRICE_SCHEDULE: ${CRON_PRICE_SCHEDULE:-0 5 * * *}
+  CRON_AI_GOALS_SCHEDULE: ${CRON_AI_GOALS_SCHEDULE:-30 6 * * *}
   LASTFM_API_KEY: ${LASTFM_API_KEY:-}
   LASTFM_API_SECRET: ${LASTFM_API_SECRET:-}
   LASTFM_REDIRECT_URI: ${LASTFM_REDIRECT_URI:-http://localhost:4000/v1/music/scrobbler/lastfm/callback}

@@ -6,6 +6,7 @@ import {
 } from "./media.rewind.constants";
 import type { RewindDomain } from "./media.rewind.types";
 import {
+  allCardDomain,
   formatAiCards,
   generateCardTheme,
   getDomainIdentity,
@@ -70,6 +71,25 @@ describe("rewind-ai-parser", () => {
     expect(parsed.text).toBe("You loved **Pop** with 650 plays.");
   });
 
+  it("titles the enriched rewind tags", () => {
+    const titles = [
+      "<busiestday>x</busiestday>",
+      "<versuslast>x</versuslast>",
+      "<fadedout>x</fadedout>",
+      "<toprated>x</toprated>",
+      "<longestsession>x</longestsession>",
+      "<nightowl>x</nightowl>",
+    ].map((chunk) => parseInsightChunk(chunk).title);
+    expect(titles).toEqual([
+      "Busiest Day",
+      "Versus Last Time",
+      "Faded Out",
+      "Top Rated",
+      "Longest Session",
+      "Night Owl",
+    ]);
+  });
+
   it("parses unclosed tags from legacy SLM output", () => {
     const parsed = parseInsightChunk(
       "<uniquetitles>You explored 19 unique series this month.",
@@ -113,12 +133,12 @@ describe("rewind-ai-parser", () => {
   });
 });
 
-const DOMAINS: RewindDomain[] = ["music", "watch", "read"];
+const DOMAINS: RewindDomain[] = ["music", "watch", "read", "games"];
 
 describe("rewind-card-engine", () => {
   it("returns a distinct identity per domain", () => {
     const labels = DOMAINS.map((d) => getDomainIdentity(d).label);
-    expect(new Set(labels).size).toBe(3);
+    expect(new Set(labels).size).toBe(4);
     for (const domain of DOMAINS) {
       const identity = getDomainIdentity(domain);
       expect(identity.domain).toBe(domain);
@@ -195,6 +215,19 @@ describe("rewind-card-engine", () => {
     expect(cards).toHaveLength(6);
     const containers = cards.map((card) => card.theme.container);
     expect(new Set(containers).size).toBe(6);
+  });
+
+  it("themes unified rewind cards by the area each tag names", () => {
+    expect(allCardDomain("gamesyear", 0)).toBe("games");
+    expect(allCardDomain("readyear", 3)).toBe("read");
+    expect(allCardDomain("balance", 1)).toBe("watch");
+    const cards = formatAiCards(
+      ["<gamesyear>Games.</gamesyear>", "<musicyear>Music.</musicyear>"].join("\n\n"),
+      "all",
+    );
+    expect(cards.map((c) => c.title)).toEqual(["Your Games", "Your Music"]);
+    expect(cards[0]?.theme).toEqual(generateCardTheme("games", 0, "gamesyear"));
+    expect(cards[1]?.theme).toEqual(generateCardTheme("music", 1, "musicyear"));
   });
 
   it("repeats a theme only after the domain pool is exhausted", () => {

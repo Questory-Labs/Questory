@@ -17,6 +17,10 @@ export type SteamPlayerSummary = {
   profileurl: string;
   avatarfull: string;
   loccountrycode?: string;
+  personastate?: number;
+  gameid?: string;
+  gameextrainfo?: string;
+  lastlogoff?: number;
 };
 
 export type SteamFriend = {
@@ -41,6 +45,7 @@ export type StoreAppDetails = {
     currency: string;
   };
   platforms?: { windows: boolean; mac: boolean; linux: boolean };
+  metacritic?: { score?: number; url?: string };
   packages?: number[];
   dlc?: number[];
 };
@@ -443,13 +448,19 @@ export class SteamApiService {
   async getPlayerAchievements(
     steamId: string,
     appId: number,
-  ): Promise<{ unlocked: number; total: number; pct: number } | null> {
+  ): Promise<{
+    unlocked: number;
+    total: number;
+    pct: number;
+    unlockTimes: number[];
+    items: { apiName: string; achieved: boolean; unlockTime: number | null }[];
+  } | null> {
     if (!this.apiKey) return null;
     try {
       const data = await this.fetchJson<{
         playerstats?: {
           success?: boolean;
-          achievements?: { achieved: number }[];
+          achievements?: { apiname?: string; achieved: number; unlocktime?: number }[];
         };
       }>(
         `${this.base}/ISteamUserStats/GetPlayerAchievements/v1/?key=${this.apiKey}&steamid=${steamId}&appid=${appId}`,
@@ -461,7 +472,20 @@ export class SteamApiService {
       const unlocked = list.filter((a) => a.achieved === 1).length;
       const total = list.length;
       const pct = total > 0 ? Math.round((unlocked / total) * 1000) / 10 : 0;
-      return { unlocked, total, pct };
+      const unlockTimes = list
+        .filter((a) => a.achieved === 1 && typeof a.unlocktime === "number" && a.unlocktime > 0)
+        .map((a) => a.unlocktime as number);
+      const items = list
+        .filter((a) => typeof a.apiname === "string" && a.apiname.length > 0)
+        .map((a) => ({
+          apiName: a.apiname as string,
+          achieved: a.achieved === 1,
+          unlockTime:
+            a.achieved === 1 && typeof a.unlocktime === "number" && a.unlocktime > 0
+              ? a.unlocktime
+              : null,
+        }));
+      return { unlocked, total, pct, unlockTimes, items };
     } catch {
       return null;
     }

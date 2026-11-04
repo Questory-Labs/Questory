@@ -3,6 +3,7 @@ export * from "./rewind";
 export * from "./profile-archive";
 export * from "./media-trending";
 export * from "./weekly-digest";
+export * from "./goals";
 
 
 /** URI version segment for Nest apps (api / music / watch). */
@@ -44,6 +45,7 @@ export const UserSchema = z.object({
   countryCode: z.string().nullable().optional(),
   currency: z.string().optional(),
   priceRegionLocked: z.boolean().optional(),
+  createdAt: z.string().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -73,6 +75,28 @@ export const AuthRegisterSchema = AuthCredentialsSchema.extend({
   { message: "Passwords do not match", path: ["confirmPassword"] },
 );
 export type AuthRegisterInput = z.infer<typeof AuthRegisterSchema>;
+
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: AuthCredentialsSchema.shape.password,
+});
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
+
+export const DELETE_ACCOUNT_CONFIRMATION = "DELETE";
+
+export const DeleteAccountSchema = z.object({
+  confirm: z.literal(DELETE_ACCOUNT_CONFIRMATION),
+});
+export type DeleteAccountInput = z.infer<typeof DeleteAccountSchema>;
+
+export const AuthErrorBodySchema = z.object({
+  statusCode: z.number().optional(),
+  message: z.union([z.string(), z.array(z.string())]).optional(),
+  attemptsLeft: z.number().int().nonnegative().optional(),
+  retryAfterSec: z.number().int().nonnegative().optional(),
+  requestId: z.string().optional(),
+});
+export type AuthErrorBody = z.infer<typeof AuthErrorBodySchema>;
 
 export const ApiKeyTypeSchema = z.enum(["music_ingest", "watch_webhook"]);
 export type ApiKeyType = z.infer<typeof ApiKeyTypeSchema>;
@@ -156,9 +180,66 @@ export const LibraryEntrySchema = z.object({
   hidden: z.boolean().optional(),
   stores: z.array(StoreSchema).optional(),
   ownerships: z.array(LibraryOwnershipSchema).optional(),
+  achievementUnlocked: z.number().nullable().optional(),
+  achievementTotal: z.number().nullable().optional(),
+  achievementPct: z.number().nullable().optional(),
+  userStatus: z.enum(["playing", "backlog", "finished", "dropped"]).nullable().optional(),
+  userStatusAt: z.string().nullable().optional(),
+  valueAmount: z.number().nullable().optional(),
+  costPerHour: z.number().nullable().optional(),
   game: GameSchema,
 });
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
+
+export const LibraryUserStatusSchema = z.enum([
+  "playing",
+  "backlog",
+  "finished",
+  "dropped",
+]);
+export type LibraryUserStatus = z.infer<typeof LibraryUserStatusSchema>;
+
+export const LibraryStatusFilterSchema = z.enum([
+  "playing",
+  "backlog",
+  "finished",
+  "dropped",
+  "neverPlayed",
+]);
+export type LibraryStatusFilter = z.infer<typeof LibraryStatusFilterSchema>;
+
+export const LibrarySortSchema = z.enum([
+  "lastPlayed",
+  "hours",
+  "valuePerHour",
+  "name",
+]);
+export type LibrarySort = z.infer<typeof LibrarySortSchema>;
+
+export const LibraryStatusUpdateSchema = z.object({
+  status: LibraryUserStatusSchema.nullable(),
+});
+export type LibraryStatusUpdate = z.infer<typeof LibraryStatusUpdateSchema>;
+
+export const LibraryFacetsSchema = z.object({
+  all: z.number(),
+  neverPlayed: z.number(),
+  playing: z.number(),
+  backlog: z.number(),
+  finished: z.number(),
+  dropped: z.number(),
+});
+export type LibraryFacets = z.infer<typeof LibraryFacetsSchema>;
+
+export const LibraryListResponseSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  currency: z.string().optional(),
+  facets: LibraryFacetsSchema.optional(),
+  items: z.array(LibraryEntrySchema),
+});
+export type LibraryListResponse = z.infer<typeof LibraryListResponseSchema>;
 
 export const DashboardStatsSchema = z.object({
   librarySize: z.number(),
@@ -189,6 +270,28 @@ export const DashboardStatsSchema = z.object({
     })
     .nullable()
     .optional(),
+  timePlayed: z
+    .object({
+      todaySecs: z.number(),
+      weekSecs: z.number(),
+      monthSecs: z.number(),
+      priorWeekSecs: z.number(),
+      weekHourlySecs: z.array(z.number()),
+    })
+    .optional(),
+  needsYou: z
+    .object({
+      total: z.number(),
+      failedSyncs: z.number(),
+      unmatchedSessions: z.number(),
+      unreadNotifications: z.number(),
+    })
+    .optional(),
+  syncedSources: z.number().optional(),
+  monthSpend: z
+    .object({ amount: z.number(), currency: z.string() })
+    .nullable()
+    .optional(),
 });
 export type DashboardStats = z.infer<typeof DashboardStatsSchema>;
 
@@ -207,6 +310,11 @@ export const WishlistItemSchema = z.object({
   lowestPrice: z.number().nullable(),
   shouldBuyScore: z.number().nullable(),
   genres: z.array(z.string()),
+  discountPercent: z.number().nullable().optional(),
+  regularPrice: z.number().nullable().optional(),
+  bestPrice: z.number().nullable().optional(),
+  bestStore: StoreSchema.nullable().optional(),
+  reasons: z.array(z.string()).optional(),
 });
 export type WishlistItem = z.infer<typeof WishlistItemSchema>;
 
@@ -233,6 +341,11 @@ export const FriendSchema = z.object({
   avatarUrl: z.string().nullable(),
   friendUserId: z.string().nullable().optional(),
   libraryCached: z.boolean().optional(),
+  personaState: z.number().int().nullable().optional(),
+  currentAppId: z.number().int().nullable().optional(),
+  currentGameName: z.string().nullable().optional(),
+  lastLogoffAt: z.string().nullable().optional(),
+  presenceSyncedAt: z.string().nullable().optional(),
 });
 export type Friend = z.infer<typeof FriendSchema>;
 
@@ -260,6 +373,8 @@ export const FriendCompareSchema = z.object({
       appId: z.number(),
       name: z.string(),
       headerImage: z.string().nullable(),
+      yourPlaytimeMinutes: z.number().optional(),
+      friendPlaytimeMinutes: z.number().optional(),
     }),
   ),
   meta: z
@@ -278,6 +393,7 @@ export const MultiplayerPlanSortSchema = z.enum([
   "release",
   "review",
   "name",
+  "playedTogether",
 ]);
 export type MultiplayerPlanSort = z.infer<typeof MultiplayerPlanSortSchema>;
 
@@ -318,6 +434,8 @@ export const MultiplayerPlanGameSchema = z.object({
   ownedByFriends: z.array(z.string()),
   missingFriends: z.array(z.string()),
   ownership: z.enum(["shared", "partial", "unowned"]),
+  currentPrice: z.number().nullable().optional(),
+  currency: z.string().optional(),
 });
 export type MultiplayerPlanGame = z.infer<typeof MultiplayerPlanGameSchema>;
 
@@ -339,8 +457,33 @@ export const CollectionSchema = z.object({
   ruleKey: z.string().nullable(),
   gameCount: z.number(),
   description: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  updatedAt: z.string().optional(),
+  covers: z.array(z.string()).optional(),
 });
 export type Collection = z.infer<typeof CollectionSchema>;
+
+export const CollectionColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Color must be a #rrggbb hex value");
+
+export const TasteClusterPreviewSchema = z.object({
+  available: z.boolean(),
+  clusters: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      gameCount: z.number(),
+      saved: z.boolean(),
+    }),
+  ),
+});
+export type TasteClusterPreview = z.infer<typeof TasteClusterPreviewSchema>;
+
+export const TasteClusterSaveSchema = z.object({
+  clusterId: z.string().trim().min(1).max(64),
+});
+export type TasteClusterSave = z.infer<typeof TasteClusterSaveSchema>;
 
 /** Steam Family Sharing-style cap: owner plus five others. */
 export const FAMILY_MEMBER_LIMIT = 6;
@@ -388,6 +531,32 @@ export const FamilyInsightsSchema = z.object({
       owners: z.array(z.string()),
     }),
   ),
+  shareableNow: z
+    .array(
+      z.object({
+        appId: z.number(),
+        name: z.string(),
+        headerImage: z.string().nullable(),
+        direction: z.enum(["toYou", "fromYou"]),
+        ownerSteamId: z.string(),
+        ownerName: z.string(),
+        wantedBySteamId: z.string(),
+        wantedByName: z.string(),
+      }),
+    )
+    .optional(),
+  wishlistGaps: z
+    .array(
+      z.object({
+        appId: z.number(),
+        name: z.string(),
+        headerImage: z.string().nullable(),
+        currentPrice: z.number().nullable(),
+        wantedBy: z.array(z.string()),
+      }),
+    )
+    .optional(),
+  linkedMemberCount: z.number().optional(),
 });
 export type FamilyInsights = z.infer<typeof FamilyInsightsSchema>;
 
@@ -523,8 +692,20 @@ export const GameDetailSchema = z.object({
           percent: z.number(),
           icon: z.string().nullable(),
           unlocked: z.boolean().nullable(),
+          unlockTime: z.string().nullable().optional(),
         }),
       ),
+    })
+    .nullable()
+    .optional(),
+  platforms: z.array(z.string()).optional(),
+  metacriticScore: z.number().nullable().optional(),
+  userStatus: LibraryUserStatusSchema.nullable().optional(),
+  sessions90d: z
+    .object({
+      days: z.array(z.object({ date: z.string(), minutes: z.number() })),
+      count: z.number(),
+      avgMinutes: z.number(),
     })
     .nullable()
     .optional(),
@@ -647,6 +828,7 @@ export const DealAlertSchema = z.object({
   lowestPrice: z.number().nullable(),
   targetPrice: z.number().nullable(),
   shouldBuyScore: z.number().nullable(),
+  discountPercent: z.number().nullable().optional(),
   reason: z.enum(["target", "historical_low", "strong_score"]),
 });
 export type DealAlert = z.infer<typeof DealAlertSchema>;
@@ -663,6 +845,8 @@ export const FriendsListResponseSchema = z.object({
     gamesPerFriendLimit: z.number(),
     truncated: z.boolean(),
     lastSyncedAt: z.string().nullable(),
+    onlineCount: z.number().optional(),
+    presenceSyncedAt: z.string().nullable().optional(),
   }),
 });
 export type FriendsListResponse = z.infer<typeof FriendsListResponseSchema>;
@@ -690,6 +874,8 @@ export const TrendingGameSchema = z.object({
   concurrentPlayers: z.number().optional(),
   /** Positive = rose vs last week / prior period. */
   rankChange: z.number().nullable().optional(),
+  deckStatus: z.string().nullable().optional(),
+  owned: z.boolean().optional(),
 });
 export type TrendingGame = z.infer<typeof TrendingGameSchema>;
 
@@ -801,6 +987,7 @@ export const MusicTimeBucketSchema = z.object({
   key: z.string(),
   label: z.string(),
   count: z.number(),
+  minutes: z.number().optional(),
 });
 export type MusicTimeBucket = z.infer<typeof MusicTimeBucketSchema>;
 
@@ -831,6 +1018,19 @@ export const MusicRecentPageSchema = z.object({
 });
 export type MusicRecentPage = z.infer<typeof MusicRecentPageSchema>;
 
+export const MusicListenSourceSchema = z.enum([
+  "lastfm",
+  "listenbrainz",
+  "imports",
+]);
+export type MusicListenSource = z.infer<typeof MusicListenSourceSchema>;
+
+export const MusicRecentQuerySchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  source: MusicListenSourceSchema.optional(),
+});
+export type MusicRecentQuery = z.infer<typeof MusicRecentQuerySchema>;
+
 export const MusicInsightNamedCountSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -859,9 +1059,12 @@ export const MusicInsightsSchema = z.object({
   serviceBreakdown: z.array(
     z.object({ name: z.string(), count: z.number() }),
   ),
+  longestStreakDays: z.number().optional(),
   compare: z.object({
     previousListens: z.number().nullable(),
     deltaPct: z.number().nullable(),
+    previousMinutes: z.number().nullable().optional(),
+    minutesDeltaPct: z.number().nullable().optional(),
   }),
 });
 export type MusicInsights = z.infer<typeof MusicInsightsSchema>;
@@ -877,6 +1080,8 @@ export type MusicBreakdownResponse = z.infer<
 export const MusicPlayingNowSchema = z
   .object({
     updatedAt: z.string(),
+    startedAt: z.string().nullable().optional(),
+    source: z.string().nullable().optional(),
     track: z.object({
       id: z.string(),
       title: z.string(),
@@ -885,6 +1090,8 @@ export const MusicPlayingNowSchema = z
       releaseId: z.string().nullable(),
       releaseTitle: z.string().nullable(),
       imageUrl: z.string().nullable(),
+      year: z.number().nullable().optional(),
+      durationMs: z.number().nullable().optional(),
     }),
   })
   .nullable();
@@ -998,6 +1205,10 @@ export const MusicArtistDetailSchema = z.object({
   listenCount: z.number(),
   firstListenAt: z.string().nullable().optional(),
   latestListenAt: z.string().nullable().optional(),
+  listeningMinutes: z.number().optional(),
+  peakHour: MusicTrackPeakHourSchema.nullable().optional(),
+  peakDow: MusicTrackPeakDowSchema.nullable().optional(),
+  rank: z.number().nullable().optional(),
   topTracks: z.array(
     z.object({
       id: z.string(),
@@ -1012,12 +1223,41 @@ export const MusicArtistDetailSchema = z.object({
       id: z.string(),
       title: z.string(),
       imageUrl: z.string().nullable().optional(),
+      year: z.number().nullable().optional(),
       count: z.number(),
     }),
   ),
   topMoods: z.array(MusicNamedCountSchema),
 });
 export type MusicArtistDetail = z.infer<typeof MusicArtistDetailSchema>;
+
+export const MusicMoverSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  artistName: z.string().optional(),
+  count: z.number(),
+  previousCount: z.number(),
+  rank: z.number(),
+  previousRank: z.number().nullable(),
+  delta: z.number().nullable(),
+  isNew: z.boolean(),
+});
+export type MusicMover = z.infer<typeof MusicMoverSchema>;
+
+export const MusicMoversResponseSchema = z.object({
+  kind: z.enum(["artists", "albums", "tracks", "genres", "moods"]),
+  range: MusicRangeSchema,
+  periodListens: z.number(),
+  previousListens: z.number(),
+  concentration: z.object({
+    topN: z.number(),
+    share: z.number(),
+    previousShare: z.number().nullable(),
+    delta: z.number().nullable(),
+  }),
+  movers: z.array(MusicMoverSchema),
+});
+export type MusicMoversResponse = z.infer<typeof MusicMoversResponseSchema>;
 
 export const MusicAlbumDetailSchema = z.object({
   range: MusicRangeSchema,
@@ -1201,6 +1441,7 @@ export const WatchTopItemSchema = z.object({
   type: z.string().optional(),
   posterUrl: z.string().nullable().optional(),
   count: z.number(),
+  minutes: z.number().optional(),
 });
 export type WatchTopItem = z.infer<typeof WatchTopItemSchema>;
 
@@ -1217,6 +1458,7 @@ export const WatchRecentEventSchema = z.object({
   source: z.string(),
   precision: z.string(),
   rating: z.number().nullable().optional(),
+  progress: z.number().optional(),
   title: z.object({
     id: z.string(),
     name: z.string(),
@@ -1278,6 +1520,8 @@ export const WatchInsightsSchema = z.object({
   compare: z.object({
     previousWatches: z.number().nullable(),
     deltaPct: z.number().nullable(),
+    previousWatchingMinutes: z.number().nullable().optional(),
+    watchingMinutesDeltaPct: z.number().nullable().optional(),
   }),
 });
 export type WatchInsights = z.infer<typeof WatchInsightsSchema>;
@@ -1289,6 +1533,54 @@ export const WatchBreakdownResponseSchema = z.object({
 export type WatchBreakdownResponse = z.infer<
   typeof WatchBreakdownResponseSchema
 >;
+
+export const WatchTitleEpisodeSchema = z.object({
+  seasonNumber: z.number(),
+  episodeNumber: z.number(),
+  name: z.string().nullable(),
+  airDate: z.string().nullable(),
+  runtimeMinutes: z.number().nullable(),
+  watchCount: z.number(),
+  lastWatchedAt: z.string().nullable(),
+});
+export type WatchTitleEpisode = z.infer<typeof WatchTitleEpisodeSchema>;
+
+export const WatchTitleSeasonSchema = z.object({
+  seasonNumber: z.number(),
+  name: z.string().nullable(),
+  episodeCount: z.number().nullable(),
+  watchedEpisodes: z.number(),
+  episodes: z.array(WatchTitleEpisodeSchema),
+});
+export type WatchTitleSeason = z.infer<typeof WatchTitleSeasonSchema>;
+
+export const WatchContinueItemSchema = z.object({
+  title: z.object({
+    id: z.string(),
+    name: z.string(),
+    posterUrl: z.string().nullable(),
+    backdropUrl: z.string().nullable(),
+    totalEpisodes: z.number().nullable(),
+  }),
+  anime: z.boolean(),
+  lastWatchedAt: z.string(),
+  last: z.object({ seasonNumber: z.number(), episodeNumber: z.number() }),
+  next: z
+    .object({
+      seasonNumber: z.number(),
+      episodeNumber: z.number(),
+      name: z.string().nullable(),
+    })
+    .nullable(),
+  watchedEpisodes: z.number(),
+  progress: z.number().nullable(),
+});
+export type WatchContinueItem = z.infer<typeof WatchContinueItemSchema>;
+
+export const WatchContinueResponseSchema = z.object({
+  items: z.array(WatchContinueItemSchema),
+});
+export type WatchContinueResponse = z.infer<typeof WatchContinueResponseSchema>;
 
 export const WatchTitleDetailSchema = z.object({
   range: WatchRangeSchema,
@@ -1302,11 +1594,22 @@ export const WatchTitleDetailSchema = z.object({
     posterUrl: z.string().nullable().optional(),
     imageManual: z.boolean().optional(),
     genres: z.array(z.string()),
+    backdropUrl: z.string().nullable().optional(),
+    tmdbId: z.number().nullable().optional(),
+    imdbId: z.string().nullable().optional(),
+    anilistId: z.number().nullable().optional(),
+    malId: z.number().nullable().optional(),
+    status: z.string().nullable().optional(),
+    lastAirDate: z.string().nullable().optional(),
+    totalEpisodes: z.number().nullable().optional(),
   }),
   eventCount: z.number(),
   firstWatchAt: z.string().nullable().optional(),
   latestWatchAt: z.string().nullable().optional(),
   userRating: z.number().nullable().optional(),
+  totalMinutesWatched: z.number().optional(),
+  distinctEpisodesWatched: z.number().optional(),
+  seasons: z.array(WatchTitleSeasonSchema).optional(),
   topEpisodes: z.array(
     z.object({
       id: z.string(),
@@ -1415,6 +1718,7 @@ export const ReadRecentEventSchema = z.object({
     coverUrl: z.string().nullable(),
     genres: z.array(z.string()),
   }),
+  titleChapters: z.number().nullable().optional(),
 });
 export type ReadRecentEvent = z.infer<typeof ReadRecentEventSchema>;
 
@@ -1467,6 +1771,8 @@ export const ReadInsightsSchema = z.object({
   compare: z.object({
     previousEvents: z.number().nullable(),
     deltaPct: z.number().nullable(),
+    previousChapters: z.number().nullable().optional(),
+    chaptersDeltaPct: z.number().nullable().optional(),
   }),
 });
 export type ReadInsights = z.infer<typeof ReadInsightsSchema>;
@@ -1494,8 +1800,20 @@ export const ReadTitleDetailSchema = z.object({
     chapters: z.number().nullable().optional(),
     volumes: z.number().nullable().optional(),
     genres: z.array(z.string()),
+    anilistId: z.number().nullable().optional(),
+    malId: z.number().nullable().optional(),
   }),
   listStatus: ReadListStatusSchema.nullable().optional(),
+  progressChapters: z.number().nullable().optional(),
+  progressVolumes: z.number().nullable().optional(),
+  score: z.number().nullable().optional(),
+  pace: z
+    .object({
+      chaptersPerWeek: z.number(),
+      weeksToFinish: z.number().nullable(),
+    })
+    .nullable()
+    .optional(),
   eventCount: z.number(),
   firstReadAt: z.string().nullable().optional(),
   latestReadAt: z.string().nullable().optional(),
@@ -1539,13 +1857,22 @@ export const ReadLibraryItemSchema = z.object({
 });
 export type ReadLibraryItem = z.infer<typeof ReadLibraryItemSchema>;
 
+export const ReadLibrarySortSchema = z.enum(["updated", "score", "title"]);
+export type ReadLibrarySort = z.infer<typeof ReadLibrarySortSchema>;
+
 export const ReadLibraryPageSchema = z.object({
   total: z.number(),
   page: z.number(),
   pageSize: z.number(),
   items: z.array(ReadLibraryItemSchema),
+  statusCounts: z
+    .array(z.object({ status: z.string(), count: z.number() }))
+    .optional(),
+  genreOptions: z.array(z.string()).optional(),
 });
 export type ReadLibraryPage = z.infer<typeof ReadLibraryPageSchema>;
+
+export * from "./media-shelf";
 
 export {
   ScraperConfigBodySchema,
@@ -1623,6 +1950,11 @@ export {
   PlaySessionDayBucketSchema,
   PlaySessionTopGameSchema,
   PlaySessionStatsSchema,
+  PLAY_SESSION_STATS_DAY_OPTIONS,
+  PlaySessionStatsDaysSchema,
+  PlaySessionWindowTotalsSchema,
+  type PlaySessionStatsDays,
+  type PlaySessionWindowTotals,
   type QmonitorSessionWebhook,
   type QmonitorAuthorizeQuery,
   type QmonitorTokenRequest,
@@ -1649,3 +1981,65 @@ export * from "./feature-flags";
 // Server-only crypto helpers: import from `@questorylabs/shared/session`
 // or `@questorylabs/shared/oauth-state` — never from this browser-safe barrel.
 
+export const QmonitorDeviceSchema = z.object({
+  id: z.string(),
+  label: z.string().nullable(),
+  lastUsedAt: z.string().nullable(),
+  createdAt: z.string(),
+  revokedAt: z.string().nullable(),
+});
+export type QmonitorDevice = z.infer<typeof QmonitorDeviceSchema>;
+
+export const QmonitorDeviceListSchema = z.object({
+  devices: z.array(QmonitorDeviceSchema),
+});
+export type QmonitorDeviceList = z.infer<typeof QmonitorDeviceListSchema>;
+
+export const ConnectionsOverviewSchema = z.object({
+  accounts: z.array(
+    z.object({
+      provider: z.string(),
+      externalId: z.string(),
+      displayName: z.string().nullable(),
+      linkedAt: z.string(),
+    }),
+  ),
+  sources: z.array(
+    z.object({
+      id: z.string(),
+      domain: z.string(),
+      provider: z.string(),
+      status: z.string().nullable(),
+      lastSyncedAt: z.string().nullable(),
+    }),
+  ),
+  apiKeys: z.array(
+    z.object({
+      id: z.string(),
+      type: z.string(),
+      tokenPrefix: z.string(),
+      label: z.string().nullable(),
+      lastUsedAt: z.string().nullable(),
+    }),
+  ),
+  qmonitorDeviceCount: z.number(),
+  lastSyncedAt: z.string().nullable(),
+});
+export type ConnectionsOverview = z.infer<typeof ConnectionsOverviewSchema>;
+
+export const UserSyncResponseSchema = z.object({
+  queued: z.boolean(),
+  retryAfterSec: z.number().optional(),
+});
+export type UserSyncResponse = z.infer<typeof UserSyncResponseSchema>;
+
+export const NavCountsSchema = z.object({
+  library: z.number(),
+  wishlist: z.number(),
+  musicListens: z.number(),
+  watchTitles: z.number(),
+  readTitles: z.number(),
+  activeGoals: z.number(),
+  connectedSources: z.number(),
+});
+export type NavCounts = z.infer<typeof NavCountsSchema>;

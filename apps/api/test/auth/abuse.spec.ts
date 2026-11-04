@@ -46,6 +46,19 @@ describe("AuthAbuseService", () => {
       abuse.assertOriginAllowed("http://localhost:3000"),
     ).not.toThrow();
   });
+
+  it("allows FE_CORS_ALLOWED origins alongside WEB_ORIGIN", () => {
+    const prev = process.env.FE_CORS_ALLOWED;
+    process.env.FE_CORS_ALLOWED = "https://a.example,https://b.example";
+    try {
+      expect(() => abuse.assertOriginAllowed("https://b.example/login")).not.toThrow();
+      expect(() => abuse.assertOriginAllowed("http://localhost:3000")).not.toThrow();
+      expect(() => abuse.assertOriginAllowed("https://evil.example")).toThrow();
+    } finally {
+      if (prev === undefined) delete process.env.FE_CORS_ALLOWED;
+      else process.env.FE_CORS_ALLOWED = prev;
+    }
+  });
 });
 
 describe("disposable emails", () => {

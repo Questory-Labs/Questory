@@ -5,11 +5,12 @@ export default function Test400Page() {
   return (
     <StatusPage
       code="400"
-      eyebrow="Malformed request"
-      title="That URL spoke nonsense"
-      description="The quest log couldn’t parse what you sent. Check the link, the form fields, or whatever incantation got you here."
+      eyebrow="Bad request"
+      title="That link doesn’t"
+      titleAccent="look right"
+      description="Something in the address is malformed. Check where you copied it from."
       logLine="quest log › parse_request — status: 400 · errno: BAD_SPELLING"
-      tone="warm"
+      tone="warn"
       primary={{ label: "Back to dashboard", href: "/dashboard" }}
       secondary={{ label: "All previews", href: "/test" }}
     />

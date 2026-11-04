@@ -21,6 +21,10 @@ import { SteamModule } from "../steam/steam.module";
 import { WatchModule } from "../watch/watch.module";
 import { ImportsModule } from "../watch/imports/imports.module";
 import { ScraperModule } from "../scraper/scraper.module";
+import { EnterpriseModule } from "../enterprise/enterprise.module";
+import { EnrichmentModule as WatchEnrichmentModule } from "../watch/enrichment/enrichment.module";
+import { RecapModule } from "../recap/recap.module";
+import { AdminEnrichmentService } from "./admin-enrichment.service";
 
 @Module({
   imports: [
@@ -41,9 +45,17 @@ import { ScraperModule } from "../scraper/scraper.module";
     BangumiModule,
     ShikimoriModule,
     LetterboxdModule,
+    EnterpriseModule,
+    WatchEnrichmentModule,
+    RecapModule,
   ],
   controllers: [AdminController, ScraperAdminController],
-  providers: [AdminService, AdminUserOpsService, MigrationsService],
+  providers: [
+    AdminService,
+    AdminUserOpsService,
+    MigrationsService,
+    AdminEnrichmentService,
+  ],
   exports: [AdminService],
 })
 export class AdminModule {}

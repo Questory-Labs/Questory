@@ -39,8 +39,8 @@ export const SketchChartPanel = ({
   const Chart = variant === "bar" ? BarChart : LineChart;
 
   return (
-    <Panel className={className ?? "p-4"}>
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+    <Panel className={className ?? "p-5"}>
+      <h2 className="label-mono">
         {title}
       </h2>
       {chartData.length === 0 ? (

@@ -5,7 +5,14 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { parsePageParam, parsePageSizeParam } from "@questorylabs/shared";
+import {
+  parsePageParam,
+  parsePageSizeParam,
+  ReadLibrarySortSchema,
+  type ReadLibrarySort,
+} from "@questorylabs/shared";
+
+const READ_LIBRARY_GENRE_MAX = 64;
 import { ReadSessionUserGuard } from "../auth/session-user.guard";
 import { CurrentReadUserId } from "../auth/current-read-user.decorator";
 import { ReadLibraryService } from "./library.service";
@@ -25,6 +32,8 @@ export class ReadLibraryController {
     @Query("category") category?: string,
     @Query("q") q?: string,
     @Query("minScore") minScoreRaw?: string,
+    @Query("genre") genreRaw?: string,
+    @Query("sort") sortRaw?: string,
   ) {
     const page = parsePageParam(pageRaw, 1);
     const pageSize = parsePageSizeParam(pageSizeRaw, 40);
@@ -39,6 +48,16 @@ export class ReadLibraryController {
       }
       minScore = n;
     }
+    let sort: ReadLibrarySort | undefined;
+    if (sortRaw != null && sortRaw !== "") {
+      const parsed = ReadLibrarySortSchema.safeParse(sortRaw);
+      if (!parsed.success) throw new BadRequestException("Invalid sort");
+      sort = parsed.data;
+    }
+    const genre = genreRaw?.trim() || undefined;
+    if (genre && genre.length > READ_LIBRARY_GENRE_MAX) {
+      throw new BadRequestException("Invalid genre");
+    }
     return this.library.list(userId, {
       page,
       pageSize,
@@ -47,6 +66,8 @@ export class ReadLibraryController {
       category: category?.trim() || undefined,
       q,
       minScore,
+      genre,
+      sort,
     });
   }
 }

@@ -3,11 +3,14 @@ import {
   Inject,
   Injectable,
   Logger,
+  Optional,
   forwardRef,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccountsService } from "../accounts/accounts.service";
 import { SyncService } from "../sync/sync.service";
+import { EnterpriseProxyService } from "../enterprise/enterprise-proxy.service";
+import { deleteUserAccount } from "./account-deletion";
 import {
   currencyFromCountry,
   isSupportedPriceCountry,
@@ -24,7 +27,16 @@ export class UsersService {
     private readonly accounts: AccountsService,
     @Inject(forwardRef(() => SyncService))
     private readonly sync: SyncService,
+    @Optional()
+    private readonly enterprise?: EnterpriseProxyService,
   ) {}
+
+  deleteAccount(userId: string) {
+    return deleteUserAccount(
+      { prisma: this.prisma, enterprise: this.enterprise, logger: this.logger },
+      userId,
+    );
+  }
 
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });

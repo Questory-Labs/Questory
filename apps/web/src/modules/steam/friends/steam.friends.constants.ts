@@ -1,0 +1,1 @@
+export const FRIENDS_SEARCH_DEBOUNCE_MS = 250;

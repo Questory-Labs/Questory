@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
   AdminInstanceSettings,
@@ -47,7 +47,8 @@ const flag = (enabled: boolean, origin: FeatureFlagOrigin = "default") => ({
 const settingsValue: Settings = {
   signupEnabled: true,
   signupOpen: true,
-  abuse: { login: 2 },
+  abuse: { loginLockout: 2 },
+  limits: [{ key: "loginIp", max: 20, windowSeconds: 900 }],
   features: {
     music: flag(true, "env"),
     watch: flag(false, "default"),
@@ -80,7 +81,7 @@ describe("AdminSettingsView", () => {
     renderView({
       settings: resource<Settings>({ empty: true, failed: false }),
     });
-    expect(screen.queryByText("Signup")).not.toBeInTheDocument();
+    expect(screen.queryByText("Open signup")).not.toBeInTheDocument();
   });
 
   it("shows an error when settings failed, even if empty", () => {
@@ -88,20 +89,31 @@ describe("AdminSettingsView", () => {
       settings: resource<Settings>({ empty: true, failed: true }),
     });
     expect(screen.getByText("fail")).toBeInTheDocument();
-    expect(screen.queryByText("Signup")).not.toBeInTheDocument();
+    expect(screen.queryByText("Open signup")).not.toBeInTheDocument();
   });
 
-  it("renders signup, feature, source, and abuse panels when ready", () => {
+  it("renders access, source, limit and abuse panels when ready", () => {
     renderView({});
-    expect(screen.getByText("Signup")).toBeInTheDocument();
-    expect(screen.getByText("Features")).toBeInTheDocument();
+    expect(screen.getByText("Access and modules")).toBeInTheDocument();
     expect(screen.getByText("Data sources")).toBeInTheDocument();
+    expect(screen.getByText("Abuse limits")).toBeInTheDocument();
     expect(screen.getByText("Abuse metrics")).toBeInTheDocument();
-    expect(screen.getByText("Enable signup")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Reload the app to update navigation/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Login attempts per IP")).toBeInTheDocument();
+    expect(screen.getByText("20 / 15 min")).toBeInTheDocument();
+    expect(screen.getByText("Login lockouts")).toBeInTheDocument();
     expect(screen.getByText("From environment")).toBeInTheDocument();
     expect(screen.getByText("Saved in Admin")).toBeInTheDocument();
+    expect(screen.getAllByRole("switch")).toHaveLength(1 + 3 + FEATURE_SOURCES.length);
+  });
+
+  it("patches signup, features and sources through the switches", () => {
+    const submit = vi.fn();
+    renderView({ patch: { ...idlePatch, submit } as typeof idlePatch });
+    fireEvent.click(screen.getByRole("switch", { name: "Open signup" }));
+    expect(submit).toHaveBeenCalledWith({ signupEnabled: false });
+    fireEvent.click(screen.getByRole("switch", { name: "Watch" }));
+    expect(submit).toHaveBeenCalledWith({ features: { watch: true } });
+    fireEvent.click(screen.getByRole("switch", { name: "Trakt" }));
+    expect(submit).toHaveBeenCalledWith({ sources: { trakt: false } });
   });
 });

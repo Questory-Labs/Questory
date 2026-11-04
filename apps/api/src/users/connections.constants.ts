@@ -1,0 +1,1 @@
+export const CONNECTIONS_ROW_LIMIT = 50;

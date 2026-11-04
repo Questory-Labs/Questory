@@ -4,6 +4,7 @@ import type {
   TrendingResponse,
   WeeklyDigestView,
 } from "@questorylabs/shared";
+import type { TrendingTab } from "./steam.trending.constants";
 
 export type FriendsShelf = TrendingResponse["friends"];
 export type GlobalShelf = TrendingResponse["global"];
@@ -25,4 +26,6 @@ export type TrendingViewProps = {
   digest?: UseResourceResult<WeeklyDigestView>;
   selectedAppId: number | null;
   setSelectedAppId: (appId: number | null) => void;
+  tab?: TrendingTab;
+  setTab?: (tab: TrendingTab) => void;
 };

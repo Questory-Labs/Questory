@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  BadRequestException,
   Get,
   HttpCode,
   Post,
@@ -11,7 +12,11 @@ import {
   VERSION_NEUTRAL,
 } from "@nestjs/common";
 import { Request, Response } from "express";
-import { AuthRegisterSchema, AuthCredentialsSchema } from "@questorylabs/shared";
+import {
+  AuthRegisterSchema,
+  AuthCredentialsSchema,
+  ChangePasswordSchema,
+} from "@questorylabs/shared";
 import { AuthService } from "./auth.service";
 import { AuthAbuseService } from "./abuse/auth-abuse.service";
 import { clearSession, readSession, setSession } from "./session";
@@ -154,9 +159,55 @@ export class AuthController {
         },
       };
     } catch (err) {
-      await this.abuse.recordLoginFailure(ip, email);
+      const state = await this.abuse.recordLoginFailure(ip, email);
+      if (err instanceof UnauthorizedException) {
+        throw new UnauthorizedException({
+          statusCode: 401,
+          message: "Invalid email or password",
+          ...state,
+        });
+      }
       throw err;
     }
+  }
+
+  @Post("password")
+  @HttpCode(200)
+  @UseGuards(SteamAuthGuard)
+  async changePassword(
+    @Req() req: Request,
+    @CurrentUser() session: { userId: string },
+    @Body() body: unknown,
+  ) {
+    const ip = clientIpFromRequest(req);
+    this.abuse.assertOriginAllowed(
+      (req.headers.origin as string | undefined) ||
+        (req.headers.referer as string | undefined),
+    );
+    const parsed = ChangePasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException("New password must be 10–128 characters");
+    }
+    const email = await this.auth.passwordEmail(session.userId);
+    if (!email) {
+      throw new BadRequestException("This account has no password to change");
+    }
+    await this.abuse.assertLoginLimits(ip, email);
+    const changed = await this.auth.changePassword(
+      session.userId,
+      parsed.data.currentPassword,
+      parsed.data.newPassword,
+    );
+    if (!changed) {
+      const state = await this.abuse.recordLoginFailure(ip, email);
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: "Current password is incorrect",
+        ...state,
+      });
+    }
+    await this.abuse.clearLoginFailures(email);
+    return { ok: true };
   }
 
   @Get("steam")

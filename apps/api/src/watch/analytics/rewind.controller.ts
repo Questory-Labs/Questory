@@ -1,82 +1,45 @@
-import { Controller, Get, Query, Req, UseGuards, BadRequestException } from '@nestjs/common';
-import { Request } from 'express';
-import { PrismaService } from '../../prisma/prisma.service';
-import { SteamAuthGuard } from '../../auth/auth.guard';
-import { RewindInsightResponse, RewindStatsResponse } from '@questorylabs/shared';
-import { AnalyticsService } from './analytics.service';
-import { callRewindGenerate } from '../../lib/rewind-ai-client';
-import { assertRewindAiPeriodAllowed } from '../../lib/rewind-period';
+import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
+import { Request } from "express";
+import { SteamAuthGuard } from "../../auth/auth.guard";
+import type { RewindInsightResponse, RewindStatsResponse } from "@questorylabs/shared";
+import { AnalyticsService } from "./analytics.service";
+import { RewindAiService } from "../../rewind/rewind-ai.service";
+import { parseRewindQuery } from "../../rewind/rewind-query";
 
-@Controller('watch/analytics/rewind')
+@Controller("watch/analytics/rewind")
 @UseGuards(SteamAuthGuard)
-export class RewindController {
+export class WatchRewindController {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly analytics: AnalyticsService
+    private readonly analytics: AnalyticsService,
+    private readonly rewindAi: RewindAiService,
   ) {}
 
-  @Get('stats')
+  @Get("stats")
   async getStats(
     @Req() req: Request,
-    @Query('period') period: string,
-    @Query('tz') tz?: string
+    @Query("period") period?: string,
+    @Query("tz") tz?: string,
   ): Promise<RewindStatsResponse> {
     const userId = (req as any).userId;
-    if (!period || !/^\d{4}(-\d{2})?$/.test(period)) {
-      throw new BadRequestException('period must be YYYY or YYYY-MM');
-    }
-    return this.analytics.rewindStats(userId, period, tz || "UTC");
+    const q = parseRewindQuery({ period, tz });
+    return this.analytics.rewindStats(userId, q.period, q.timeZone);
   }
 
-  @Get('ai')
+  @Get("ai")
   async getAi(
     @Req() req: Request,
-    @Query('period') period: string,
-    @Query('forceRedo') forceRedoStr: string,
-    @Query('tz') tz?: string
+    @Query("period") period?: string,
+    @Query("forceRedo") forceRedo?: string,
+    @Query("tz") tz?: string,
   ): Promise<RewindInsightResponse> {
     const userId = (req as any).userId;
-    if (!period || !/^\d{4}(-\d{2})?$/.test(period)) {
-      throw new BadRequestException('period must be YYYY or YYYY-MM');
-    }
-    const forceRedo = forceRedoStr === 'true';
-    const timeZone = tz || "UTC";
-    assertRewindAiPeriodAllowed(period);
-
-    if (!forceRedo) {
-      const cached = await this.prisma.aiInsightCache.findUnique({
-        where: { userId_domain_period: { userId, domain: 'watch', period } },
-      });
-      if (cached?.content.trim()) {
-        return {
-          period,
-          content: cached.content,
-          generatedAt: cached.updatedAt.toISOString(),
-          cached: true,
-        };
-      }
-    }
-
-    const stats = await this.analytics.rewindStats(userId, period, timeZone);
-    let content: string;
-    try {
-      content = await callRewindGenerate(userId, 'watch', period, stats);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      throw new BadRequestException(message);
-    }
-
-    const saved = await this.prisma.aiInsightCache.upsert({
-      where: { userId_domain_period: { userId, domain: 'watch', period } },
-      create: { userId, domain: 'watch', period, content },
-      update: { content },
+    const q = parseRewindQuery({ period, tz, forceRedo });
+    return this.rewindAi.serve({
+      userId,
+      domain: "watch",
+      period: q.period,
+      forceRedo: q.forceRedo,
+      loadStats: () => this.analytics.rewindStats(userId, q.period, q.timeZone),
     });
-
-    return {
-      period,
-      content: saved.content,
-      generatedAt: saved.updatedAt.toISOString(),
-      cached: false,
-    };
   }
 }

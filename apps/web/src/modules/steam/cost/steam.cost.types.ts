@@ -1,4 +1,4 @@
-import type { UseResourceResult } from "@questorylabs/qhttp/react";
+import type { UseActionResult, UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
   CostRoiPage,
   CostRoiSort,
@@ -15,4 +15,5 @@ export type CostViewProps = {
   setValueTab: (tab: CostRoiValueFilter) => void;
   page: number;
   setPage: (page: number) => void;
+  refreshPrices?: UseActionResult<unknown, void>;
 };

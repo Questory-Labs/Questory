@@ -148,6 +148,18 @@ async function searchTracks(
       title: true,
       artist: { select: { name: true } },
       release: { select: { title: true } },
+      _count: {
+        select: {
+          listens: {
+            where: {
+              userId: listenWhere.userId,
+              ...(listenWhere.listenedAt
+                ? { listenedAt: listenWhere.listenedAt }
+                : {}),
+            },
+          },
+        },
+      },
     },
     orderBy: { title: "asc" },
     take: limit,
@@ -158,5 +170,6 @@ async function searchTracks(
     name: t.title,
     artistName: t.artist.name,
     albumName: t.release?.title ?? null,
+    playCount: t._count.listens,
   }));
 }

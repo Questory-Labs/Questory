@@ -15,6 +15,12 @@ import {
 import { parseTimeZone } from "../../lib/timezone";
 import { SessionUserGuard } from "../auth/session-user.guard";
 import { CurrentWatchUserId } from "../auth/current-watch-user.decorator";
+import {
+  CONTINUE_WATCHING_DEFAULT_LIMIT,
+  CONTINUE_WATCHING_MAX_LIMIT,
+  SEARCH_QUERY_MAX,
+} from "./analytics.constants";
+import type { TopsSort } from "./watch-shelf";
 
 const RANGES = new Set<RangeKey>(["day", "week", "month", "year", "all"]);
 const MEDIA_TYPES = new Set<MediaType>(["movie", "show"]);
@@ -42,6 +48,21 @@ function parseMediaType(raw: string | undefined): MediaType | undefined {
     throw new BadRequestException("Invalid type");
   }
   return raw as MediaType;
+}
+
+function parseTopsSort(raw: string | undefined): TopsSort {
+  if (raw == null || raw === "" || raw === "count") return "count";
+  if (raw === "minutes") return "minutes";
+  throw new BadRequestException("Invalid sort");
+}
+
+function parseSearchQuery(raw: string | undefined): string | undefined {
+  const q = raw?.trim();
+  if (!q) return undefined;
+  if (q.length > SEARCH_QUERY_MAX) {
+    throw new BadRequestException("Invalid q");
+  }
+  return q;
 }
 
 @Controller("watch/analytics")
@@ -98,12 +119,15 @@ export class AnalyticsController {
     @Query("range") range: string | undefined,
     @Query("limit") limit: string | undefined,
     @CurrentWatchUserId() userId: string,
+    @Query("type") type?: string,
+    @Query("sort") sort?: string,
   ) {
     return this.analytics.tops(
       kind,
       parseRange(range, "week"),
       parseLimit(limit, 20),
       userId,
+      { type: parseMediaType(type), sort: parseTopsSort(sort) },
     );
   }
 
@@ -135,13 +159,29 @@ export class AnalyticsController {
     @Query("pageSize") pageSizeRaw: string | undefined,
     @Query("limit") limitRaw: string | undefined,
     @CurrentWatchUserId() userId: string,
+    @Query("type") type?: string,
+    @Query("q") q?: string,
   ) {
     const page = parsePageParam(pageRaw, 1);
     const pageSize = parsePageSizeParam(pageSizeRaw ?? limitRaw, 40);
     if (page == null || pageSize == null) {
       throw new BadRequestException("Invalid page or pageSize");
     }
-    return this.analytics.recent(userId, page, pageSize);
+    return this.analytics.recent(userId, page, pageSize, {
+      type: parseMediaType(type),
+      q: parseSearchQuery(q),
+    });
+  }
+
+  @Get("continue")
+  continueWatching(
+    @CurrentWatchUserId() userId: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.analytics.continueWatching(
+      userId,
+      parseLimit(limit, CONTINUE_WATCHING_DEFAULT_LIMIT, CONTINUE_WATCHING_MAX_LIMIT),
+    );
   }
 
   @Get("titles/:id")

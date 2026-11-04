@@ -150,4 +150,35 @@ describe("GlobalSearchDialog", () => {
       expect(screen.getAllByText("Portal").length).toBeGreaterThan(0);
     });
   });
+
+  it("narrows results by scope and shows game details", async () => {
+    api.mockResolvedValue({
+      games: [
+        {
+          appId: 10,
+          gameId: "g1",
+          name: "Portal",
+          headerImage: null,
+          source: "library",
+          playtimeMinutes: 360,
+          userStatus: "finished",
+        },
+      ],
+      friends: [],
+      developers: [],
+      publishers: [],
+      collections: [],
+      music: { artists: [], albums: [], tracks: [] },
+      watch: { movies: [{ id: "m1", name: "Portal Movie", year: 2027 }], shows: [] },
+      read: { titles: [] },
+    });
+
+    renderPalette("portal");
+
+    expect(await screen.findByText("Completed · 6h total")).toBeInTheDocument();
+    expect(screen.getByText("Portal Movie")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+    expect(screen.queryByText("Completed · 6h total")).not.toBeInTheDocument();
+    expect(screen.getByText("Portal Movie")).toBeInTheDocument();
+  });
 });

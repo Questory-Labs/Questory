@@ -60,12 +60,12 @@ export function Dialog({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-[var(--bg-0)]/75 hatch-fill"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <HatchShadow
         size="md"
-        className={cn(dialogContentVariants({ size }), className)}
+        className={cn(dialogContentVariants({ size }), "q-in", className)}
         faceClassName="dialog-face"
       >
         <div
@@ -74,10 +74,10 @@ export function Dialog({
           aria-labelledby={titleId}
           className="w-full"
         >
-          <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
+          <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-6 py-4">
             <h2
               id={titleId}
-              className="font-display text-lg font-bold tracking-tight"
+              className="font-display text-xl"
             >
               {title}
             </h2>
@@ -90,7 +90,7 @@ export function Dialog({
               Esc
             </Button>
           </div>
-          <div className="px-5 py-4">{children}</div>
+          <div className="px-6 py-5">{children}</div>
         </div>
       </HatchShadow>
     </div>

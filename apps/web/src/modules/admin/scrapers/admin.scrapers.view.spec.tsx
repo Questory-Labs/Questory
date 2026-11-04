@@ -10,6 +10,7 @@ import type { AdminScrapersViewProps } from "./admin.scrapers.types";
 
 vi.mock("./components/ScraperIterationList", () => ({
   ScraperIterationList: () => <div>iteration list</div>,
+  statusLabel: (status: string) => status,
 }));
 
 vi.mock("./components/ScraperIterationWorkflow", () => ({
@@ -56,6 +57,8 @@ const summary: ScraperProviderSummary = {
   enabled: true,
   hasPublished: true,
   hasOpenIteration: false,
+  publishedVersion: 3,
+  publishedAt: null,
 };
 
 const detailValue: ScraperProviderDetail = {
@@ -121,6 +124,32 @@ describe("AdminScrapersView", () => {
     renderView({});
     expect(screen.getAllByText("Letterboxd").length).toBeGreaterThan(0);
     expect(screen.getByText("iteration list")).toBeInTheDocument();
+  });
+
+  it("shows each provider's status in the list", () => {
+    renderView({
+      providers: resource<ScraperProviderSummary[]>({
+        empty: false,
+        failed: false,
+        value: [
+          { ...summary, publishedVersion: 3 } as ScraperProviderSummary,
+          { ...summary, key: "off", label: "Offline", enabled: false },
+          {
+            ...summary,
+            key: "new",
+            label: "Fresh",
+            hasPublished: false,
+            hasOpenIteration: true,
+          },
+        ],
+      }),
+    });
+    expect(screen.getByText("v3 live")).toBeInTheDocument();
+    expect(screen.getByText("Disabled")).toBeInTheDocument();
+    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Letterboxd/ }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows StateMessage loading when detail is empty", () => {

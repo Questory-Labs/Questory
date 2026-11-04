@@ -7,6 +7,7 @@ describe("FriendsService.list pagination", () => {
   const findMany = vi.fn();
   const groupBy = vi.fn();
   const syncJobFindFirst = vi.fn();
+  const aggregate = vi.fn();
   let service: FriendsService;
 
   beforeEach(() => {
@@ -16,8 +17,10 @@ describe("FriendsService.list pagination", () => {
     syncJobFindFirst.mockReset();
     syncJobFindFirst.mockResolvedValue(null);
     groupBy.mockResolvedValue([]);
+    aggregate.mockReset();
+    aggregate.mockResolvedValue({ _max: { presenceSyncedAt: null } });
     const prisma = {
-      friendship: { count, findMany },
+      friendship: { count, findMany, aggregate },
       friendLibraryCache: { groupBy },
       syncJob: { findFirst: syncJobFindFirst },
     } as any;

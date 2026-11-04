@@ -67,6 +67,8 @@ export class PlayingNowService {
 
     const snapshot = toPlayingNowSnapshot({
       updatedAt: new Date(),
+      startedAt: result.startedAt,
+      source: result.source,
       track: {
         id: result.track.id,
         title: result.track.title,
@@ -79,6 +81,8 @@ export class PlayingNowService {
         releaseId: result.release?.id ?? null,
         releaseTitle: result.release?.title ?? null,
         imageUrl: result.release?.imageUrl ?? null,
+        year: result.release?.year ?? null,
+        durationMs: result.track.durationMs ?? null,
       },
     });
     await this.cache.setJson(
@@ -127,6 +131,8 @@ export class PlayingNowService {
 
     const snapshot = toPlayingNowSnapshot({
       updatedAt: row.updatedAt,
+      startedAt: row.startedAt,
+      source: row.source,
       track: {
         id: row.track.id,
         title: row.track.title,
@@ -135,6 +141,8 @@ export class PlayingNowService {
         releaseId: row.track.release?.id ?? null,
         releaseTitle: row.track.release?.title ?? null,
         imageUrl: row.track.release?.imageUrl ?? null,
+        year: row.track.release?.year ?? null,
+        durationMs: row.track.durationMs ?? null,
       },
     });
 
@@ -177,6 +185,8 @@ export class PlayingNowService {
 
     const remapped = toPlayingNowSnapshot({
       updatedAt: snapshot.updatedAt,
+      startedAt: snapshot.startedAt,
+      source: snapshot.source,
       track: {
         id: row.id,
         title: row.title,
@@ -189,6 +199,8 @@ export class PlayingNowService {
         releaseId: row.release?.id ?? null,
         releaseTitle: row.release?.title ?? null,
         imageUrl: row.release?.imageUrl ?? null,
+        year: row.release?.year ?? null,
+        durationMs: row.durationMs ?? null,
       },
     });
 

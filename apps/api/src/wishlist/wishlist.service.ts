@@ -1,8 +1,55 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { parseStringArray } from "../lib/json-arrays";
+import { currencyFromCountry } from "../lib/currency";
 import { isStoreId, StoreId } from "../stores/store.constants";
 import { WISHLIST_PAGE_SIZE } from "./wishlist.constants";
+
+const LISTING_PRICE_SELECT = {
+  game: {
+    select: {
+      storeListings: {
+        select: {
+          store: true,
+          currentPrice: true,
+          isFree: true,
+          priceCurrency: true,
+        },
+      },
+    },
+  },
+} as const;
+
+type ListingPrice = {
+  store: string;
+  currentPrice: number | null;
+  isFree: boolean;
+  priceCurrency?: string | null;
+};
+
+export function bestListingPrice(
+  own: { store: string; currentPrice: number | null },
+  listings: ListingPrice[],
+  currency?: string,
+): { bestPrice: number | null; bestStore: StoreId | null } {
+  const candidates = [
+    { store: own.store, price: own.currentPrice },
+    ...listings.map((l) => ({
+      store: l.store,
+      price: l.isFree
+        ? 0
+        : !currency || l.priceCurrency?.trim().toUpperCase() === currency
+          ? l.currentPrice
+          : null,
+    })),
+  ].filter(
+    (c): c is { store: StoreId; price: number } =>
+      c.price != null && isStoreId(c.store),
+  );
+  if (!candidates.length) return { bestPrice: null, bestStore: null };
+  const best = candidates.reduce((a, b) => (b.price < a.price ? b : a));
+  return { bestPrice: best.price, bestStore: best.store };
+}
 
 @Injectable()
 export class WishlistService {
@@ -32,8 +79,12 @@ export class WishlistService {
     lowestPrice: number | null;
     shouldBuyScore: number | null;
     genres: string;
-  }) {
-    return {
+    discountPercent?: number | null;
+    regularPrice?: number | null;
+    game?: { storeListings: ListingPrice[] } | null;
+  }, currency?: string) {
+    const best = bestListingPrice(w, w.game?.storeListings ?? [], currency);
+    const base = {
       id: w.id,
       store: (isStoreId(w.store) ? w.store : "steam") as StoreId,
       externalId: w.externalId,
@@ -48,7 +99,12 @@ export class WishlistService {
       lowestPrice: w.lowestPrice,
       shouldBuyScore: w.shouldBuyScore,
       genres: parseStringArray(w.genres),
+      discountPercent: w.discountPercent ?? null,
+      regularPrice: w.regularPrice ?? null,
+      bestPrice: best.bestPrice,
+      bestStore: best.bestStore,
     };
+    return { ...base, reasons: this.explainScore(base) };
   }
 
   async list(
@@ -61,21 +117,27 @@ export class WishlistService {
     const safePage = Math.max(opts.page ?? 1, 1);
     const skip = (safePage - 1) * take;
 
-    const [total, rows] = await Promise.all([
+    const [total, rows, user] = await Promise.all([
       this.prisma.wishlistItem.count({ where }),
       this.prisma.wishlistItem.findMany({
         where,
         orderBy: [{ shouldBuyScore: "desc" }, { priority: "asc" }],
+        include: LISTING_PRICE_SELECT,
         skip,
         take,
       }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { countryCode: true },
+      }),
     ]);
+    const currency = currencyFromCountry(user?.countryCode);
 
     return {
       total,
       page: safePage,
       pageSize: take,
-      items: rows.map((w) => this.mapItem(w)),
+      items: rows.map((w) => this.mapItem(w, currency)),
     };
   }
 
@@ -115,11 +177,7 @@ export class WishlistService {
     const items = await this.listAll(userId);
     return items
       .filter((i) => (i.shouldBuyScore || 0) >= 50)
-      .slice(0, 12)
-      .map((i) => ({
-        ...i,
-        reasons: this.explainScore(i),
-      }));
+      .slice(0, 12);
   }
 
   async dealAlerts(userId: string) {
@@ -134,6 +192,7 @@ export class WishlistService {
       lowestPrice: number | null;
       targetPrice: number | null;
       shouldBuyScore: number | null;
+      discountPercent: number | null;
       reason: "target" | "historical_low" | "strong_score";
     }[] = [];
 
@@ -163,6 +222,7 @@ export class WishlistService {
     lowestPrice: number | null;
     targetPrice: number | null;
     shouldBuyScore: number | null;
+    discountPercent?: number | null;
   }) {
     return {
       store: i.store,
@@ -174,6 +234,7 @@ export class WishlistService {
       lowestPrice: i.lowestPrice,
       targetPrice: i.targetPrice,
       shouldBuyScore: i.shouldBuyScore,
+      discountPercent: i.discountPercent ?? null,
     };
   }
 

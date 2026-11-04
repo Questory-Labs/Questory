@@ -45,3 +45,19 @@ export const REWIND_COVERFLOW_PREV_MASK =
 /** Dissolves a right neighbor under the front card and into the page. */
 export const REWIND_COVERFLOW_NEXT_MASK =
   "linear-gradient(to left, transparent 0%, black 16%, black 58%, transparent 100%)";
+
+export const REWIND_SCOPE_COLOR = {
+  all: "var(--ink)",
+  games: "var(--games)",
+  music: "var(--music)",
+  watch: "var(--watch)",
+  read: "var(--read)",
+} as const;
+
+export const REWIND_SCOPE_SOFT_COLOR = {
+  all: "#a1a1a6",
+  games: "color-mix(in srgb, var(--games) 60%, white)",
+  music: "color-mix(in srgb, var(--music) 60%, white)",
+  watch: "color-mix(in srgb, var(--watch) 60%, white)",
+  read: "color-mix(in srgb, var(--read) 60%, white)",
+} as const;

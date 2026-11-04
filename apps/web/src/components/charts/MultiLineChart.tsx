@@ -7,15 +7,16 @@ import {
   CHART_PAD,
   chartHeightClass,
   defaultXLabel,
+  fractionalTicks,
   monotoneAreaPath,
-  pickXTickIndices,
+  pickXTickIndicesByPixel,
   monotoneLinePath,
   niceTicks,
   useChartWidth,
 } from "./chart-utils";
 import type { ChartSize, SeriesConfig, YAxisConfig } from "./types";
 
-type MultiRow = Record<string, string | number>;
+type MultiRow = Record<string, string | number | null | undefined>;
 
 const DEFAULT_COLORS = [
   "var(--accent)",
@@ -32,6 +33,7 @@ export function MultiLineChart({
   ariaLabel = "Chart",
   size = "lg",
   formatXLabel = defaultXLabel,
+  formatValue = (n) => n.toLocaleString(),
 }: {
   data: MultiRow[];
   series: SeriesConfig[];
@@ -39,6 +41,7 @@ export function MultiLineChart({
   ariaLabel?: string;
   size?: ChartSize;
   formatXLabel?: (label: string) => string;
+  formatValue?: (n: number) => string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const gid = useId().replace(/:/g, "");
@@ -54,7 +57,7 @@ export function MultiLineChart({
     const plotH = height - pad.top - pad.bottom;
 
     const axisMax = new Map<string, number>();
-    for (const axis of yAxes) axisMax.set(axis.id, 1);
+    for (const axis of yAxes) axisMax.set(axis.id, axis.fractional ? 0 : 1);
     for (const row of data) {
       for (const s of series) {
         const axisId = s.yAxisId ?? yAxes[0]?.id ?? "default";
@@ -67,7 +70,7 @@ export function MultiLineChart({
     const yMaxByAxis = new Map<string, number>();
     for (const axis of yAxes) {
       const max = axisMax.get(axis.id) ?? 1;
-      const ticks = niceTicks(max);
+      const ticks = axis.fractional ? fractionalTicks(max) : niceTicks(max);
       yTicksByAxis.set(axis.id, ticks);
       yMaxByAxis.set(axis.id, ticks[ticks.length - 1]);
     }
@@ -75,15 +78,19 @@ export function MultiLineChart({
     const pointsBySeries = series.map((s) => {
       const axisId = s.yAxisId ?? yAxes[0]?.id ?? "default";
       const yMax = yMaxByAxis.get(axisId) ?? 1;
-      return data.map((row, i) => {
+      return data.flatMap((row, i) => {
+        if (s.skipMissing && row[s.key] == null) return [];
         const value = Number(row[s.key] ?? 0);
         const x = pad.left + (i / Math.max(data.length - 1, 1)) * plotW;
         const y = pad.top + plotH - (value / yMax) * plotH;
-        return { x, y, value, label: String(row.label ?? "") };
+        return [{ x, y, value, label: String(row.label ?? ""), index: i }];
       });
     });
 
-    const xTickIdx = new Set(pickXTickIndices(data.length));
+    const xPositions = data.map(
+      (_, i) => pad.left + (i / Math.max(data.length - 1, 1)) * plotW,
+    );
+    const xTickIdx = new Set(pickXTickIndicesByPixel(xPositions));
 
     const baseline = pad.top + plotH;
     const bandW = plotW / Math.max(data.length, 1);
@@ -98,9 +105,7 @@ export function MultiLineChart({
       yMaxByAxis,
       pointsBySeries,
       xTickIdx,
-      xPositions: data.map(
-        (_, i) => pad.left + (i / Math.max(data.length - 1, 1)) * plotW,
-      ),
+      xPositions,
     };
   }, [data, series, yAxes, width, pad, height]);
 
@@ -240,7 +245,9 @@ export function MultiLineChart({
 
         {activeIdx != null
           ? series.map((s, si) => {
-              const pt = layout.pointsBySeries[si][activeIdx];
+              const pt = layout.pointsBySeries[si].find(
+                (p) => p.index === activeIdx,
+              );
               if (!pt) return null;
               return (
                 <circle
@@ -263,11 +270,12 @@ export function MultiLineChart({
             {formatXLabel(String(data[activeIdx]?.label ?? ""))}
           </div>
           {series.map((s, si) => {
+            if (s.skipMissing && data[activeIdx]?.[s.key] == null) return null;
             const val = Number(data[activeIdx]?.[s.key] ?? 0);
             const color = s.color ?? DEFAULT_COLORS[si % DEFAULT_COLORS.length];
             return (
               <div key={s.key} className="mt-0.5" style={{ color }}>
-                {s.name}: {val.toLocaleString()}
+                {s.name}: {formatValue(val)}
               </div>
             );
           })}
@@ -277,12 +285,26 @@ export function MultiLineChart({
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-[var(--faint)]">
         {series.map((s, si) => (
           <span key={s.key} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-0.5 w-4"
-              style={{
-                background: s.color ?? DEFAULT_COLORS[si % DEFAULT_COLORS.length],
-              }}
-            />
+            {s.strokeDasharray ? (
+              <svg width="16" height="2" aria-hidden>
+                <line
+                  x1="0"
+                  y1="1"
+                  x2="16"
+                  y2="1"
+                  stroke={s.color ?? DEFAULT_COLORS[si % DEFAULT_COLORS.length]}
+                  strokeWidth="2"
+                  strokeDasharray={s.strokeDasharray}
+                />
+              </svg>
+            ) : (
+              <span
+                className="inline-block h-0.5 w-4"
+                style={{
+                  background: s.color ?? DEFAULT_COLORS[si % DEFAULT_COLORS.length],
+                }}
+              />
+            )}
             {s.name}
           </span>
         ))}

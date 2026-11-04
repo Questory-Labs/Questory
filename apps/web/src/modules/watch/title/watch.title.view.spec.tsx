@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ResourceProvider, ResourceStore } from "@questorylabs/qhttp/react";
 import type { WatchTitleDetail } from "@questorylabs/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,12 +79,20 @@ describe("WatchTitleView", () => {
   it("renders history when ready", () => {
     renderView();
     expect(screen.getByRole("heading", { name: "Nobody 2" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your history" })).toBeInTheDocument();
     expect(screen.getByText(/2 watches · first/)).toBeInTheDocument();
-    expect(screen.getByText(/trakt/)).toBeInTheDocument();
-    expect(screen.getByText(/letterboxd/)).toBeInTheDocument();
+    expect(screen.getAllByText(/trakt/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/letterboxd/i)[0]).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Time range" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Day" })).not.toBeInTheDocument();
+  });
+
+  it("logs a movie watch from the hero", () => {
+    const onMark = vi.fn();
+    renderView({ onMark, markMessage: { tone: "ok", text: "Logged a watch for today." } });
+    fireEvent.click(screen.getByRole("button", { name: "Log a watch today" }));
+    expect(onMark).toHaveBeenCalledWith(expect.objectContaining({ titleId: "title-1", type: "movie" }));
+    expect(screen.getByText("Logged a watch for today.")).toBeInTheDocument();
   });
 });
 

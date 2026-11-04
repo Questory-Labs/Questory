@@ -13,11 +13,15 @@ import {
   parsePageParam,
   parsePageSizeParam,
   PlaySessionAssignSchema,
+  PlaySessionStatsDaysSchema,
 } from "@questorylabs/shared";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { parseTimeZone } from "../lib/timezone";
-import { PLAY_SESSIONS_PAGE_SIZE } from "./qmonitor.constants";
+import {
+  PLAY_SESSION_STATS_DAYS,
+  PLAY_SESSIONS_PAGE_SIZE,
+} from "./qmonitor.constants";
 import { QmonitorSessionRulesService } from "./qmonitor-session-rules.service";
 import { QmonitorSessionStatsService } from "./qmonitor-session-stats.service";
 import { QmonitorSessionsService } from "./qmonitor-sessions.service";
@@ -60,8 +64,20 @@ export class QmonitorSessionsController {
   stats(
     @CurrentUser() user: { userId: string },
     @Query("tz") tz?: string,
+    @Query("days") daysRaw?: string,
   ) {
-    return this.sessionStats.stats(user.userId, parseTimeZone(tz));
+    const days = PlaySessionStatsDaysSchema.safeParse(
+      daysRaw == null || daysRaw === "" ? PLAY_SESSION_STATS_DAYS : daysRaw,
+    );
+    if (!days.success) {
+      throw new BadRequestException(days.error.flatten());
+    }
+    return this.sessionStats.stats(
+      user.userId,
+      parseTimeZone(tz),
+      new Date(),
+      days.data,
+    );
   }
 
   @Get("game-suggest")

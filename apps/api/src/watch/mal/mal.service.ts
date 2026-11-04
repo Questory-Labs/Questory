@@ -30,6 +30,8 @@ import {
   signMalOAuthState,
   verifyMalOAuthState,
 } from "./mal-auth";
+import { isDroppedListStatus } from "../catalog/list-status";
+import { disconnectSourceConnection } from "../lib/disconnect";
 
 type MalListEntry<T> = {
   node: T;
@@ -188,6 +190,10 @@ export class MalService {
     }
 
     return { ok: true, userId: verified.userId };
+  }
+
+  disconnect(userId: string) {
+    return disconnectSourceConnection(this.prisma, this.users, userId, "mal");
   }
 
   async getConnection(userId?: string) {
@@ -371,6 +377,14 @@ export class MalService {
             listedAt: watchedAt,
           });
         }
+
+        await this.catalog.syncDroppedListState({
+          userId,
+          titleId: title.id,
+          source: "mal",
+          dropped: isDroppedListStatus(status),
+          listedAt: watchedAt,
+        });
 
         this.enrichment.enqueueTitle(title.id);
       }

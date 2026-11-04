@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
-import { HatchShadow } from "@/components/HatchShadow";
-import { LandingBackground } from "@/components/LandingBackground";
 
 const PREVIEWS = [
   {
@@ -38,48 +36,43 @@ const PREVIEWS = [
 
 export default function TestHubPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <LandingBackground />
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
-        <BrandMark href="/" size="md" className="mb-10" />
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
-          Dev harness
-        </p>
-        <h1 className="mt-3 font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
-          Status page previews
+    <div className="flex min-h-screen flex-col bg-[var(--bg-0)] text-[var(--ink)]">
+      <header className="px-6 pt-6">
+        <BrandMark href="/" size="sm" wordmarkClassName="text-lg" />
+      </header>
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 py-16">
+        <p className="label-mono m-0 text-[11px]">Dev harness</p>
+        <h1 className="mt-3 mb-0 text-[clamp(34px,4.4vw,52px)] font-light leading-[1.02] tracking-[-0.045em]">
+          Status page <span className="font-serif text-[#a1a1a6]">previews</span>
         </h1>
         <p className="mt-3 max-w-xl text-[var(--muted)]">
           Local-only routes for eyeballing error, empty, and loading states.
           Production builds 404 these URLs.
         </p>
 
-        <ul className="mt-10 grid gap-3 sm:grid-cols-2">
-          {PREVIEWS.map((item) => (
-            <li key={item.href}>
-              <Link href={item.href} className="block h-full">
-                <HatchShadow
-                  className="h-full"
-                  faceClassName="panel flex h-full flex-col border border-[var(--line)] px-5 py-4 hover:border-[var(--line-strong)]"
-                >
-                  <span className="font-display text-3xl text-[var(--accent)]">
-                    {item.code}
-                  </span>
-                  <span className="mt-2 font-semibold text-[var(--ink)]">
-                    {item.label}
-                  </span>
-                  <span className="mt-1 text-sm text-[var(--faint)]">
-                    {item.hint}
-                  </span>
-                </HatchShadow>
+        <ul className="mt-10 grid gap-3 p-0 sm:grid-cols-2">
+          {PREVIEWS.map((item, i) => (
+            <li key={item.href} className="q-in list-none" style={{ "--i": i } as React.CSSProperties}>
+              <Link
+                href={item.href}
+                className="panel q-lift flex h-full flex-col px-5 py-4 transition-colors hover:border-[var(--line-strong)]"
+              >
+                <span className="font-display text-3xl text-[var(--ink)]">
+                  {item.code}
+                </span>
+                <span className="mt-2 text-[var(--ink)]">{item.label}</span>
+                <span className="mt-1 font-mono text-[11px] text-[var(--faint)]">
+                  {item.hint}
+                </span>
               </Link>
             </li>
           ))}
         </ul>
 
-        <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
+        <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--dim)]">
           quest log › dev_harness — clearance: local_only
         </p>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,37 +1,29 @@
 "use client";
 
-import { StatCard } from "@/components/StatCard";
-import { Panel } from "@questorylabs/ui";
 import type { ReactNode } from "react";
+import { ADMIN_SECTION_TITLE } from "@/modules/admin/shared/admin.styles";
 
 export const TitledPanel = ({
   title,
+  description,
+  index = 0,
   children,
 }: {
   title: string;
+  description?: ReactNode;
+  index?: number;
   children: ReactNode;
 }) => (
-  <Panel className="p-4">
-    <h2 className="font-display text-lg font-bold text-[var(--ink)]">
-      {title}
-    </h2>
-    <div className="mt-3">{children}</div>
-  </Panel>
-);
-
-export const TelemetryStat = ({
-  label,
-  value,
-  loading,
-}: {
-  label: string;
-  value: number | undefined;
-  loading: boolean;
-}) => (
-  <StatCard
-    label={label}
-    value={loading ? "…" : value != null ? value.toLocaleString() : "—"}
-  />
+  <section
+    className="panel q-in min-w-0 px-5 py-[18px]"
+    style={{ "--i": index } as React.CSSProperties}
+  >
+    <h2 className={ADMIN_SECTION_TITLE}>{title}</h2>
+    {description ? (
+      <p className="mt-1 text-[13px] text-[var(--muted)]">{description}</p>
+    ) : null}
+    <div className="mt-4">{children}</div>
+  </section>
 );
 
 export const MiniStat = ({
@@ -41,13 +33,14 @@ export const MiniStat = ({
   label: string;
   value: string;
 }) => (
-  <Panel size="sm" className="bg-[var(--bg-0)] px-3 py-2">
-    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">
-      {label}
-    </div>
-    <div className="mt-1 font-mono text-sm text-[var(--ink)]">{value}</div>
-  </Panel>
+  <div className="rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
+    <p className="label-mono">{label}</p>
+    <p className="mt-1.5 font-mono text-sm text-[var(--ink)]">{value}</p>
+  </div>
 );
+
+const pagerButton =
+  "min-h-8 rounded-full border border-white/[0.12] bg-white/[0.04] px-3 text-xs text-[var(--ink)] transition hover:border-white/[0.22] disabled:cursor-not-allowed disabled:opacity-40";
 
 export const TelemetryPagination = ({
   page,
@@ -60,23 +53,23 @@ export const TelemetryPagination = ({
   onChange: (page: number) => void;
   disabled?: boolean;
 }) => (
-  <div className="flex items-center gap-2 text-xs">
+  <div className="flex items-center gap-2">
     <button
       type="button"
       disabled={disabled || page <= 0}
       onClick={() => onChange(page - 1)}
-      className="px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--bg-2)] hover:text-[var(--ink)] disabled:opacity-40"
+      className={pagerButton}
     >
       Prev
     </button>
-    <span className="font-mono text-[var(--muted)]">
+    <span className="font-mono text-xs text-[var(--muted)]">
       {page + 1}/{totalPages}
     </span>
     <button
       type="button"
       disabled={disabled || page >= totalPages - 1}
       onClick={() => onChange(page + 1)}
-      className="px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--bg-2)] hover:text-[var(--ink)] disabled:opacity-40"
+      className={pagerButton}
     >
       Next
     </button>

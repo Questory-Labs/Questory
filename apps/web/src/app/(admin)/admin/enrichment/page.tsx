@@ -1,10 +1,13 @@
-import { AdminEnrichmentController } from "@/modules/admin/enrichment/admin.enrichment.controller";
-import { AdminEnrichmentView } from "@/modules/admin/enrichment/admin.enrichment.view";
+import { redirect } from "next/navigation";
+import {
+  adminTabHref,
+  type AdminSearchParams,
+} from "@/modules/admin/shared/admin.redirect";
 
-const AdminEnrichmentPage = () => (
-  <AdminEnrichmentController>
-    <AdminEnrichmentView />
-  </AdminEnrichmentController>
-);
-
-export default AdminEnrichmentPage;
+export default async function AdminEnrichmentRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<AdminSearchParams>;
+}) {
+  redirect(adminTabHref("/admin/jobs", "enrichment", await searchParams));
+}

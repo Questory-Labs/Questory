@@ -1,10 +1,14 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ResourceProvider, ResourceStore } from "@questorylabs/qhttp/react";
 import type { ReadInsights, ReadTimeBucket } from "@questorylabs/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockResource } from "@/test/resource-mock";
 import { ReadHomeView } from "./read.home.view";
 import type { ReadHomeViewProps } from "./read.home.types";
+
+vi.mock("@/lib/api", () => ({
+  api: vi.fn().mockResolvedValue({ connected: 0, domains: [] }),
+}));
 
 vi.mock("@/lib/read", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/read")>();
@@ -43,10 +47,20 @@ const emptyBreakdown = mockResource({
   value: { periodEvents: 0, items: [] },
 });
 
+const emptyLibrary = mockResource({
+  empty: false,
+  failed: false,
+  value: { items: [], total: 0, page: 1, pageSize: 6 },
+});
+
 const renderView = (patch: Partial<ReadHomeViewProps> = {}) =>
   render(
     <ReadHomeView
       {...({
+        range: "month",
+        setRange: () => {},
+        reading: emptyLibrary,
+        overview: mockResource({ empty: true, failed: false }),
         insights: mockResource({ empty: false, failed: false, value: insights }),
         hour: emptyBuckets,
         dow: emptyBuckets,
@@ -79,7 +93,15 @@ describe("ReadHomeView", () => {
   it("renders stats when ready", () => {
     renderView();
     expect(screen.getByText("Events")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(screen.getAllByText("4").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/12\s*chapters/);
+  });
+
+  it("changes the range from the picker", () => {
+    const setRange = vi.fn();
+    renderView({ setRange });
+    fireEvent.click(screen.getByRole("button", { name: "7d" }));
+    expect(setRange).toHaveBeenCalledWith("week");
   });
 });
 
@@ -91,11 +113,12 @@ describe("ReadHomeController", () => {
     vi.mocked(readFetch).mockImplementation(async (path) => {
       if (String(path).includes("/analytics/insights")) return insights;
       if (String(path).includes("/analytics/timeseries")) return [];
+      if (String(path).startsWith("/library")) return { items: [], total: 0, page: 1, pageSize: 6 };
       return { periodEvents: 4, items: [] };
     });
   });
 
-  it("loads all-time analytics without a date range picker", async () => {
+  it("loads the last 30 days with a range picker", async () => {
     const store = new ResourceStore({ retries: false });
     render(
       <ResourceProvider store={store}>
@@ -105,11 +128,11 @@ describe("ReadHomeController", () => {
       </ResourceProvider>,
     );
 
-    expect(await screen.findByRole("heading", { name: "Read" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Day" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Week" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /12\s*chapters/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Range" })).toBeInTheDocument();
     expect(readFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/analytics/insights?range=all"),
+      expect.stringContaining("/analytics/insights?range=month"),
     );
+    expect(readFetch).toHaveBeenCalledWith(expect.stringContaining("/library?status=reading"));
   });
 });

@@ -41,15 +41,15 @@ describe("Dialog", () => {
     expect(dialog.closest(".hatch-shadow")).toHaveClass("max-w-xl");
   });
 
-  it("uses a hatch overlay instead of glass blur", () => {
+  it("uses a blurred glass scrim", () => {
     render(
       <Dialog open onClose={() => undefined} title="Confirm">
         Body
       </Dialog>,
     );
     const close = screen.getByRole("button", { name: "Close dialog" });
-    expect(close.className).not.toContain("backdrop-blur");
-    expect(close.className).toContain("hatch-fill");
+    expect(close.className).toContain("backdrop-blur");
+    expect(close.className).not.toContain("hatch-fill");
     expect(screen.getByRole("dialog").closest(".hatch-shadow")).toBeTruthy();
   });
 

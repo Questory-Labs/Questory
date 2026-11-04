@@ -15,6 +15,10 @@ import {
 import { parseTimeZone } from "../../lib/timezone";
 import { ReadSessionUserGuard } from "../auth/session-user.guard";
 import { CurrentReadUserId } from "../auth/current-read-user.decorator";
+import {
+  READ_TITLE_TIMESERIES_DEFAULT_WEEKS,
+  READ_TITLE_TIMESERIES_MAX_WEEKS,
+} from "./analytics.constants";
 
 const RANGES = new Set<RangeKey>(["day", "week", "month", "year", "all"]);
 const FORMATS = new Set<FormatFilter>([
@@ -166,5 +170,26 @@ export class ReadAnalyticsController {
     @Query("range") range?: string,
   ) {
     return this.analytics.titleDetail(userId, id, parseRange(range, "all"));
+  }
+
+  @Get("titles/:id/timeseries")
+  titleTimeseries(
+    @CurrentReadUserId() userId: string,
+    @Param("id") id: string,
+    @Query("granularity") granularity?: string,
+    @Query("weeks") weeksRaw?: string,
+  ) {
+    if (granularity != null && granularity !== "" && granularity !== "week") {
+      throw new BadRequestException("Invalid granularity");
+    }
+    let weeks = READ_TITLE_TIMESERIES_DEFAULT_WEEKS;
+    if (weeksRaw != null && weeksRaw !== "") {
+      const n = Number(weeksRaw);
+      if (!Number.isInteger(n) || n < 1 || n > READ_TITLE_TIMESERIES_MAX_WEEKS) {
+        throw new BadRequestException("Invalid weeks");
+      }
+      weeks = n;
+    }
+    return this.analytics.titleTimeseries(userId, id, weeks);
   }
 }

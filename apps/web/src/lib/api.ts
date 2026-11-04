@@ -44,6 +44,12 @@ export function steamLoginUrl() {
   return `${getApiUrl()}/auth/steam`;
 }
 
+export function errorRequestId(err: unknown): string | undefined {
+  if (!err || typeof err !== "object") return undefined;
+  const id = (err as { requestId?: unknown }).requestId;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
+
 export function apiOrigin() {
   return getApiUrl();
 }

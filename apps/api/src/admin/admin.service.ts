@@ -37,7 +37,19 @@ import {
 } from "../auth/signup-policy";
 import type { FeatureSource, PatchFeatureFlags } from "@questorylabs/shared";
 import { FeatureFlagsService } from "../features/feature-flags.service";
+import { EnterpriseProxyService } from "../enterprise/enterprise-proxy.service";
 import { normalizeEmail } from "../auth/abuse/disposable-emails";
+import {
+  MonthlyRecapService,
+} from "../recap/monthly-recap.service";
+import { DEFAULT_RECAP_SCHEDULE } from "../recap/recap.constants";
+import { deleteUserAccount } from "../users/account-deletion";
+import {
+  domainHealth,
+  readApiVersion,
+  serializeLatestSync,
+  userModules,
+} from "./admin-instance";
 
 @Injectable()
 export class AdminService {
@@ -58,6 +70,10 @@ export class AdminService {
     @Optional()
     @Inject(WATCH_CRON_SYNC)
     private readonly watchCron: WatchCronSync | null,
+    @Optional()
+    private readonly enterprise?: EnterpriseProxyService,
+    @Optional()
+    private readonly recap?: MonthlyRecapService,
   ) {}
 
   async overview() {
@@ -73,6 +89,8 @@ export class AdminService {
       signupOpen,
       signupEnabled,
       catalog,
+      musicEnabled,
+      watchEnabled,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { isAdmin: true } }),
@@ -87,10 +105,16 @@ export class AdminService {
       isSignupOpen(this.prisma),
       getSignupEnabledSetting(this.prisma),
       this.catalog.getStatus(),
+      this.flags.isDomainEnabled("music"),
+      this.flags.isDomainEnabled("watch"),
     ]);
 
-    const musicHealth = { ok: true, service: "questorylabs-music", embedded: true };
-    const watchHealth = { ok: true, service: "questorylabs-watch", embedded: true };
+    const musicHealth = domainHealth("questorylabs-music", musicEnabled, true);
+    const watchHealth = domainHealth(
+      "questorylabs-watch",
+      watchEnabled,
+      this.watchCron != null,
+    );
 
     const recentCron = await this.prisma.cronRun.findMany({
       orderBy: { startedAt: "desc" },
@@ -98,6 +122,8 @@ export class AdminService {
     });
 
     return {
+      version: readApiVersion(),
+      uptimeSeconds: Math.floor(process.uptime()),
       users: { total: userCount, admins: adminCount },
       signup: { open: signupOpen, enabledSetting: signupEnabled },
       syncJobs: {
@@ -126,6 +152,7 @@ export class AdminService {
       signupEnabled,
       signupOpen,
       abuse: this.abuse.getMetrics(),
+      limits: this.abuse.getLimits(),
       features: flags.domains,
       sources: flags.sources,
     };
@@ -169,10 +196,23 @@ export class AdminService {
           select: { providerAccountId: true, displayName: true },
           take: 1,
         },
+        syncJobs: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { status: true, type: true, createdAt: true, finishedAt: true },
+        },
+        libraryEntries: { select: { id: true }, take: 1 },
+        listenHourBuckets: { select: { id: true }, take: 1 },
+        watchHourBuckets: { select: { id: true }, take: 1 },
+        readHourBuckets: { select: { id: true }, take: 1 },
       },
     });
+    const failingSyncCount = users.filter(
+      (u) => u.syncJobs[0]?.status === "failed",
+    ).length;
     return {
       startFreshEnabled: isDevelopmentMode(),
+      failingSyncCount,
       users: users.map((u) => ({
         id: u.id,
         email: u.email,
@@ -182,6 +222,8 @@ export class AdminService {
         steamId: u.accounts[0]?.providerAccountId ?? null,
         createdAt: u.createdAt.toISOString(),
         lastSyncedAt: u.lastSyncedAt?.toISOString() ?? null,
+        latestSync: serializeLatestSync(u.syncJobs[0]),
+        modules: userModules(u),
       })),
     };
   }
@@ -288,19 +330,11 @@ export class AdminService {
     };
   }
 
-  async deleteUser(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException("User not found");
-    if (user.isAdmin) {
-      const adminCount = await this.prisma.user.count({
-        where: { isAdmin: true },
-      });
-      if (adminCount <= 1) {
-        throw new ForbiddenException("Cannot delete the last admin");
-      }
-    }
-    await this.prisma.user.delete({ where: { id } });
-    return { ok: true };
+  deleteUser(id: string) {
+    return deleteUserAccount(
+      { prisma: this.prisma, enterprise: this.enterprise, logger: this.logger },
+      id,
+    );
   }
 
   /**
@@ -410,6 +444,8 @@ export class AdminService {
       "kitsu-sync",
       "bangumi-sync",
       "shikimori-sync",
+      "letterboxd-scrape",
+      "monthly-recap",
     ] as const;
 
     const jobs = statusJobNames.map((name) => {
@@ -419,7 +455,8 @@ export class AdminService {
         name === "recover-failed-sync" ||
         name === "watch-sync" ||
         name === "catalog-sync" ||
-        name === "price-sync"
+        name === "price-sync" ||
+        name === "ai-goals"
       ) {
         schedule = getCronSchedule(name as ScheduledCronJobName);
       } else if (
@@ -428,9 +465,12 @@ export class AdminService {
         name === "mal-sync" ||
         name === "kitsu-sync" ||
         name === "bangumi-sync" ||
-        name === "shikimori-sync"
+        name === "shikimori-sync" ||
+        name === "letterboxd-scrape"
       ) {
         schedule = getCronSchedule("watch-sync");
+      } else if (name === "monthly-recap") {
+        schedule = process.env.CRON_RECAP_SCHEDULE || DEFAULT_RECAP_SCHEDULE;
       }
 
       const registryName =
@@ -439,7 +479,8 @@ export class AdminService {
         name === "mal-sync" ||
         name === "kitsu-sync" ||
         name === "bangumi-sync" ||
-        name === "shikimori-sync"
+        name === "shikimori-sync" ||
+        name === "letterboxd-scrape"
           ? "watch-sync"
           : name;
 
@@ -492,6 +533,8 @@ export class AdminService {
             return this.cron.syncCatalog({});
           case "price-sync":
             return this.cron.syncPricesDaily();
+          case "ai-goals":
+            return this.cronJobs.refreshAiGoals();
           case "trakt-sync":
             if (!this.watchCron) {
               throw new BadRequestException("Watch module unavailable");
@@ -522,6 +565,16 @@ export class AdminService {
               throw new BadRequestException("Watch module unavailable");
             }
             return this.watchCron.runShikimoriSync();
+          case "letterboxd-scrape":
+            if (!this.watchCron) {
+              throw new BadRequestException("Watch module unavailable");
+            }
+            return this.watchCron.runLetterboxdScrape();
+          case "monthly-recap":
+            if (!this.recap) {
+              throw new BadRequestException("Monthly recap unavailable");
+            }
+            return this.recap.run();
           default:
             throw new BadRequestException(`Unknown job: ${jobName}`);
         }
@@ -690,29 +743,43 @@ export class AdminService {
     domain: "music" | "watch" | "game",
   ): Promise<StatusBucket> {
     const statuses = ["pending", "running", "completed", "failed"] as const;
+    const since = new Date(Date.now() - DAY_MS);
     if (domain === "music") {
-      const counts = await Promise.all(
-        statuses.map((status) =>
+      const counts = await Promise.all([
+        ...statuses.map((status) =>
           this.prisma.enrichmentJob.count({ where: { status } }),
         ),
-      );
+        this.prisma.enrichmentJob.count({
+          where: { status: "completed", completedAt: { gte: since } },
+        }),
+      ]);
       return bucketFromCounts(counts);
     }
     if (domain === "watch") {
-      const counts = await Promise.all(
-        statuses.map((status) =>
+      const counts = await Promise.all([
+        ...statuses.map((status) =>
           this.prisma.titleEnrichmentJob.count({ where: { status } }),
         ),
-      );
+        this.prisma.titleEnrichmentJob.count({
+          where: { status: "completed", completedAt: { gte: since } },
+        }),
+      ]);
       return bucketFromCounts(counts);
     }
-    const counts = await Promise.all(
-      statuses.map((status) =>
+    const counts = await Promise.all([
+      ...statuses.map((status) =>
         this.prisma.syncJob.count({
           where: { type: "metadata-refresh", status },
         }),
       ),
-    );
+      this.prisma.syncJob.count({
+        where: {
+          type: "metadata-refresh",
+          status: "completed",
+          finishedAt: { gte: since },
+        },
+      }),
+    ]);
     return bucketFromCounts(counts);
   }
 
@@ -745,15 +812,25 @@ type StatusBucket = {
   completed: number;
   failed: number;
   total: number;
+  completed24h: number;
 };
 
-function bucketFromCounts([pending, running, completed, failed]: number[]) {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function bucketFromCounts([
+  pending,
+  running,
+  completed,
+  failed,
+  completed24h,
+]: number[]) {
   return {
     pending,
     running,
     completed,
     failed,
     total: pending + running + completed + failed,
+    completed24h,
   };
 }
 

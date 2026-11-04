@@ -68,7 +68,7 @@ export function HeaderSearch() {
       >
         <div className="relative" ref={rootRef}>
           <span
-            className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--faint)]"
+            className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-muted"
             aria-hidden
           >
             <SearchIcon />
@@ -84,19 +84,19 @@ export function HeaderSearch() {
               resetSearch();
             }}
             placeholder="Search games, movie:godfather, within:<7d"
-            className="w-full border border-[var(--line)] bg-[var(--bg-1)] py-2 pl-9 pr-20 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--faint)] focus:border-[var(--line-strong)] focus:bg-[var(--bg-2)]"
+            className="h-10 w-full rounded-full border border-line bg-white/[0.04] pl-10 pr-20 text-sm font-light text-ink outline-none transition-colors duration-300 placeholder:text-faint focus:border-white/20 focus:bg-black/30"
           />
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
-            className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-1 border border-[var(--line)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-[var(--faint)] transition hover:border-[var(--line-strong)] hover:text-[var(--muted)] sm:inline-flex"
+            className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-1 rounded-full bg-white/[0.06] px-[9px] py-1 font-mono text-[10px] uppercase tracking-wide text-muted transition-colors hover:bg-white/10 hover:text-ink sm:inline-flex"
             aria-label="Open command palette"
           >
             <span>Ctrl</span>
             <span>K</span>
           </button>
           {dropdownOpen ? (
-            <div className="header-search-dropdown">
+            <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,38,0.96),rgba(18,18,20,0.97))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-[10px]">
               <SearchPaletteList
                 query={query}
                 debounced={debounced}
@@ -123,7 +123,7 @@ function SearchIcon() {
         d="M16 16l4.5 4.5"
         stroke="currentColor"
         strokeWidth="1.5"
-        strokeLinecap="square"
+        strokeLinecap="round"
       />
     </svg>
   );

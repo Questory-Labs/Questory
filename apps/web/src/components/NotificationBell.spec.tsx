@@ -97,4 +97,21 @@ describe("NotificationBell", () => {
     fireEvent.click(screen.getByText("Mark all read"));
     expect(markAllRead).toHaveBeenCalled();
   });
+
+  it("opens the alert list toward the content when aligned left", () => {
+    vi.mocked(useNotifications).mockReturnValue({
+      unreadCount: 0,
+      unread: mockResource({ empty: false, failed: false, value: { count: 0 } }),
+      items: [sample],
+      list: mockResource({ empty: false, failed: false, value: [sample] }),
+      listOpen: true,
+      setListOpen,
+      markAllRead,
+      markReadBusy: false,
+    });
+
+    render(<NotificationBell align="left" />);
+
+    expect(screen.getByText("Alerts").closest(".absolute")).toHaveClass("left-0");
+  });
 });

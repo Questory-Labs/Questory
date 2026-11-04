@@ -6,6 +6,7 @@ import { TMDB_REQUEST_PACE_MS } from "../tmdb/tmdb.constants";
 import { TmdbService } from "../tmdb/tmdb.service";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { FlagResume } from "../../features/flag-resume";
+import { ingestTmdbSeasons, showStatusFields } from "./season-ingest";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 /** Cap startup backfill so we don't hammer TMDB after a large import. */
@@ -117,9 +118,19 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
       Date.now() - title.metadataSyncedAt.getTime() < FRESH_MS;
     if (recentlySynced && !force) return;
 
-    const job = await this.prisma.titleEnrichmentJob.create({
-      data: { titleId, status: "running" },
+    const requeued = await this.prisma.titleEnrichmentJob.findFirst({
+      where: { titleId, status: "pending" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
     });
+    const job = requeued
+      ? await this.prisma.titleEnrichmentJob.update({
+          where: { id: requeued.id },
+          data: { status: "running", attempts: { increment: 1 } },
+        })
+      : await this.prisma.titleEnrichmentJob.create({
+          data: { titleId, status: "running" },
+        });
 
     try {
       if (!this.tmdb.configured()) {
@@ -194,6 +205,11 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
         this.tmdb.yearFromDate(detail.first_air_date);
       const runtime =
         this.tmdb.runtimeMinutes(detail) ?? canonical.runtimeMinutes ?? null;
+      if (canonical.type === "show" && !detail.seasons) {
+        detail = (await this.tmdb.getTv(detail.id)) ?? detail;
+      }
+      const showFields =
+        canonical.type === "show" ? showStatusFields(detail) : null;
 
       await this.prisma.title.update({
         where: { id: canonicalId },
@@ -213,12 +229,30 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
           originalLanguage:
             detail.original_language ?? canonical.originalLanguage,
           imdbId: detail.imdb_id ?? canonical.imdbId,
+          ...(showFields
+            ? {
+                status: showFields.status ?? canonical.status,
+                lastAirDate: showFields.lastAirDate ?? canonical.lastAirDate,
+                totalEpisodes:
+                  showFields.totalEpisodes ?? canonical.totalEpisodes,
+              }
+            : { status: detail.status ?? canonical.status }),
           metadataSyncedAt: new Date(),
         },
       });
 
       const genres = (detail.genres || []).map((g) => g.name);
       if (genres.length) await this.catalog.linkGenres(canonicalId, genres, "tmdb");
+
+      if (showFields) {
+        try {
+          await ingestTmdbSeasons(this.prisma, this.tmdb, canonicalId, detail);
+        } catch (err) {
+          this.logger.warn(
+            `Seasons ${canonicalId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
 
       await this.prisma.titleEnrichmentJob.update({
         where: { id: job.id },

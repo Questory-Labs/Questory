@@ -6,6 +6,7 @@ import {
   Res,
   UseGuards,
   BadRequestException,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-state";
@@ -52,4 +53,9 @@ export class ShikimoriController {
     );
   }
 
+  @Delete()
+  @UseGuards(SessionUserGuard)
+  disconnect(@CurrentWatchUserId() userId: string) {
+    return this.shikimori.disconnect(userId);
+  }
 }

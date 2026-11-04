@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { AuthChallenge } from "@/lib/auth-api";
 import { RegisterView } from "./auth.register.view";
 import type { RegisterViewProps } from "./auth.register.types";
@@ -34,14 +34,14 @@ describe("RegisterView", () => {
   it("shows the Create account heading", () => {
     renderView({});
     expect(
-      screen.getByRole("heading", { name: "Create account" }),
+      screen.getByRole("heading", { name: /Create\s+an account/ }),
     ).toBeInTheDocument();
   });
 
   it("shows the closed message when registration is closed", () => {
     renderView({ closed: true });
     expect(
-      screen.getByText("Registration is currently closed on this instance."),
+      screen.getByText("Signup is closed on this instance"),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
   });
@@ -51,5 +51,15 @@ describe("RegisterView", () => {
     expect(screen.getByLabelText("Email")).toHaveClass("field");
     expect(screen.getByLabelText("Password")).toHaveClass("field");
     expect(screen.getByLabelText("Confirm password")).toHaveClass("field");
+  });
+
+  it("flags a password mismatch while typing and links to sign in", () => {
+    renderView({});
+    fireEvent.input(screen.getByLabelText("Password"), { target: { value: "abcdefghij" } });
+    fireEvent.input(screen.getByLabelText("Confirm password"), { target: { value: "abcdefghik" } });
+    expect(screen.getByText("Passwords don't match.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm password")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("At least 10 characters.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
   });
 });

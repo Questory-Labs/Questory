@@ -14,13 +14,10 @@ export const CostFilterGroup = ({
   variant?: "tabs" | "chips";
 }) => (
   <div
-    className={
-      variant === "tabs"
-        ? "flex flex-wrap gap-1"
-        : "flex flex-wrap gap-2"
-    }
+    className="inline-flex flex-wrap gap-0.5 rounded-full border border-white/[0.07] bg-white/[0.04] p-1"
     role="tablist"
     aria-label={ariaLabel}
+    data-variant={variant}
   >
     {options.map((opt) => {
       const active = opt.id === value;
@@ -31,19 +28,11 @@ export const CostFilterGroup = ({
           role="tab"
           aria-selected={active}
           onClick={() => onChange(opt.id)}
-          className={
-            variant === "tabs"
-              ? `px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] ${
-                  active
-                    ? "text-[var(--ink)] underline decoration-[var(--accent)] underline-offset-8"
-                    : "text-[var(--muted)] hover:text-[var(--ink)]"
-                }`
-              : `rounded-md border px-3 py-1.5 text-sm transition ${
-                  active
-                    ? "border-[var(--accent)] bg-[var(--accent-dim)] text-[var(--ink)]"
-                    : "border-[var(--line)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
-                }`
-          }
+          className={`min-h-9 rounded-full px-3.5 text-[13px] transition-colors duration-300 ${
+            active
+              ? "bg-white/10 text-[var(--ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+              : "text-[var(--muted)] hover:text-[var(--ink)]"
+          }`}
         >
           {opt.label}
         </button>

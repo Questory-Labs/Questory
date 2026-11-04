@@ -26,6 +26,8 @@ import {
 import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { resolveListSyncHalves } from "../../features/list-sync-scope";
 import type { ListSyncScope } from "@questorylabs/shared";
+import { isDroppedListStatus } from "../catalog/list-status";
+import { disconnectSourceConnection } from "../lib/disconnect";
 
 type ShikimoriRate<T> = {
   id: number;
@@ -160,6 +162,10 @@ export class ShikimoriService {
     }
 
     return { ok: true, userId: user.id };
+  }
+
+  disconnect(userId: string) {
+    return disconnectSourceConnection(this.prisma, this.users, userId, "shikimori");
   }
 
   async getConnection(userId?: string) {
@@ -363,6 +369,14 @@ export class ShikimoriService {
             listedAt: watchedAt,
           });
         }
+
+        await this.catalog.syncDroppedListState({
+          userId,
+          titleId: title.id,
+          source: "shikimori",
+          dropped: isDroppedListStatus(rate.status),
+          listedAt: watchedAt,
+        });
 
         this.enrichment.enqueueTitle(title.id);
       }

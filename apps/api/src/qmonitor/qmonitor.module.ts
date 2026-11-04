@@ -9,6 +9,8 @@ import { QmonitorSessionStatsService } from "./qmonitor-session-stats.service";
 import { QmonitorSessionsController } from "./qmonitor-sessions.controller";
 import { QmonitorSessionsService } from "./qmonitor-sessions.service";
 import { QmonitorWebhookController } from "./qmonitor-webhook.controller";
+import { QmonitorDevicesController } from "./qmonitor-devices.controller";
+import { QmonitorDevicesService } from "./qmonitor-devices.service";
 
 @Module({
   imports: [PrismaModule, StoresModule],
@@ -16,6 +18,7 @@ import { QmonitorWebhookController } from "./qmonitor-webhook.controller";
     QmonitorOauthController,
     QmonitorWebhookController,
     QmonitorSessionsController,
+    QmonitorDevicesController,
   ],
   providers: [
     QmonitorOauthService,
@@ -23,12 +26,14 @@ import { QmonitorWebhookController } from "./qmonitor-webhook.controller";
     QmonitorSessionRulesService,
     QmonitorSessionStatsService,
     QmonitorSessionsService,
+    QmonitorDevicesService,
   ],
   exports: [
     QmonitorOauthService,
     QmonitorIngestService,
     QmonitorSessionRulesService,
     QmonitorSessionsService,
+    QmonitorDevicesService,
   ],
 })
 export class QmonitorModule {}

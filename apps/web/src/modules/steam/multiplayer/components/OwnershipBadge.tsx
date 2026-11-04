@@ -1,51 +1,24 @@
-export const OwnershipBadge = ({
-  ownership,
-  ownedByYou,
-  ownedByFriends,
-  missingFriends,
-  isSuggested,
-}: {
-  ownership: "shared" | "partial" | "unowned";
-  ownedByYou: boolean;
-  ownedByFriends: string[];
-  missingFriends: string[];
-  isSuggested: boolean;
-}) => {
-  const prefix = isSuggested ? "Suggested · " : "";
+import type { PlanBadgeTone } from "../steam.multiplayer.utils";
 
-  if (ownership === "unowned") {
-    return (
-      <div className="space-y-0.5">
-        <span className="inline-block rounded bg-[var(--warm)]/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--bg-0)]">
-          {prefix}Not owned
-        </span>
-      </div>
-    );
-  }
-
-  const owners = [
-    ...(ownedByYou ? ["You"] : []),
-    ...ownedByFriends.slice(0, 2),
-  ];
-  const ownerLabel = owners.length ? owners.join(", ") : "Partial";
-  const missing =
-    missingFriends.length > 0
-      ? `Missing: ${missingFriends.slice(0, 2).join(", ")}${
-          missingFriends.length > 2 ? ` +${missingFriends.length - 2}` : ""
-        }`
-      : ownedByYou
-        ? null
-        : "You don’t own";
-
-  return (
-    <div className="space-y-0.5">
-      <span className="inline-block rounded bg-[var(--accent)]/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--bg-0)]">
-        {prefix}
-        {ownerLabel}
-      </span>
-      {missing ? (
-        <div className="text-[10px] font-medium text-white/90">{missing}</div>
-      ) : null}
-    </div>
-  );
+export const BADGE_TONE_CLASS: Record<PlanBadgeTone, string> = {
+  ok: "text-[var(--ok)]",
+  warn: "text-[var(--warn)]",
+  music: "text-[var(--music)]",
+  read: "text-[var(--read)]",
+  faint: "text-[var(--faint)]",
 };
+
+export const OwnershipBadge = ({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: PlanBadgeTone;
+}) => (
+  <span
+    className={`inline-flex items-center gap-1.5 self-start rounded-full border border-white/10 px-2.5 py-[3px] text-[11px] ${BADGE_TONE_CLASS[tone]}`}
+  >
+    <span aria-hidden="true" className="dot h-[5px] w-[5px]" />
+    {label}
+  </span>
+);

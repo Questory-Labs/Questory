@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SteamApiService } from "../steam/steam-api.service";
 import { PlayerCountService } from "../steam/player-count.service";
 import { parseStringArray, stringifyStringArray } from "../lib/json-arrays";
+import { currencyFromCountry } from "../lib/currency";
 import {
   parseSteamReleaseDate,
   releaseYearFromDate,
@@ -50,6 +51,8 @@ type PlanGame = {
   missingFriends: string[];
   ownership: "shared" | "partial" | "unowned";
   trendingRank: number | null;
+  togetherMinutes: number;
+  currentPrice: number | null;
 };
 
 const MODE_MATCHERS: Record<string, RegExp> = {
@@ -138,13 +141,26 @@ export class MultiplayerService {
       friendships.map((f) => [f.friendSteamId, f.personaName]),
     );
 
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { countryCode: true },
+    });
+    const currency = currencyFromCountry(viewer?.countryCode);
+
     const friendOwned = new Map<string, Set<number>>();
+    const friendMinutes = new Map<number, number>();
     for (const friendSteamId of input.friendSteamIds) {
       const rows = await this.prisma.friendLibraryCache.findMany({
         where: { ownerSteamId: friendSteamId },
-        select: { gameAppId: true },
+        select: { gameAppId: true, playtimeForever: true },
       });
       friendOwned.set(friendSteamId, new Set(rows.map((r) => r.gameAppId)));
+      for (const r of rows) {
+        friendMinutes.set(
+          r.gameAppId,
+          (friendMinutes.get(r.gameAppId) ?? 0) + (r.playtimeForever ?? 0),
+        );
+      }
     }
 
     const strictLibraryMatching = Boolean(input.strictLibraryMatching);
@@ -256,6 +272,9 @@ export class MultiplayerService {
         missingFriends,
         ownership,
         trendingRank: null,
+        togetherMinutes:
+          e.playtimeForever + (friendMinutes.get(e.game.appId) ?? 0),
+        currentPrice: g.isFree ? 0 : (g.currentPrice ?? null),
       });
     }
 
@@ -398,6 +417,14 @@ export class MultiplayerService {
           missingFriends,
           ownership,
           trendingRank: rank,
+          togetherMinutes:
+            (ownedEntry?.playtimeForever ?? 0) +
+            (friendMinutes.get(item.appId) ?? 0),
+          currentPrice: dbGame
+            ? dbGame.isFree
+              ? 0
+              : (dbGame.currentPrice ?? null)
+            : null,
         });
         seen.add(item.appId);
       }
@@ -414,7 +441,14 @@ export class MultiplayerService {
       friendCount: input.friendSteamIds.length,
       games: games
         .slice(0, 60)
-        .map(({ playtime2Weeks: _p, trendingRank: _t, ...g }) => g),
+        .map(
+          ({
+            playtime2Weeks: _p,
+            trendingRank: _t,
+            togetherMinutes: _m,
+            ...g
+          }) => ({ ...g, currency }),
+        ),
     };
   }
 
@@ -448,6 +482,12 @@ export class MultiplayerService {
       switch (sortBy) {
         case "name":
           return a.name.localeCompare(b.name) || suggestedCmp;
+        case "playedTogether":
+          return (
+            b.togetherMinutes - a.togetherMinutes ||
+            nullsLastDesc(a.reviewScore, b.reviewScore) ||
+            suggestedCmp
+          );
         case "release":
           return nullsLastDesc(a.releaseYear, b.releaseYear) || suggestedCmp;
         case "review":

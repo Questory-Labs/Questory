@@ -1,5 +1,9 @@
 import { Module } from "@nestjs/common";
 import { AnilistModule as WatchAnilistModule } from "../watch/anilist/anilist.module";
+import { BangumiModule as WatchBangumiModule } from "../watch/bangumi/bangumi.module";
+import { KitsuModule as WatchKitsuModule } from "../watch/kitsu/kitsu.module";
+import { MalModule as WatchMalModule } from "../watch/mal/mal.module";
+import { ShikimoriModule as WatchShikimoriModule } from "../watch/shikimori/shikimori.module";
 import { ReadAnalyticsModule } from "./analytics/analytics.module";
 import { ReadAnilistModule } from "./anilist/anilist.module";
 import { ReadAuthModule } from "./auth/auth.module";
@@ -26,6 +30,10 @@ import { ReadTrendingModule } from "./trending/trending.module";
     ReadShikimoriModule,
     ReadOpenLibraryModule,
     WatchAnilistModule,
+    WatchMalModule,
+    WatchKitsuModule,
+    WatchBangumiModule,
+    WatchShikimoriModule,
     ReadTrendingModule,
   ],
   controllers: [ReadSyncStatusController],

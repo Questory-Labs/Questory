@@ -15,6 +15,14 @@ import {
   SkeletonTileGrid,
 } from "@questorylabs/ui";
 import { memberLabel } from "../steam.family.utils";
+import { FamilyMemberAvatar } from "./FamilyMemberAvatar";
+
+const chip = (active: boolean) =>
+  `flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors duration-300 ${
+    active
+      ? "border-white/[0.16] bg-white/[0.1] text-[var(--ink)]"
+      : "border-white/[0.08] bg-black/20 text-[var(--muted)] hover:border-white/[0.22] hover:text-[var(--ink)]"
+  }`;
 
 export const FamilyLibrarySection = ({
   insights,
@@ -46,10 +54,10 @@ export const FamilyLibrarySection = ({
     : 1;
 
   return (
-    <section className="mt-10">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+    <section aria-labelledby="family-library-heading" className="q-in mt-2">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4 px-1">
         <div>
-          <h2 className="font-display text-xl font-bold tracking-tight">
+          <h2 id="family-library-heading" className="text-[17px] font-normal">
             Family shareable games
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
@@ -62,41 +70,34 @@ export const FamilyLibrarySection = ({
           value={gameSearch}
           onChange={(e) => setGameSearch(e.target.value)}
           placeholder="Search games"
-          className="min-w-[220px] rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          aria-label="Search family games"
+          className="min-h-10 min-w-[220px] rounded-full border border-white/[0.08] bg-black/25 px-4 text-sm text-[var(--ink)] outline-none focus:border-white/[0.28]"
         />
       </div>
 
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-5 flex gap-2 overflow-x-auto px-1 pb-1">
         <button
           type="button"
           onClick={() => setActiveMember("all")}
-          className={`shrink-0 rounded-md px-3 py-1.5 text-sm ${
-            activeMember === "all"
-              ? "bg-[var(--accent)] font-semibold text-[var(--bg-0)]"
-              : "border border-[var(--line)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
-          }`}
+          aria-pressed={activeMember === "all"}
+          className={chip(activeMember === "all")}
         >
           All
         </button>
-        {members.map((m) => (
+        {members.map((m, index) => (
           <button
             key={m.steamId}
             type="button"
             onClick={() => setActiveMember(m.steamId)}
-            className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
-              activeMember === m.steamId
-                ? "bg-[var(--accent)] font-semibold text-[var(--bg-0)]"
-                : "border border-[var(--line)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
-            }`}
+            aria-pressed={activeMember === m.steamId}
+            className={chip(activeMember === m.steamId)}
           >
-            {m.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={m.avatarUrl}
-                alt=""
-                className="h-5 w-5 rounded-full"
-              />
-            ) : null}
+            <FamilyMemberAvatar
+              name={m.personaName}
+              avatarUrl={m.avatarUrl}
+              index={index}
+              size="sm"
+            />
             {memberLabel(m)}
           </button>
         ))}
@@ -169,7 +170,7 @@ export const FamilyLibrarySection = ({
                   variant="secondary"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1.5"
+                  size="sm"
                 >
                   Previous
                 </Button>
@@ -180,7 +181,7 @@ export const FamilyLibrarySection = ({
                   variant="secondary"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
-                  className="px-3 py-1.5"
+                  size="sm"
                 >
                   Next
                 </Button>

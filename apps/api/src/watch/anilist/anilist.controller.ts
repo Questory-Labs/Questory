@@ -5,6 +5,7 @@ import {
   Query,
   Res,
   UseGuards,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { signOAuthState, verifyOAuthState } from "@questorylabs/shared/oauth-state";
@@ -49,4 +50,9 @@ export class AnilistController {
     return res.redirect(await listProviderConnectedUrl(this.flags, "anilist"));
   }
 
+  @Delete()
+  @UseGuards(SessionUserGuard)
+  disconnect(@CurrentWatchUserId() userId: string) {
+    return this.anilist.disconnect(userId);
+  }
 }

@@ -1,4 +1,5 @@
 import type { RecommendationItem } from "@/lib/enterprise-types";
+import { DAY_PARTS } from "./enterprise.recommendations.constants";
 
 export const itemReactKey = (item: RecommendationItem): string =>
   item.itemKey ??
@@ -15,4 +16,11 @@ export const uniqueRecommendationItems = (
     seen.add(key);
     return true;
   });
+};
+
+export const dayPartLabel = (now: Date): string => {
+  const hour = now.getHours();
+  const part = DAY_PARTS.find((p) => hour < p.until)?.label ?? "night";
+  const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
+  return `${weekday} ${part}`;
 };

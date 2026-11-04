@@ -9,7 +9,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { parsePageParam, parsePageSizeParam } from "@questorylabs/shared";
+import {
+  MusicRecentQuerySchema,
+  parsePageParam,
+  parsePageSizeParam,
+} from "@questorylabs/shared";
+import { MOVERS_DEFAULT_LIMIT, MOVERS_MAX_LIMIT } from "./analytics.constants";
 import {
   AnalyticsService,
   RangeKey,
@@ -187,6 +192,8 @@ export class AnalyticsController {
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
     @Query("limit") limit?: string,
+    @Query("q") q?: string,
+    @Query("source") source?: string,
   ) {
     const paging = parseTopsPaging({
       page,
@@ -194,7 +201,38 @@ export class AnalyticsController {
       limit,
       defaultSize: 40,
     });
-    return this.analytics.recent(user.userId, paging.page, paging.pageSize);
+    const filters = MusicRecentQuerySchema.safeParse({
+      q: q || undefined,
+      source: source || undefined,
+    });
+    if (!filters.success) {
+      throw new BadRequestException("Invalid q or source");
+    }
+    return this.analytics.recent(
+      user.userId,
+      paging.page,
+      paging.pageSize,
+      filters.data,
+    );
+  }
+
+  @Get("movers")
+  movers(
+    @CurrentMusicUser() user: { userId: string },
+    @Query("kind") kind?: string,
+    @Query("range") range?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const resolvedKind = kind || "artists";
+    if (!TOPS_KINDS.has(resolvedKind as TopsKind)) {
+      throw new BadRequestException("Invalid kind");
+    }
+    return this.analytics.movers(
+      user.userId,
+      resolvedKind as TopsKind,
+      parseRange(range, "week"),
+      parseLimit(limit, MOVERS_DEFAULT_LIMIT, MOVERS_MAX_LIMIT),
+    );
   }
 
   @Get("tracks/:id/listens")
@@ -272,16 +310,39 @@ export class AnalyticsController {
     );
   }
 
+  @Get("artists/:id/timeseries")
+  artistTimeSeries(
+    @CurrentMusicUser() user: { userId: string },
+    @Param("id") id: string,
+    @Query("granularity") granularity?: string,
+    @Query("range") range?: string,
+    @Query("tz") tz?: string,
+  ) {
+    const allowed = new Set(["hourOfDay", "dayOfWeek"]);
+    if (!granularity || !allowed.has(granularity)) {
+      throw new BadRequestException("Invalid granularity");
+    }
+    return this.analytics.artistTimeSeries(
+      user.userId,
+      id,
+      granularity as "hourOfDay" | "dayOfWeek",
+      parseRange(range, "all"),
+      parseTimeZone(tz),
+    );
+  }
+
   @Get("artists/:id")
   artistDetail(
     @CurrentMusicUser() user: { userId: string },
     @Param("id") id: string,
     @Query("range") range?: string,
+    @Query("tz") tz?: string,
   ) {
     return this.analytics.artistDetail(
       user.userId,
       id,
       parseRange(range, "all"),
+      parseTimeZone(tz),
     );
   }
 

@@ -2,12 +2,10 @@
 
 import { api } from "@/lib/api";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
-import type {
-  ScraperProviderDetail,
-  ScraperProviderSummary,
-} from "@questorylabs/shared";
+import type { ScraperProviderDetail } from "@questorylabs/shared";
 import { cloneElements } from "@questorylabs/ui";
 import { PropsWithChildren, useEffect, useState } from "react";
+import type { ScraperProviderRow } from "./admin.scrapers.types";
 
 export const AdminScrapersController = ({ children }: PropsWithChildren) => {
   const store = useStore();
@@ -16,7 +14,7 @@ export const AdminScrapersController = ({ children }: PropsWithChildren) => {
 
   const providers = useResource({
     id: ["admin-scraper-providers"],
-    load: () => api<ScraperProviderSummary[]>("/admin/scrapers/providers"),
+    load: () => api<ScraperProviderRow[]>("/admin/scrapers/providers"),
   });
 
   const detail = useResource({

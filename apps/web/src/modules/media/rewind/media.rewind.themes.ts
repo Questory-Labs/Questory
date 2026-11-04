@@ -1,4 +1,5 @@
 import {
+  GAMES_VARIANTS,
   MUSIC_VARIANTS,
   READ_VARIANTS,
   WATCH_VARIANTS,
@@ -66,16 +67,37 @@ const READ_IDENTITY: DomainIdentity = {
   patternPool: READ_VARIANTS.map((theme) => theme.pattern.kind),
 };
 
+const GAMES_IDENTITY: DomainIdentity = {
+  domain: "games",
+  label: "Arcade",
+  palette: {
+    surface: "#020617",
+    surfaceAlt: "#4c1d95",
+    accent: "#22c55e",
+    accentMuted: "#a3e635",
+    ink: "#f8fafc",
+    inkMuted: "#cbd5e1",
+    highlightBg: "#22c55e",
+    highlightFg: "#020617",
+    border: "#111827",
+  },
+  titleFont: "font-mono font-black uppercase tracking-widest",
+  bodyFont: "font-mono font-bold",
+  patternPool: GAMES_VARIANTS.map((theme) => theme.pattern.kind),
+};
+
 const DOMAIN_IDENTITIES: Record<RewindDomain, DomainIdentity> = {
   music: MUSIC_IDENTITY,
   watch: WATCH_IDENTITY,
   read: READ_IDENTITY,
+  games: GAMES_IDENTITY,
 };
 
 const DOMAIN_VARIANTS: Record<RewindDomain, RewindCardTheme[]> = {
   music: MUSIC_VARIANTS,
   watch: WATCH_VARIANTS,
   read: READ_VARIANTS,
+  games: GAMES_VARIANTS,
 };
 
 /** Maps insight tag slugs to a preferred variant index within each domain. */
@@ -94,6 +116,27 @@ const TAG_VARIANT_HINTS: Record<string, number> = {
   bookwormpersona: 8,
   pageturner: 9,
   worldhopper: 10,
+  streak: 11,
+  busiestday: 3,
+  arc: 2,
+  versuslast: 7,
+  fadedout: 9,
+  toprated: 0,
+  unfinished: 9,
+  binge: 6,
+  finished: 2,
+  dropped: 7,
+  moods: 4,
+  repeatday: 9,
+  hoursplayed: 1,
+  sessions: 2,
+  longestsession: 6,
+  nightowl: 3,
+  newgames: 10,
+  backlog: 8,
+  abandoned: 9,
+  achievements: 11,
+  gamerpersona: 5,
 };
 
 export const getDomainIdentity = (domain: RewindDomain): DomainIdentity =>

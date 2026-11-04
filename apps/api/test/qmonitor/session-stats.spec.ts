@@ -1,11 +1,15 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { QmonitorSessionStatsService } from "../../src/qmonitor/qmonitor-session-stats.service";
+import {
+  addHourShares,
+  QmonitorSessionStatsService,
+} from "../../src/qmonitor/qmonitor-session-stats.service";
 import type { PrismaService } from "../../src/prisma/prisma.service";
 
 const now = new Date("2026-01-15T12:00:00.000Z");
 
 function windowRow(overrides: Record<string, unknown> = {}) {
   return {
+    startedAt: new Date("2026-01-15T10:00:00.000Z"),
     endedAt: new Date("2026-01-15T11:00:00.000Z"),
     durationSecs: 3600,
     gameId: "g1",
@@ -41,6 +45,7 @@ describe("QmonitorSessionStatsService", () => {
     findMany.mockResolvedValue([
       windowRow(),
       windowRow({
+        startedAt: new Date("2026-01-14T11:30:00.000Z"),
         endedAt: new Date("2026-01-14T12:00:00.000Z"),
         durationSecs: 1800,
         gameId: "g2",
@@ -98,6 +103,20 @@ describe("QmonitorSessionStatsService", () => {
     });
   });
 
+  it("scopes window totals and hour histogram to the requested days", async () => {
+    const stats = await service.stats("user-1", "UTC", now, 30);
+    expect(stats.windowDays).toBe(30);
+    expect(stats.byDay).toHaveLength(30);
+    expect(stats.window).toEqual({
+      sessionCount: 2,
+      totalDurationSecs: 5400,
+      avgDurationSecs: 2700,
+    });
+    expect(stats.byHour).toHaveLength(24);
+    expect(stats.byHour?.[10]).toBe(3600);
+    expect(stats.byHour?.[11]).toBe(1800);
+  });
+
   it("keeps unmatched titles in the top list", async () => {
     findMany.mockResolvedValue([
       windowRow({
@@ -140,5 +159,18 @@ describe("QmonitorSessionStatsService", () => {
     expect(stats.lastPlayedAt).toBeNull();
     expect(stats.byDay.every((d) => d.durationSecs === 0)).toBe(true);
     expect(stats.topGames).toEqual([]);
+  });
+});
+
+describe("addHourShares", () => {
+  it("credits each local hour in half-hour offset zones", () => {
+    const byHour = Array.from({ length: 24 }, () => 0);
+    addHourShares(
+      byHour,
+      { startedAt: new Date("2026-10-27T18:00:00Z"), durationSecs: 3600 },
+      "Asia/Kolkata",
+    );
+    expect(byHour[23]).toBe(1800);
+    expect(byHour[0]).toBe(1800);
   });
 });

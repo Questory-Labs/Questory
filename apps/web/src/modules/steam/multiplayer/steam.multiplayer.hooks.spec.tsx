@@ -51,4 +51,11 @@ describe("useMultiplayerPlanFilters", () => {
     expect(result.current.body.genre).toBe("Action");
     expect(result.current.body.mode).toBe("pvp");
   });
+
+  it("preselects friends from the initial selection", () => {
+    const { result } = renderHook(() =>
+      useMultiplayerPlanFilters(friends, ["200"]),
+    );
+    expect(result.current.body.friendSteamIds).toEqual(["200"]);
+  });
 });

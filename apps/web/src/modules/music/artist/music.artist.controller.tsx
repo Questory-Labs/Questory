@@ -4,7 +4,12 @@ import { useParams } from "next/navigation";
 import { useState, type PropsWithChildren } from "react";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { MusicArtistDetail, MusicRange } from "@questorylabs/shared";
+import type {
+  MusicArtistDetail,
+  MusicRange,
+  MusicTimeBucket,
+} from "@questorylabs/shared";
+import { withTz } from "@/lib/dates";
 import { musicFetch } from "@/lib/music";
 
 export const MusicArtistController = ({ children }: PropsWithChildren) => {
@@ -16,7 +21,20 @@ export const MusicArtistController = ({ children }: PropsWithChildren) => {
   const detail = useResource({
     id: ["music-artist", id, range],
     load: () =>
-      musicFetch<MusicArtistDetail>(`/analytics/artists/${id}?range=${range}`),
+      musicFetch<MusicArtistDetail>(
+        withTz(`/analytics/artists/${id}?range=${range}`),
+      ),
+    when: Boolean(id),
+  });
+
+  const hours = useResource({
+    id: ["music-artist-hours", id, range],
+    load: () =>
+      musicFetch<MusicTimeBucket[]>(
+        withTz(
+          `/analytics/artists/${id}/timeseries?granularity=hourOfDay&range=${range}`,
+        ),
+      ),
     when: Boolean(id),
   });
 
@@ -40,6 +58,7 @@ export const MusicArtistController = ({ children }: PropsWithChildren) => {
     range,
     setRange,
     detail,
+    hours,
     saveBusy: save.busy,
     onSave: async (values: {
       artists?: Array<{ id?: string; name: string }>;

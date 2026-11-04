@@ -4,6 +4,7 @@ import {
   buildLineLayout,
   chartAnchorPoint,
   donutSlicePath,
+  fractionalTicks,
   pickXTickIndices,
   pickXTickIndicesByPixel,
   heatmapLevel,
@@ -191,5 +192,17 @@ describe("donutSlicePath", () => {
     expect(d.startsWith("M ")).toBe(true);
     expect(d.endsWith("Z")).toBe(true);
     expect(d.match(/M /g)).toHaveLength(1);
+  });
+});
+
+describe("fractionalTicks", () => {
+  it("keeps small dollar amounts readable", () => {
+    expect(fractionalTicks(0.02)).toEqual([0, 0.01, 0.02]);
+    expect(fractionalTicks(1.3)).toEqual([0, 0.5, 1, 1.5]);
+  });
+
+  it("covers the max and handles an empty scale", () => {
+    expect(fractionalTicks(120).at(-1)).toBeGreaterThanOrEqual(120);
+    expect(fractionalTicks(0)).toEqual([0, 1]);
   });
 });

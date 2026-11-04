@@ -6,6 +6,7 @@ import {
   Query,
   Res,
   UseGuards,
+  Delete,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { MalService } from "../../watch/mal/mal.service";
@@ -42,8 +43,13 @@ export class ReadMalController {
       process.env.NEXT_PUBLIC_WEB_URL ||
       "http://localhost:3000";
     return res.redirect(
-      `${web.replace(/\/$/, "")}/read/settings?mal=connected`,
+      `${web.replace(/\/$/, "")}/sources?tab=read&mal=connected`,
     );
   }
 
+  @Delete()
+  @UseGuards(ReadSessionUserGuard)
+  disconnect(@CurrentReadUserId() userId: string) {
+    return this.mal.disconnect(userId);
+  }
 }

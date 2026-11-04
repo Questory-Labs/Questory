@@ -13,6 +13,8 @@ export type EnterpriseForwardOptions = {
   path: string;
   body?: unknown;
   query?: Record<string, string | undefined>;
+  retries?: number;
+  timeoutMs?: number;
 };
 
 @Injectable()
@@ -51,10 +53,16 @@ export class EnterpriseProxyService {
     if (opts.body !== undefined) {
       init.body = JSON.stringify(opts.body);
     }
+    if (opts.timeoutMs !== undefined) {
+      init.signal = AbortSignal.timeout(opts.timeoutMs);
+    }
 
     let res: Response;
     try {
-      res = await providerFetch(url.toString(), init);
+      res =
+        opts.retries === undefined
+          ? await providerFetch(url.toString(), init)
+          : await providerFetch(url.toString(), init, { retries: opts.retries });
     } catch {
       throw new ServiceUnavailableException("Enterprise service unavailable");
     }

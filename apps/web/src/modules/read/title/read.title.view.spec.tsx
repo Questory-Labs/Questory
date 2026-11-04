@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ResourceProvider, ResourceStore } from "@questorylabs/qhttp/react";
 import type { ReadTitleDetail } from "@questorylabs/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -89,10 +89,17 @@ describe("ReadTitleView", () => {
   it("renders history when ready", () => {
     renderView();
     expect(screen.getByRole("heading", { name: "Berserk" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reading history" })).toBeInTheDocument();
     expect(screen.getByText(/2 events · first/)).toBeInTheDocument();
-    expect(screen.getAllByText(/anilist/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/anilist/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Day" })).not.toBeInTheDocument();
+  });
+
+  it("logs the next chapter from the hero", () => {
+    const onLogChapter = vi.fn();
+    renderView({ onLogChapter });
+    fireEvent.click(screen.getByRole("button", { name: /^Log chapter \d+$/ }));
+    expect(onLogChapter).toHaveBeenCalledTimes(1);
   });
 });
 

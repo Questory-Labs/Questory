@@ -1,9 +1,7 @@
 "use client";
 
-import {
-  ListProviderCard,
-  type ListProviderConfig,
-} from "@/components/sources/ListProviderCard";
+import type { ListProviderConfig } from "@/components/sources/ListProviderCard";
+import { ListProviderRow } from "@/modules/media/sources/components/ListProviderRow";
 import { SourcesSectionHeading } from "@/components/sources/SourcesSectionHeading";
 import { watchFetch, watchUrl } from "@/lib/watch";
 
@@ -55,9 +53,9 @@ export const AnimeListSourcesSection = ({
         title="MAL, Kitsu, Bangumi, Shikimori"
         description="Import anime into Watch and manga into Read from additional list providers."
       />
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="flex flex-col gap-2.5">
         {providers.map((provider) => (
-          <ListProviderCard
+          <ListProviderRow
             key={provider.id}
             provider={provider}
             queryKeyPrefix="watch"

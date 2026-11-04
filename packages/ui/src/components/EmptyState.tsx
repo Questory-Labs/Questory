@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { HatchShadow } from "./HatchShadow";
 
-export const emptyStateFaceVariants = cva("panel text-center", {
+export const emptyStateFaceVariants = cva("panel q-in text-center", {
   variants: {
     size: {
-      sm: "px-4 py-6",
-      md: "px-5 py-8",
+      sm: "px-5 py-7",
+      md: "px-6 py-10",
     },
   },
   defaultVariants: {
@@ -32,9 +32,10 @@ export function EmptyState({
       className={className}
       faceClassName={emptyStateFaceVariants({ size })}
     >
-      <p className="text-[var(--muted)]">{title}</p>
+      <div aria-hidden className="dot-matrix mx-auto mb-4 h-8 w-20 opacity-20 [mask-image:radial-gradient(closest-side,#000,transparent)]" />
+      <p className="font-display text-lg text-[var(--ink)]">{title}</p>
       {description ? (
-        <p className="mt-2 text-sm text-[var(--faint)]">{description}</p>
+        <p className="mx-auto mt-2 max-w-md text-sm text-[var(--muted)]">{description}</p>
       ) : null}
     </HatchShadow>
   );

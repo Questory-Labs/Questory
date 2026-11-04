@@ -10,6 +10,8 @@ import { BangumiModule } from "../watch/bangumi/bangumi.module";
 import { ShikimoriModule } from "../watch/shikimori/shikimori.module";
 import { ShellSyncStatusController } from "./shell-sync-status.controller";
 import { ShellSyncStatusService } from "./shell-sync-status.service";
+import { ShellNavCountsController } from "./shell-nav-counts.controller";
+import { ShellNavCountsService } from "./shell-nav-counts.service";
 
 @Module({
   imports: [
@@ -23,7 +25,7 @@ import { ShellSyncStatusService } from "./shell-sync-status.service";
     BangumiModule,
     ShikimoriModule,
   ],
-  controllers: [ShellSyncStatusController],
-  providers: [ShellSyncStatusService],
+  controllers: [ShellSyncStatusController, ShellNavCountsController],
+  providers: [ShellSyncStatusService, ShellNavCountsService],
 })
 export class ShellModule {}

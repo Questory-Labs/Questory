@@ -63,6 +63,36 @@ describe("ScraperProvidersService", () => {
     expect(list.map((p) => p.key)).toContain("letterboxd");
   });
 
+  it("summarises the published version per provider", async () => {
+    prisma.scraperProvider.findUnique.mockResolvedValue(providerRow);
+    const publishedAt = new Date("2026-10-12T10:00:00.000Z");
+    prisma.scraperIteration.findMany.mockResolvedValue([
+      { status: "draft", version: 4, publishedAt: null },
+      { status: "published", version: 3, publishedAt },
+      { status: "archived", version: 2, publishedAt: new Date() },
+    ]);
+
+    const [summary] = await service.listProviders();
+    expect(summary).toMatchObject({
+      key: "letterboxd",
+      hasPublished: true,
+      hasOpenIteration: true,
+      publishedVersion: 3,
+      publishedAt: publishedAt.toISOString(),
+    });
+  });
+
+  it("returns null published version when nothing is published", async () => {
+    prisma.scraperProvider.findUnique.mockResolvedValue(providerRow);
+    prisma.scraperIteration.findMany.mockResolvedValue([
+      { status: "draft", version: 1, publishedAt: null },
+    ]);
+
+    const [summary] = await service.listProviders();
+    expect(summary.publishedVersion).toBeNull();
+    expect(summary.publishedAt).toBeNull();
+  });
+
   it("returns published definition when provider enabled", async () => {
     prisma.scraperProvider.findUnique.mockResolvedValue(providerRow);
     prisma.scraperIteration.findFirst.mockResolvedValue({

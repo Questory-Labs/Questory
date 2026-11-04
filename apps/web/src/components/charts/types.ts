@@ -12,12 +12,14 @@ export type SeriesConfig = {
   yAxisId?: string;
   variant?: "line" | "area";
   strokeDasharray?: string;
+  skipMissing?: boolean;
 };
 
 export type YAxisConfig = {
   id: string;
   side: "left" | "right";
   formatTick?: (n: number) => string;
+  fractional?: boolean;
 };
 
 export type ChartPadding = {

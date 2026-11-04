@@ -78,6 +78,11 @@ export {
   skeletonVariants,
 } from "./components/Skeleton";
 export { QMark, type QMarkVariant } from "./components/QMark";
+export { useCountUp } from "./components/useCountUp";
+export { CountUp } from "./components/CountUp";
+export { ProgressRing } from "./components/ProgressRing";
+export { TickScrubber } from "./components/TickScrubber";
+export { DotCover } from "./components/DotCover";
 export {
   ResourceStatus,
   type ResourceStatusProps,

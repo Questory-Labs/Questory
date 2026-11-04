@@ -278,6 +278,7 @@ Read nav appears from the on-load `GET /v1/status` snapshot (`read.enabled`). Re
 - `STEAM_REALM` must be a prefix of `STEAM_RETURN_URL`.
 - Example: realm `https://api.example.com`, return `https://api.example.com/auth/steam/callback`.
 - `WEB_ORIGIN` is the browser app origin (CORS + post-login redirect).
+- `FE_CORS_ALLOWED` is an optional comma-separated list of extra browser origins allowed for CORS and auth origin checks. `WEB_ORIGIN` is always included.
 - `NEXT_PUBLIC_API_URL` (and related `NEXT_PUBLIC_*` / `ENTERPRISE`) are applied at **web container start** via `/runtime-env.js` — set them in compose `environment` (no rebuild required for Hub images).
 
 ## Auth (email + password)

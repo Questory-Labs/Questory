@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { GameCover } from "@/components/GameCover";
 import { formatMoney } from "@/lib/money";
 import type { CostRoiRow } from "@questorylabs/shared";
-import { Panel } from "@questorylabs/ui";
 import { costRowHref, costRowKey } from "../steam.cost.utils";
 
 const GameIdentity = ({
@@ -60,12 +59,11 @@ export const CostGameList = ({
   const money = (n: number | null | undefined) => formatMoney(n, currency);
 
   if (rows.length === 0) {
-    return <p className="text-sm text-[var(--muted)]">{emptyMessage}</p>;
+    return <p className="px-3 py-7 text-center text-sm text-[var(--muted)]">{emptyMessage}</p>;
   }
 
   return (
-    <Panel variant="outline">
-      <ol className="divide-y divide-[var(--line)]">
+    <ol>
         {rows.map((row, i) => {
           const primary =
             showRoi && row.costPerHour != null
@@ -86,7 +84,7 @@ export const CostGameList = ({
           return (
             <li
               key={costRowKey(row)}
-              className="flex items-start gap-3 px-3 py-3 hover:bg-[var(--bg-2)]"
+              className="q-row flex items-start gap-3 border-t border-white/[0.05] px-3 py-3 first:border-t-0"
             >
               <span className="w-6 shrink-0 pt-2 text-right font-mono text-[11px] tabular-nums text-[var(--faint)]">
                 {rankOffset + i + 1}
@@ -106,13 +104,12 @@ export const CostGameList = ({
                   ) : null}
                 </span>
               </GameIdentity>
-              <span className="shrink-0 pt-2 text-right font-mono text-sm tabular-nums text-[var(--ink)]">
+              <span className="shrink-0 pt-1 text-right text-xl font-extralight tabular-nums text-[var(--ink)]">
                 {primary}
               </span>
             </li>
           );
         })}
-      </ol>
-    </Panel>
+    </ol>
   );
 };

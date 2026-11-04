@@ -30,7 +30,7 @@ describe("AnalyticsService.insights", () => {
   });
 
   it("returns period stats, peaks, genre, and prior-period compare", async () => {
-    findMany.mockResolvedValue([
+    findMany.mockResolvedValueOnce([
       {
         titleId: "t1",
         watchedAt: new Date("2026-07-20T14:00:00.000Z"),
@@ -72,7 +72,9 @@ describe("AnalyticsService.insights", () => {
       { titleId: "t1", _min: { watchedAt: new Date("2026-07-20T14:00:00.000Z") } },
       { titleId: "t2", _min: { watchedAt: new Date("2025-01-01T00:00:00.000Z") } },
     ]);
-    count.mockResolvedValue(1);
+    findMany.mockResolvedValueOnce([
+      { runtimeMinutes: 95, title: { runtimeMinutes: 95 }, episode: null },
+    ]);
 
     const result = await service.insights("user-1", "week");
 
@@ -97,6 +99,8 @@ describe("AnalyticsService.insights", () => {
     });
     expect(result.compare.previousWatches).toBe(1);
     expect(result.compare.deltaPct).toBe(200);
+    expect(result.compare.previousWatchingMinutes).toBe(95);
+    expect(result.compare.watchingMinutesDeltaPct).toBe(200);
   });
 
   it("filters insights to movies when type=movie", async () => {

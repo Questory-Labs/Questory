@@ -9,6 +9,7 @@ import { z } from "zod";
 import { DashboardService } from "./dashboard.service";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { parseTimeZone } from "../lib/timezone";
 import {
   PLAY_NEXT_DEFAULT_LIMIT,
   PLAY_NEXT_MAX_LIMIT,
@@ -26,8 +27,11 @@ export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 
   @Get("stats")
-  stats(@CurrentUser() user: { userId: string }) {
-    return this.dashboard.getStats(user.userId);
+  stats(
+    @CurrentUser() user: { userId: string },
+    @Query("tz") tz?: string,
+  ) {
+    return this.dashboard.getStats(user.userId, parseTimeZone(tz));
   }
 
   @Get("play-next")

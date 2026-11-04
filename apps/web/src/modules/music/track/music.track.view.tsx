@@ -2,19 +2,14 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { CountUp } from "@questorylabs/ui";
 import { ChartStatus } from "@/components/charts/ChartStatus";
-import { HeatmapChart } from "@/components/charts/HeatmapChart";
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
 import { ArtistLinks } from "./components/ArtistLinks";
-import { MusicChip } from "@/components/music/MusicChip";
 import { MusicCorrectionEdit } from "@/components/music/MusicCorrectionEdit";
-import { MusicCover } from "@/components/music/MusicCover";
 import { MusicRangePicker } from "@/components/music/MusicRangePicker";
 import { MusicRecentListens } from "@/components/music/MusicRecentListens";
-import { StatCard } from "@/components/StatCard";
 import {
-  PageHeader,
-  Panel,
   ResourceStatus,
   SkeletonDetailHeader,
   StateMessage,
@@ -22,6 +17,12 @@ import {
 import { displayLabel } from "@/lib/display-label";
 import { formatListenDateTime, formatMinutes } from "@/lib/music";
 import { MUSIC_DETAIL_LISTENS_PAGE_SIZE } from "@/lib/pagination";
+import { DetailHero } from "../components/DetailHero";
+import { DetailKpiStrip } from "../components/DetailKpiStrip";
+import { HourBars } from "../components/HourBars";
+import { MusicBreadcrumb } from "../components/MusicBreadcrumb";
+import { DotHeatmap } from "../home/components/DotHeatmap";
+import { formatClock, initialOf } from "../music.utils";
 import type { MusicTrackViewProps } from "./music.track.types";
 
 export const MusicTrackView = (props: Record<string, unknown>) => {
@@ -43,17 +44,10 @@ export const MusicTrackView = (props: Record<string, unknown>) => {
     onSaved,
   } = props as MusicTrackViewProps;
 
-  const t = detail.value?.track;
+  const d = detail.value;
+  const t = d?.track;
   const title = t ? displayLabel(t.userDisplayName, t.title) : "Track";
 
-  const hourData = useMemo(
-    () =>
-      (hourSeries.value || []).map((b) => ({
-        label: b.label,
-        count: b.count,
-      })),
-    [hourSeries.value],
-  );
   const dowData = useMemo(
     () =>
       (dowSeries.value || []).map((b) => ({
@@ -62,14 +56,9 @@ export const MusicTrackView = (props: Record<string, unknown>) => {
       })),
     [dowSeries.value],
   );
-  const clockCells = useMemo(
-    () =>
-      (heatmap.value?.cells || []).map((cell) => ({
-        day: cell.day,
-        hour: cell.hour,
-        value: cell.count,
-      })),
-    [heatmap.value],
+  const genres = useMemo(
+    () => [...new Set((t?.genres ?? []).map((g) => g.name))],
+    [t?.genres],
   );
 
   const total = listens.value?.total ?? 0;
@@ -77,57 +66,8 @@ export const MusicTrackView = (props: Record<string, unknown>) => {
   const listenItems = listens.value?.items ?? [];
 
   return (
-    <>
-      <PageHeader size="sm"
-        eyebrow="Track"
-        title={title}
-        description={
-          t ? (
-            <>
-              <ArtistLinks
-                artists={t.artists}
-                fallbackArtistId={t.artistId}
-                fallbackArtistName={t.artistName}
-              />
-              {t.releaseTitle ? (
-                <>
-                  {" · "}
-                  {t.releaseId ? (
-                    <Link
-                      href={`/music/albums/${t.releaseId}`}
-                      className="hover:text-[var(--accent)]"
-                    >
-                      {t.releaseTitle}
-                    </Link>
-                  ) : (
-                    t.releaseTitle
-                  )}
-                </>
-              ) : null}
-            </>
-          ) : undefined
-        }
-        actions={
-          <>
-            <MusicRangePicker
-              value={range}
-              onChange={onRangeChange}
-              includeAll
-            />
-            {t ? (
-              <MusicCorrectionEdit
-                kind="track"
-                entityId={id}
-                saving={saveBusy}
-                merging={mergeBusy}
-                onSave={onSave}
-                onMerge={onMerge}
-                onSaved={onSaved}
-              />
-            ) : null}
-          </>
-        }
-      />
+    <div className="flex flex-col gap-3.5">
+      <MusicBreadcrumb href="/music/listening" label="Listening" current={title} />
 
       <ResourceStatus
         failed={detail.failed}
@@ -135,128 +75,150 @@ export const MusicTrackView = (props: Record<string, unknown>) => {
         loading={<SkeletonDetailHeader />}
         error={<StateMessage variant="error">Track not found.</StateMessage>}
       >
-        {detail.value && t ? (
-          <div className="grid gap-8 lg:grid-cols-[auto_1fr]">
-            <MusicCover src={t.imageUrl} alt={title} size="lg" />
-            <div>
-              {t.userDisplayName && t.userDisplayName !== t.title ? (
-                <p className="text-sm text-[var(--muted)] pb-4">{t.title}</p>
-              ) : null}
-
-              <div className="grid grid-cols-4 gap-3">
-                <StatCard label="Listens" value={detail.value.listenCount} />
-                <StatCard
-                  label="Listening time"
-                  value={
-                    detail.value.listeningMinutes > 0
-                      ? formatMinutes(detail.value.listeningMinutes)
-                      : "—"
-                  }
-                  hint={t.durationMs ? "Estimated from track length" : undefined}
-                />
-                {detail.value.peakDow ? (
-                  <StatCard
-                    label="Peak day"
-                    value={detail.value.peakDow.label}
-                    hint={`${detail.value.peakDow.count} listens`}
+        {d && t ? (
+          <div className="flex flex-col gap-3.5">
+            <DetailHero
+              eyebrow="Track"
+              title={title}
+              titleId="music-track-title"
+              subtitle={
+                <>
+                  <ArtistLinks
+                    artists={t.artists}
+                    fallbackArtistId={t.artistId}
+                    fallbackArtistName={t.artistName}
                   />
-                ) : null}
-                {detail.value.peakHour ? (
-                  <StatCard
-                    label="Peak hour"
-                    value={detail.value.peakHour.label}
-                    hint={`${detail.value.peakHour.count} listens`}
+                  {t.releaseTitle ? (
+                    <>
+                      {" · "}
+                      {t.releaseId ? (
+                        <Link
+                          href={`/music/albums/${t.releaseId}`}
+                          className="font-serif text-lg hover:text-[var(--ink)]"
+                        >
+                          {t.releaseTitle}
+                        </Link>
+                      ) : (
+                        <span className="font-serif text-lg">{t.releaseTitle}</span>
+                      )}
+                    </>
+                  ) : null}
+                  {t.userDisplayName && t.userDisplayName !== t.title ? (
+                    <span className="block text-sm">{t.title}</span>
+                  ) : null}
+                </>
+              }
+              coverUrl={t.imageUrl}
+              initial={initialOf(title)}
+              genres={genres}
+              stats={[
+                { label: "Listens", value: <CountUp value={d.listenCount} /> },
+                ...(t.durationMs
+                  ? [{ label: "Length", value: formatClock(t.durationMs) }]
+                  : []),
+              ]}
+              actions={
+                <>
+                  <MusicRangePicker value={range} onChange={onRangeChange} includeAll />
+                  <MusicCorrectionEdit
+                    kind="track"
+                    entityId={id}
+                    saving={saveBusy}
+                    merging={mergeBusy}
+                    onSave={onSave}
+                    onMerge={onMerge}
+                    onSaved={onSaved}
                   />
-                ) : null}
-              </div>
+                </>
+              }
+            />
 
-              {t.genres.length > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {t.genres.map((g) => (
-                    <MusicChip key={`${g.name}-${g.source}`}>{g.name}</MusicChip>
-                  ))}
-                </div>
-              ) : null}
+            <DetailKpiStrip
+              items={[
+                {
+                  label: "Listening time",
+                  value: d.listeningMinutes > 0 ? formatMinutes(d.listeningMinutes) : "—",
+                  hint: t.durationMs ? "Estimated from track length" : undefined,
+                },
+                {
+                  label: "Peak day",
+                  value: d.peakDow?.label ?? "—",
+                  hint: d.peakDow ? `${d.peakDow.count} listens` : undefined,
+                },
+                {
+                  label: "Peak hour",
+                  value: d.peakHour?.label ?? "—",
+                  hint: d.peakHour ? `${d.peakHour.count} listens` : undefined,
+                },
+              ]}
+            />
 
-              <div className="mt-8 space-y-6">
-                <ChartStatus
-                  failed={heatmap.failed}
-                  empty={heatmap.empty}
-                  title="When you listen"
-                  error="Could not load listening heatmap."
-                >
-                  <Panel className="p-4">
-                    <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                      When you listen
-                    </h2>
-                    <div className="mt-3">
-                      <HeatmapChart
-                        cells={clockCells}
-                        dayLabels={heatmap.value?.dayLabels ?? []}
-                        hourLabels={heatmap.value?.hourLabels ?? []}
-                        maxValue={heatmap.value?.maxCount}
-                        ariaLabel="Track listens by day and hour"
-                      />
-                    </div>
-                  </Panel>
-                </ChartStatus>
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <SketchChartPanel
-                    title="Day of week"
-                    data={dowData}
-                    valueLabel="listens"
-                    emptyMessage="No listens in this range."
-                  />
-                  <SketchChartPanel
-                    title="Hour of day"
-                    data={hourData}
-                    valueLabel="listens"
-                    emptyMessage="No listens in this range."
-                  />
-                </div>
-              </div>
-
-              <MusicRecentListens
-                total={total}
-                itemCount={listenItems.length}
-                empty={listens.empty}
-                failed={listens.failed}
-                refreshing={listens.refreshing}
-                page={page}
-                pageSize={pageSize}
-                onPageChange={setPage}
+            <div className="q-in [--i:3]">
+              <ChartStatus
+                failed={heatmap.failed}
+                empty={heatmap.empty}
+                title="When you listen"
+                error="Could not load listening heatmap."
               >
-                {listenItems.map((row) => (
-                  <li
-                    key={row.id}
-                    className="flex items-baseline justify-between gap-3 py-2"
-                  >
-                    <span className="font-mono text-[12px] text-[var(--muted)]">
-                      {formatListenDateTime(row.listenedAt)}
-                    </span>
-                    {row.musicService || row.mediaPlayer ? (
-                      <span className="font-mono text-[10px] text-[var(--faint)]">
-                        {[row.musicService, row.mediaPlayer]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </MusicRecentListens>
-
-              <p className="mt-8 text-sm text-[var(--muted)]">
-                <Link
-                  href="/music/listening"
-                  className="hover:text-[var(--accent)]"
-                >
-                  ← Back to listening
-                </Link>
-              </p>
+                <DotHeatmap heatmap={heatmap.value} />
+              </ChartStatus>
             </div>
+
+            <div className="flex flex-wrap gap-3.5">
+              <div className="q-in min-w-0 flex-[1_1_360px] [--i:4]">
+                <SketchChartPanel
+                  title="Day of week"
+                  data={dowData}
+                  valueLabel="listens"
+                  emptyMessage="No listens in this range."
+                />
+              </div>
+              <div className="q-in min-w-0 flex-[1_1_360px] [--i:5]">
+                <ChartStatus
+                  failed={hourSeries.failed}
+                  empty={hourSeries.empty}
+                  title="By hour"
+                  error="Could not load hour-of-day listens."
+                >
+                  <HourBars
+                    buckets={hourSeries.value ?? []}
+                    ariaLabel={`Listens to ${title} by hour of day`}
+                  />
+                </ChartStatus>
+              </div>
+            </div>
+
+            <MusicRecentListens
+              total={total}
+              itemCount={listenItems.length}
+              empty={listens.empty}
+              failed={listens.failed}
+              refreshing={listens.refreshing}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            >
+              {listenItems.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-baseline justify-between gap-3 py-2"
+                >
+                  <span className="font-mono text-[12px] text-[var(--muted)]">
+                    {formatListenDateTime(row.listenedAt)}
+                  </span>
+                  {row.musicService || row.mediaPlayer ? (
+                    <span className="font-mono text-[10px] text-[var(--faint)]">
+                      {[row.musicService, row.mediaPlayer]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </MusicRecentListens>
           </div>
         ) : null}
       </ResourceStatus>
-    </>
+    </div>
   );
 };

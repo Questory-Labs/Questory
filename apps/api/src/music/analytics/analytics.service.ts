@@ -12,14 +12,34 @@ import { UsersService } from "../users/users.service";
 import { CorrectionsService } from "../corrections/corrections.service";
 import { overlayArtistCredit } from "../corrections/artist-credit";
 import {
+  commonExtras,
+  longestStreakDays,
+  priorPeriodBounds,
+  zonedPeriodBounds,
+  type PriorItemCount,
+} from "../../lib/rewind-stats";
+import {
+  aggregateMoodsFromListens,
+  featuredArtists,
+  maxRepeatsInDay,
+} from "./rewind-enrich";
+import {
   resolveMusicService,
   resolveMusicServiceLabel,
 } from "../lib/music-service";
 import {
   ALBUM_TOP_TRACKS_LIMIT,
   ARTIST_TOP_ITEMS_LIMIT,
+  MOVERS_CONCENTRATION_TOP_N,
+  MOVERS_DEFAULT_LIMIT,
+  MOVERS_RANK_WINDOW,
   TOP_MOODS_LIMIT,
 } from "./analytics.constants";
+import type { MusicRecentQuery } from "@questorylabs/shared";
+import type { Prisma } from "../../generated/prisma/client";
+import { listenSearchWhere, listenSourceWhere } from "./listen-source";
+import { computeMovers, concentrationShare, type RankedItem } from "./movers";
+import { listenMinutes, percentDelta, rollUpDays } from "./day-series";
 import {
   buildHourDowHeatmap,
   DOW_MON_LABELS,
@@ -144,15 +164,89 @@ export class AnalyticsService {
     const pageSafe = Math.max(1, page);
     const sizeSafe = Math.min(100, Math.max(1, pageSize));
     const start = (pageSafe - 1) * sizeSafe;
+    const items = await this.rankedItems(user.id, kind, listenWhere);
 
-    const pageResult = <T>(items: T[]) => ({
+    return {
       periodListens,
       total: items.length,
       page: pageSafe,
       pageSize: sizeSafe,
       items: items.slice(start, start + sizeSafe),
-    });
+    };
+  }
 
+  async movers(
+    userId: string,
+    kind: TopsKind,
+    range: RangeKey,
+    limit = MOVERS_DEFAULT_LIMIT,
+  ) {
+    const user = await this.resolveUser(userId);
+    const since = rangeStart(range);
+    const durationMs = rangeDurationMs(range);
+    const currentWhere = this.listenWhere(user.id, range);
+    const previousWhere =
+      since && durationMs != null
+        ? {
+            userId: user.id,
+            listenedAt: {
+              gte: new Date(since.getTime() - durationMs),
+              lt: since,
+            },
+          }
+        : null;
+
+    const [periodListens, previousListens, current, previous] =
+      await Promise.all([
+        this.prisma.listen.count({ where: currentWhere }),
+        previousWhere
+          ? this.prisma.listen.count({ where: previousWhere })
+          : Promise.resolve(0),
+        this.rankedItems(user.id, kind, currentWhere),
+        previousWhere
+          ? this.rankedItems(user.id, kind, previousWhere)
+          : Promise.resolve([]),
+      ]);
+
+    const share = concentrationShare(
+      current,
+      periodListens,
+      MOVERS_CONCENTRATION_TOP_N,
+    );
+    const previousShare =
+      previousWhere && previousListens > 0
+        ? concentrationShare(
+            previous,
+            previousListens,
+            MOVERS_CONCENTRATION_TOP_N,
+          )
+        : null;
+
+    return {
+      kind,
+      range,
+      periodListens,
+      previousListens,
+      concentration: {
+        topN: MOVERS_CONCENTRATION_TOP_N,
+        share,
+        previousShare,
+        delta:
+          previousShare != null
+            ? Math.round((share - previousShare) * 10) / 10
+            : null,
+      },
+      movers: previousWhere
+        ? computeMovers(current, previous, MOVERS_RANK_WINDOW, limit)
+        : [],
+    };
+  }
+
+  private async rankedItems(
+    userId: string,
+    kind: TopsKind,
+    listenWhere: Prisma.ListenWhereInput,
+  ): Promise<RankedItem[]> {
     if (kind === "artists") {
       const listens = await this.prisma.listen.findMany({
         where: listenWhere,
@@ -190,7 +284,7 @@ export class AnalyticsService {
         }
       }
       const artistLabels = await this.corrections.loadLabelsForUser(
-        user.id,
+        userId,
         "artist",
         [...counts.keys()],
       );
@@ -200,7 +294,7 @@ export class AnalyticsService {
           name: artistLabels.get(a.id) ?? a.name,
         }))
         .sort((a, b) => b.count - a.count);
-      return pageResult(items);
+      return items;
     }
 
     if (kind === "albums") {
@@ -239,7 +333,7 @@ export class AnalyticsService {
         counts.set(r.id, cur);
       }
       const albumLabels = await this.corrections.loadLabelsForUser(
-        user.id,
+        userId,
         "release",
         [...counts.keys()],
       );
@@ -249,7 +343,7 @@ export class AnalyticsService {
           title: albumLabels.get(a.id) ?? a.title,
         }))
         .sort((a, b) => b.count - a.count);
-      return pageResult(items);
+      return items;
     }
 
     if (kind === "tracks") {
@@ -291,12 +385,12 @@ export class AnalyticsService {
         counts.set(t.id, cur);
       }
       const trackLabels = await this.corrections.loadLabelsForUser(
-        user.id,
+        userId,
         "track",
         [...counts.keys()],
       );
       const artistCredits = await this.corrections.loadArtistCreditsForUser(
-        user.id,
+        userId,
         [...counts.keys()],
       );
       const items = [...counts.values()]
@@ -306,7 +400,7 @@ export class AnalyticsService {
           artistName: overlayArtistCredit(t.artistName, t.id, artistCredits),
         }))
         .sort((a, b) => b.count - a.count);
-      return pageResult(items);
+      return items;
     }
 
     // genres | moods
@@ -349,9 +443,7 @@ export class AnalyticsService {
         counts.set(g.id, cur);
       }
     }
-    return pageResult(
-      [...counts.values()].sort((a, b) => b.count - a.count),
-    );
+    return [...counts.values()].sort((a, b) => b.count - a.count);
   }
 
   async timeSeries(
@@ -393,6 +485,18 @@ export class AnalyticsService {
       return buckets;
     }
 
+    if (granularity === "day") {
+      const listens = await this.prisma.listen.findMany({
+        where: {
+          userId: user.id,
+          ...(since ? { listenedAt: { gte: since } } : {}),
+        },
+        orderBy: { listenedAt: "asc" },
+        select: { listenedAt: true, track: { select: { durationMs: true } } },
+      });
+      return rollUpDays(listens, timeZone);
+    }
+
     const buckets = await this.prisma.listenHourBucket.findMany({
       where: {
         userId: user.id,
@@ -403,10 +507,7 @@ export class AnalyticsService {
 
     const rolled = new Map<string, number>();
     for (const b of buckets) {
-      const key =
-        granularity === "day"
-          ? zonedDayKey(b.hourStart, timeZone)
-          : zonedIsoWeekKey(b.hourStart, timeZone);
+      const key = zonedIsoWeekKey(b.hourStart, timeZone);
       rolled.set(key, (rolled.get(key) || 0) + b.listenCount);
     }
 
@@ -417,9 +518,25 @@ export class AnalyticsService {
     }));
   }
 
-  async recent(userId: string, page = 1, pageSize = 40) {
+  async recent(
+    userId: string,
+    page = 1,
+    pageSize = 40,
+    filters: MusicRecentQuery = {},
+  ) {
     const user = await this.resolveUser(userId);
-    const where = { userId: user.id };
+    const q = filters.q?.trim();
+    const where: Prisma.ListenWhereInput = {
+      userId: user.id,
+      ...(q || filters.source
+        ? {
+            AND: [
+              ...(q ? [listenSearchWhere(q)] : []),
+              ...(filters.source ? [listenSourceWhere(filters.source)] : []),
+            ],
+          }
+        : {}),
+    };
     const take = Math.min(Math.max(pageSize, 1), 100);
     const safePage = Math.max(page, 1);
     const skip = (safePage - 1) * take;
@@ -634,26 +751,24 @@ export class AnalyticsService {
       .slice(0, 5);
 
     const durationMs = rangeDurationMs(range);
+    const listeningMinutes = Math.round(durationSumMs / 60000);
     let previousListens: number | null = null;
     let deltaPct: number | null = null;
+    let previousMinutes: number | null = null;
+    let minutesDeltaPct: number | null = null;
     if (durationMs != null && since) {
       const prevStart = new Date(since.getTime() - durationMs);
-      previousListens = await this.prisma.listen.count({
+      const previous = await this.prisma.listen.findMany({
         where: {
           userId: user.id,
           listenedAt: { gte: prevStart, lt: since },
         },
+        select: { track: { select: { durationMs: true } } },
       });
-      if (previousListens > 0) {
-        deltaPct =
-          Math.round(
-            ((periodListens - previousListens) / previousListens) * 1000,
-          ) / 10;
-      } else if (periodListens > 0) {
-        deltaPct = 100;
-      } else {
-        deltaPct = 0;
-      }
+      previousListens = previous.length;
+      previousMinutes = listenMinutes(previous);
+      deltaPct = percentDelta(periodListens, previousListens);
+      minutesDeltaPct = percentDelta(listeningMinutes, previousMinutes);
     }
 
     return {
@@ -667,7 +782,7 @@ export class AnalyticsService {
       topMood: topMoodEntry
         ? { id: topMoodEntry[0], name: topMoodEntry[1].name, count: topMoodEntry[1].count }
         : null,
-      listeningMinutes: Math.round(durationSumMs / 60000),
+      listeningMinutes,
       listensWithDuration,
       durationCoverage:
         periodListens > 0
@@ -679,9 +794,14 @@ export class AnalyticsService {
       uniqueArtists: uniqueArtistIds.length,
       uniqueTracks: uniqueTrackIds.length,
       serviceBreakdown,
+      longestStreakDays: longestStreakDays(
+        listens.map((l) => zonedDayKey(l.listenedAt, timeZone)),
+      ),
       compare: {
         previousListens,
         deltaPct,
+        previousMinutes,
+        minutesDeltaPct,
       },
     };
   }
@@ -1080,28 +1200,50 @@ export class AnalyticsService {
     }>,
     limit?: number,
   ) {
-    const moodCounts = new Map<string, { id: string; name: string; count: number }>();
-    for (const l of listenRows) {
-      for (const tg of l.track.genres) {
-        if (tg.genre.kind !== "mood") continue;
-        const cur = moodCounts.get(tg.genre.id) || {
-          id: tg.genre.id,
-          name: tg.genre.name,
-          count: 0,
-        };
-        cur.count += 1;
-        moodCounts.set(tg.genre.id, cur);
-      }
-    }
-    return [...moodCounts.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit ?? undefined);
+    return aggregateMoodsFromListens(listenRows, limit);
+  }
+
+  private artistListenWhere(
+    userId: string,
+    artistId: string,
+    range: RangeKey,
+  ) {
+    const since = rangeStart(range);
+    return {
+      userId,
+      track: {
+        OR: [{ artistId }, { featuredArtists: { some: { artistId } } }],
+      },
+      ...(since ? { listenedAt: { gte: since } } : {}),
+    };
+  }
+
+  async artistTimeSeries(
+    userId: string,
+    artistId: string,
+    granularity: "hourOfDay" | "dayOfWeek",
+    range: RangeKey = "all",
+    timeZone = "UTC",
+  ) {
+    const user = await this.resolveUser(userId);
+    const artist = await this.prisma.artist.findUnique({
+      where: { id: artistId },
+      select: { id: true },
+    });
+    if (!artist) throw new NotFoundException("Artist not found");
+
+    const listens = await this.prisma.listen.findMany({
+      where: this.artistListenWhere(user.id, artistId, range),
+      select: { listenedAt: true },
+    });
+    return this.patternBuckets(listens, granularity, timeZone);
   }
 
   async artistDetail(
     userId: string,
     artistId: string,
     range: RangeKey = "all",
+    timeZone = "UTC",
   ) {
     const user = await this.resolveUser(userId);
     const artist = await this.prisma.artist.findUnique({
@@ -1110,16 +1252,7 @@ export class AnalyticsService {
     });
     if (!artist) throw new NotFoundException("Artist not found");
 
-    const rangeWhere = {
-      userId: user.id,
-      track: {
-        OR: [
-          { artistId },
-          { featuredArtists: { some: { artistId } } },
-        ],
-      },
-      ...(rangeStart(range) ? { listenedAt: { gte: rangeStart(range)! } } : {}),
-    };
+    const rangeWhere = this.artistListenWhere(user.id, artistId, range);
 
     const listenCount = await this.prisma.listen.count({ where: rangeWhere });
     const first = await this.prisma.listen.findFirst({
@@ -1150,14 +1283,22 @@ export class AnalyticsService {
     const artistListens = await this.prisma.listen.findMany({
       where: rangeWhere,
       select: {
+        listenedAt: true,
         track: {
           select: {
             id: true,
             title: true,
             displayName: true,
+            durationMs: true,
             releaseId: true,
             release: {
-              select: { id: true, title: true, displayName: true, imageUrl: true },
+              select: {
+                id: true,
+                title: true,
+                displayName: true,
+                imageUrl: true,
+                year: true,
+              },
             },
             genres: { include: { genre: true } },
           },
@@ -1177,7 +1318,13 @@ export class AnalyticsService {
     >();
     const artistAlbums = new Map<
       string,
-      { id: string; title: string; imageUrl: string | null; count: number }
+      {
+        id: string;
+        title: string;
+        imageUrl: string | null;
+        year: number | null;
+        count: number;
+      }
     >();
 
     const trackIds = artistListens.map((l) => l.track.id);
@@ -1215,6 +1362,7 @@ export class AnalyticsService {
           id: r.id,
           title: albumTitle,
           imageUrl: r.imageUrl,
+          year: r.year,
           count: 0,
         };
         ac.count += 1;
@@ -1234,6 +1382,17 @@ export class AnalyticsService {
       artist.id,
       artist.name,
     );
+    const patterns = this.albumListenPatterns(artistListens, timeZone);
+    const rankIndex =
+      listenCount > 0
+        ? (
+            await this.rankedItems(
+              user.id,
+              "artists",
+              this.listenWhere(user.id, range),
+            )
+          ).findIndex((item) => item.id === artist.id)
+        : -1;
 
     return {
       range,
@@ -1249,6 +1408,10 @@ export class AnalyticsService {
       listenCount,
       firstListenAt: first?.listenedAt.toISOString() ?? null,
       latestListenAt: latest?.listenedAt.toISOString() ?? null,
+      listeningMinutes: patterns.listeningMinutes,
+      peakHour: patterns.peakHour,
+      peakDow: patterns.peakDow,
+      rank: rankIndex >= 0 ? rankIndex + 1 : null,
       topTracks: [...artistTracks.values()]
         .sort((a, b) => b.count - a.count)
         .slice(0, ARTIST_TOP_ITEMS_LIMIT),
@@ -1395,7 +1558,14 @@ export class AnalyticsService {
       where: this.albumListenWhere(user.id, albumId, range),
       select: { listenedAt: true },
     });
+    return this.patternBuckets(listens, granularity, timeZone);
+  }
 
+  private patternBuckets(
+    listens: Array<{ listenedAt: Date }>,
+    granularity: "hourOfDay" | "dayOfWeek",
+    timeZone: string,
+  ) {
     if (granularity === "hourOfDay") {
       const buckets = Array.from({ length: 24 }, (_, hour) => ({
         key: String(hour),
@@ -1533,24 +1703,8 @@ export class AnalyticsService {
 
   async rewindStats(userId: string, period: string, timeZone = "UTC") {
     const user = await this.resolveUser(userId);
-    let start: Date;
-    let end: Date;
-
-    if (period.length === 4) {
-      const year = parseInt(period, 10);
-      start = new Date(`${year}-01-01T00:00:00.000Z`);
-      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-    } else if (period.length === 7) {
-      const [yearStr, monthStr] = period.split("-");
-      const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10);
-      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextMonth = month === 12 ? 1 : month + 1;
-      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-    } else {
-      throw new Error("Invalid period format");
-    }
+    const { start, end } = zonedPeriodBounds(period, timeZone);
+    const priorBounds = priorPeriodBounds(period, timeZone);
 
     const listens = await this.prisma.listen.findMany({
       where: {
@@ -1634,17 +1788,41 @@ export class AnalyticsService {
       });
       newTracks = earliestTracks.filter((r) => r._min.listenedAt && r._min.listenedAt >= start).length;
 
-      const artistFirsts = await Promise.all(
-        uniqueArtistIds.map((artistId) =>
-          this.prisma.listen.findFirst({
-            where: { userId: user.id, track: { artistId } },
-            orderBy: { listenedAt: "asc" },
-            select: { listenedAt: true },
-          }),
-        ),
-      );
-      newArtists = artistFirsts.filter((r) => r?.listenedAt != null && r.listenedAt >= start).length;
+      // Earliest listen per artist across all of their tracks, in two set
+      // queries instead of one findFirst per artist (a yearly rewind can
+      // touch hundreds of artists).
+      const artistTrackFirsts = await this.prisma.listen.groupBy({
+        by: ["trackId"],
+        where: { userId: user.id, track: { artistId: { in: uniqueArtistIds } } },
+        _min: { listenedAt: true },
+      });
+      const trackArtists = await this.prisma.track.findMany({
+        where: { id: { in: artistTrackFirsts.map((r) => r.trackId) } },
+        select: { id: true, artistId: true },
+      });
+      const artistOfTrack = new Map(trackArtists.map((t) => [t.id, t.artistId]));
+      const artistFirstListen = new Map<string, Date>();
+      for (const row of artistTrackFirsts) {
+        const artistId = artistOfTrack.get(row.trackId);
+        const first = row._min.listenedAt;
+        if (!artistId || !first) continue;
+        const current = artistFirstListen.get(artistId);
+        if (!current || first < current) artistFirstListen.set(artistId, first);
+      }
+      newArtists = uniqueArtistIds.filter((artistId) => {
+        const first = artistFirstListen.get(artistId);
+        return first != null && first >= start;
+      }).length;
     }
+
+    const extras = await this.musicRewindExtras(
+      user.id,
+      period,
+      timeZone,
+      priorBounds,
+      listens,
+      artistCredits,
+    );
 
     return {
       domain: "music" as const,
@@ -1675,6 +1853,88 @@ export class AnalyticsService {
         .slice(0, 5),
       peakHour,
       peakDow,
+      ...extras,
+    };
+  }
+
+  private async musicRewindExtras(
+    userId: string,
+    period: string,
+    timeZone: string,
+    priorBounds: { start: Date; end: Date },
+    listens: Array<{
+      trackId: string;
+      listenedAt: Date;
+      track: {
+        artistId: string;
+        title: string;
+        artist: { name: string };
+        genres: Array<{ genre: { id: string; name: string; kind: string } }>;
+      };
+    }>,
+    artistCredits: Map<string, string>,
+  ) {
+    const [priorTracks, earliest] = await Promise.all([
+      this.prisma.listen.groupBy({
+        by: ["trackId"],
+        where: {
+          userId,
+          listenedAt: { gte: priorBounds.start, lt: priorBounds.end },
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.listen.aggregate({
+        where: { userId },
+        _min: { listenedAt: true },
+      }),
+    ]);
+    const priorTrackArtists = priorTracks.length
+      ? await this.prisma.track.findMany({
+          where: { id: { in: priorTracks.map((r) => r.trackId) } },
+          select: { id: true, artistId: true, artist: { select: { name: true } } },
+        })
+      : [];
+    const artistOfTrack = new Map(priorTrackArtists.map((t) => [t.id, t]));
+    const priorArtists = new Map<string, PriorItemCount>();
+    for (const row of priorTracks) {
+      const track = artistOfTrack.get(row.trackId);
+      if (!track) continue;
+      const cur = priorArtists.get(track.artistId) ?? {
+        id: track.artistId,
+        name: track.artist.name,
+        count: 0,
+      };
+      cur.count += row._count._all;
+      priorArtists.set(track.artistId, cur);
+    }
+
+    return {
+      ...commonExtras({
+        period,
+        timeZone,
+        events: listens.map((l) => ({
+          at: l.listenedAt,
+          itemId: l.track.artistId,
+          name: l.track.artist.name,
+        })),
+        prior: [...priorArtists.values()],
+        priorStart: priorBounds.start,
+        earliestEventAt: earliest._min.listenedAt,
+      }),
+      topMoods: aggregateMoodsFromListens(listens, 5),
+      featuredArtists: featuredArtists(
+        listens.map((l) => ({ trackId: l.trackId, artistName: l.track.artist.name })),
+        artistCredits,
+      ),
+      maxRepeatsInDay: maxRepeatsInDay(
+        listens.map((l) => ({
+          trackId: l.trackId,
+          listenedAt: l.listenedAt,
+          title: l.track.title,
+          artistName: l.track.artist.name,
+        })),
+        timeZone,
+      ),
     };
   }
 }

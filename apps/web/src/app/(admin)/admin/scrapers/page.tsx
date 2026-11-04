@@ -1,10 +1,13 @@
-import { AdminScrapersController } from "@/modules/admin/scrapers/admin.scrapers.controller";
-import { AdminScrapersView } from "@/modules/admin/scrapers/admin.scrapers.view";
+import { redirect } from "next/navigation";
+import {
+  adminTabHref,
+  type AdminSearchParams,
+} from "@/modules/admin/shared/admin.redirect";
 
-const AdminScrapersPage = () => (
-  <AdminScrapersController>
-    <AdminScrapersView />
-  </AdminScrapersController>
-);
-
-export default AdminScrapersPage;
+export default async function AdminScrapersRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<AdminSearchParams>;
+}) {
+  redirect(adminTabHref("/admin/jobs", "scrapers", await searchParams));
+}

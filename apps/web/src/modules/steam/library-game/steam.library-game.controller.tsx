@@ -1,16 +1,24 @@
 "use client";
 
-import type { PropsWithChildren } from "react";
+import { useState, type PropsWithChildren } from "react";
 import { useParams } from "next/navigation";
-import { useResource } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { GameDetail, LibraryEntry, PlaySessionPage } from "@questorylabs/shared";
+import type {
+  GameDetail,
+  LibraryEntry,
+  LibraryUserStatus,
+  PlaySessionPage,
+} from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { LIBRARY_GAME_SESSIONS_PAGE_SIZE } from "@/lib/pagination";
+import type { LibraryGameTab } from "./steam.library-game.constants";
 
 export const LibraryGameController = ({ children }: PropsWithChildren) => {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
+  const store = useStore();
+  const [tab, setTab] = useState<LibraryGameTab>("overview");
 
   const entry = useResource({
     id: ["library-entry", gameId],
@@ -34,5 +42,26 @@ export const LibraryGameController = ({ children }: PropsWithChildren) => {
     when: Boolean(gameId),
   });
 
-  return cloneElements(children, { gameId, entry, detail, sessions });
+  const setStatus = useAction({
+    run: (status: LibraryUserStatus | null) =>
+      api(`/library/${encodeURIComponent(gameId)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      store.touch(["library-entry", gameId]);
+      store.touch(["game-detail"]);
+      store.touch(["library"]);
+    },
+  });
+
+  return cloneElements(children, {
+    gameId,
+    entry,
+    detail,
+    sessions,
+    setStatus,
+    tab,
+    setTab,
+  });
 };

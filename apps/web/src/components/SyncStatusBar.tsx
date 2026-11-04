@@ -202,7 +202,7 @@ export function SyncStatusBar({
           ? job?.fileName || "Reading upload…"
           : `${(job?.processed ?? 0).toLocaleString()} / ${(job?.total ?? 0).toLocaleString()} listens · ${job?.accepted ?? 0} accepted`
         : `${(job?.accepted ?? 0).toLocaleString()} listens imported`,
-      href: "/music/settings",
+      href: "/sources?tab=music",
       active: shell.music.active,
       progress:
         shell.music.active && job && job.total > 0
@@ -238,7 +238,7 @@ export function SyncStatusBar({
       detail: parts.length
         ? parts.join(" · ")
         : lastWatchDetail.current || "Movies and shows are up to date.",
-      href: "/watch/settings",
+      href: "/sources?tab=watch",
       active: shell.watch.active,
       progress:
         shell.watch.letterboxd && shell.watch.letterboxd.total > 0
@@ -269,7 +269,7 @@ export function SyncStatusBar({
             ? "Anime list manga sync"
             : "Read library sync"
         : "Manga and print lists are up to date.",
-      href: "/read/settings",
+      href: "/sources?tab=read",
       active: shell.read.active,
       progress: null,
     });

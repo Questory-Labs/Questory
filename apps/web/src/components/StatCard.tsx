@@ -23,7 +23,7 @@ export function StatCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
+        <div className="text-[13px] text-[var(--muted)]">
           {label}
         </div>
         {href ? (
@@ -35,14 +35,14 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <div className="mt-1 flex items-end justify-between gap-3">
-        <div className="truncate text-xl tabular-nums text-[var(--ink)]">
+      <div className="mt-1.5 flex items-end justify-between gap-3">
+        <div className="num-light truncate text-[34px] leading-none text-[var(--ink)]">
           {value}
         </div>
         {sparkline ? <div className="shrink-0 pb-0.5">{sparkline}</div> : null}
       </div>
       {hint ? (
-        <div className="mt-1 text-[11px] leading-snug text-[var(--muted)]">
+        <div className="mt-1.5 text-xs leading-snug text-[var(--faint)]">
           {hint}
         </div>
       ) : null}
@@ -53,7 +53,7 @@ export function StatCard({
     <Panel
       size="sm"
       wrapperClassName={`h-full ${className}`.trim()}
-      className={`group h-full p-3 hover:border-[var(--line-strong)] ${
+      className={`group q-lift h-full px-[18px] py-4 hover:border-[var(--line-strong)] ${
         href ? "cursor-pointer" : ""
       }`}
     >

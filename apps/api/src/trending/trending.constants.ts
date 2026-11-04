@@ -13,3 +13,4 @@ export const SAMPLE_FRIENDS = 3;
 export const FRIENDS_TOP_N = 16;
 export const GLOBAL_TOP_N = 20;
 export const CHART_TOP_N = 20;
+export const TRENDING_FLAG_LOOKUP_CAP = 200;

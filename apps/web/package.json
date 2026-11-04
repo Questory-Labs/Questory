@@ -11,7 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@questorylabs/qhttp": "^0.2.1",
+    "@questorylabs/qhttp": "^0.4.0",
     "@questorylabs/shared": "workspace:*",
     "@questorylabs/ui": "workspace:*",
     "cmdk": "^1.1.1",

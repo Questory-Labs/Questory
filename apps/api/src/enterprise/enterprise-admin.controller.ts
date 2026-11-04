@@ -54,6 +54,16 @@ export class EnterpriseAdminController {
     );
   }
 
+  @Get("llm/budget")
+  getLlmBudget(@CurrentUser() user: SessionUser) {
+    return this.forwardAdmin(user, "GET", "/v1/enterprise/llm/budget");
+  }
+
+  @Put("llm/budget")
+  putLlmBudget(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+    return this.forwardAdmin(user, "PUT", "/v1/enterprise/llm/budget", body);
+  }
+
   @Get("otel/health")
   otelHealth(@CurrentUser() user: SessionUser) {
     return this.forwardAdmin(user, "GET", "/v1/enterprise/otel/health");

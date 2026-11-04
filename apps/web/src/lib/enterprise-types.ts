@@ -26,10 +26,13 @@ export type RecommendationItem = {
   reasons: string[];
   /** One-line editorial blurb. */
   blurb?: string;
+  /** Curator's argument for this pick (LLM-ranked slates only). */
+  why?: string;
   /** Stable feedback key ("game:<id>" / "artist:<id>" / "title:<id>" / "read:<id>"). */
   itemKey?: string;
   /** Outbound link for extra (not-in-library) cards. */
   url?: string;
+  cardType?: string;
 };
 
 export type MlStatus = {
@@ -39,10 +42,18 @@ export type MlStatus = {
   error?: string;
 };
 
+export type LlmTierStatus = {
+  tier: "reason" | "write" | "fast";
+  model: string;
+  fallbacks?: string[];
+  reasoning: string;
+};
+
 export type LlmStatus = {
   enabled: boolean;
   ready: boolean;
   model?: string;
+  tiers?: LlmTierStatus[];
   embedModel?: string;
   pulling?: string[];
   error?: string;
@@ -72,6 +83,40 @@ export type RecommendationResponse = {
   /** In-catalog strip when research picks are the primary list. */
   library?: RecommendationItem[];
   message?: string;
+  /** Which ranker produced the slate. */
+  arm?: RecommendationArm;
+};
+
+export type RecommendationArm =
+  | "heuristic"
+  | "rerank"
+  | "rerank-fallback"
+  | "interleave"
+  | "research";
+
+export type RecommendationHistoryItem = {
+  itemKey: string;
+  name: string;
+  domain: string;
+  rank: number;
+  why?: string | null;
+  owned: boolean;
+  feedback?: FeedbackAction | null;
+};
+
+export type RecommendationHistorySlate = {
+  slateId: string;
+  arm: string;
+  source: string;
+  ask: string;
+  servedAt: number;
+  items: RecommendationHistoryItem[];
+};
+
+export type RecommendationHistory = {
+  slates: RecommendationHistorySlate[];
+  liked: string[];
+  passed: string[];
 };
 
 /* ── smart goals ── */
@@ -105,6 +150,7 @@ export type JobStatus =
   | "scoring"
   | "extras"
   | "researching"
+  | "curating"
   | "writing"
   | "done"
   | "failed";

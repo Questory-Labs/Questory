@@ -92,5 +92,22 @@ const glyph = (name: NavIconName) => {
           <path d="M7.2 8h1.6" />
         </>
       );
+    case "goals":
+      return (
+        <>
+          <circle cx="8" cy="8" r="5.5" />
+          <circle cx="8" cy="8" r="2.5" />
+          <path d="M8 7.9h.01" />
+        </>
+      );
+    case "settings":
+      return (
+        <>
+          <circle cx="8" cy="8" r="2" />
+          <path d="M8 2v2M8 12v2M2 8h2M12 8h2M3.8 3.8l1.4 1.4M10.8 10.8l1.4 1.4M3.8 12.2l1.4-1.4M10.8 5.2l1.4-1.4" />
+        </>
+      );
+    case "admin":
+      return <path d="M8 2 13 4v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z" />;
   }
 };

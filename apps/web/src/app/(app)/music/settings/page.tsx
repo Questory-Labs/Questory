@@ -1,10 +1,10 @@
-import { MusicSettingsController } from "@/modules/music/settings/music.settings.controller";
-import { MusicSettingsView } from "@/modules/music/settings/music.settings.view";
+import { redirect } from "next/navigation";
+import { sourcesHref } from "@/modules/media/sources/media.sources.utils";
 
-const MusicSettingsPage = () => (
-  <MusicSettingsController>
-    <MusicSettingsView />
-  </MusicSettingsController>
-);
-
-export default MusicSettingsPage;
+export default async function MusicSettingsRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  redirect(sourcesHref("music", await searchParams));
+}

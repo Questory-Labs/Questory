@@ -5,11 +5,12 @@ import {
   REWIND_COVERFLOW_NEXT_MASK,
   REWIND_COVERFLOW_PREV_MASK,
 } from "./media.rewind.constants";
-import { pickCardThemes } from "./media.rewind.themes";
+import { generateCardTheme, pickCardThemes } from "./media.rewind.themes";
 import type {
   EmphasisSegment,
   ParsedInsightChunk,
   RewindDomain,
+  RewindScope,
 } from "./media.rewind.types";
 
 export {
@@ -21,6 +22,13 @@ export {
 } from "./media.rewind.themes";
 
 const TAG_TITLE_MAP: Record<string, string> = {
+  balance: "The Balance",
+  musicyear: "Your Music",
+  watchyear: "Your Watching",
+  readyear: "Your Reading",
+  gamesyear: "Your Games",
+  crossover: "Crossover",
+  mediapersona: "Your Persona",
   hourslistened: "Hours Listened",
   hourswatched: "Hours Watched",
   uniquetitles: "Unique Titles",
@@ -34,6 +42,33 @@ const TAG_TITLE_MAP: Record<string, string> = {
   bookwormpersona: "Bookworm Persona",
   pageturner: "Page Turner",
   worldhopper: "World Hopper",
+  peakday: "Peak Day",
+  runnerup: "Runner-Up",
+  deepcut: "Deep Cut",
+  hottake: "Hot Take",
+  bigpicture: "Big Picture",
+  discoveries: "Discoveries",
+  obsessive: "On Repeat",
+  streak: "Streak",
+  busiestday: "Busiest Day",
+  arc: "The Arc",
+  versuslast: "Versus Last Time",
+  fadedout: "Faded Out",
+  unfinished: "Unfinished",
+  binge: "Binge Day",
+  finished: "Finished",
+  dropped: "Dropped",
+  moods: "Moods",
+  repeatday: "Repeat Day",
+  hoursplayed: "Hours Played",
+  sessions: "Sessions",
+  longestsession: "Longest Session",
+  nightowl: "Night Owl",
+  newgames: "New Games",
+  backlog: "Backlog",
+  abandoned: "Set Aside",
+  achievements: "Achievements",
+  gamerpersona: "Gamer Persona",
 };
 
 const titleCaseTag = (tag: string): string => {
@@ -136,11 +171,31 @@ export const rewindCoverflowSlideMask = (offset: number): string | undefined => 
   return offset < 0 ? REWIND_COVERFLOW_PREV_MASK : REWIND_COVERFLOW_NEXT_MASK;
 };
 
-export const formatAiCards = (content: string, domain: RewindDomain) => {
+const ALL_ROTATION: RewindDomain[] = ["music", "watch", "read", "games"];
+
+export const allCardDomain = (tagSlug: string, index: number): RewindDomain => {
+  const area = tagSlug.replace(/year$/, "");
+  return (ALL_ROTATION as string[]).includes(area)
+    ? (area as RewindDomain)
+    : ALL_ROTATION[index % ALL_ROTATION.length]!;
+};
+
+export const formatAiCards = (content: string, domain: RewindScope) => {
   const parsed = splitInsightContent(content).map((chunk, i) => {
     const { title, text, tagSlug } = parseInsightChunk(chunk);
     return { title, text, tagSlug, cardIndex: i };
   });
+  if (domain === "all") {
+    return parsed.map((card) => ({
+      title: card.title,
+      text: card.text,
+      theme: generateCardTheme(
+        allCardDomain(card.tagSlug, card.cardIndex),
+        card.cardIndex,
+        card.tagSlug || undefined,
+      ),
+    }));
+  }
   const themes = pickCardThemes(
     domain,
     parsed.map((card) => ({

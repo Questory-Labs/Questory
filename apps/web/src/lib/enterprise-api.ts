@@ -4,12 +4,13 @@ import type {
   DossierView,
   FeedbackAction,
   RecommendationDomain,
+  RecommendationHistory,
   RecommendationResponse,
   RecommendationGoalsRequest,
   RecommendationGoalsResponse,
   UserSettings,
 } from "@/lib/enterprise-types";
-import type { WeeklyDigestView } from "@questorylabs/shared";
+import type { AiGoalsResponse, WeeklyDigestView } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { browserTimeZone } from "@/lib/dates";
 import { probeJsonSafe } from "@/lib/qhttp-client";
@@ -63,6 +64,19 @@ export async function fetchSmartGoals(options: {
       targetCount: options.targetCount,
       timeframe: options.timeframe,
     }),
+  });
+}
+
+export async function fetchAiGoals(): Promise<AiGoalsResponse> {
+  return enterpriseRequest<AiGoalsResponse>("/recommendations/goals/ai", {
+    method: "POST",
+  });
+}
+
+export async function rerollAiGoal(itemKey: string): Promise<AiGoalsResponse> {
+  return enterpriseRequest<AiGoalsResponse>("/recommendations/goals/ai/reroll", {
+    method: "POST",
+    body: JSON.stringify({ itemKey }),
   });
 }
 
@@ -133,6 +147,37 @@ export async function sendFeedback(
   return enterpriseRequest<{ ok: boolean }>("/recommendations/feedback", {
     method: "POST",
     body: JSON.stringify({ itemKey, action }),
+  });
+}
+
+export async function fetchRecommendationHistory(
+  limit = 3,
+): Promise<RecommendationHistory> {
+  return enterpriseRequest<RecommendationHistory>(
+    `/recommendations/history?limit=${limit}`,
+  );
+}
+
+export type SemanticSearchItem = {
+  key: string;
+  id: string;
+  domain: "games" | "music" | "watch" | "read";
+  kind: string;
+  name: string;
+  imageUrl?: string | null;
+  year?: number | null;
+  score: number;
+};
+
+export type SemanticSearchResult = {
+  items: SemanticSearchItem[];
+  available: boolean;
+};
+
+export async function semanticSearch(q: string, limit = 20): Promise<SemanticSearchResult> {
+  return enterpriseRequest<SemanticSearchResult>("/recommendations/search", {
+    method: "POST",
+    body: JSON.stringify({ q: q.trim().slice(0, 200), limit }),
   });
 }
 
@@ -223,6 +268,8 @@ export type OtelModelUsage = {
   priced?: boolean;
 };
 
+export type OtelCostSource = "reported" | "rates" | "mixed";
+
 /** Loose usage payload — fields evolve; UI reads known keys. */
 export type OtelUsage = {
   request_count?: number;
@@ -235,6 +282,7 @@ export type OtelUsage = {
   avg_cost_per_request?: number;
   cost_per_1m_tokens?: number;
   pricing_configured?: boolean;
+  cost_source?: OtelCostSource;
   by_model?: OtelModelUsage[];
   models?: OtelModelUsage[];
   timeseries?: OtelUsageBucket[];
@@ -315,6 +363,70 @@ export async function fetchEnterpriseHealth(): Promise<unknown> {
     throw new Error("Enterprise health check failed");
   }
   return data;
+}
+
+export type LlmBudgetPeriod = "weekly" | "monthly";
+
+export type LlmBudgetSettings = {
+  period: LlmBudgetPeriod;
+  totalUsd: number | null;
+  models: Record<string, number>;
+};
+
+export type LlmBudgetModel = {
+  model: string;
+  budgetUsd: number | null;
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  burnPerDayUsd: number;
+  projectedUsd: number;
+  willOvershoot: boolean;
+  overshootOn: string | null;
+  exhausted: boolean;
+  stopped: boolean;
+  priced: boolean;
+};
+
+export type LlmBudgetBlock = {
+  reason: "total" | "model" | "unpriced" | "ledger";
+  model: string;
+  count: number;
+  lastAtMs: number;
+};
+
+export type LlmBudgetStatus = {
+  settings: LlmBudgetSettings;
+  periodStart: string;
+  periodEnd: string;
+  total: {
+    budgetUsd: number | null;
+    spentUsd: number;
+    remainingUsd: number | null;
+    burnPerDayUsd: number;
+    projectedUsd: number;
+    willOvershoot: boolean;
+    overshootOn: string | null;
+    exhausted: boolean;
+  };
+  models: LlmBudgetModel[];
+  trend: { day: string; spentUsd: number | null; projectedUsd: number | null }[];
+  blocks: LlmBudgetBlock[];
+};
+
+export async function fetchLlmBudget(): Promise<LlmBudgetStatus> {
+  return enterpriseRequest<LlmBudgetStatus>("/enterprise/llm/budget");
+}
+
+export async function saveLlmBudget(
+  settings: LlmBudgetSettings,
+): Promise<LlmBudgetStatus> {
+  return enterpriseRequest<LlmBudgetStatus>("/enterprise/llm/budget", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
 }
 
 export async function fetchOtelHealth(): Promise<OtelHealth> {

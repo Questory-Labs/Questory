@@ -1,155 +1,79 @@
 "use client";
 
-import { useMemo } from "react";
-import { HourDowSources } from "@/components/media/HourDowSources";
-import { MediaHomeSlots } from "@/components/media/MediaHomeSlots";
-import { StatCard } from "@/components/StatCard";
-import { WatchAddButton } from "@/components/watch/WatchAddButton";
-import { WatchMediaPicker } from "./components/WatchMediaPicker";
 import {
   PageHeader,
-  Panel,
   ResourceStatus,
   SkeletonStatGrid,
-  SkeletonTileGrid,
   StateMessage,
 } from "@/components/ui";
-import { formatDeltaPct, formatMinutes, formatShare } from "@/lib/watch";
 import { featureErrorMessage } from "@/lib/app-status";
+import { sourceLabel } from "@/modules/media/shelf/shelf.utils";
+import { ContinueWatching } from "./components/ContinueWatching";
+import { LogWatchButton } from "./components/LogWatchButton";
+import { WatchCharts } from "./components/WatchCharts";
+import { WatchKpis } from "./components/WatchKpis";
+import { WatchMediaPicker } from "./components/WatchMediaPicker";
 import type { WatchHomeViewProps } from "./watch.home.types";
+import { DOW_FULL } from "./watch.home.utils";
 
 export const WatchHomeView = (props: Record<string, unknown>) => {
-  const { media, setMedia, insights, hour, dow, years, sources } =
-    props as WatchHomeViewProps;
-
+  const view = props as WatchHomeViewProps;
+  const { media, setMedia, insights } = view;
   const d = insights.value;
-  const yearData = useMemo(
-    () =>
-      (years.value?.items || [])
-        .filter((i) => i.key !== "unknown")
-        .slice()
-        .reverse(),
-    [years.value],
-  );
-  const peakCaption = [
-    d?.peakHour ? `Peak ${d.peakHour.label}` : null,
-    d?.topGenre ? d.topGenre.name : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const hours = d ? Math.round(d.watchingMinutes / 60) : null;
+  const peakDay = d?.peakDow ? DOW_FULL[d.peakDow.label] ?? d.peakDow.label : null;
+  const sourceNames = (view.sources.value?.items ?? []).slice(0, 3).map((s) => sourceLabel(s.label));
 
   return (
-    <MediaHomeSlots
-      header={
-        <PageHeader
-          size="sm"
-          title="Watch"
-          description={
-            <p>
-              Movie &amp; TV analytics from Trakt, Letterboxd, AniList, and
-              local player webhooks.
-            </p>
-          }
-          actions={
-            <div className="header-controls">
-              <WatchAddButton />
-              <WatchMediaPicker value={media} onChange={setMedia} />
-            </div>
-          }
-        />
-      }
-      kpis={
-        <ResourceStatus
-          failed={insights.failed}
-          empty={insights.empty}
-          loading={
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-3.5">
+      <PageHeader
+        className="mb-0 px-1 pb-2.5 pt-2"
+        eyebrow={["Watch", "last 30 days", sourceNames.join(", ")].filter(Boolean).join(" · ")}
+        title={
+          hours != null ? (
             <>
-              <SkeletonStatGrid count={4} />
-              <SkeletonTileGrid count={4} className="mt-6" />
-            </>
-          }
-          error={
-            <StateMessage variant="error">
-              {featureErrorMessage(
-                insights.error,
-                "Could not load watch analytics.",
-              )}
-            </StateMessage>
-          }
-        >
-          {d ? (
-            <>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                <StatCard
-                  label="Watches"
-                  value={d.periodWatches}
-                  hint={
-                    d.compare.deltaPct != null
-                      ? `${formatDeltaPct(d.compare.deltaPct)} vs prior`
-                      : undefined
-                  }
-                />
-                <StatCard
-                  label="Watching time"
-                  value={formatMinutes(d.watchingMinutes)}
-                />
-                <StatCard label="New titles" value={d.newTitles} />
-                <StatCard label="Unique titles" value={d.uniqueTitles} />
-                <StatCard
-                  label="Coverage"
-                  value={`${d.runtimeCoverage}%`}
-                  hint="watches with runtime"
-                />
-              </div>
-              {media === "all" ? (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Panel variant="outline" className="p-3 text-sm">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                      Movies
-                    </p>
-                    <p className="mt-1">
-                      {d.movieWatches} watches · {formatMinutes(d.movieMinutes)}
-                    </p>
-                  </Panel>
-                  <Panel variant="outline" className="p-3 text-sm">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                      TV
-                    </p>
-                    <p className="mt-1">
-                      {d.showWatches} watches · {formatMinutes(d.showMinutes)}
-                    </p>
-                  </Panel>
-                </div>
+              {hours} {hours === 1 ? "hour" : "hours"}
+              {peakDay ? (
+                <>
+                  , <span className="font-serif text-[#efd9a8]">mostly {peakDay}</span>
+                </>
               ) : null}
             </>
-          ) : null}
-        </ResourceStatus>
-      }
-      charts={
-        <>
-          {peakCaption ? (
-            <p className="mt-6 text-xs text-[var(--muted)]">{peakCaption}</p>
-          ) : null}
-          <HourDowSources
-            hour={hour}
-            dow={dow}
-            extra={years}
-            sources={sources}
-            extraTitle="Release years"
-            hourError="Could not load hour-of-day watches."
-            dowError="Could not load day-of-week watches."
-            extraError="Could not load release years."
-            sourcesError="Could not load watch sources."
-            hourData={hour.value || []}
-            dowData={dow.value || []}
-            extraData={yearData}
-            sourceItems={sources.value?.items || []}
-            valueLabel="watches"
-            periodTotal={sources.value?.periodWatches ?? 0}
-            formatShare={formatShare}
-          />
-        </>
-      }
-    />
+          ) : (
+            "Watch"
+          )
+        }
+        actions={
+          <div className="header-controls">
+            <WatchMediaPicker value={media} onChange={setMedia} />
+            <LogWatchButton />
+          </div>
+        }
+      />
+
+      <ContinueWatching continuing={view.continuing} />
+
+      <ResourceStatus
+        failed={insights.failed}
+        empty={insights.empty}
+        loading={<SkeletonStatGrid count={5} />}
+        error={
+          <StateMessage variant="error">
+            {featureErrorMessage(insights.error, "Could not load watch analytics.")}
+          </StateMessage>
+        }
+      >
+        {d ? <WatchKpis d={d} media={media} /> : null}
+      </ResourceStatus>
+
+      <WatchCharts
+        insights={insights}
+        hour={view.hour}
+        dow={view.dow}
+        years={view.years}
+        sources={view.sources}
+        tops={view.tops}
+      />
+    </div>
   );
 };

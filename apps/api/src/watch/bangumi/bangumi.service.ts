@@ -26,6 +26,8 @@ import {
 import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { resolveListSyncHalves } from "../../features/list-sync-scope";
 import type { ListSyncScope } from "@questorylabs/shared";
+import { isDroppedListStatus } from "../catalog/list-status";
+import { disconnectSourceConnection } from "../lib/disconnect";
 
 type BangumiCollection = {
   id: number;
@@ -153,6 +155,10 @@ export class BangumiService {
     }
 
     return { ok: true, userId: user.id };
+  }
+
+  disconnect(userId: string) {
+    return disconnectSourceConnection(this.prisma, this.users, userId, "bangumi");
   }
 
   async getConnection(userId?: string) {
@@ -347,6 +353,14 @@ export class BangumiService {
               listedAt: updatedAt,
             });
           }
+
+          await this.catalog.syncDroppedListState({
+            userId,
+            titleId: title.id,
+            source: "bangumi",
+            dropped: isDroppedListStatus(entry.type),
+            listedAt: updatedAt,
+          });
 
           this.enrichment.enqueueTitle(title.id);
         } else {

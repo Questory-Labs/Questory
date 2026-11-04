@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type PropsWithChildren } from "react";
-import { useResource } from "@questorylabs/qhttp/react";
+import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import type {
   CostRoiPage,
   CostRoiSort,
@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { COST_ROI_PAGE_SIZE } from "@/lib/pagination";
 
 export const CostController = ({ children }: PropsWithChildren) => {
+  const store = useStore();
   const [sort, setSort] = useState<CostRoiSort>("best");
   const [valueTab, setValueTab] = useState<CostRoiValueFilter>("paid");
   const [page, setPage] = useState(1);
@@ -33,7 +34,16 @@ export const CostController = ({ children }: PropsWithChildren) => {
       ),
   });
 
+  const refreshPrices = useAction({
+    run: () => api("/cost/refresh-prices", { method: "POST" }),
+    onSuccess: () => {
+      store.touch(["cost-summary"]);
+      store.touch(["cost-roi"]);
+    },
+  });
+
   return cloneElements(children, {
+    refreshPrices,
     summary,
     roi,
     sort,

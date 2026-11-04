@@ -7,6 +7,10 @@ import {
 import { resolveMusicService, musicServiceFromRawPayload } from "../lib/music-service";
 import { hourStartUtc, normalizeName, slugifyGenre } from "../lib/tokens";
 import { CorrectionsService } from "../corrections/corrections.service";
+import {
+  playingNowSource,
+  resolvePlayingNowStartedAt,
+} from "../playing-now/playing-now.types";
 
 export type IncomingListenMeta = {
   artistName: string;
@@ -338,12 +342,8 @@ export class CatalogService implements OnModuleInit {
       if (meta.tags?.length) {
         await this.linkTags(full.id, meta.tags, "payload_tag");
       }
-      await this.prisma.playingNow.upsert({
-        where: { userId },
-        create: { userId, trackId: full.id },
-        update: { trackId: full.id, updatedAt: new Date() },
-      });
-      return { track: full, artist: full.artist, release: full.release };
+      const live = await this.writePlayingNow(userId, full.id, meta);
+      return { track: full, artist: full.artist, release: full.release, ...live };
     }
 
     const artist = await this.upsertArtist(
@@ -374,13 +374,29 @@ export class CatalogService implements OnModuleInit {
       await this.linkTags(full.id, meta.tags, "payload_tag");
     }
 
+    const live = await this.writePlayingNow(userId, full.id, meta);
+
+    return { track: full, artist: full.artist, release: full.release, ...live };
+  }
+
+  private async writePlayingNow(
+    userId: string,
+    trackId: string,
+    meta: IncomingListenMeta,
+  ) {
+    const now = new Date();
+    const existing = await this.prisma.playingNow.findUnique({
+      where: { userId },
+      select: { trackId: true, startedAt: true },
+    });
+    const startedAt = resolvePlayingNowStartedAt(existing, trackId, now);
+    const source = playingNowSource(meta);
     await this.prisma.playingNow.upsert({
       where: { userId },
-      create: { userId, trackId: full.id },
-      update: { trackId: full.id, updatedAt: new Date() },
+      create: { userId, trackId, source, startedAt },
+      update: { trackId, source, startedAt, updatedAt: now },
     });
-
-    return { track: full, artist: full.artist, release: full.release };
+    return { startedAt, source };
   }
 
   async clearPlayingNow(userId: string) {

@@ -1,10 +1,13 @@
-import { AdminMigrationsController } from "@/modules/admin/migrations/admin.migrations.controller";
-import { AdminMigrationsView } from "@/modules/admin/migrations/admin.migrations.view";
+import { redirect } from "next/navigation";
+import {
+  adminTabHref,
+  type AdminSearchParams,
+} from "@/modules/admin/shared/admin.redirect";
 
-const AdminMigrationsPage = () => (
-  <AdminMigrationsController>
-    <AdminMigrationsView />
-  </AdminMigrationsController>
-);
-
-export default AdminMigrationsPage;
+export default async function AdminMigrationsRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<AdminSearchParams>;
+}) {
+  redirect(adminTabHref("/admin/system", "migrations", await searchParams));
+}

@@ -1,103 +1,104 @@
 "use client";
 
-import { StatCard } from "@/components/StatCard";
-import { GameTile } from "@/components/GameTile";
+import type { CSSProperties } from "react";
 import {
+  CountUp,
   EmptyState,
-  PageHeader,
   ResourceStatus,
   SkeletonStatGrid,
   SkeletonTileGrid,
 } from "@questorylabs/ui";
+import { ChallengeCard } from "./components/ChallengeCard";
+import { CommonGamesTable } from "./components/CommonGamesTable";
+import { CompareHero } from "./components/CompareHero";
 import type { FriendCompareViewProps } from "./steam.friend-compare.types";
+
+const STAT_DOTS = [
+  "text-[var(--ink)]",
+  "text-[var(--accent)]",
+  "text-[var(--music)]",
+  "text-[var(--warm)]",
+];
 
 export const FriendCompareView = (props: Record<string, unknown>) => {
   const { compare } = props as FriendCompareViewProps;
   const d = compare.value;
 
-  return (
-    <>
-      <PageHeader size="sm"
-        title={d?.friend.personaName || "Friend"}
-        description={
-          <>
-            Library comparison
-            {d?.meta?.friendLibraryTruncated ? (
-              <p className="mt-2 font-mono text-[11px] text-[var(--warm)]">
-                Friend library cache may be truncated (max{" "}
-                {d.meta.gamesPerFriendLimit} games).
-              </p>
-            ) : null}
-          </>
-        }
-      />
+  const stats = d
+    ? [
+        { label: "Common games", value: d.commonGames },
+        { label: "Only you", value: d.uniqueToYou },
+        { label: "Only them", value: d.uniqueToFriend },
+        { label: "Mutual wishlist", value: d.mutualWishlist },
+      ]
+    : [];
 
-      <ResourceStatus
-        failed={compare.failed}
-        empty={compare.empty}
-        loading={
-          <>
-            <SkeletonStatGrid count={4} />
-            <SkeletonTileGrid count={4} className="mt-10" />
-          </>
-        }
-        error={
-          <EmptyState
-            title={
-              <span className="text-[var(--danger)]">
-                Could not load friend comparison.
-              </span>
-            }
-          />
-        }
-      >
+  return (
+    <ResourceStatus
+      failed={compare.failed}
+      empty={compare.empty}
+      loading={
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Common games" value={d?.commonGames ?? "—"} />
-            <StatCard label="Unique to you" value={d?.uniqueToYou ?? "—"} />
-            <StatCard label="Unique to them" value={d?.uniqueToFriend ?? "—"} />
-            <StatCard label="Mutual wishlist" value={d?.mutualWishlist ?? "—"} />
+          <SkeletonStatGrid count={4} />
+          <SkeletonTileGrid count={4} className="mt-4" />
+        </>
+      }
+      error={
+        <EmptyState
+          title={
+            <span className="text-[var(--danger)]">
+              Could not load friend comparison.
+            </span>
+          }
+        />
+      }
+    >
+      {d ? (
+        <div className="flex flex-col gap-4">
+          <CompareHero data={d} />
+
+          {d.meta && !d.meta.friendLibraryCached ? (
+            <p className="px-1 font-mono text-[11px] text-[var(--warm)]">
+              {d.friend.personaName}&apos;s library isn&apos;t cached yet
+              (private profile or not synced), so overlap is incomplete.
+            </p>
+          ) : null}
+          {d.meta?.friendLibraryTruncated ? (
+            <p className="px-1 font-mono text-[11px] text-[var(--warm)]">
+              Friend library cache may be truncated (max{" "}
+              {d.meta.gamesPerFriendLimit} games).
+            </p>
+          ) : null}
+
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+            {stats.map((s, i) => (
+              <div
+                key={s.label}
+                className="panel q-lift q-in px-[18px] py-4"
+                style={{ "--i": 3 + i } as CSSProperties}
+              >
+                <p className="flex items-center gap-[7px] text-[13px] text-[var(--muted)]">
+                  <span
+                    aria-hidden="true"
+                    className={`dot h-[5px] w-[5px] ${STAT_DOTS[i]}`}
+                  />
+                  {s.label}
+                </p>
+                <p className="mt-2.5 text-[40px] leading-none font-extralight tracking-[-0.035em]">
+                  <CountUp value={s.value} />
+                </p>
+              </div>
+            ))}
           </div>
 
-          <section className="mt-10">
-            <h2 className="mb-4 font-display text-xl font-bold tracking-tight">
-              Challenge mode — both unplayed
-            </h2>
-            {(d?.challengeGames || []).length ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {(d?.challengeGames || []).map((g) => (
-                  <GameTile
-                    key={g.appId}
-                    name={g.name}
-                    headerImage={g.headerImage}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="No unplayed games in common." />
-            )}
-          </section>
+          <ChallengeCard games={d.challengeGames} />
 
-          <section className="mt-10">
-            <h2 className="mb-4 font-display text-xl font-bold tracking-tight">
-              Games in common
-            </h2>
-            {(d?.commonGameList || []).length ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {(d?.commonGameList || []).map((g) => (
-                  <GameTile
-                    key={g.appId}
-                    name={g.name}
-                    headerImage={g.headerImage}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="No games in common yet." />
-            )}
-          </section>
-        </>
-      </ResourceStatus>
-    </>
+          <CommonGamesTable
+            games={d.commonGameList}
+            friendName={d.friend.personaName}
+          />
+        </div>
+      ) : null}
+    </ResourceStatus>
   );
 };

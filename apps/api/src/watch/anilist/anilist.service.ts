@@ -23,6 +23,8 @@ import { providerFetch } from "../../lib/qhttp-outbound";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { resolveListSyncHalves } from "../../features/list-sync-scope";
 import type { ListSyncScope } from "@questorylabs/shared";
+import { isDroppedListStatus } from "../catalog/list-status";
+import { disconnectSourceConnection } from "../lib/disconnect";
 
 @Injectable()
 export class AnilistService {
@@ -112,6 +114,10 @@ export class AnilistService {
     }
 
     return { ok: true, userId: user.id };
+  }
+
+  disconnect(userId: string) {
+    return disconnectSourceConnection(this.prisma, this.users, userId, "anilist");
   }
 
   async getConnection(userId?: string) {
@@ -310,6 +316,14 @@ export class AnilistService {
             listedAt: watchedAt,
           });
         }
+
+        await this.catalog.syncDroppedListState({
+          userId,
+          titleId: title.id,
+          source: "anilist",
+          dropped: isDroppedListStatus(entry.status),
+          listedAt: watchedAt,
+        });
 
         this.enrichment.enqueueTitle(title.id);
       }

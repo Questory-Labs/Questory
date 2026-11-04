@@ -1,4 +1,6 @@
-import { TrendingGame } from "@questorylabs/shared";
+import type { TrendingGame } from "@questorylabs/shared";
+import { TrendingBadge } from "./components/TrendingTile";
+import { DECK_BADGE_LABEL } from "./steam.trending.constants";
 
 export const formatPeak = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M peak`;
@@ -23,8 +25,8 @@ export const friendAvatars = (game: TrendingGame) => {
   const samples = game.sampleFriends || [];
   if (!samples.length) return null;
   return (
-    <div className="flex items-center gap-1">
-      <div className="flex -space-x-2">
+    <span className="flex items-center gap-1">
+      <span className="flex -space-x-2">
         {samples.map((f) =>
           f.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -33,37 +35,45 @@ export const friendAvatars = (game: TrendingGame) => {
               src={f.avatarUrl}
               alt=""
               title={f.personaName}
-              className="h-5 w-5 rounded-full border border-black/40"
+              className="h-5 w-5 rounded-full border border-bg-0"
             />
           ) : (
             <span
               key={f.steamId}
               title={f.personaName}
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/40 bg-[var(--bg-2)] text-[8px] text-white"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-bg-0 bg-bg-3 text-[8px] text-white"
             >
               {f.personaName.slice(0, 1)}
             </span>
           ),
         )}
-      </div>
-      <span className="text-[10px] text-white/90">
-        {game.friendCount} friend{(game.friendCount || 0) === 1 ? "" : "s"}
       </span>
-    </div>
+    </span>
   );
 };
 
-export const rankBadge = (game: TrendingGame) => {
-  if (game.rank == null) return null;
+export const rankChangeLabel = (game: TrendingGame) => {
   const change = game.rankChange;
-  let changeLabel = "";
-  if (change != null && change !== 0) {
-    changeLabel = change > 0 ? ` ↑${change}` : ` ↓${Math.abs(change)}`;
-  }
+  if (change == null || change === 0) return null;
+  return change > 0 ? `↑${change}` : `↓${Math.abs(change)}`;
+};
+
+export const deckBadgeLabel = (game: TrendingGame) =>
+  game.deckStatus ? DECK_BADGE_LABEL[game.deckStatus] ?? null : null;
+
+export const gameBadges = (game: TrendingGame) => {
+  const deck = deckBadgeLabel(game);
+  if (!game.owned && !deck) return null;
   return (
-    <span className="rounded-md bg-black/65 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-white">
-      #{game.rank}
-      {changeLabel}
-    </span>
+    <>
+      {game.owned ? <TrendingBadge tone="owned">Owned</TrendingBadge> : null}
+      {deck ? <TrendingBadge>{deck}</TrendingBadge> : null}
+    </>
   );
+};
+
+export const withRankChange = (game: TrendingGame, meta?: string) => {
+  const change = rankChangeLabel(game);
+  if (!change) return meta;
+  return meta ? `${meta} · ${change}` : change;
 };

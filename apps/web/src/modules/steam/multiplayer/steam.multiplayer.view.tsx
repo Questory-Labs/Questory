@@ -1,7 +1,6 @@
 "use client";
 
 import { FamilyGameSidebar } from "@/components/FamilyGameSidebar";
-import { PageHeader } from "@questorylabs/ui";
 import { PlanFilters } from "./components/PlanFilters";
 import { PlanResults } from "./components/PlanResults";
 import type { MultiplayerViewProps } from "./steam.multiplayer.types";
@@ -14,7 +13,6 @@ export const MultiplayerView = (props: Record<string, unknown>) => {
     pageGames,
     page,
     setPage,
-    totalPages,
     selectedAppId,
     setSelectedAppId,
     filters,
@@ -22,30 +20,28 @@ export const MultiplayerView = (props: Record<string, unknown>) => {
 
   return (
     <>
-      <div className="flex flex-col lg:h-[calc(100dvh-7.5rem)] lg:overflow-hidden">
-        <PageHeader
-          size="sm"
-          title="Multiplayer Planner"
-          description="Find multiplayer games for your group — strict library match, filters, or trending suggestions"
-          className="shrink-0"
+      <div className="mx-auto flex max-w-[1180px] flex-col gap-4">
+        <header className="q-in px-1 pt-2 pb-1">
+          <p className="label-mono !text-[11px]">Multiplayer planner</p>
+          <h1 className="mt-1.5 text-[clamp(34px,4vw,52px)] leading-none font-light tracking-[-0.035em]">
+            What can everyone{" "}
+            <span className="font-serif text-[#a1a1a6]">launch tonight?</span>
+          </h1>
+          <p className="mt-2.5 text-[var(--muted)]">
+            Pick who&apos;s playing. We find what everyone can launch tonight.
+          </p>
+        </header>
+
+        <PlanFilters friends={friends} filters={filters} />
+
+        <PlanResults
+          plan={plan}
+          pageGames={pageGames}
+          page={page}
+          setPage={setPage}
+          setSelectedAppId={setSelectedAppId}
+          filters={filters}
         />
-
-        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[320px_1fr]">
-          <div className="min-h-0 min-w-0 overflow-y-auto lg:overscroll-y-contain">
-            <PlanFilters friends={friends} filters={filters} />
-          </div>
-
-          <div className="min-h-0 min-w-0 overflow-y-auto lg:overscroll-y-contain">
-            <PlanResults
-              plan={plan}
-              pageGames={pageGames}
-              page={page}
-              setPage={setPage}
-              totalPages={totalPages}
-              setSelectedAppId={setSelectedAppId}
-            />
-          </div>
-        </div>
       </div>
 
       <FamilyGameSidebar

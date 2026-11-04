@@ -4,30 +4,36 @@ export const FEATURE_FLAG_ROWS: Array<{
   id: FeatureDomain;
   label: string;
   hint: string;
+  dot: string;
 }> = [
   {
     id: "music",
     label: "Music",
     hint: "Listening analytics, Last.fm polling, and ListenBrainz ingest.",
+    dot: "text-[var(--music)]",
   },
   {
     id: "watch",
     label: "Watch",
     hint: "Movies and shows: Trakt, TMDB, Letterboxd, and anime lists.",
+    dot: "text-[var(--watch)]",
   },
   {
     id: "read",
     label: "Read",
     hint: "Manga, manhwa, and novels from shared list providers.",
+    dot: "text-[var(--read)]",
   },
 ];
 
 export const SOURCE_FLAG_GROUPS: Array<{
   title: string;
+  dot: string;
   items: Array<{ id: FeatureSource; label: string; hint: string }>;
 }> = [
   {
     title: "Music sources",
+    dot: "text-[var(--music)]",
     items: [
       { id: "lastfm", label: "Last.fm", hint: "Native Last.fm polling." },
       {
@@ -59,6 +65,7 @@ export const SOURCE_FLAG_GROUPS: Array<{
   },
   {
     title: "Watch sources",
+    dot: "text-[var(--watch)]",
     items: [
       { id: "trakt", label: "Trakt", hint: "OAuth watched-history sync." },
       { id: "tmdb", label: "TMDB", hint: "Metadata enrichment and trending." },
@@ -81,6 +88,7 @@ export const SOURCE_FLAG_GROUPS: Array<{
   },
   {
     title: "Shared list providers",
+    dot: "text-[var(--read)]",
     items: [
       {
         id: "anilist",
@@ -106,3 +114,12 @@ export const SOURCE_FLAG_GROUPS: Array<{
     ],
   },
 ];
+
+export const ABUSE_LIMIT_LABELS: Record<string, string> = {
+  registerIpHour: "Signups per IP",
+  registerIpDay: "Signups per IP",
+  registerEmailDay: "Signups per email",
+  loginIp: "Login attempts per IP",
+  loginEmail: "Login attempts per email",
+  challengeIp: "Challenges per IP",
+};

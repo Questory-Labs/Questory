@@ -6,7 +6,6 @@ import { WISHLIST_PAGE_SIZE } from "@/lib/pagination";
 import {
   Button,
   EmptyState,
-  PageHeader,
   ResourceStatus,
   SkeletonListRows,
   SkeletonTileGrid,
@@ -45,23 +44,31 @@ export const WishlistView = (props: Record<string, unknown>) => {
   const recList = filteredRecs ?? [];
 
   return (
-    <>
-      <PageHeader
-        size="sm"
-        title="Wishlist"
-        description={
-          list.value
-            ? `${total} games · should-buy scores, price targets, and deal signals across Steam, Epic, and GOG`
-            : "Should-buy scores, price targets, and deal signals across Steam, Epic, and GOG"
-        }
-      />
-
-      <StoreChipRow value={storeFilter} onChange={setStoreFilter} />
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-[18px]">
+      <header className="q-in flex flex-wrap items-end justify-between gap-4 px-1 pb-1 pt-2">
+        <div>
+          <p className="label-mono text-[var(--faint)]">
+            Steam · Epic · GOG · scored on discount depth, wishlist age and genre fit
+          </p>
+          <h1 className="font-display mt-1.5 text-[clamp(34px,4vw,52px)] font-light leading-none tracking-[-0.035em]">
+            {list.value ? `${total} wishes` : "Wishlist"}
+            {dealList.length ? (
+              <>
+                ,{" "}
+                <em className="font-serif font-normal text-[var(--muted)]">
+                  {dealList.length} deal alerts
+                </em>
+              </>
+            ) : null}
+          </h1>
+        </div>
+        <StoreChipRow value={storeFilter} onChange={setStoreFilter} />
+      </header>
 
       <ResourceStatus
         failed={deals.failed}
         empty={deals.empty}
-        loading={<SkeletonTileGrid count={3} className="mt-8" />}
+        loading={<SkeletonTileGrid count={3} />}
         error={
           <EmptyState
             title={
@@ -80,7 +87,7 @@ export const WishlistView = (props: Record<string, unknown>) => {
       <ResourceStatus
         failed={recommendations.failed}
         empty={recommendations.empty}
-        loading={<SkeletonTileGrid count={4} className="mt-10" />}
+        loading={<SkeletonTileGrid count={4} />}
         error={
           <EmptyState
             title={
@@ -97,7 +104,7 @@ export const WishlistView = (props: Record<string, unknown>) => {
       <ResourceStatus
         failed={list.failed}
         empty={list.empty}
-        loading={<SkeletonListRows count={6} className="mt-10" />}
+        loading={<SkeletonListRows count={6} />}
         error={
           <EmptyState
             title={
@@ -148,6 +155,6 @@ export const WishlistView = (props: Record<string, unknown>) => {
           <EmptyState title="No wishlist games match this store filter." />
         )}
       </ResourceStatus>
-    </>
+    </div>
   );
 };

@@ -6,7 +6,7 @@ import type { GlanceTile } from "../steam.library-game.utils";
 export const LibraryGameGlance = ({ tiles }: { tiles: GlanceTile[] }) => {
   if (!tiles.length) return null;
   return (
-    <section className="mt-10" aria-label="Key stats">
+    <section aria-label="Key stats">
       <h2 className="mb-3 font-display text-lg font-semibold">At a glance</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((tile) => (

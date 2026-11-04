@@ -23,6 +23,8 @@ describe("Read AnalyticsService.titleDetail history", () => {
   const findFirst = vi.fn();
   const findMany = vi.fn();
   const findListState = vi.fn();
+  const findListStates = vi.fn();
+  const aggregate = vi.fn();
   const resolveUser = vi.fn();
   let service: ReadAnalyticsService;
 
@@ -32,6 +34,8 @@ describe("Read AnalyticsService.titleDetail history", () => {
     findFirst.mockReset();
     findMany.mockReset();
     findListState.mockReset();
+    findListStates.mockReset().mockResolvedValue([]);
+    aggregate.mockReset().mockResolvedValue({ _sum: { chaptersRead: 0 } });
     resolveUser.mockReset().mockResolvedValue({ id: "user-1" });
 
     findUnique.mockResolvedValue({
@@ -53,8 +57,8 @@ describe("Read AnalyticsService.titleDetail history", () => {
 
     const prisma = {
       readTitle: { findUnique },
-      readEvent: { count, findFirst, findMany },
-      readListState: { findFirst: findListState },
+      readEvent: { count, findFirst, findMany, aggregate },
+      readListState: { findFirst: findListState, findMany: findListStates },
     } as unknown as PrismaService;
     const users = { resolveUser } as unknown as UsersService;
     service = new ReadAnalyticsService(prisma, users);
@@ -76,5 +80,40 @@ describe("Read AnalyticsService.titleDetail history", () => {
         orderBy: { readAt: "desc" },
       }),
     );
+  });
+
+  it("returns max progress across sources, score and pace", async () => {
+    count.mockResolvedValue(0);
+    findMany.mockResolvedValue([]);
+    findUnique.mockResolvedValueOnce({
+      id: "title-1",
+      name: "Berserk",
+      displayName: null,
+      format: "manga",
+      year: 1989,
+      overview: null,
+      coverUrl: null,
+      imageManual: false,
+      publishingStatus: "releasing",
+      chapters: 100,
+      volumes: null,
+      anilistId: 30002,
+      malId: 2,
+      genres: [],
+    });
+    findListStates.mockResolvedValue([
+      { progressChapters: 40, progressVolumes: 3, score: 8, updatedAt: new Date(1) },
+      { progressChapters: 60, progressVolumes: 2, score: null, updatedAt: new Date(2) },
+    ]);
+    aggregate.mockResolvedValue({ _sum: { chaptersRead: 40 } });
+
+    const result = await service.titleDetail("user-1", "title-1", "all");
+
+    expect(result.title.anilistId).toBe(30002);
+    expect(result.title.malId).toBe(2);
+    expect(result.progressChapters).toBe(60);
+    expect(result.progressVolumes).toBe(3);
+    expect(result.score).toBe(8);
+    expect(result.pace).toEqual({ chaptersPerWeek: 5, weeksToFinish: 8 });
   });
 });

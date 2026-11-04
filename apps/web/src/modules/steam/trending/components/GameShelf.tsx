@@ -2,22 +2,25 @@
 
 import type { ReactNode } from "react";
 import { ResourceStatus } from "@questorylabs/ui";
+import { TRENDING_GRID_CLASS, TRENDING_SKELETON_COUNT } from "../steam.trending.constants";
 
-const ShelfSkeleton = () => (
-  <div className="-mx-1 flex gap-4 overflow-hidden px-1 pb-2">
-    {Array.from({ length: 5 }).map((_, i) => (
-      <div key={i} className="w-[220px] shrink-0 sm:w-[260px]">
-        <div className="aspect-[460/215] border border-[var(--line)] bg-[var(--bg-1)] hatch-fill" />
-        <div className="mt-2 h-4 w-[70%] border border-[var(--line)] bg-[var(--bg-1)]" />
-      </div>
+const ShelfSkeleton = ({ aspectClassName }: { aspectClassName: string }) => (
+  <ul className={TRENDING_GRID_CLASS} aria-hidden>
+    {Array.from({ length: TRENDING_SKELETON_COUNT }).map((_, i) => (
+      <li key={i}>
+        <div className={`hatch-fill rounded-[18px] border border-line bg-bg-1 ${aspectClassName}`} />
+        <div className="mt-2.5 h-3.5 w-[70%] rounded-full bg-white/[0.05]" />
+      </li>
     ))}
-  </div>
+  </ul>
 );
 
 export const GameShelf = ({
   title,
   description,
   meta,
+  live = false,
+  aspectClassName = "aspect-[460/215]",
   children,
   failed,
   empty,
@@ -27,47 +30,40 @@ export const GameShelf = ({
   title: string;
   description?: string;
   meta?: ReactNode;
+  live?: boolean;
+  aspectClassName?: string;
   children: ReactNode;
   failed: boolean;
   empty: boolean;
   error: ReactNode;
   emptyContent?: ReactNode;
 }) => (
-  <section className="mt-12 first:mt-0">
-    <div className="mb-4 flex items-end justify-between gap-4 px-1">
-      <div className="min-w-0">
-        <h2
-          className="font-display text-2xl tracking-tight"
-          style={{ fontWeight: 700 }}
-        >
-          {title}
-        </h2>
-        {description ? (
-          <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
+  <section aria-label={title}>
+    <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+      <h2 className="m-0 flex items-center gap-2.5 text-[26px] font-light tracking-[-0.02em]">
+        {live ? (
+          <span
+            aria-hidden="true"
+            className="q-live size-1.5 rounded-full bg-ok shadow-[0_0_10px_rgba(95,211,138,0.8)]"
+          />
         ) : null}
-      </div>
-      {meta ? (
-        <div className="shrink-0 font-mono text-[11px] text-[var(--faint)]">
+        {title}
+      </h2>
+      {description || meta ? (
+        <span className="label-mono tracking-[0.06em]">
+          {description}
+          {description && meta ? " · " : null}
           {meta}
-        </div>
+        </span>
       ) : null}
     </div>
-
     <ResourceStatus
       failed={failed}
       empty={empty}
-      loading={<ShelfSkeleton />}
+      loading={<ShelfSkeleton aspectClassName={aspectClassName} />}
       error={error}
     >
-      {emptyContent ?? (
-        <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-3 [scrollbar-width:thin]">
-          {children}
-        </div>
-      )}
+      {emptyContent ?? <ol className={TRENDING_GRID_CLASS}>{children}</ol>}
     </ResourceStatus>
   </section>
-);
-
-export const GameShelfItem = ({ children }: { children: ReactNode }) => (
-  <div className="w-[220px] shrink-0 sm:w-[260px]">{children}</div>
 );

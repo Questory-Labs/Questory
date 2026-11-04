@@ -24,4 +24,23 @@ describe("LibraryFilters", () => {
     );
     expect(document.querySelector(".panel-outline")).toBeTruthy();
   });
+
+  it("keeps the genre field and checkboxes on one centered row", () => {
+    render(
+      <LibraryFilters
+        genre=""
+        unplayed={false}
+        multiplayer={false}
+        deck={false}
+        onGenreChange={vi.fn()}
+        onUnplayedChange={vi.fn()}
+        onMultiplayerChange={vi.fn()}
+        onDeckChange={vi.fn()}
+      />,
+    );
+    const panel = document.querySelector(".panel-outline");
+    expect(panel).toHaveClass("items-center");
+    expect(panel).not.toHaveClass("mb-6");
+    expect(screen.getByText("Genre").closest("label")).toHaveClass("items-center");
+  });
 });

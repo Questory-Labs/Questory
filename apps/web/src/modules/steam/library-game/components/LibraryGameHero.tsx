@@ -1,29 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import type { GameDetail, LibraryEntry } from "@questorylabs/shared";
-import { GameCover } from "@/components/GameCover";
-import { StoreBadge, StoreBadgeRow } from "@/components/StoreBadge";
+import type { GameDetail, LibraryEntry, LibraryUserStatus } from "@questorylabs/shared";
+import { StoreBadge } from "@/components/StoreBadge";
 import {
-  Chip,
   deckLabel,
   formatReleaseDate,
 } from "@/components/game-detail/game-detail-shared";
-import { PageHeader, Panel } from "@questorylabs/ui";
-import { LIBRARY_GAME_COVER_CLASS } from "../steam.library-game.constants";
+import { formatMoney } from "@/lib/money";
+import { ProgressRing } from "@questorylabs/ui";
+import { CoverArt } from "../../library/components/CoverArt";
 import {
+  costPerHour,
   formatHours,
   hoursCaption,
   playtimeHours,
   studioLine,
 } from "../steam.library-game.utils";
+import { LibraryGameStatusSelect } from "./LibraryGameStatusSelect";
+
+const chip =
+  "rounded-full border border-white/[0.12] bg-[rgba(10,10,11,0.6)] px-[11px] py-1 text-[var(--muted)] backdrop-blur-md";
 
 export const LibraryGameHero = ({
   entry,
   detail,
+  status,
+  statusBusy,
+  onStatusChange,
 }: {
   entry: LibraryEntry;
   detail?: GameDetail;
+  status?: LibraryUserStatus | null;
+  statusBusy?: boolean;
+  onStatusChange?: (status: LibraryUserStatus | null) => void;
 }) => {
   const stores = entry.stores || entry.game.stores || [];
   const name = entry.game.name || detail?.name;
@@ -31,16 +41,26 @@ export const LibraryGameHero = ({
   const hasSteam = stores.includes("steam") || (appId != null && appId > 0);
   const hours = playtimeHours(entry.playtimeForever);
   const unplayed = entry.playtimeForever <= 0;
-  const genres = (
-    entry.game.genres.length ? entry.game.genres : detail?.genres || []
-  ).slice(0, 4);
   const studio = studioLine(detail ?? entry.game);
-  const description = [genres.join(" · "), studio].filter(Boolean).join(" · ");
   const deck = deckLabel(detail?.deckStatus ?? entry.game.deckStatus);
-  const releaseLabel = formatReleaseDate(
-    detail?.releaseDate ?? entry.game.releaseDate,
-  );
+  const releaseLabel = formatReleaseDate(detail?.releaseDate ?? entry.game.releaseDate);
   const isFree = detail?.isFree ?? entry.game.isFree;
+  const currency = detail?.price.currency || "USD";
+  const perHour = costPerHour(
+    hours,
+    entry.pricePaid,
+    detail?.price.current ?? entry.game.currentPrice,
+  );
+  const players =
+    detail?.minPlayers != null && detail.maxPlayers != null && detail.maxPlayers > 1
+      ? `${detail.minPlayers}–${detail.maxPlayers} players`
+      : null;
+  const ach = detail?.achievements;
+  const meta = [
+    studio,
+    releaseLabel,
+    entry.pricePaid != null ? `bought for ${formatMoney(entry.pricePaid, currency)}` : null,
+  ].filter(Boolean);
 
   const otherStoreActions = (entry.ownerships || []).flatMap((o) => {
     if (o.store === "steam") return [];
@@ -49,78 +69,53 @@ export const LibraryGameHero = ({
       entry.game.listings?.find((l) => l.store === o.store)?.storeUrl;
     if (!url) return [];
     return [
-      <a
-        key={o.store}
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="btn btn-secondary gap-2 text-[var(--accent)]"
-      >
+      <a key={o.store} href={url} target="_blank" rel="noreferrer" className="btn btn-secondary gap-2 text-[var(--accent)]">
         <StoreBadge store={o.store} compact />
         Open store →
       </a>,
     ];
   });
-  const steamActions =
-    hasSteam && appId != null && appId > 0
-      ? [
-          <a
-            key="play"
-            href={`steam://run/${appId}`}
-            className="btn btn-primary"
-            aria-label={`Play ${name}`}
-          >
-            Play
-          </a>,
-          <a
-            key="store"
-            href={`https://store.steampowered.com/app/${appId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-secondary"
-          >
-            Open on Steam →
-          </a>,
-        ]
-      : [];
-  const actions =
-    steamActions.length || otherStoreActions.length ? (
-      <>
-        {steamActions}
-        {otherStoreActions}
-      </>
-    ) : undefined;
 
   return (
     <>
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
-        <Link href="/library" className="hover:text-[var(--accent)]">
-          Library
-        </Link>
-      </p>
-      <PageHeader
-        size="sm"
-        title={name}
-        description={description || undefined}
-        actions={actions}
-      />
+      <Link
+        href="/library"
+        className="q-in inline-flex min-h-9 items-center gap-2 self-start text-[13px] text-[var(--muted)] hover:text-[var(--ink)]"
+      >
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Library
+      </Link>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,36rem)_1fr]">
-        <Panel size="lg" className={`overflow-hidden ${LIBRARY_GAME_COVER_CLASS}`}>
-          <GameCover
-            src={entry.game.headerImage || detail?.headerImage || null}
-            className="w-full"
-          />
-        </Panel>
+      <section
+        aria-labelledby="game-title"
+        className="panel q-in relative flex min-h-[330px] flex-wrap items-end gap-6 overflow-hidden p-7"
+        style={{ ["--i" as string]: 1 }}
+      >
+        <div aria-hidden="true" className="q-drift absolute inset-[-10%] opacity-40 blur-2xl">
+          <CoverArt src={entry.game.headerImage || detail?.headerImage} seed={entry.game.id} />
+        </div>
+        <div aria-hidden="true" className="dot-matrix q-twinkle absolute inset-0 opacity-30" />
+        <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(0deg,rgba(9,9,10,0.95),rgba(9,9,10,0.2)_60%,transparent)]" />
 
-        <Panel size="lg" className="p-5 sm:p-6">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-            Your playtime
-          </p>
-          <p className="mt-2 font-display text-5xl font-bold tabular-nums tracking-tight sm:text-6xl">
-            {formatHours(hours)}
-          </p>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+        <div className="relative min-w-0 flex-[1_1_420px]">
+          <div className="flex flex-wrap gap-2 text-xs">
+            {onStatusChange ? (
+              <LibraryGameStatusSelect status={status ?? null} busy={statusBusy} onChange={onStatusChange} />
+            ) : null}
+            {isFree ? <span className={chip}>Free to Play</span> : null}
+            {deck ? <span className={chip}>{deck}</span> : null}
+            {players ? <span className={chip}>{players}</span> : null}
+            {entry.isFamilyShared ? <span className={chip}>Family shared</span> : null}
+          </div>
+          <h1
+            id="game-title"
+            className="font-display mt-4 text-[clamp(44px,5.4vw,76px)] font-extralight leading-[0.95] tracking-[-0.045em]"
+          >
+            {name}
+          </h1>
+          <p className="font-serif mt-2.5 text-[22px] italic text-[#d6d2c8]">
             {hoursCaption({
               lastPlayedAt: entry.lastPlayedAt,
               playtime2Weeks: entry.playtime2Weeks,
@@ -128,16 +123,55 @@ export const LibraryGameHero = ({
               unplayed,
             })}
           </p>
-          {(deck || releaseLabel || isFree || entry.isFamilyShared) && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {isFree ? <Chip>Free to Play</Chip> : null}
-              {deck ? <Chip>{deck}</Chip> : null}
-              {releaseLabel ? <Chip>{releaseLabel}</Chip> : null}
-              {entry.isFamilyShared ? <Chip>Family shared</Chip> : null}
+          {meta.length ? (
+            <p className="mt-2.5 font-mono text-[11px] text-[var(--faint)]">{meta.join(" · ")}</p>
+          ) : null}
+          {hasSteam && appId != null && appId > 0 ? (
+            <div className="mt-5 flex flex-wrap gap-2">
+              <a href={`steam://run/${appId}`} className="btn btn-primary" aria-label={`Play ${name}`}>
+                Play
+              </a>
+              <a href={`https://store.steampowered.com/app/${appId}`} target="_blank" rel="noreferrer" className="btn btn-secondary">
+                Open on Steam →
+              </a>
+              {otherStoreActions}
             </div>
-          )}
-        </Panel>
-      </div>
+          ) : otherStoreActions.length ? (
+            <div className="mt-5 flex flex-wrap gap-2">{otherStoreActions}</div>
+          ) : null}
+        </div>
+
+        <dl className="relative flex flex-wrap gap-7">
+          <div>
+            <dt className="text-xs text-[var(--muted)]">Played</dt>
+            <dd className="mt-0.5 text-5xl font-extralight leading-none tracking-[-0.04em]">
+              {formatHours(hours)}
+            </dd>
+          </div>
+          {perHour.value != null ? (
+            <div>
+              <dt className="text-xs text-[var(--muted)]">
+                Per hour{perHour.source === "store" ? " · est." : ""}
+              </dt>
+              <dd className="mt-0.5 text-5xl font-extralight leading-none tracking-[-0.04em]">
+                {formatMoney(perHour.value, currency)}
+              </dd>
+            </div>
+          ) : null}
+          {ach?.pct != null ? (
+            <div className="flex items-center gap-3">
+              <ProgressRing value={ach.pct / 100} size={60} stroke={2} label={`${ach.pct}% achievements`} />
+              <div>
+                <dt className="text-xs text-[var(--muted)]">Achievements</dt>
+                <dd className="mt-0.5 text-[22px] font-light">
+                  {ach.unlocked ?? 0}
+                  <span className="text-[13px] text-[var(--faint)]"> / {ach.total ?? "—"}</span>
+                </dd>
+              </div>
+            </div>
+          ) : null}
+        </dl>
+      </section>
     </>
   );
 };

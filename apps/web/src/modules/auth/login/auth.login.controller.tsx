@@ -21,7 +21,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { safeNextPath } from "./auth.login.utils";
+import { loginFailure, safeNextPath } from "./auth.login.utils";
 
 export const LoginController = ({ children }: PropsWithChildren) => {
   const router = useRouter();
@@ -32,6 +32,9 @@ export const LoginController = ({ children }: PropsWithChildren) => {
   const [challengeLoading, setChallengeLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [credentialError, setCredentialError] = useState(false);
+  const [lockUntil, setLockUntil] = useState<number | null>(null);
+  const [lockSecondsLeft, setLockSecondsLeft] = useState(0);
 
   const { isAuthenticated } = useUser();
 
@@ -58,10 +61,30 @@ export const LoginController = ({ children }: PropsWithChildren) => {
     void refreshChallenge();
   }, [refreshChallenge]);
 
+  useEffect(() => {
+    if (lockUntil == null) return;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+      setLockSecondsLeft(left);
+      if (left === 0) setLockUntil(null);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [lockUntil]);
+
+  const fail = (err: unknown) => {
+    const failure = loginFailure(parseApiError(err), formatAuthError(err, "login"));
+    setError(failure.message);
+    setCredentialError(failure.credentials);
+    if (failure.lockSec) setLockUntil(Date.now() + failure.lockSec * 1000);
+  };
+
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!challenge) return;
+    if (!challenge || lockUntil != null) return;
     setError(null);
+    setCredentialError(false);
     setPending(true);
     const form = e.currentTarget;
     const fd = new FormData(form);
@@ -98,7 +121,7 @@ export const LoginController = ({ children }: PropsWithChildren) => {
             return;
           } catch (retryErr) {
             const retryParsed = parseApiError(retryErr);
-            setError(formatAuthError(retryErr, "login"));
+            fail(retryErr);
             if (!isChallengeKeepAliveError(retryParsed.message)) {
               await refreshChallenge();
             }
@@ -106,7 +129,7 @@ export const LoginController = ({ children }: PropsWithChildren) => {
           }
         }
       }
-      setError(formatAuthError(err, "login"));
+      fail(err);
       await refreshChallenge();
     } finally {
       setPending(false);
@@ -119,6 +142,8 @@ export const LoginController = ({ children }: PropsWithChildren) => {
     error,
     setError,
     pending,
+    credentialError,
+    lockSecondsLeft: lockUntil == null ? 0 : lockSecondsLeft,
     refreshChallenge,
     onSubmit,
   });

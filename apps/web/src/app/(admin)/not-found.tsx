@@ -5,11 +5,12 @@ export default function AdminNotFound() {
     <StatusPage
       layout="embedded"
       code="404"
-      eyebrow="Admin console"
-      title="This lever doesn’t exist"
+      eyebrow="Not found"
+      title="This admin page"
+      titleAccent="doesn’t exist"
       taglineContext="notFound"
       logLine="quest log › admin_route — result: null · clearance: insufficient_or_typo"
-      tone="warm"
+      tone="ink"
       primary={{ label: "Admin home", href: "/admin" }}
       secondary={{ label: "Back to app", href: "/dashboard" }}
     />

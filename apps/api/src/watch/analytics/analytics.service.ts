@@ -9,6 +9,21 @@ import {
 } from "../../lib/timezone";
 import { UsersService } from "../users/users.service";
 import { TITLE_DETAIL_EVENTS_LIMIT } from "./analytics.constants";
+import {
+  commonExtras,
+  priorPeriodBounds,
+  zonedPeriodBounds,
+} from "../../lib/rewind-stats";
+import { enrichWatchRewind } from "./rewind-enrich";
+import { percentDelta } from "../../lib/percent-delta";
+import { watchSeasonOutcomes } from "./rewind-seasons";
+import {
+  continueWatching,
+  eventMinutes,
+  sortTopTitles,
+  titleWatchExtras,
+  type TopsSort,
+} from "./watch-shelf";
 
 export type RangeKey = "day" | "week" | "month" | "year" | "all";
 export type MediaType = "movie" | "show";
@@ -118,20 +133,23 @@ export class AnalyticsService {
     range: RangeKey,
     limit = 20,
     userId?: string,
+    opts: { type?: MediaType; sort?: TopsSort } = {},
   ) {
     const user = await this.resolveUser(userId);
     const start = rangeStart(range);
+    const typeFilter =
+      kind === "movies" ? "movie" : kind === "shows" ? "show" : opts.type;
     const events = await this.prisma.watchEvent.findMany({
       where: {
         userId: user.id,
         ...(start ? { watchedAt: { gte: start } } : {}),
-        ...(kind === "movies" ? { title: { type: "movie" } } : {}),
-        ...(kind === "shows" ? { title: { type: "show" } } : {}),
+        ...(typeFilter ? { title: { type: typeFilter } } : {}),
       },
       include: {
         title: {
           include: { genres: { include: { genre: true } } },
         },
+        episode: { select: { runtimeMinutes: true } },
       },
     });
 
@@ -155,7 +173,14 @@ export class AnalyticsService {
 
     const counts = new Map<
       string,
-      { id: string; name: string; type: string; posterUrl: string | null; count: number }
+      {
+        id: string;
+        name: string;
+        type: string;
+        posterUrl: string | null;
+        count: number;
+        minutes: number;
+      }
     >();
     for (const e of events) {
       const cur = counts.get(e.titleId) || {
@@ -164,13 +189,13 @@ export class AnalyticsService {
         type: e.title.type,
         posterUrl: e.title.posterUrl,
         count: 0,
+        minutes: 0,
       };
       cur.count += 1;
+      cur.minutes += eventMinutes(e);
       counts.set(e.titleId, cur);
     }
-    return [...counts.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit);
+    return sortTopTitles([...counts.values()], opts.sort).slice(0, limit);
   }
 
   async timeSeries(
@@ -388,15 +413,31 @@ export class AnalyticsService {
     const durationMs = rangeDurationMs(range);
     let previousWatches: number | null = null;
     let deltaPct: number | null = null;
+    let previousWatchingMinutes: number | null = null;
+    let watchingMinutesDeltaPct: number | null = null;
     if (durationMs != null && since) {
       const prevStart = new Date(since.getTime() - durationMs);
-      previousWatches = await this.prisma.watchEvent.count({
+      const previousEvents = await this.prisma.watchEvent.findMany({
         where: {
           userId: user.id,
           watchedAt: { gte: prevStart, lt: since },
           ...(type ? { title: { type } } : {}),
         },
+        select: {
+          runtimeMinutes: true,
+          title: { select: { runtimeMinutes: true } },
+          episode: { select: { runtimeMinutes: true } },
+        },
       });
+      previousWatches = previousEvents.length;
+      previousWatchingMinutes = previousEvents.reduce(
+        (sum, e) => sum + eventMinutes(e),
+        0,
+      );
+      watchingMinutesDeltaPct = percentDelta(
+        watchingMinutes,
+        previousWatchingMinutes,
+      );
       if (previousWatches > 0) {
         deltaPct =
           Math.round(
@@ -441,6 +482,8 @@ export class AnalyticsService {
       compare: {
         previousWatches,
         deltaPct,
+        previousWatchingMinutes,
+        watchingMinutesDeltaPct,
       },
     };
   }
@@ -505,9 +548,37 @@ export class AnalyticsService {
     return { periodWatches: events.length, items };
   }
 
-  async recent(userId?: string, page = 1, pageSize = 40) {
+  async recent(
+    userId?: string,
+    page = 1,
+    pageSize = 40,
+    filters: { type?: MediaType; q?: string } = {},
+  ) {
     const user = await this.resolveUser(userId);
-    const where = { userId: user.id };
+    const q = filters.q?.trim();
+    const where = {
+      userId: user.id,
+      ...(filters.type || q
+        ? {
+            title: {
+              ...(filters.type ? { type: filters.type } : {}),
+              ...(q
+                ? {
+                    OR: [
+                      { name: { contains: q, mode: "insensitive" as const } },
+                      {
+                        displayName: {
+                          contains: q,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                    ],
+                  }
+                : {}),
+            },
+          }
+        : {}),
+    };
     const take = Math.min(Math.max(pageSize, 1), 100);
     const safePage = Math.max(page, 1);
     const skip = (safePage - 1) * take;
@@ -534,6 +605,7 @@ export class AnalyticsService {
         source: r.source,
         precision: r.precision,
         rating: r.rating,
+        progress: r.progress,
         title: {
           id: r.title.id,
           name: r.title.name,
@@ -568,7 +640,7 @@ export class AnalyticsService {
       ...(since ? { watchedAt: { gte: since } } : {}),
     };
 
-    const [eventCount, first, latest, events, userRatingRow] = await Promise.all([
+    const [eventCount, first, latest, events, userRatingRow, extras] = await Promise.all([
       this.prisma.watchEvent.count({ where: rangeWhere }),
       this.prisma.watchEvent.findFirst({
         where: { userId: user.id, titleId },
@@ -598,6 +670,7 @@ export class AnalyticsService {
         orderBy: { updatedAt: "desc" },
         select: { rating: true },
       }),
+      titleWatchExtras(this.prisma, user.id, title),
     ]);
 
     const episodeCounts = new Map<
@@ -636,11 +709,22 @@ export class AnalyticsService {
         posterUrl: title.posterUrl,
         imageManual: title.imageManual,
         genres: title.genres.map((g) => g.genre.name),
+        backdropUrl: title.backdropUrl ?? null,
+        tmdbId: title.tmdbId ?? null,
+        imdbId: title.imdbId ?? null,
+        anilistId: title.anilistId ?? null,
+        malId: title.malId ?? null,
+        status: title.status ?? null,
+        lastAirDate: title.lastAirDate?.toISOString() ?? null,
+        totalEpisodes: title.totalEpisodes ?? null,
       },
       eventCount,
       firstWatchAt: first?.watchedAt.toISOString() ?? null,
       latestWatchAt: latest?.watchedAt.toISOString() ?? null,
       userRating: userRatingRow?.rating ?? null,
+      totalMinutesWatched: extras.totalMinutesWatched,
+      distinctEpisodesWatched: extras.distinctEpisodesWatched,
+      seasons: extras.seasons,
       topEpisodes: [...episodeCounts.values()]
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
@@ -660,6 +744,11 @@ export class AnalyticsService {
     };
   }
 
+  async continueWatching(userId: string, limit: number) {
+    const user = await this.resolveUser(userId);
+    return continueWatching(this.prisma, user.id, limit);
+  }
+
   private async computeStreak(userId: string, timeZone = "UTC") {
     const recent = await this.prisma.watchEvent.findMany({
       where: { userId },
@@ -675,24 +764,8 @@ export class AnalyticsService {
 
   async rewindStats(userId: string, period: string, timeZone = "UTC") {
     const user = await this.resolveUser(userId);
-    let start: Date;
-    let end: Date;
-
-    if (period.length === 4) {
-      const year = parseInt(period, 10);
-      start = new Date(`${year}-01-01T00:00:00.000Z`);
-      end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-    } else if (period.length === 7) {
-      const [yearStr, monthStr] = period.split("-");
-      const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10);
-      start = new Date(`${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextMonth = month === 12 ? 1 : month + 1;
-      end = new Date(`${nextYear}-${nextMonth.toString().padStart(2, "0")}-01T00:00:00.000Z`);
-    } else {
-      throw new Error("Invalid period format");
-    }
+    const { start, end } = zonedPeriodBounds(period, timeZone);
+    const priorBounds = priorPeriodBounds(period, timeZone);
 
     const events = await this.prisma.watchEvent.findMany({
       where: {
@@ -701,8 +774,11 @@ export class AnalyticsService {
       },
       select: {
         titleId: true,
+        episodeId: true,
         watchedAt: true,
         runtimeMinutes: true,
+        progress: true,
+        rating: true,
         title: {
           select: {
             name: true,
@@ -769,6 +845,16 @@ export class AnalyticsService {
       ? { index: peakDowIdx, label: DOW_LABELS[peakDowIdx], count: dowBuckets[peakDowIdx] }
       : null;
 
+    const [extras, seasonOutcomes] = await Promise.all([
+      this.watchRewindExtras(user.id, period, timeZone, priorBounds, events),
+      watchSeasonOutcomes(
+        this.prisma,
+        user.id,
+        { start, end },
+        events.flatMap((e) => (e.episodeId ? [e.episodeId] : [])),
+      ),
+    ]);
+
     return {
       domain: "watch" as const,
       period,
@@ -789,6 +875,82 @@ export class AnalyticsService {
         .slice(0, 5),
       peakHour,
       peakDow,
+      ...extras,
+      ...seasonOutcomes,
+    };
+  }
+
+  private async watchRewindExtras(
+    userId: string,
+    period: string,
+    timeZone: string,
+    priorBounds: { start: Date; end: Date },
+    events: Array<{
+      titleId: string;
+      episodeId: string | null;
+      watchedAt: Date;
+      progress: number;
+      rating: number | null;
+      title: { name: string; type: string; posterUrl: string | null };
+    }>,
+  ) {
+    const [priorTitles, earliest] = await Promise.all([
+      this.prisma.watchEvent.groupBy({
+        by: ["titleId"],
+        where: {
+          userId,
+          watchedAt: { gte: priorBounds.start, lt: priorBounds.end },
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.watchEvent.aggregate({
+        where: { userId },
+        _min: { watchedAt: true },
+      }),
+    ]);
+    const current = new Set(events.map((e) => e.titleId));
+    const dropCandidates = priorTitles
+      .filter((r) => !current.has(r.titleId))
+      .sort((a, b) => b._count._all - a._count._all)
+      .slice(0, 20);
+    const names = dropCandidates.length
+      ? await this.prisma.title.findMany({
+          where: { id: { in: dropCandidates.map((r) => r.titleId) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameOf = new Map(names.map((t) => [t.id, t.name]));
+
+    return {
+      ...commonExtras({
+        period,
+        timeZone,
+        events: events.map((e) => ({
+          at: e.watchedAt,
+          itemId: e.titleId,
+          name: e.title.name,
+        })),
+        prior: priorTitles.map((r) => ({
+          id: r.titleId,
+          name: nameOf.get(r.titleId) ?? "",
+          count: r._count._all,
+        })),
+        priorStart: priorBounds.start,
+        earliestEventAt: earliest._min.watchedAt,
+      }),
+      ...enrichWatchRewind(
+        events.map((e) => ({
+          titleId: e.titleId,
+          name: e.title.name,
+          type: e.title.type,
+          imageUrl: e.title.posterUrl,
+          watchedAt: e.watchedAt,
+          episodeId: e.episodeId,
+          progress: e.progress,
+          rating: e.rating,
+        })),
+        timeZone,
+      ),
     };
   }
 }

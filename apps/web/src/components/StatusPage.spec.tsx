@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { StatusPage } from "./StatusPage";
 import { taglinePool } from "@/lib/status-taglines";
 
@@ -19,6 +19,8 @@ vi.mock("next/link", () => ({
 }));
 
 describe("StatusPage", () => {
+  afterEach(cleanup);
+
   it("renders quirky 404 copy and actions", () => {
     render(
       <StatusPage
@@ -78,5 +80,31 @@ describe("StatusPage", () => {
 
     await screen.getByRole("button", { name: "Try again" }).click();
     expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it("renders the code pill, serif accent and reference", () => {
+    render(
+      <StatusPage
+        layout="embedded"
+        code="500"
+        eyebrow="Server error"
+        title="Something broke"
+        titleAccent="on our side"
+        description="Your data is safe."
+        reference="abc12345-def6"
+        tone="danger"
+        primary={{ label: "Try again", onClick: vi.fn() }}
+        secondary={{ label: "Go home", href: "/" }}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "500" })).toBeInTheDocument();
+    expect(screen.getByText("Server error")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Something broke on our side" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("abc12345-def6")).toBeInTheDocument();
+    expect(screen.getByText(/share this with the admin/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go home" })).toHaveClass("btn-ghost");
   });
 });
