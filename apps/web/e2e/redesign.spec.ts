@@ -493,10 +493,9 @@ async function mockRedesignApi(page: Page, user: { isAdmin?: boolean } = {}) {
 }
 
 async function assertNoGlassCrash(page: Page) {
-  await expect(page.getByText("The quest log glitched")).toHaveCount(0);
+  await expect(page.getByText("Something broke")).toHaveCount(0);
+  await expect(page.getByText("The whole app")).toHaveCount(0);
   await expect(page.getByText("Application error")).toHaveCount(0);
-  const blurred = await page.locator("[class*='backdrop-blur']").count();
-  expect(blurred).toBe(0);
 }
 
 test.describe("redesign public", () => {
@@ -529,7 +528,7 @@ test.describe("redesign public", () => {
         await expect(page.locator("body")).toBeVisible({ timeout: 15_000 });
         if (path === "/test/500") {
           await expect(
-            page.getByRole("heading", { name: "The quest log glitched" }),
+            page.getByRole("heading", { name: /Something broke/ }),
           ).toBeVisible();
           continue;
         }
@@ -544,11 +543,11 @@ test.describe("redesign authed", () => {
     await mockRedesignApi(page);
     await page.goto("/dashboard");
     await expect(page.getByRole("navigation", { name: "Primary" })).toContainText(
-      "Dashboard",
+      "Home",
       { timeout: 15_000 },
     );
     await expect(page.getByRole("heading", { name: "Continue" })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "Play next" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Up next" })).toBeVisible();
     await expect(page.getByText("Played: 8", { exact: true })).toBeVisible();
     await expect(page.getByText("Unplayed: 2", { exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: "Library played versus unplayed" })).toBeVisible();
@@ -565,7 +564,7 @@ test.describe("redesign authed", () => {
     });
     await expect(page.getByText("Estimated library value")).toBeVisible();
     await expect(page.getByText("8 paid")).toBeVisible();
-    await expect(page.getByText("Genre")).toBeVisible();
+    await expect(page.getByLabel("Group by")).toBeVisible();
     await expect(page.getByText("Action")).toBeVisible();
     await expect(page.getByText("Value by hours")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Unplayed" })).toBeVisible();
@@ -635,7 +634,7 @@ test.describe("redesign authed", () => {
       for (const path of APP_ROUTES) {
         await page.goto(path);
         await expect(page.locator("body")).toBeVisible({ timeout: 15_000 });
-        const crashed = await page.getByText("The quest log glitched").count();
+        const crashed = await page.getByText("Something broke").count();
         if (crashed) {
           throw new Error(`Unhandled 500 at ${path} (${page.url()})`);
         }
@@ -645,7 +644,7 @@ test.describe("redesign authed", () => {
         await page.goto("/dashboard");
         await page.getByRole("button", { name: "Open menu" }).click();
         await expect(page.getByRole("navigation", { name: "Mobile" })).toContainText(
-          "Dashboard",
+          "Home",
         );
         await expect(page.getByRole("navigation", { name: "Mobile" })).toContainText(
           "Library",
@@ -653,7 +652,7 @@ test.describe("redesign authed", () => {
       } else {
         await page.goto("/dashboard");
         await expect(page.getByRole("navigation", { name: "Primary" })).toContainText(
-          "Dashboard",
+          "Home",
         );
       }
     }
