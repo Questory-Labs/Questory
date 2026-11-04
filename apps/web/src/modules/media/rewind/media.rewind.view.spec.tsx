@@ -93,6 +93,20 @@ describe("RewindView", () => {
     expect(screen.queryByText("Total plays")).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["loading", { empty: true, failed: false }, "Crunching the numbers..."],
+    ["error", { empty: true, failed: true }, "fail"],
+  ])("lines the %s card up with the top of the AI panel and fills the row", (_, state, text) => {
+    renderView({ statsQuery: mockResource<RewindStatsResponse>(state) });
+    const card = screen.getByText(text).closest(".hatch-shadow");
+    expect(card).toHaveClass("!mt-0", "h-full");
+  });
+
+  it("keeps the header on the same left and right edges as the content", () => {
+    renderView({});
+    expect(screen.getByRole("banner")).not.toHaveClass("px-1");
+  });
+
   it("renders stats when ready", () => {
     renderView({});
     expect(screen.getByText("Total plays")).toBeInTheDocument();

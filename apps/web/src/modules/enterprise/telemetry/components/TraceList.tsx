@@ -101,7 +101,8 @@ export const TraceList = ({
                   return (
                     <tr
                       key={id || name}
-                      className={`${ADMIN_ROW} ${
+                      onClick={id ? () => setSelectedTraceId(id) : undefined}
+                      className={`${ADMIN_ROW} ${id ? "cursor-pointer" : ""} ${
                         selected ? "bg-[rgba(230,194,122,0.06)]" : ""
                       }`}
                     >
@@ -110,7 +111,6 @@ export const TraceList = ({
                           type="button"
                           disabled={!id}
                           aria-pressed={selected}
-                          onClick={() => setSelectedTraceId(id)}
                           className="min-h-[42px] text-left font-mono text-[13px] text-[var(--ink)] hover:text-[var(--warm)] disabled:opacity-40"
                         >
                           {id ? `${id.slice(0, 12)}…` : "—"}

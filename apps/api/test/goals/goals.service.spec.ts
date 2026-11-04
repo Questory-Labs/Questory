@@ -41,18 +41,10 @@ function make() {
 }
 
 describe("goalPeriod", () => {
-  it("computes week, month and year bounds in the requested zone", () => {
-    expect(goalPeriod("week", "UTC", now)).toEqual({
+  it("computes week bounds in the requested zone", () => {
+    expect(goalPeriod("UTC", now)).toEqual({
       start: new Date("2026-10-26T00:00:00.000Z"),
       end: new Date("2026-11-02T00:00:00.000Z"),
-    });
-    expect(goalPeriod("month", "Asia/Kolkata", now)).toEqual({
-      start: new Date("2026-09-30T18:30:00.000Z"),
-      end: new Date("2026-10-31T18:30:00.000Z"),
-    });
-    expect(goalPeriod("year", "UTC", now)).toEqual({
-      start: new Date("2026-01-01T00:00:00.000Z"),
-      end: new Date("2027-01-01T00:00:00.000Z"),
     });
   });
 });
@@ -109,13 +101,13 @@ describe("GoalsService", () => {
     goal.findFirst.mockResolvedValue(row({ id: "existing" }));
     const out = await service.create(
       "u1",
-      { kind: "game", name: "Hades", domain: "games", targetRef: "game:1", timeframe: "month" },
+      { kind: "game", name: "Hades", domain: "games", targetRef: "game:1", timeframe: "week" },
       now,
     );
     expect(out.id).toBe("existing");
     expect(goal.create).not.toHaveBeenCalled();
     expect(goal.findFirst.mock.calls[0]![0].where).toMatchObject({
-      timeframe: "month",
+      timeframe: "week",
       targetRef: "game:1",
     });
   });

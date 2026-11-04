@@ -20,10 +20,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@crawlee/cheerio": "^3.17.0",
-    "@crawlee/core": "^3.17.0",
-    "@crawlee/memory-storage": "^3.17.0",
-    "@crawlee/playwright": "^3.17.0",
+    "@crawlee/cheerio": "^3.18.2",
+    "@crawlee/core": "^3.18.2",
+    "@crawlee/memory-storage": "^3.18.2",
+    "@crawlee/playwright": "^3.18.2",
     "@nestjs/common": "^11.0.12",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.12",

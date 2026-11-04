@@ -14,4 +14,9 @@ describe("ProgressRing", () => {
     expect(arc.getAttribute("stroke-dasharray")).toBe("1.0000 1");
     expect(screen.getByText("100%")).toBeInTheDocument();
   });
+
+  it("lets the arc glow paint outside the svg box", () => {
+    const { container } = render(<ProgressRing value={0.5} label="Half" />);
+    expect(container.querySelector("svg")).toHaveClass("overflow-visible");
+  });
 });

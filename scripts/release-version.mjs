@@ -105,9 +105,10 @@ export function canaryTagPatterns(service, base) {
  * Uses `git for-each-ref --count=1` so git never materializes the full tag list.
  *
  * @param {string[]} patterns
+ * @param {{ cwd?: string }} [options]
  * @returns {string}
  */
-export function gitHighestTag(patterns) {
+export function gitHighestTag(patterns, options = {}) {
   if (patterns.length === 0) {
     return "";
   }
@@ -121,7 +122,7 @@ export function gitHighestTag(patterns) {
         "--format=%(refname:short)",
         ...patterns,
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     ).trim();
     return output.split(/\r?\n/).find(Boolean) ?? "";
   } catch {

@@ -40,6 +40,7 @@ const TriggerCronSchema = z.object({
     "watch-sync",
     "catalog-sync",
     "price-sync",
+    "ai-goals",
     "trakt-sync",
     "anilist-sync",
     "mal-sync",

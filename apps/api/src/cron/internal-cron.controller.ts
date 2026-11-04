@@ -2,6 +2,7 @@ import { Controller, Post, Query, UseGuards } from "@nestjs/common";
 import { CronSecretGuard } from "./cron-secret.guard";
 import { CronRunnerService } from "./cron-runner.service";
 import { InternalCronService } from "./internal-cron.service";
+import { JobsService } from "./jobs.service";
 
 @Controller("internal/cron")
 @UseGuards(CronSecretGuard)
@@ -9,6 +10,7 @@ export class InternalCronController {
   constructor(
     private readonly cron: InternalCronService,
     private readonly cronRunner: CronRunnerService,
+    private readonly jobs: JobsService,
   ) {}
 
   @Post("daily-refresh")
@@ -37,6 +39,13 @@ export class InternalCronController {
           maxPages: maxPages ? Number(maxPages) : undefined,
         }),
       )
+      .then(({ result }) => result);
+  }
+
+  @Post("ai-goals")
+  aiGoals() {
+    return this.cronRunner
+      .run("ai-goals", "cron", () => this.jobs.refreshAiGoals())
       .then(({ result }) => result);
   }
 

@@ -155,6 +155,7 @@ pnpm docker:prod
 | `STEAM_API_KEY` | Mandatory API Key from Steam |
 | `STEAM_REALM` / `RETURN_URL`| OpenID configuration (Must match API origin) |
 | `WEB_ORIGIN` | Browser app origin (for CORS + redirects) |
+| `FE_CORS_ALLOWED` | Comma-separated extra origins for CORS and auth checks (`WEB_ORIGIN` is always included) |
 | `NEXT_PUBLIC_API_URL` | Web client's connection point to the API |
 | `ALLOWED_STEAM_IDS` | Comma-separated allowlist of Steam IDs for auth (empty = any) |
 | `ADMIN_EMAILS` | Emails granted admin status upon signup/login |

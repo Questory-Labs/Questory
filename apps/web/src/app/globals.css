@@ -14,8 +14,10 @@ body {
   font-weight: 300;
   background-color: var(--bg-0);
   background-image:
-    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
-    linear-gradient(180deg, #0c0c0d 0%, var(--bg-0) 45%, #070708 100%);
+    radial-gradient(ellipse 60% 50% at 88% 0%, rgba(143, 214, 196, 0.035), transparent 70%),
+    radial-gradient(ellipse 55% 50% at 6% 100%, rgba(230, 194, 122, 0.025), transparent 70%),
+    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(255, 255, 255, 0.04), transparent 60%),
+    linear-gradient(180deg, #0f0f11 0%, #0c0c0e 45%, var(--bg-0) 100%);
   background-attachment: fixed;
 }
 
@@ -25,11 +27,10 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.5;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 0.7px, transparent 0.9px);
-  background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000, transparent 75%);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000, transparent 75%);
+  background-image: radial-gradient(circle at 5px 5px, rgba(255, 255, 255, 0.055) 0.6px, transparent 0.9px);
+  background-size: 10px 10px;
+  -webkit-mask-image: radial-gradient(ellipse 120% 100% at 50% 0%, #000 40%, rgba(0, 0, 0, 0.45) 100%);
+  mask-image: radial-gradient(ellipse 120% 100% at 50% 0%, #000 40%, rgba(0, 0, 0, 0.45) 100%);
 }
 
 a {

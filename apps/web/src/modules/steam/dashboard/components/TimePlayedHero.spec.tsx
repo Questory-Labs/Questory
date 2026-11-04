@@ -28,4 +28,20 @@ describe("TimePlayedHero", () => {
     expect(screen.queryByText(/on last week/)).not.toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  it("stays compact when there is no chart", () => {
+    const empty = { ...timePlayed, weekSecs: 0, weekHourlySecs: Array.from({ length: 168 }, () => 0) };
+    render(<TimePlayedHero model={timePlayedModel(empty, "week", now)} />);
+    const section = screen.getByRole("heading", { name: "Time played" }).closest("section");
+    expect(section).not.toHaveClass("flex-1");
+    expect(section?.querySelector("p")).toHaveClass("text-[46px]");
+    expect(screen.getByText(/on last week/)).toBeInTheDocument();
+  });
+
+  it("grows to fill the column when there is a chart", () => {
+    render(<TimePlayedHero model={timePlayedModel(timePlayed, "week", now)} />);
+    const section = screen.getByRole("heading", { name: "Time played" }).closest("section");
+    expect(section).toHaveClass("flex-1");
+    expect(section?.querySelector("p")).toHaveClass("text-[64px]");
+  });
 });

@@ -38,4 +38,31 @@ describe("DotCanvas", () => {
     expect(paint).toHaveBeenCalledWith(ctx, 2);
     vi.unstubAllGlobals();
   });
+
+  it("repaints under reduced motion once fonts are ready, unless unmounted", async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      {} as unknown as ReturnType<HTMLCanvasElement["getContext"]>,
+    );
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: true })),
+    );
+    Object.defineProperty(document, "fonts", {
+      value: { ready: Promise.resolve() },
+      configurable: true,
+    });
+    const paint = vi.fn();
+    render(<DotCanvas paint={paint} width={10} height={10} staticTime={2} />);
+    await Promise.resolve();
+    expect(paint).toHaveBeenCalledTimes(2);
+
+    const unmounted = vi.fn();
+    const view = render(<DotCanvas paint={unmounted} width={10} height={10} />);
+    view.unmount();
+    await Promise.resolve();
+    expect(unmounted).toHaveBeenCalledOnce();
+
+    Reflect.deleteProperty(document, "fonts");
+    vi.unstubAllGlobals();
+  });
 });

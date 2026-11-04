@@ -148,7 +148,14 @@ export const DashboardView = (props: Record<string, unknown>) => {
 
       <div className="flex flex-wrap items-stretch gap-3.5">
         {hasSummary || timeModel ? (
-          <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3.5">
+          <div
+            data-testid="dashboard-summary"
+            className={
+              timeModel && !timeModel.chart
+                ? "grid min-w-0 flex-[1_1_100%] grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] gap-3.5"
+                : "flex min-w-0 flex-[1_1_400px] flex-col gap-3.5"
+            }
+          >
             <SummaryTiles syncedSources={value?.syncedSources} needsYou={value?.needsYou} />
             {timeModel ? <TimePlayedHero model={timeModel} /> : null}
           </div>

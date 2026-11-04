@@ -31,6 +31,21 @@ describe("RewindAiPanel", () => {
     expect(screen.getByText("One.")).toBeInTheDocument();
   });
 
+  it("replaces the old card with the loader while regenerating", () => {
+    render(
+      <RewindAiPanel
+        aiQuery={{ ...ai("<vibecheck>One.</vibecheck>\n<crossover>Two.</crossover>"), refreshing: true }}
+        domain="music"
+        blockedMessage={null}
+        onRegenerate={() => undefined}
+        regenerateDisabled
+      />,
+    );
+    expect(screen.getByText("Synthesizing insights...")).toBeInTheDocument();
+    expect(screen.queryByText("One.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next insight" })).toBeNull();
+  });
+
   it("shows the blocked message and calls regenerate", () => {
     const onRegenerate = vi.fn();
     render(

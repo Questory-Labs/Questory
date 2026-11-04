@@ -13,6 +13,10 @@ vi.mock("@/components/BrandMark", () => ({
   BrandMark: () => <span>questory</span>,
 }));
 
+vi.mock("@/modules/enterprise/telemetry/components/LlmBudgetBanner", () => ({
+  LlmBudgetBanner: () => <div>budget-banner</div>,
+}));
+
 vi.mock("@/hooks/useEnterpriseEnabled", () => ({
   useEnterpriseEnabled: vi.fn(),
 }));

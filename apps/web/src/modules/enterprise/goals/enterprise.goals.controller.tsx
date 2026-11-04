@@ -3,22 +3,26 @@
 import { useState, type PropsWithChildren } from "react";
 import { useAction, useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
-import type { Goal, GoalTimeframe, PlaySessionStats } from "@questorylabs/shared";
+import type { AiGoal, Goal, PlaySessionStats } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { browserTimeZone, withTz } from "@/lib/dates";
-import { fetchSmartGoals } from "@/lib/enterprise-api";
+import { fetchAiGoals, fetchSmartGoals, rerollAiGoal } from "@/lib/enterprise-api";
 import type { GoalSuggestion } from "@/lib/enterprise-types";
 import { createGoal, deleteGoal, fetchGoals, updateGoal } from "@/lib/goals";
 import {
+  AI_GOALS_RESOURCE_ID,
+  GOALS_HISTORY_LIMIT,
   GOALS_LIST_LIMIT,
   GOALS_RESOURCE_ID,
   GOALS_STATS_DAYS,
   GOAL_DEFAULT_TARGET,
-  GOAL_DEFAULT_TIMEFRAME,
+  GOAL_TIMEFRAME,
   SMART_GOAL_TIMEFRAME,
+  type GoalsTab,
 } from "./enterprise.goals.constants";
 import {
   currentPeriod,
+  historyGoals,
   isCurrentGoal,
   pendingSuggestions,
   suggestionReasons,
@@ -26,22 +30,37 @@ import {
 } from "./enterprise.goals.utils";
 
 export const GoalsController = ({ children }: PropsWithChildren) => {
-  const [timeframe, setTimeframe] = useState<GoalTimeframe>(GOAL_DEFAULT_TIMEFRAME);
+  const [tab, setTab] = useState<GoalsTab>("week");
   const [targetCount, setTargetCount] = useState(GOAL_DEFAULT_TARGET);
   const [removeTarget, setRemoveTarget] = useState<Goal | null>(null);
   const now = new Date();
 
   const goals = useResource({
-    id: [...GOALS_RESOURCE_ID, timeframe],
-    load: () => fetchGoals({ status: "all", timeframe, limit: GOALS_LIST_LIMIT }),
+    id: [...GOALS_RESOURCE_ID, GOAL_TIMEFRAME],
+    load: () =>
+      fetchGoals({ status: "all", timeframe: GOAL_TIMEFRAME, limit: GOALS_LIST_LIMIT }),
+    freshFor: 30_000,
+    retries: 1,
+  });
+
+  const history = useResource({
+    id: [...GOALS_RESOURCE_ID, "history"],
+    load: () => fetchGoals({ status: "all", limit: GOALS_HISTORY_LIMIT }),
+    when: tab === "history",
     freshFor: 30_000,
     retries: 1,
   });
 
   const suggestions = useResource({
-    id: ["enterprise-goals", timeframe, targetCount],
-    load: () =>
-      fetchSmartGoals({ timeframe: SMART_GOAL_TIMEFRAME[timeframe], targetCount }),
+    id: ["enterprise-goals", targetCount],
+    load: () => fetchSmartGoals({ timeframe: SMART_GOAL_TIMEFRAME, targetCount }),
+    freshFor: 60_000,
+    retries: 1,
+  });
+
+  const aiGoals = useResource({
+    id: [...AI_GOALS_RESOURCE_ID],
+    load: () => fetchAiGoals(),
     freshFor: 60_000,
     retries: 1,
   });
@@ -59,7 +78,7 @@ export const GoalsController = ({ children }: PropsWithChildren) => {
   const touches = [[...GOALS_RESOURCE_ID]];
 
   const accept = useAction({
-    run: (suggestion: GoalSuggestion) =>
+    run: (suggestion: GoalSuggestion | AiGoal) =>
       createGoal({
         kind: suggestion.kind,
         name: suggestion.name,
@@ -69,10 +88,15 @@ export const GoalsController = ({ children }: PropsWithChildren) => {
             ? Math.round(suggestion.estimatedTimeMinutes)
             : null,
         targetRef: suggestion.itemKey,
-        timeframe,
+        timeframe: GOAL_TIMEFRAME,
         tz: browserTimeZone(),
       }),
     touches,
+  });
+
+  const reroll = useAction({
+    run: (goal: AiGoal) => rerollAiGoal(goal.itemKey),
+    touches: [[...AI_GOALS_RESOURCE_ID]],
   });
 
   const toggle = useAction({
@@ -88,19 +112,29 @@ export const GoalsController = ({ children }: PropsWithChildren) => {
 
   const current = (goals.value?.items ?? []).filter((goal) => isCurrentGoal(goal, now));
   const all = suggestions.value?.suggestions ?? [];
+  const ai = aiGoals.value?.goals ?? [];
+  const aiKeys = new Set(ai.map((goal) => goal.itemKey));
 
   return cloneElements(children, {
-    timeframe,
-    setTimeframe,
+    tab,
+    setTab,
+    history,
+    pastGoals: historyGoals(history.value?.items ?? [], now),
     targetCount,
     setTargetCount,
     goals,
     suggestions,
     stats,
     current,
-    pending: pendingSuggestions(all, current),
-    reasons: suggestionReasons(all),
-    period: currentPeriod(timeframe, current, now),
+    aiGoals,
+    pendingAi: pendingSuggestions(ai, current),
+    noSources: aiGoals.value?.status === "no_sources" && current.length === 0,
+    rerollingKey: reroll.busy ? (reroll.input?.itemKey ?? null) : null,
+    rerollError: reroll.failed ? (reroll.error?.message ?? "Could not reroll that goal.") : null,
+    onReroll: reroll.submit,
+    pending: pendingSuggestions(all, current).filter((s) => !aiKeys.has(s.itemKey)),
+    reasons: suggestionReasons([...all, ...ai]),
+    period: currentPeriod(GOAL_TIMEFRAME, current, now),
     now,
     weeklyHours: weeklyAverageHours(stats.value, GOALS_STATS_DAYS),
     acceptingKey: accept.busy ? (accept.input?.itemKey ?? null) : null,

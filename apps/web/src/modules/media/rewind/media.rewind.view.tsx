@@ -18,7 +18,9 @@ import {
 import { longPeriodLabel } from "./media.rewind.format";
 import type { RewindViewProps } from "./media.rewind.types";
 
-const heroSlot = "flex-[999_1_520px] min-w-0";
+const heroSlot = "flex-[999_1_480px] min-w-0";
+const heroState =
+  "!mt-0 h-full [&>.hatch-face]:flex [&>.hatch-face]:flex-col [&>.hatch-face]:justify-center";
 
 export const RewindView = (props: Record<string, unknown>) => {
   const {
@@ -82,12 +84,14 @@ export const RewindView = (props: Record<string, unknown>) => {
           empty={statsQuery.empty}
           loading={
             <div className={heroSlot}>
-              <StateMessage variant="loading">Crunching the numbers...</StateMessage>
+              <StateMessage variant="loading" className={heroState}>
+                Crunching the numbers...
+              </StateMessage>
             </div>
           }
           error={
             <div className={heroSlot}>
-              <StateMessage variant="error">
+              <StateMessage variant="error" className={heroState}>
                 {statsQuery.error?.message || "Failed to load stats"}
               </StateMessage>
             </div>
@@ -127,7 +131,12 @@ export const RewindView = (props: Record<string, unknown>) => {
           {summary.lists.length ? (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3.5">
               {summary.lists.map((list) => (
-                <RewindTopList key={list.key} title={list.title} items={list.items} />
+                <RewindTopList
+                  key={list.key}
+                  title={list.title}
+                  category={list.category}
+                  items={list.items}
+                />
               ))}
             </div>
           ) : null}

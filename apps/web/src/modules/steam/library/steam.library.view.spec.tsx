@@ -161,6 +161,22 @@ describe("LibraryView", () => {
     expect(setPage).toHaveBeenCalledWith(1);
   });
 
+  it("centers status chip content and keeps the header on the row edge", () => {
+    renderView({});
+    const chip = screen.getByRole("button", { name: /4\s*Backlog/ });
+    expect(chip).toHaveClass("items-center");
+    expect(chip.firstElementChild).toHaveClass("items-baseline");
+    expect(screen.getByRole("heading", { level: 1 }).closest("header")).not.toHaveClass("px-1");
+  });
+
+  it("wraps search and sort together as one row", () => {
+    renderView({});
+    const search = screen.getByPlaceholderText("Filter by name, tag or publisher").closest("label");
+    const sort = screen.getByRole("combobox").closest("label");
+    expect(search?.parentElement).toBe(sort?.parentElement);
+    expect(search?.parentElement).toHaveClass("flex-1");
+  });
+
   it("changes sort through the select", () => {
     const setSort = vi.fn();
     renderView({ setSort });

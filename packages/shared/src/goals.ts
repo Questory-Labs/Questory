@@ -61,7 +61,7 @@ export const GoalCreateSchema = z.object({
   estimatedMinutes: z.number().int().min(0).max(1_000_000).nullable().optional(),
   targetRef: z.string().trim().min(1).max(200).nullable().optional(),
   targetValue: z.number().min(0).max(1_000_000).nullable().optional(),
-  timeframe: GoalTimeframeSchema,
+  timeframe: z.literal("week"),
   tz: z.string().max(64).optional(),
 });
 export type GoalCreate = z.infer<typeof GoalCreateSchema>;
@@ -78,3 +78,29 @@ export type GoalUpdate = z.infer<typeof GoalUpdateSchema>;
 
 export const GoalDeleteResultSchema = z.object({ ok: z.literal(true) });
 export type GoalDeleteResult = z.infer<typeof GoalDeleteResultSchema>;
+
+export const AiGoalRerollRequestSchema = z.object({
+  itemKey: z.string().trim().min(1).max(200),
+});
+export type AiGoalRerollRequest = z.infer<typeof AiGoalRerollRequestSchema>;
+
+export const AiGoalSchema = z.object({
+  itemKey: z.string(),
+  name: z.string(),
+  domain: GoalDomainSchema,
+  kind: z.string(),
+  estimatedTimeMinutes: z.number().int().optional(),
+  reason: z.string(),
+  specific: z.boolean(),
+});
+export type AiGoal = z.infer<typeof AiGoalSchema>;
+
+export const AiGoalsResponseSchema = z.object({
+  status: z.enum(["ready", "no_sources"]),
+  period: z.string(),
+  goals: z.array(AiGoalSchema),
+  rerollsLeft: z.number().int(),
+  rerollsPerDay: z.number().int(),
+  rerollsResetAt: z.string(),
+});
+export type AiGoalsResponse = z.infer<typeof AiGoalsResponseSchema>;

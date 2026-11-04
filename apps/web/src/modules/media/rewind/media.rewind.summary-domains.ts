@@ -9,13 +9,14 @@ import type {
 } from "@questorylabs/shared";
 import { rewindExtrasTiles, rewindFadedList } from "./components/RewindExtras";
 import { dayLabel, formatCount, formatHours } from "./media.rewind.format";
-import type { RewindRankList, RewindStatTile } from "./media.rewind.summary.types";
+import type { RewindCategory, RewindRankList, RewindStatTile } from "./media.rewind.summary.types";
 
 type Built = { stats: RewindStatTile[]; lists: RewindRankList[] };
 
 const bareHours = (minutes: number): string => formatHours(minutes).replace(/h$/, "");
 
 const rank = (
+  category: RewindCategory,
   key: string,
   title: string,
   items: (RewindTopItem | RewindTopGenre)[] | undefined,
@@ -24,6 +25,7 @@ const rank = (
   items?.length
     ? {
         key,
+        category,
         title,
         items: items.slice(0, 5).map((item) => {
           const top = item as RewindTopItem;
@@ -96,10 +98,10 @@ export const gamesSummary = (stats: RewindGamesStats): Built => {
   return {
     stats: stats6,
     lists: compact([
-      rank("top-games", "Top games", stats.topGames, formatHours),
-      rank("top-genres", "Top genres", stats.topGenres, formatHours),
-      rank("abandoned", "Tried & set aside", stats.abandoned, (n) => `${n} min`),
-      rewindFadedList(stats, stats.period, "hours", bareHours),
+      rank("games", "top-games", "Top games", stats.topGames, formatHours),
+      rank("games", "top-genres", "Top genres", stats.topGenres, formatHours),
+      rank("games", "abandoned", "Tried & set aside", stats.abandoned, (n) => `${n} min`),
+      rewindFadedList("games", stats, stats.period, "hours", bareHours),
     ]),
   };
 };
@@ -123,10 +125,10 @@ export const musicSummary = (stats: RewindMusicStats): Built => ({
     ...rewindExtrasTiles(stats, stats.period, "plays"),
   ]),
   lists: compact([
-    rank("top-artists", "Top artists", stats.topArtists, formatCount),
-    rank("top-tracks", "Top tracks", stats.topTracks, formatCount),
-    rank("top-genres", "Top genres", stats.topGenres, formatCount),
-    rewindFadedList(stats, stats.period, "plays"),
+    rank("music", "top-artists", "Top artists", stats.topArtists, formatCount),
+    rank("music", "top-tracks", "Top tracks", stats.topTracks, formatCount),
+    rank("music", "top-genres", "Top genres", stats.topGenres, formatCount),
+    rewindFadedList("music", stats, stats.period, "plays"),
   ]),
 });
 
@@ -166,17 +168,18 @@ export const watchSummary = (stats: RewindWatchStats): Built => {
       ...rewindExtrasTiles(stats, stats.period, "watches"),
     ]),
     lists: compact([
-      rank("top-titles", "Top titles", stats.topTitles, (n) => `${n} watches`),
-      rank("top-genres", "Top genres", stats.topGenres, (n) => `${n} watches`),
+      rank("watch", "top-titles", "Top titles", stats.topTitles, (n) => `${n} watches`),
+      rank("watch", "top-genres", "Top genres", stats.topGenres, (n) => `${n} watches`),
       rank(
+        "watch",
         "top-rated",
         stats.avgRating != null ? `Top rated · avg ${stats.avgRating}` : "Top rated",
         stats.topRated,
         (n) => `${n}/10`,
       ),
-      rank("unfinished", "Unfinished", stats.unfinished, (n) => `${n}%`),
-      rank("binge", "Binge days", stats.bingeRuns, (n) => `${n} eps`),
-      rewindFadedList(stats, stats.period, "watches"),
+      rank("watch", "unfinished", "Unfinished", stats.unfinished, (n) => `${n}%`),
+      rank("watch", "binge", "Binge days", stats.bingeRuns, (n) => `${n} eps`),
+      rewindFadedList("watch", stats, stats.period, "watches"),
     ]),
   };
 };
@@ -187,6 +190,7 @@ export const readSummary = (stats: RewindReadStats): Built => {
     totalFormats > 0
       ? {
           key: "formats",
+          category: "read",
           title: "Formats",
           items: stats.formatBreakdown.slice(0, 5).map((f) => ({
             id: f.name,
@@ -213,10 +217,10 @@ export const readSummary = (stats: RewindReadStats): Built => {
       ...rewindExtrasTiles(stats, stats.period, "sessions"),
     ]),
     lists: compact([
-      rank("top-titles", "Top titles", stats.topTitles, (n) => `${n} reads`),
+      rank("read", "top-titles", "Top titles", stats.topTitles, (n) => `${n} reads`),
       formats,
-      rank("top-genres", "Top genres", stats.topGenres, (n) => `${n} reads`),
-      rewindFadedList(stats, stats.period, "sessions"),
+      rank("read", "top-genres", "Top genres", stats.topGenres, (n) => `${n} reads`),
+      rewindFadedList("read", stats, stats.period, "sessions"),
     ]),
   };
 };
@@ -278,10 +282,10 @@ export const allSummary = (stats: RewindAllStats): Built => {
       },
     ]),
     lists: compact([
-      games && rank("top-games", "Top games", games.topGames, formatHours),
-      music && rank("top-artists", "Top artists", music.topArtists, formatCount),
-      watch && rank("top-titles-watch", "Top watched", watch.topTitles, (n) => `${n} watches`),
-      read && rank("top-titles-read", "Top reads", read.topTitles, (n) => `${n} reads`),
+      games && rank("games", "top-games", "Top games", games.topGames, formatHours),
+      music && rank("music", "top-artists", "Top artists", music.topArtists, formatCount),
+      watch && rank("watch", "top-titles-watch", "Top watched", watch.topTitles, (n) => `${n} watches`),
+      read && rank("read", "top-titles-read", "Top reads", read.topTitles, (n) => `${n} reads`),
     ]),
   };
 };

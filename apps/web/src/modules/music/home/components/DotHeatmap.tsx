@@ -20,7 +20,7 @@ export const DotHeatmap = ({
 
   return (
     <Panel wrapperClassName="h-full" className="q-lift h-full p-5">
-      <section aria-labelledby="music-clock">
+      <section aria-labelledby="music-clock" className="flex h-full flex-col">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="music-clock" className="text-[17px] font-normal">
             When you listen
@@ -38,7 +38,7 @@ export const DotHeatmap = ({
               ? `Listening by weekday and hour, brightest at ${peakLabel}`
               : "Listening by weekday and hour"
           }
-          className="mt-4 grid grid-cols-[34px_repeat(24,minmax(0,1fr))] items-center gap-y-1.5"
+          className="mt-4 grid flex-1 grid-cols-[34px_repeat(24,minmax(0,1fr))] items-center gap-y-1.5 @container auto-rows-[minmax(18px,1fr)]"
         >
           {rows.map((row) => (
             <div key={row.label} className="contents">
@@ -51,8 +51,8 @@ export const DotHeatmap = ({
                   style={
                     {
                       "--i": c.index % 24,
-                      width: `${c.size}px`,
-                      height: `${c.size}px`,
+                      width: `max(${c.size}px, calc(${c.size} * (100cqw - 34px) / 528))`,
+                      height: `max(${c.size}px, calc(${c.size} * (100cqw - 34px) / 528))`,
                       background: `linear-gradient(${c.color}, ${c.color}) center / 100% 1px no-repeat, linear-gradient(${c.color}, ${c.color}) center / 1px 100% no-repeat`,
                     } as CSSProperties
                   }
@@ -63,11 +63,16 @@ export const DotHeatmap = ({
         </div>
         <div
           aria-hidden="true"
-          className="mt-2.5 grid grid-cols-[34px_repeat(4,minmax(0,1fr))] font-mono text-[10px] text-[var(--faint)]"
+          className="mt-2.5 grid grid-cols-[34px_repeat(24,minmax(0,1fr))] font-mono text-[10px] text-[var(--faint)]"
         >
-          <span />
           {HOUR_TICKS.map((t) => (
-            <span key={t}>{t}</span>
+            <span
+              key={t}
+              className="justify-self-center"
+              style={{ gridColumnStart: Number(t) + 2 }}
+            >
+              {t}
+            </span>
           ))}
         </div>
       </section>

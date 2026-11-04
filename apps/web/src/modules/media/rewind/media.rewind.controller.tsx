@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type PropsWithChildren } from "react";
+import { useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { useResource } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import { musicFetch } from "@/lib/music";
@@ -50,6 +50,7 @@ export const RewindController = ({
     defaultRewindMonthForYear(CURRENT_YEAR),
   );
   const [forceRedo, setForceRedo] = useState(false);
+  const forcedInsight = useRef<string | null>(null);
   const { when: enterpriseEnabled } = useEnterpriseEnabled();
   const { showMusicNav } = useMusicEnabled();
   const { enabled: watchEnabled } = useWatchEnabled();
@@ -59,6 +60,7 @@ export const RewindController = ({
 
   const period =
     month === "all" ? `${year}` : `${year}-${month.toString().padStart(2, "0")}`;
+  const insightKey = `${domain}:${period}`;
   const aiGenerationAllowed = isRewindAiGenerationAllowed(period);
   const aiPeriodError = getRewindAiPeriodError(period);
 
@@ -73,16 +75,11 @@ export const RewindController = ({
   });
 
   const aiQuery = useResource({
-    id: ["rewind-ai", domain, period, forceRedo],
-    load: async () => {
-      const result = await fetcher<RewindInsightResponse>(
-        `/analytics/rewind/ai?period=${period}&tz=${encodeURIComponent(tz)}${forceRedo ? "&forceRedo=true" : ""}`,
-      );
-      if (forceRedo) {
-        setForceRedo(false);
-      }
-      return result;
-    },
+    id: ["rewind-ai", domain, period],
+    load: () =>
+      fetcher<RewindInsightResponse>(
+        `/analytics/rewind/ai?period=${period}&tz=${encodeURIComponent(tz)}${forcedInsight.current === insightKey ? "&forceRedo=true" : ""}`,
+      ),
     when: enterpriseEnabled && aiGenerationAllowed,
   });
 
@@ -113,8 +110,15 @@ export const RewindController = ({
   };
 
   const handleRedo = () => {
+    forcedInsight.current = insightKey;
     setForceRedo(true);
-    setTimeout(() => aiQuery.reload(), 0);
+    void aiQuery
+      .reload()
+      .catch(() => undefined)
+      .finally(() => {
+        forcedInsight.current = null;
+        setForceRedo(false);
+      });
   };
 
   return cloneElements(children, {

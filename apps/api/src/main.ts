@@ -8,6 +8,7 @@ import {
   assertModeConfig,
   isAllowlistEnabled,
   resolveAppMode,
+  resolveAllowedOrigins,
   resolveDbProvider,
   resolveSyncMode,
 } from "./lib/runtime-config";
@@ -30,7 +31,7 @@ async function bootstrap() {
   app.useGlobalFilters(new RequestIdExceptionFilter());
   app.use(cookieParser(process.env.SESSION_SECRET || "dev-secret"));
   app.enableCors({
-    origin: process.env.WEB_ORIGIN || "http://localhost:3000",
+    origin: resolveAllowedOrigins(),
     credentials: true,
   });
   app.enableVersioning({

@@ -17,6 +17,7 @@ import {
   formatCompact,
   formatUsd,
 } from "./enterprise.telemetry.utils";
+import { LlmBudgetPanel } from "./components/LlmBudgetPanel";
 import { ModelUsage } from "./components/ModelUsage";
 import { PricingEditor, PricingSummary } from "./components/PricingPanel";
 import { SpendBars } from "./components/SpendBars";
@@ -42,6 +43,8 @@ export const TelemetryView = (props: Record<string, unknown>) => {
     pricing,
     traces,
     savePricing,
+    llmBudget,
+    saveBudget,
     pricingOpen,
     setPricingOpen,
     newModel,
@@ -193,6 +196,8 @@ export const TelemetryView = (props: Record<string, unknown>) => {
           </section>
         </div>
       </ResourceStatus>
+
+      <LlmBudgetPanel budget={llmBudget} save={saveBudget} />
 
       <UsageCharts
         usage={usage}

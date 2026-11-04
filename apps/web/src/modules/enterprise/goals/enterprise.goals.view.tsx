@@ -3,23 +3,34 @@
 import { Button, Dialog, PageHeader, ResourceStatus } from "@questorylabs/ui";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { StateMessage } from "@/components/ui";
+import { AiGoalsSection } from "./components/AiGoalsSection";
 import { GoalRow } from "./components/GoalRow";
+import { GoalsHistory } from "./components/GoalsHistory";
+import { GoalsNoSources } from "./components/GoalsNoSources";
 import { GoalsProgress } from "./components/GoalsProgress";
 import { SuggestionRow } from "./components/SuggestionRow";
 import {
+  GOAL_TAB_OPTIONS,
   GOAL_TARGET_COUNTS,
-  GOAL_TIMEFRAME_OPTIONS,
 } from "./enterprise.goals.constants";
 import type { GoalsViewProps } from "./enterprise.goals.types";
 
 export const GoalsView = (props: Record<string, unknown>) => {
   const {
-    timeframe,
-    setTimeframe,
+    tab,
+    setTab,
+    history,
+    pastGoals,
     targetCount,
     setTargetCount,
     goals,
     suggestions,
+    aiGoals,
+    pendingAi,
+    noSources,
+    rerollingKey,
+    rerollError,
+    onReroll,
     current,
     pending,
     reasons,
@@ -52,105 +63,138 @@ export const GoalsView = (props: Record<string, unknown>) => {
         actions={
           <>
             <SegmentedControl
-              label="Timeframe"
-              value={timeframe}
-              onChange={setTimeframe}
-              options={GOAL_TIMEFRAME_OPTIONS}
+              label="Goals view"
+              value={tab}
+              onChange={setTab}
+              options={GOAL_TAB_OPTIONS}
             />
-            <label className="flex min-h-[46px] items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/25 px-3.5 text-[13px] text-[var(--muted)]">
-              Target
-              <select
-                value={targetCount}
-                onChange={(e) => setTargetCount(Number(e.target.value))}
-                className="border-0 bg-transparent text-[13px] text-[var(--ink)]"
-                aria-label="Target count"
-              >
-                {GOAL_TARGET_COUNTS.map((count) => (
-                  <option key={count} value={count}>
-                    {count}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {tab === "week" ? (
+              <label className="flex min-h-[46px] items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/25 px-3.5 text-[13px] text-[var(--muted)]">
+                Target
+                <select
+                  value={targetCount}
+                  onChange={(e) => setTargetCount(Number(e.target.value))}
+                  className="border-0 bg-transparent text-[13px] text-[var(--ink)]"
+                  aria-label="Target count"
+                >
+                  {GOAL_TARGET_COUNTS.map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </>
         }
       />
 
-      <ResourceStatus
-        failed={goals.failed}
-        empty={goals.empty}
-        loading={<StateMessage variant="loading" className="mt-0">Loading your goals…</StateMessage>}
-        error={
-          <StateMessage variant="error" className="mt-0">
-            Could not load your goals.
-          </StateMessage>
-        }
-      >
-        <GoalsProgress
-          timeframe={timeframe}
-          goals={current}
-          period={period}
-          now={now}
-          weeklyHours={weeklyHours}
+      {tab === "history" ? (
+        <GoalsHistory
+          history={history}
+          goals={pastGoals}
+          togglingId={togglingId}
+          onToggle={onToggle}
+          onRemove={setRemoveTarget}
         />
-        {current.length > 0 ? (
-          <ol className="flex flex-col gap-2.5">
-            {current.map((goal, i) => (
-              <GoalRow
-                key={goal.id}
-                goal={goal}
-                index={i}
-                reason={goal.targetRef ? reasons[goal.targetRef] : undefined}
-                busy={togglingId === goal.id}
-                onToggle={onToggle}
-                onRemove={setRemoveTarget}
-              />
-            ))}
-          </ol>
-        ) : null}
-      </ResourceStatus>
+      ) : null}
 
-      {actionFailed ? (
+      {tab === "history" && actionFailed ? (
         <p role="alert" className="px-1 text-sm text-[var(--danger)]">
           That change didn&apos;t save. Try again.
         </p>
       ) : null}
 
-      <section aria-labelledby="goal-suggestions" className="flex flex-col gap-2.5 pt-2">
-        <h2 id="goal-suggestions" className="label-mono px-1 text-[11px] text-[var(--faint)]">
-          Suggestions
-        </h2>
+      {tab === "week" && noSources ? <GoalsNoSources /> : null}
+
+      {tab === "history" || noSources ? null : (
+        <>
         <ResourceStatus
-          failed={suggestions.failed}
-          empty={suggestions.empty}
-          loading={
-            <StateMessage variant="loading" className="mt-0">
-              Loading your backlog goals…
-            </StateMessage>
-          }
+          failed={goals.failed}
+          empty={goals.empty}
+          loading={<StateMessage variant="loading" className="mt-0">Loading your goals…</StateMessage>}
           error={
             <StateMessage variant="error" className="mt-0">
-              {(suggestions.error as Error | null)?.message ?? "Could not load suggestions."}
+              Could not load your goals.
             </StateMessage>
           }
         >
-          {pending.length > 0 ? (
-            <ul className="flex flex-col gap-2.5">
-              {pending.map((suggestion) => (
-                <SuggestionRow
-                  key={suggestion.itemKey}
-                  suggestion={suggestion}
-                  busy={acceptingKey === suggestion.itemKey}
-                  disabled={acceptingKey !== null}
-                  onAccept={onAccept}
+          <GoalsProgress
+            goals={current}
+            period={period}
+            now={now}
+            weeklyHours={weeklyHours}
+          />
+          {current.length > 0 ? (
+            <ol className="flex flex-col gap-2.5">
+              {current.map((goal, i) => (
+                <GoalRow
+                  key={goal.id}
+                  goal={goal}
+                  index={i}
+                  reason={goal.targetRef ? reasons[goal.targetRef] : undefined}
+                  busy={togglingId === goal.id}
+                  onToggle={onToggle}
+                  onRemove={setRemoveTarget}
                 />
               ))}
-            </ul>
-          ) : (
-            <p className="px-1 text-sm text-[var(--muted)]">Backlog looks clear — nice work.</p>
-          )}
+            </ol>
+          ) : null}
         </ResourceStatus>
-      </section>
+
+        {actionFailed ? (
+          <p role="alert" className="px-1 text-sm text-[var(--danger)]">
+            That change didn&apos;t save. Try again.
+          </p>
+        ) : null}
+
+        <AiGoalsSection
+          aiGoals={aiGoals}
+          goals={pendingAi}
+          acceptingKey={acceptingKey}
+          rerollingKey={rerollingKey}
+          rerollError={rerollError}
+          onAccept={onAccept}
+          onReroll={onReroll}
+        />
+
+        <section aria-labelledby="goal-suggestions" className="flex flex-col gap-2.5 pt-2">
+          <h2 id="goal-suggestions" className="label-mono px-1 text-[11px] text-[var(--faint)]">
+            Suggestions
+          </h2>
+          <ResourceStatus
+            failed={suggestions.failed}
+            empty={suggestions.empty}
+            loading={
+              <StateMessage variant="loading" className="mt-0">
+                Loading your backlog goals…
+              </StateMessage>
+            }
+            error={
+              <StateMessage variant="error" className="mt-0">
+                {(suggestions.error as Error | null)?.message ?? "Could not load suggestions."}
+              </StateMessage>
+            }
+          >
+            {pending.length > 0 ? (
+              <ul className="flex flex-col gap-2.5">
+                {pending.map((suggestion) => (
+                  <SuggestionRow
+                    key={suggestion.itemKey}
+                    suggestion={suggestion}
+                    busy={acceptingKey === suggestion.itemKey}
+                    disabled={acceptingKey !== null}
+                    onAccept={onAccept}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <p className="px-1 text-sm text-[var(--muted)]">Backlog looks clear — nice work.</p>
+            )}
+          </ResourceStatus>
+        </section>
+        </>
+      )}
 
       <Dialog
         open={removeTarget !== null}

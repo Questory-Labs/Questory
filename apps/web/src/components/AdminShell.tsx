@@ -9,6 +9,7 @@ import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useUser } from "@/hooks/useUser";
 import { buildAdminNavGroups } from "@/modules/admin/shared/admin.nav";
 import { AdminNavLinks } from "@/modules/admin/shared/components/AdminNavLinks";
+import { LlmBudgetBanner } from "@/modules/enterprise/telemetry/components/LlmBudgetBanner";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -62,7 +63,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
+      <div className="flex min-h-screen items-center justify-center text-sm text-[var(--muted)]">
         Redirecting to sign in…
       </div>
     );
@@ -70,7 +71,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!user.isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] px-4">
+      <div className="flex min-h-screen items-center justify-center px-4">
         <div className="panel q-in w-full max-w-sm p-6 text-center">
           <p className="label-mono flex items-center justify-center gap-2">
             <span className="dot text-[var(--warm)] shadow-[0_0_8px_var(--warm)]" aria-hidden />
@@ -162,7 +163,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">
+          {showEnterpriseNav ? <LlmBudgetBanner /> : null}
+          {children}
+        </main>
       </div>
     </div>
   );

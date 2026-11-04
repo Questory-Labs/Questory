@@ -1,5 +1,4 @@
 import type { Goal, GoalTimeframe, PlaySessionStats } from "@questorylabs/shared";
-import type { GoalSuggestion } from "@/lib/enterprise-types";
 
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
@@ -88,15 +87,45 @@ export const fitsInPeriod = (
   return leftMinutes / 60 <= weeklyHours * weeksLeft;
 };
 
-export const pendingSuggestions = (
-  suggestions: GoalSuggestion[],
+export const pendingSuggestions = <T extends { itemKey: string }>(
+  suggestions: T[],
   goals: Goal[],
-): GoalSuggestion[] => {
+): T[] => {
   const taken = new Set(goals.map((goal) => goal.targetRef).filter(Boolean));
   return suggestions.filter((s) => !taken.has(s.itemKey));
 };
 
 export const suggestionReasons = (
-  suggestions: GoalSuggestion[],
+  suggestions: { itemKey: string; reason: string }[],
 ): Record<string, string> =>
   Object.fromEntries(suggestions.map((s) => [s.itemKey, s.reason]));
+
+export type GoalHistoryGroup = {
+  key: string;
+  title: string;
+  done: number;
+  goals: Goal[];
+};
+
+export const historyGoals = (goals: Goal[], now: Date): Goal[] =>
+  goals.filter((goal) => !(goal.timeframe === "week" && isCurrentGoal(goal, now)));
+
+export const historyGroups = (goals: Goal[]): GoalHistoryGroup[] => {
+  const groups = new Map<string, GoalHistoryGroup>();
+  for (const goal of goals) {
+    const key = `${goal.timeframe}:${goal.periodStart}`;
+    const group = groups.get(key) ?? {
+      key,
+      title: periodTitle(goal.timeframe, {
+        start: new Date(goal.periodStart),
+        end: new Date(goal.periodEnd),
+      }),
+      done: 0,
+      goals: [],
+    };
+    group.goals.push(goal);
+    if (goal.doneAt) group.done += 1;
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+};

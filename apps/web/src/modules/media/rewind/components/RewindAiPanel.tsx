@@ -34,7 +34,14 @@ export const RewindAiPanel = ({
   const cards = useMemo(() => (content ? formatAiCards(content, domain) : []), [content, domain]);
   const [index, setIndex] = useState(0);
   const count = cards.length;
-  const showCards = !blockedMessage && count > 0;
+  const regenerating = aiQuery.refreshing;
+  const showCards = !blockedMessage && !regenerating && count > 0;
+  const loading = (
+    <p className="mt-3.5 flex items-center gap-3 text-sm text-muted">
+      <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-[var(--warm)] border-t-transparent" />
+      Synthesizing insights...
+    </p>
+  );
 
   useEffect(() => {
     setIndex(0);
@@ -53,7 +60,7 @@ export const RewindAiPanel = ({
       aria-labelledby="rewind-ai"
       aria-roledescription="carousel"
       onKeyDown={onKeyDown}
-      className="panel-accent q-in relative flex min-w-0 flex-[1_1_320px] flex-col justify-between gap-[18px] overflow-hidden p-6"
+      className="panel-accent q-in relative flex min-w-0 flex-[1_1_360px] flex-col justify-between gap-[18px] overflow-hidden p-6"
       style={{ "--i": 3 } as CSSProperties}
     >
       <div className="min-w-0">
@@ -63,16 +70,13 @@ export const RewindAiPanel = ({
         </p>
         {blockedMessage ? (
           <p className="mt-3.5 text-sm text-muted">{blockedMessage}</p>
+        ) : regenerating ? (
+          loading
         ) : (
           <ResourceStatus
             failed={aiQuery.failed}
             empty={aiQuery.empty}
-            loading={
-              <p className="mt-3.5 flex items-center gap-3 text-sm text-muted">
-                <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-[var(--warm)] border-t-transparent" />
-                Synthesizing insights...
-              </p>
-            }
+            loading={loading}
             error={
               <div className="mt-3.5">
                 <StateMessage variant="error">{aiQuery.error?.message || "Failed to load narrative"}</StateMessage>

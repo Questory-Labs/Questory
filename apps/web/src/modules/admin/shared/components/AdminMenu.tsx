@@ -86,7 +86,7 @@ export const AdminMenu = ({
           id={menuId}
           role="menu"
           style={pos ? { top: pos.top, left: pos.left } : undefined}
-          className="q-pop fixed z-50 w-[270px] rounded-[20px] border border-white/10 bg-[rgba(22,22,24,0.92)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_48px_-12px_rgba(0,0,0,0.8)] backdrop-blur-[18px]"
+          className="q-menu fixed z-50 w-[270px] rounded-[20px] border border-white/10 bg-[rgba(22,22,24,0.92)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_48px_-12px_rgba(0,0,0,0.8)] backdrop-blur-[18px]"
         >
           {title ? <p className="label-mono mx-3 my-2">{title}</p> : null}
           {items.map((item) => (

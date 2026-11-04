@@ -20,7 +20,7 @@ export const RewindHero = ({
   return (
     <section
       aria-label="Headline"
-      className="panel q-in relative min-w-0 flex-[999_1_520px] overflow-hidden px-7 pb-5 pt-[26px] [background-image:linear-gradient(160deg,rgba(210,210,214,0.14),rgba(255,255,255,0.016)_55%)]"
+      className="panel q-in relative min-w-0 flex-[999_1_480px] overflow-hidden px-7 pb-5 pt-[26px] [background-image:linear-gradient(160deg,rgba(210,210,214,0.14),rgba(255,255,255,0.016)_55%)]"
       style={{ "--i": 2 } as CSSProperties}
     >
       <span

@@ -111,7 +111,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   if (!authReady || !user) {
     if (failed) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-[var(--bg-0)] text-sm text-[var(--muted)]">
+        <div className="flex min-h-screen items-center justify-center text-sm text-[var(--muted)]">
           Redirecting to sign in…
         </div>
       );

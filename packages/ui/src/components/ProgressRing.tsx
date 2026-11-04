@@ -33,7 +33,7 @@ export const ProgressRing = ({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
+        className="-rotate-90 overflow-visible"
         aria-hidden="true"
       >
         <circle

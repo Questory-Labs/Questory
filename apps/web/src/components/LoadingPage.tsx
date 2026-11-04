@@ -73,7 +73,7 @@ export function LoadingPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-0)] text-[var(--ink)]">
+    <div className="flex min-h-screen flex-col text-[var(--ink)]">
       <header className="px-6 pt-6">
         <BrandMark href="/" size="sm" wordmarkClassName="text-lg" />
       </header>

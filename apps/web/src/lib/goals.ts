@@ -17,6 +17,10 @@ export const GOAL_KIND_LABELS: Record<string, string> = {
   manga: "Read",
   artist: "Listen",
   track: "Listen",
+  play: "Play",
+  watch: "Watch",
+  read: "Read",
+  listen: "Listen",
   daily_listens: "Daily listens",
 };
 

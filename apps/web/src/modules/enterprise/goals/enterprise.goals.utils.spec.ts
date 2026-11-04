@@ -3,6 +3,7 @@ import type { Goal, PlaySessionStats } from "@questorylabs/shared";
 import type { GoalSuggestion } from "@/lib/enterprise-types";
 import {
   currentPeriod,
+  historyGoals,
   fitsInPeriod,
   formatHours,
   isCurrentGoal,
@@ -128,5 +129,50 @@ describe("suggestions", () => {
     const list = [suggestion("game:1"), suggestion("game:2")];
     expect(pendingSuggestions(list, [goal()]).map((s) => s.itemKey)).toEqual(["game:2"]);
     expect(suggestionReasons(list)["game:2"]).toBe("why game:2");
+  });
+});
+
+describe("historyGoals", () => {
+  const base = {
+    id: "g",
+    domain: "games",
+    kind: "game",
+    name: "Goal",
+    targetRef: null,
+    targetValue: null,
+    progressValue: 0,
+    estimatedMinutes: null,
+    acceptedAt: "",
+    doneAt: null,
+    createdAt: "",
+    updatedAt: "",
+  } as const;
+  const now = new Date(2026, 10, 4);
+
+  it("leaves out this week's goals and keeps past or older-timeframe goals", () => {
+    const thisWeek = {
+      ...base,
+      id: "now",
+      timeframe: "week" as const,
+      periodStart: new Date(2026, 10, 2).toISOString(),
+      periodEnd: new Date(2026, 10, 9).toISOString(),
+    };
+    const lastWeek = {
+      ...thisWeek,
+      id: "last",
+      periodStart: new Date(2026, 9, 26).toISOString(),
+      periodEnd: new Date(2026, 10, 2).toISOString(),
+    };
+    const monthly = {
+      ...thisWeek,
+      id: "month",
+      timeframe: "month" as const,
+      periodStart: new Date(2026, 10, 1).toISOString(),
+      periodEnd: new Date(2026, 11, 1).toISOString(),
+    };
+    expect(historyGoals([thisWeek, lastWeek, monthly], now).map((g) => g.id)).toEqual([
+      "last",
+      "month",
+    ]);
   });
 });

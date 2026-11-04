@@ -81,10 +81,10 @@ export const TraceSidebar = ({ traceId, onClose }: TraceSidebarProps) => {
       <button
         type="button"
         aria-label="Close trace details"
-        className="absolute inset-0 bg-[var(--bg-0)]/75 backdrop-blur-sm"
+        className="q-backdrop absolute inset-0 bg-[var(--bg-0)]/75 backdrop-blur-sm"
         onClick={onClose}
       />
-      <aside className="q-pop relative flex h-full w-full max-w-xl flex-col border-l border-[var(--qengine-line)] bg-[var(--bg-1)]">
+      <aside className="q-drawer relative flex h-full w-full max-w-xl flex-col border-l border-[var(--qengine-line)] bg-[var(--bg-1)]">
         <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-[18px]">
           <div className="min-w-0">
             <p className="label-mono text-[var(--warm)]">Trace detail</p>

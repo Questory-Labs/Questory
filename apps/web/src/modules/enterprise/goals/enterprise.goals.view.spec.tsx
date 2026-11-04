@@ -1,12 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { Goal, GoalListResponse, PlaySessionStats } from "@questorylabs/shared";
+import type {
+  AiGoal,
+  AiGoalsResponse,
+  Goal,
+  GoalListResponse,
+  PlaySessionStats,
+} from "@questorylabs/shared";
 import { mockResource } from "@/test/resource-mock";
 import type {
   GoalSuggestion,
   RecommendationGoalsResponse,
 } from "@/lib/enterprise-types";
 import { GoalsView } from "./enterprise.goals.view";
+
+vi.mock("@/hooks/useMusicEnabled", () => ({ useMusicEnabled: () => ({ flagOn: false }) }));
+vi.mock("@/hooks/useWatchEnabled", () => ({ useWatchEnabled: () => ({ flagOn: true }) }));
+vi.mock("@/hooks/useReadEnabled", () => ({ useReadEnabled: () => ({ flagOn: false }) }));
+
 import type { GoalsViewProps } from "./enterprise.goals.types";
 
 const goal: Goal = {
@@ -36,17 +47,44 @@ const suggestion: GoalSuggestion = {
   reason: "Short and calm.",
 };
 
+const aiGoal: AiGoal = {
+  itemKey: "goal:watch:horror:movie",
+  name: "Watch a horror movie this week",
+  domain: "watch",
+  kind: "watch",
+  reason: "Horror keeps showing up in what you finish.",
+  specific: false,
+};
+
+const aiBoard = (patch: Partial<AiGoalsResponse> = {}): AiGoalsResponse => ({
+  status: "ready",
+  period: "2026-W44",
+  goals: [aiGoal],
+  rerollsLeft: 2,
+  rerollsPerDay: 2,
+  rerollsResetAt: "2026-10-29T00:00:00Z",
+  ...patch,
+});
+
 const baseProps = (): GoalsViewProps => ({
-  timeframe: "month",
-  setTimeframe: vi.fn(),
+  tab: "week",
+  setTab: vi.fn(),
+  history: mockResource<GoalListResponse>({ empty: false, failed: false, value: { items: [] } }),
+  pastGoals: [],
   targetCount: 5,
   setTargetCount: vi.fn(),
   goals: mockResource<GoalListResponse>({ empty: false, failed: false, value: { items: [goal] } }),
   suggestions: mockResource<RecommendationGoalsResponse>({
     empty: false,
     failed: false,
-    value: { generatedAt: "", timeframe: "this month", targetCount: 5, suggestions: [suggestion] },
+    value: { generatedAt: "", timeframe: "this week", targetCount: 5, suggestions: [suggestion] },
   }),
+  aiGoals: mockResource<AiGoalsResponse>({ empty: false, failed: false, value: aiBoard() }),
+  pendingAi: [aiGoal],
+  noSources: false,
+  rerollingKey: null,
+  rerollError: null,
+  onReroll: vi.fn(),
   stats: mockResource<PlaySessionStats>({ empty: true, failed: false }),
   current: [goal],
   pending: [suggestion],
@@ -74,6 +112,52 @@ const renderView = (patch: Partial<GoalsViewProps> = {}) => {
 describe("GoalsView", () => {
   afterEach(cleanup);
 
+  it("offers a reroll on each AI goal while rerolls remain", () => {
+    const props = renderView();
+    expect(screen.getByText("2 of 2 rerolls left today")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: `Reroll ${aiGoal.name}` }));
+    expect(props.onReroll).toHaveBeenCalledWith(aiGoal);
+  });
+
+  it("removes reroll buttons once rerolls run out", () => {
+    renderView({
+      aiGoals: mockResource<AiGoalsResponse>({
+        empty: false,
+        failed: false,
+        value: aiBoard({ rerollsLeft: 0 }),
+      }),
+    });
+    expect(screen.getByText("No rerolls left today")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: `Reroll ${aiGoal.name}` })).toBeNull();
+    expect(screen.getByRole("button", { name: `Accept ${aiGoal.name}` })).toBeTruthy();
+  });
+
+  it("shows history instead of the week's list", () => {
+    renderView({ tab: "history", pastGoals: [{ ...goal, id: "old", name: "Old goal" }] });
+    expect(screen.getByText("Old goal")).toBeTruthy();
+    expect(screen.queryByText("Picked for you")).toBeNull();
+    expect(screen.queryByLabelText("Target count")).toBeNull();
+  });
+
+  it("shows history even when no sources are connected", () => {
+    renderView({ tab: "history", noSources: true, current: [] });
+    expect(screen.getByText(/No past goals yet/)).toBeTruthy();
+    expect(screen.queryByText("Connect a source to get goals")).toBeNull();
+  });
+
+  it("shows the reroll error", () => {
+    renderView({ rerollError: "No fresh goal is available right now." });
+    expect(screen.getByRole("alert").textContent).toContain("No fresh goal");
+  });
+
+  it("shows only the connect prompt when there are no sources", () => {
+    renderView({ noSources: true, current: [], pending: [], pendingAi: [] });
+    expect(screen.getByText("Connect a source to get goals")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Steam/ }).getAttribute("href")).toBe("/settings/stores");
+    expect(screen.queryByText("Picked for you")).toBeNull();
+    expect(screen.queryByText("Suggestions")).toBeNull();
+  });
+
   it("lists accepted goals with their reason and pending suggestions", () => {
     const props = renderView();
     expect(screen.getByText("Portal 2")).toBeInTheDocument();
@@ -83,10 +167,10 @@ describe("GoalsView", () => {
     expect(props.onAccept).toHaveBeenCalledWith(suggestion);
   });
 
-  it("switches timeframe and target", () => {
+  it("switches to history and target", () => {
     const props = renderView();
-    fireEvent.click(screen.getByRole("button", { name: "This week" }));
-    expect(props.setTimeframe).toHaveBeenCalledWith("week");
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(props.setTab).toHaveBeenCalledWith("history");
     fireEvent.change(screen.getByRole("combobox", { name: "Target count" }), {
       target: { value: "10" },
     });

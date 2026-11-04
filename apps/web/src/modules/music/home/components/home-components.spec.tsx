@@ -111,6 +111,25 @@ describe("music home components", () => {
     ).toBeInTheDocument();
   });
 
+  it("scales marks with the card and pins hour ticks to their columns", () => {
+    render(
+      <DotHeatmap
+        heatmap={{
+          dayLabels: ["Mon"],
+          hourLabels: [],
+          maxCount: 4,
+          cells: [{ day: 0, hour: 6, count: 4 }],
+        }}
+      />,
+    );
+    const grid = screen.getByRole("img");
+    expect(grid).toHaveClass("flex-1", "@container");
+    expect(grid.closest("section")).toHaveClass("flex", "h-full", "flex-col");
+    expect(screen.getByText("00")).toHaveStyle({ gridColumnStart: "2" });
+    expect(screen.getByText("06")).toHaveStyle({ gridColumnStart: "8" });
+    expect(screen.getByText("18")).toHaveStyle({ gridColumnStart: "20" });
+  });
+
   it("renders top artists and their failure state", () => {
     const value: MusicTopsResponse = {
       periodListens: 10,

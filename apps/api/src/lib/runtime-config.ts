@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 export type DbProvider = "sqlite" | "postgresql";
 
 export type AppMode =
@@ -27,6 +28,32 @@ export function resolveAppMode(): AppMode {
     return raw as AppMode;
   }
   return "local";
+}
+
+const originLogger = new Logger("RuntimeConfig");
+const warnedOrigins = new Set<string>();
+
+const toOrigin = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const url = URL.canParse(trimmed) ? new URL(trimmed) : null;
+  if (url?.protocol === "http:" || url?.protocol === "https:") return url.origin;
+  if (!warnedOrigins.has(trimmed)) {
+    warnedOrigins.add(trimmed);
+    originLogger.warn(`Ignoring invalid origin "${trimmed}": expected an http(s) URL`);
+  }
+  return null;
+};
+
+export function resolveAllowedOrigins(): string[] {
+  const web =
+    toOrigin(process.env.WEB_ORIGIN || "http://localhost:3000") ??
+    "http://localhost:3000";
+  const extras = (process.env.FE_CORS_ALLOWED || "")
+    .split(",")
+    .map(toOrigin)
+    .filter((origin): origin is string => origin !== null);
+  return [...new Set([web, ...extras])];
 }
 
 export function resolveDbProvider(): DbProvider {

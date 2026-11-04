@@ -59,7 +59,7 @@ export const LibraryView = (props: Record<string, unknown>) => {
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-4">
-      <header className="q-in flex flex-wrap items-end justify-between gap-4 px-1 pb-1 pt-2">
+      <header className="q-in flex flex-wrap items-end justify-between gap-4 pb-1 pt-2">
         <div>
           <p className="label-mono text-[var(--faint)]">
             {sync.active
@@ -101,41 +101,43 @@ export const LibraryView = (props: Record<string, unknown>) => {
             }}
           />
         ) : null}
-        <label className="ml-auto flex min-h-11 items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-4 text-[var(--muted)]">
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <span className="sr-only">Filter games</span>
-          <input
-            value={q}
-            onChange={(e) => {
-              setPage(1);
-              setQ(e.target.value);
-            }}
-            placeholder="Filter by name, tag or publisher"
-            className="w-[220px] max-w-full border-0 bg-transparent text-sm text-[var(--ink)] outline-none"
-          />
-        </label>
-        {setSort ? (
-          <label className="flex min-h-11 items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/25 px-3.5 text-[13px] text-[var(--muted)]">
-            Sort
-            <select
-              value={sort}
+        <div className="flex min-w-0 flex-1 basis-[440px] items-center gap-2">
+          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-4 text-[var(--muted)]">
+            <svg aria-hidden="true" className="flex-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <span className="sr-only">Filter games</span>
+            <input
+              value={q}
               onChange={(e) => {
                 setPage(1);
-                setSort(e.target.value as LibrarySort);
+                setQ(e.target.value);
               }}
-              className="border-0 bg-transparent text-[13px] text-[var(--ink)] outline-none"
-            >
-              {LIBRARY_SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              placeholder="Filter by name, tag or publisher"
+              className="w-full min-w-0 border-0 bg-transparent text-sm text-[var(--ink)] outline-none"
+            />
           </label>
-        ) : null}
+          {setSort ? (
+            <label className="flex min-h-11 flex-none items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/25 px-3.5 text-[13px] text-[var(--muted)]">
+              Sort
+              <select
+                value={sort}
+                onChange={(e) => {
+                  setPage(1);
+                  setSort(e.target.value as LibrarySort);
+                }}
+                className="border-0 bg-transparent text-[13px] text-[var(--ink)] outline-none"
+              >
+                {LIBRARY_SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
       </div>
 
       {collections?.value ? <LibraryShelves collections={collections.value} /> : null}

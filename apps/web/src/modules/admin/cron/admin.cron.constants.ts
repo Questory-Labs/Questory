@@ -4,6 +4,7 @@ export const TRIGGERABLE_JOBS = new Set([
   "watch-sync",
   "catalog-sync",
   "price-sync",
+  "ai-goals",
   "trakt-sync",
   "anilist-sync",
   "mal-sync",

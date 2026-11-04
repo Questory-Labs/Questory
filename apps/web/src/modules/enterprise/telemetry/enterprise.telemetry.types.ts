@@ -3,6 +3,8 @@ import type {
   UseResourceResult,
 } from "@questorylabs/qhttp/react";
 import type {
+  LlmBudgetSettings,
+  LlmBudgetStatus,
   OtelHealth,
   OtelCostSource,
   OtelModelPricing,
@@ -54,6 +56,8 @@ export type TelemetryViewProps = {
   pricing: UseResourceResult<OtelPricing>;
   traces: UseResourceResult<OtelTracesPage>;
   savePricing: UseActionResult<OtelPricing, OtelModelPricing[]>;
+  llmBudget: UseResourceResult<LlmBudgetStatus>;
+  saveBudget: UseActionResult<LlmBudgetStatus, LlmBudgetSettings>;
   pricingOpen: boolean;
   setPricingOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   newModel: string;

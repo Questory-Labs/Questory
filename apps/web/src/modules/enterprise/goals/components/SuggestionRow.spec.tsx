@@ -39,3 +39,42 @@ describe("SuggestionRow", () => {
     expect(screen.getByText("Adding…")).toBeInTheDocument();
   });
 });
+
+describe("SuggestionRow reroll", () => {
+  const goal = {
+    itemKey: "goal:read:manga",
+    name: "Read a manga volume",
+    domain: "read" as const,
+    kind: "read",
+    reason: "You finish manga.",
+    specific: false,
+  };
+
+  it("hides the reroll button without a handler", () => {
+    render(
+      <ul>
+        <SuggestionRow suggestion={goal} busy={false} disabled={false} onAccept={vi.fn()} />
+      </ul>,
+    );
+    expect(screen.queryByRole("button", { name: `Reroll ${goal.name}` })).toBeNull();
+    cleanup();
+  });
+
+  it("rerolls the goal", () => {
+    const onReroll = vi.fn();
+    render(
+      <ul>
+        <SuggestionRow
+          suggestion={goal}
+          busy={false}
+          disabled={false}
+          onAccept={vi.fn()}
+          onReroll={onReroll}
+        />
+      </ul>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: `Reroll ${goal.name}` }));
+    expect(onReroll).toHaveBeenCalledWith(goal);
+    cleanup();
+  });
+});

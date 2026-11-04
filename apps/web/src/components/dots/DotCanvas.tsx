@@ -39,7 +39,13 @@ export function DotCanvas({
     if (!ctx) return;
     if (prefersReducedMotion()) {
       paint(ctx, staticTime);
-      return;
+      let active = true;
+      void document.fonts?.ready.then(() => {
+        if (active) paint(ctx, staticTime);
+      });
+      return () => {
+        active = false;
+      };
     }
     const t0 = performance.now();
     let raf = 0;

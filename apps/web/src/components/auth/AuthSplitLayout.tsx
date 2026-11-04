@@ -13,7 +13,7 @@ export function AuthSplitLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="box-border flex min-h-screen flex-wrap gap-3 bg-[radial-gradient(1200px_700px_at_30%_-10%,rgba(255,255,255,0.05),transparent_60%)] bg-[var(--bg-0)] p-3 text-[15px] leading-normal text-[var(--ink)]">
+    <div className="box-border flex min-h-screen flex-wrap gap-3 bg-[radial-gradient(1200px_700px_at_30%_-10%,rgba(255,255,255,0.05),transparent_60%)] p-3 text-[15px] leading-normal text-[var(--ink)]">
       <aside className="panel q-in relative flex min-w-0 flex-[1.15_1_520px] flex-col justify-between gap-6 overflow-hidden p-[clamp(24px,4vw,44px)]">
         {brand ?? <BrandMark href="/" size="sm" wordmarkClassName="text-lg" />}
         {aside}

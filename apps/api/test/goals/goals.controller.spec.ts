@@ -73,14 +73,24 @@ describe("goals controller", () => {
     await request(app.getHttpServer())
       .post("/v1/goals")
       .set("Cookie", cookie())
-      .send({ kind: "game", name: "", domain: "games", timeframe: "month" })
+      .send({ kind: "game", name: "", domain: "games", timeframe: "week" })
       .expect(400);
     await request(app.getHttpServer())
       .post("/v1/goals")
       .set("Cookie", cookie())
-      .send({ kind: "game", name: "Hades", domain: "games", timeframe: "month" })
+      .send({ kind: "game", name: "Hades", domain: "games", timeframe: "week" })
       .expect(201);
     expect(svc.create.mock.calls[0]![0]).toBe("u1");
+  });
+
+  it.each(["month", "year"])("rejects new %s goals", async (timeframe) => {
+    const before = svc.create.mock.calls.length;
+    await request(app.getHttpServer())
+      .post("/v1/goals")
+      .set("Cookie", cookie())
+      .send({ kind: "game", name: "Hades", domain: "games", timeframe })
+      .expect(400);
+    expect(svc.create.mock.calls.length).toBe(before);
   });
 
   it("requires done or progressValue on patch", async () => {

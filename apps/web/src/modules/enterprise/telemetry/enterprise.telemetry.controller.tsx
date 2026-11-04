@@ -2,10 +2,12 @@
 
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import {
+  fetchLlmBudget,
   fetchOtelHealth,
   fetchOtelPricing,
   fetchOtelTraces,
   fetchOtelUsage,
+  saveLlmBudget,
   saveOtelPricing,
   type OtelHealth,
   type OtelModelPricing,
@@ -17,6 +19,7 @@ import { TELEMETRY_PAGE_SIZE } from "@/lib/pagination";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import { useEffect, useMemo, useState, type PropsWithChildren } from "react";
+import { LLM_BUDGET_RESOURCE } from "./components/LlmBudgetBanner";
 import type {
   TelemetryModelRow,
   TimeRange,
@@ -84,6 +87,21 @@ export const TelemetryController = ({ children }: PropsWithChildren) => {
       await store.touch(["enterprise-otel-pricing"]);
       await store.touch(["enterprise-otel-usage"]);
       setPricingDraft(null);
+    },
+  });
+
+  const llmBudget = useResource({
+    id: [LLM_BUDGET_RESOURCE],
+    load: fetchLlmBudget,
+    refreshEvery: 60_000,
+    retries: false,
+    when: enabled,
+  });
+
+  const saveBudget = useAction({
+    run: saveLlmBudget,
+    onSuccess: async () => {
+      await store.touch([LLM_BUDGET_RESOURCE]);
     },
   });
 
@@ -207,6 +225,8 @@ export const TelemetryController = ({ children }: PropsWithChildren) => {
     pricing,
     traces,
     savePricing,
+    llmBudget,
+    saveBudget,
     pricingOpen,
     setPricingOpen,
     newModel,

@@ -11,8 +11,14 @@ vi.mock("@/lib/goals", async (importOriginal) => ({
   deleteGoal: vi.fn(),
 }));
 
+vi.mock("@/hooks/useMusicEnabled", () => ({ useMusicEnabled: () => ({ flagOn: true }) }));
+vi.mock("@/hooks/useWatchEnabled", () => ({ useWatchEnabled: () => ({ flagOn: true }) }));
+vi.mock("@/hooks/useReadEnabled", () => ({ useReadEnabled: () => ({ flagOn: true }) }));
+
 vi.mock("@/lib/enterprise-api", () => ({
   fetchSmartGoals: vi.fn(),
+  fetchAiGoals: vi.fn(),
+  rerollAiGoal: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -20,7 +26,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { api } from "@/lib/api";
-import { fetchSmartGoals } from "@/lib/enterprise-api";
+import { fetchAiGoals, fetchSmartGoals, rerollAiGoal } from "@/lib/enterprise-api";
 import { createGoal, deleteGoal, fetchGoals, updateGoal } from "@/lib/goals";
 import { GoalsController } from "./enterprise.goals.controller";
 import { GoalsView } from "./enterprise.goals.view";
@@ -36,7 +42,7 @@ const goal = (patch: Partial<Goal> = {}): Goal => ({
   targetValue: null,
   progressValue: 0,
   estimatedMinutes: 180,
-  timeframe: "month",
+  timeframe: "week",
   periodStart: new Date(Date.now() - DAY).toISOString(),
   periodEnd: new Date(Date.now() + 10 * DAY).toISOString(),
   acceptedAt: new Date().toISOString(),
@@ -54,6 +60,25 @@ const renderPage = () =>
       </GoalsController>
     </ResourceProvider>,
   );
+
+const aiBoard = (patch: Record<string, unknown> = {}) => ({
+  status: "ready" as const,
+  period: "2026-W45",
+  goals: [
+    {
+      itemKey: "goal:watch:horror:movie",
+      name: "Watch a horror movie",
+      domain: "watch" as const,
+      kind: "watch",
+      reason: "Horror keeps showing up in what you finish.",
+      specific: false,
+    },
+  ],
+  rerollsLeft: 2,
+  rerollsPerDay: 2,
+  rerollsResetAt: "2026-11-05T00:00:00Z",
+  ...patch,
+});
 
 describe("Goals page", () => {
   beforeEach(() => {
@@ -84,6 +109,8 @@ describe("Goals page", () => {
         },
       ],
     });
+    vi.mocked(fetchAiGoals).mockResolvedValue(aiBoard());
+    vi.mocked(rerollAiGoal).mockResolvedValue(aiBoard({ rerollsLeft: 1 }));
     vi.mocked(api).mockResolvedValue({
       window: { sessionCount: 3, totalDurationSecs: 30 * 3600, avgDurationSecs: 1 },
     });
@@ -102,8 +129,8 @@ describe("Goals page", () => {
     expect(await screen.findByText("68% through.")).toBeInTheDocument();
     expect(screen.queryByText("Old goal")).not.toBeInTheDocument();
     expect(await screen.findByText(/You average/)).toBeInTheDocument();
-    expect(fetchGoals).toHaveBeenCalledWith({ status: "all", timeframe: "month", limit: 50 });
-    expect(fetchSmartGoals).toHaveBeenCalledWith({ timeframe: "this month", targetCount: 5 });
+    expect(fetchGoals).toHaveBeenCalledWith({ status: "all", timeframe: "week", limit: 50 });
+    expect(fetchSmartGoals).toHaveBeenCalledWith({ timeframe: "this week", targetCount: 5 });
     expect(api).toHaveBeenCalledWith(expect.stringContaining("/play-sessions/stats?days=30&tz="));
     expect(screen.queryByRole("button", { name: "Accept Portal 2" })).not.toBeInTheDocument();
   });
@@ -119,12 +146,28 @@ describe("Goals page", () => {
           domain: "games",
           estimatedMinutes: 120,
           targetRef: "game:2",
-          timeframe: "month",
+          timeframe: "week",
           tz: expect.any(String),
         }),
       ),
     );
     await waitFor(() => expect(fetchGoals).toHaveBeenCalledTimes(2));
+  });
+
+  it("rerolls an AI goal and refetches the board", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Reroll Watch a horror movie" }));
+    await waitFor(() =>
+      expect(rerollAiGoal).toHaveBeenCalledWith("goal:watch:horror:movie"),
+    );
+    await waitFor(() => expect(vi.mocked(fetchAiGoals).mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("shows the connect prompt when QEngine reports no sources", async () => {
+    vi.mocked(fetchGoals).mockResolvedValue({ items: [] });
+    vi.mocked(fetchAiGoals).mockResolvedValue(aiBoard({ status: "no_sources", goals: [] }));
+    renderPage();
+    expect(await screen.findByText("Connect a source to get goals")).toBeTruthy();
   });
 
   it("checks a goal off", async () => {
@@ -142,13 +185,24 @@ describe("Goals page", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("refetches suggestions for a new timeframe", async () => {
+  it("offers only this week and history", async () => {
     renderPage();
     await screen.findByText("A Short Hike");
-    fireEvent.click(screen.getByRole("button", { name: "This week" }));
+    expect(screen.queryByRole("button", { name: "This month" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "This year" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "This week" })).toBeInTheDocument();
+  });
+
+  it("shows past goals on the history tab", async () => {
+    renderPage();
+    const tab = await screen.findByRole("button", { name: "History" });
+    expect(fetchGoals).not.toHaveBeenCalledWith({ status: "all", limit: 100 });
+    fireEvent.click(tab);
     await waitFor(() =>
-      expect(fetchSmartGoals).toHaveBeenCalledWith({ timeframe: "this week", targetCount: 5 }),
+      expect(fetchGoals).toHaveBeenCalledWith({ status: "all", limit: 100 }),
     );
-    expect(fetchGoals).toHaveBeenCalledWith({ status: "all", timeframe: "week", limit: 50 });
+    expect(await screen.findByText("Old goal")).toBeInTheDocument();
+    expect(screen.queryByText("A Short Hike")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Target count")).not.toBeInTheDocument();
   });
 });

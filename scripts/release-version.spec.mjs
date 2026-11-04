@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   activePrereleaseBase,
   activeRcBase,
@@ -55,12 +59,47 @@ describe("resolveCanaryBase", () => {
 });
 
 describe("gitHighestTag", () => {
+  let repo = "";
+
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "questory-release-version-"));
+    const git = (...args) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    git("init", "-q");
+    git(
+      "-c",
+      "user.name=test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-q",
+      "--allow-empty",
+      "-m",
+      "init",
+    );
+    for (const tag of [
+      "docker-api-0.0.9",
+      "docker-api-0.0.16",
+      "docker-api-0.0.10",
+      "docker-web-0.0.20",
+      "docker-api-v0.0.18-canary.9",
+      "docker-api-v0.0.18-canary.10",
+      "docker-api-v0.0.19-canary.2",
+    ]) {
+      git("tag", tag);
+    }
+  });
+
+  afterAll(() => {
+    if (repo) rmSync(repo, { recursive: true, force: true });
+  });
+
   it("returns the highest matching tag without listing the full set", () => {
-    expect(gitHighestTag([stableTagPattern("api")])).toBe("docker-api-0.0.16");
-    expect(gitHighestTag(canaryTagPatterns("api", "0.0.18"))).toBe(
+    expect(gitHighestTag([stableTagPattern("api")], { cwd: repo })).toBe("docker-api-0.0.16");
+    expect(gitHighestTag(canaryTagPatterns("api", "0.0.18"), { cwd: repo })).toBe(
       "docker-api-v0.0.18-canary.10",
     );
-    expect(gitHighestTag([rcTagPattern("api")])).toBe("");
+    expect(gitHighestTag([rcTagPattern("api")], { cwd: repo })).toBe("");
   });
 });
 

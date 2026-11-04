@@ -7,6 +7,7 @@ import {
   type UseResourceResult,
 } from "@questorylabs/qhttp/react";
 import type {
+  LlmBudgetStatus,
   OtelHealth,
   OtelModelPricing,
   OtelPricing,
@@ -93,6 +94,8 @@ const baseProps = (): TelemetryViewProps => ({
     value: { traces: [], total: 0, limit: 15, offset: 0 },
   }),
   savePricing: idleAction,
+  llmBudget: resource<LlmBudgetStatus>({ empty: true, failed: false }),
+  saveBudget: idleAction as unknown as TelemetryViewProps["saveBudget"],
   pricingOpen: false,
   setPricingOpen: () => undefined,
   newModel: "",
@@ -263,6 +266,12 @@ describe("TelemetryView", () => {
     expect(screen.getByText("recap.monthly")).toBeInTheDocument();
     expect(screen.getByText("OK")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "abcdef123456…" }));
+    expect(setSelectedTraceId).toHaveBeenCalledTimes(1);
+    expect(setSelectedTraceId).toHaveBeenCalledWith("abcdef1234567890");
+
+    setSelectedTraceId.mockClear();
+    fireEvent.click(screen.getByText("recap.monthly"));
+    expect(setSelectedTraceId).toHaveBeenCalledTimes(1);
     expect(setSelectedTraceId).toHaveBeenCalledWith("abcdef1234567890");
   });
 });

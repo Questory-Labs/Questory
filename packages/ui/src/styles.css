@@ -467,6 +467,18 @@
   animation-delay: calc(0.6s + var(--i, 0) * 40ms);
 }
 
+.q-menu {
+  animation: q-menu 0.14s var(--ease-out) backwards;
+}
+
+.q-drawer {
+  animation: q-drawer 0.22s var(--ease-out) backwards;
+}
+
+.q-backdrop {
+  animation: q-backdrop 0.22s ease-out backwards;
+}
+
 .q-live {
   animation: q-live 2.2s ease-in-out infinite;
 }
@@ -484,6 +496,20 @@
   transform-origin: bottom;
   animation: q-eq 0.9s ease-in-out infinite alternate;
   animation-delay: calc(var(--i, 0) * -0.17s);
+}
+
+.q-bob {
+  animation: q-bob 1.1s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i, 0) * -0.17s);
+}
+
+.q-flip {
+  transform-origin: left;
+  animation: q-flip 1.8s ease-in-out infinite alternate;
+}
+
+.q-sweep {
+  animation: q-sweep 1.6s ease-in-out infinite alternate;
 }
 
 .q-slide {
@@ -527,6 +553,25 @@
   }
 }
 
+@keyframes q-menu {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes q-drawer {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes q-backdrop {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes q-live {
   50% {
     opacity: 0.3;
@@ -551,15 +596,48 @@
   }
 }
 
+@keyframes q-bob {
+  from {
+    transform: translateY(3px);
+  }
+  to {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes q-flip {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.15);
+  }
+}
+
+@keyframes q-sweep {
+  from {
+    transform: translateX(-3px);
+  }
+  to {
+    transform: translateX(3px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .q-in,
   .q-grow,
   .q-grow-x,
   .q-pop,
+  .q-menu,
+  .q-drawer,
+  .q-backdrop,
   .q-live,
   .q-spin,
   .q-twinkle,
-  .q-eq {
+  .q-eq,
+  .q-bob,
+  .q-flip,
+  .q-sweep {
     animation: none;
   }
 

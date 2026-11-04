@@ -21,20 +21,22 @@ export const LibraryStatusChips = ({
           type="button"
           aria-pressed={on}
           onClick={() => onChange(f.value)}
-          className={`inline-flex min-h-11 items-baseline gap-[7px] rounded-full border px-4 text-[13px] transition-colors duration-300 hover:border-white/20 ${
+          className={`inline-flex min-h-11 items-center rounded-full border px-4 text-[13px] transition-colors duration-300 hover:border-white/20 ${
             on
               ? "border-white/[0.16] bg-white/10 text-[var(--ink)]"
               : "border-white/[0.06] bg-black/20 text-[var(--faint)]"
           }`}
         >
-          {count != null ? (
-            <span
-              className={`text-[17px] font-light ${on ? "text-white" : "text-[var(--muted)]"}`}
-            >
-              {count}
-            </span>
-          ) : null}
-          {f.label}
+          <span className="inline-flex items-baseline gap-[7px]">
+            {count != null ? (
+              <span
+                className={`text-[17px] font-light ${on ? "text-white" : "text-[var(--muted)]"}`}
+              >
+                {count}
+              </span>
+            ) : null}
+            {f.label}
+          </span>
         </button>
       );
     })}

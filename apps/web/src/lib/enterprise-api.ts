@@ -10,7 +10,7 @@ import type {
   RecommendationGoalsResponse,
   UserSettings,
 } from "@/lib/enterprise-types";
-import type { WeeklyDigestView } from "@questorylabs/shared";
+import type { AiGoalsResponse, WeeklyDigestView } from "@questorylabs/shared";
 import { api } from "@/lib/api";
 import { browserTimeZone } from "@/lib/dates";
 import { probeJsonSafe } from "@/lib/qhttp-client";
@@ -64,6 +64,19 @@ export async function fetchSmartGoals(options: {
       targetCount: options.targetCount,
       timeframe: options.timeframe,
     }),
+  });
+}
+
+export async function fetchAiGoals(): Promise<AiGoalsResponse> {
+  return enterpriseRequest<AiGoalsResponse>("/recommendations/goals/ai", {
+    method: "POST",
+  });
+}
+
+export async function rerollAiGoal(itemKey: string): Promise<AiGoalsResponse> {
+  return enterpriseRequest<AiGoalsResponse>("/recommendations/goals/ai/reroll", {
+    method: "POST",
+    body: JSON.stringify({ itemKey }),
   });
 }
 
@@ -350,6 +363,70 @@ export async function fetchEnterpriseHealth(): Promise<unknown> {
     throw new Error("Enterprise health check failed");
   }
   return data;
+}
+
+export type LlmBudgetPeriod = "weekly" | "monthly";
+
+export type LlmBudgetSettings = {
+  period: LlmBudgetPeriod;
+  totalUsd: number | null;
+  models: Record<string, number>;
+};
+
+export type LlmBudgetModel = {
+  model: string;
+  budgetUsd: number | null;
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  burnPerDayUsd: number;
+  projectedUsd: number;
+  willOvershoot: boolean;
+  overshootOn: string | null;
+  exhausted: boolean;
+  stopped: boolean;
+  priced: boolean;
+};
+
+export type LlmBudgetBlock = {
+  reason: "total" | "model" | "unpriced" | "ledger";
+  model: string;
+  count: number;
+  lastAtMs: number;
+};
+
+export type LlmBudgetStatus = {
+  settings: LlmBudgetSettings;
+  periodStart: string;
+  periodEnd: string;
+  total: {
+    budgetUsd: number | null;
+    spentUsd: number;
+    remainingUsd: number | null;
+    burnPerDayUsd: number;
+    projectedUsd: number;
+    willOvershoot: boolean;
+    overshootOn: string | null;
+    exhausted: boolean;
+  };
+  models: LlmBudgetModel[];
+  trend: { day: string; spentUsd: number | null; projectedUsd: number | null }[];
+  blocks: LlmBudgetBlock[];
+};
+
+export async function fetchLlmBudget(): Promise<LlmBudgetStatus> {
+  return enterpriseRequest<LlmBudgetStatus>("/enterprise/llm/budget");
+}
+
+export async function saveLlmBudget(
+  settings: LlmBudgetSettings,
+): Promise<LlmBudgetStatus> {
+  return enterpriseRequest<LlmBudgetStatus>("/enterprise/llm/budget", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
 }
 
 export async function fetchOtelHealth(): Promise<OtelHealth> {

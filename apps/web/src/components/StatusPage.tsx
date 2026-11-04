@@ -8,7 +8,7 @@ import {
   createGlyphPainter,
   DOT_INK,
   DOT_TINTS,
-  GLYPH_GRID,
+  STATUS_GRID,
 } from "@/components/dots/dot-painters";
 import { RotatingTagline } from "@/components/RotatingTagline";
 import { Button } from "@/components/ui";
@@ -126,8 +126,8 @@ function StatusContent({
     <div className="mx-auto w-full max-w-[560px] text-center">
       <DotCanvas
         paint={paint}
-        width={GLYPH_GRID.w * GLYPH_GRID.step}
-        height={GLYPH_GRID.h * GLYPH_GRID.step}
+        width={STATUS_GRID.w * STATUS_GRID.step}
+        height={STATUS_GRID.h * STATUS_GRID.step}
         label={code}
         staticTime={2}
         className="mx-auto w-full max-w-[520px]"
@@ -201,7 +201,7 @@ export function StatusPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-0)] text-[var(--ink)]">
+    <div className="flex min-h-screen flex-col text-[var(--ink)]">
       <header className="px-6 pt-6">
         <BrandMark href="/" size="sm" wordmarkClassName="text-lg" />
       </header>

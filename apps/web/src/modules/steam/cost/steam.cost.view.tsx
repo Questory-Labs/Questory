@@ -11,6 +11,7 @@ import {
 } from "@questorylabs/ui";
 import { CostGameList } from "./components/CostGameList";
 import { CostHero } from "./components/CostHero";
+import { CostHoursShares } from "./components/CostHoursShares";
 import { CostIdleList } from "./components/CostIdleList";
 import { CostRanking } from "./components/CostRanking";
 import { CostValueShares } from "./components/CostValueShares";
@@ -85,6 +86,7 @@ export const CostView = (props: Record<string, unknown>) => {
       {s ? (
         <div className="flex flex-wrap gap-3.5">
           <CostValueShares summary={s} />
+          <CostHoursShares summary={s} />
           <CostIdleList summary={s} />
         </div>
       ) : null}

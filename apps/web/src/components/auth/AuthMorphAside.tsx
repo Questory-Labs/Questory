@@ -1,12 +1,13 @@
 "use client";
 
-import { DotCanvas, prefersReducedMotion } from "@/components/dots/DotCanvas";
+import { DotCanvas } from "@/components/dots/DotCanvas";
 import {
   createMorphPainter,
+  type DotPainter,
   MORPH_GRID,
-  MORPH_PERIOD_SEC,
+  morphLabelIndexAt,
 } from "@/components/dots/dot-painters";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AuthStatusLine, useInstanceHost } from "./AuthSplitLayout";
 
 const MODULES = [
@@ -16,22 +17,20 @@ const MODULES = [
   { label: "Read", dot: "text-[var(--read)]" },
 ] as const;
 
-export function useMorphIndex(count: number) {
+export function useMorphPainter() {
   const [index, setIndex] = useState(0);
-  useEffect(() => {
-    if (prefersReducedMotion()) return;
-    const id = window.setInterval(
-      () => setIndex((i) => (i + 1) % count),
-      MORPH_PERIOD_SEC * 1000,
-    );
-    return () => window.clearInterval(id);
-  }, [count]);
-  return index;
+  const paint = useMemo<DotPainter>(() => {
+    const draw = createMorphPainter();
+    return (ctx, time) => {
+      draw(ctx, time);
+      setIndex(morphLabelIndexAt(time));
+    };
+  }, []);
+  return { paint, index };
 }
 
 export function AuthMorphAside() {
-  const paint = useMemo(() => createMorphPainter(), []);
-  const active = useMorphIndex(MODULES.length);
+  const { paint, index: active } = useMorphPainter();
   const host = useInstanceHost();
 
   return (

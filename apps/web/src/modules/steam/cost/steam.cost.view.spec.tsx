@@ -143,6 +143,24 @@ describe("CostView", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the unplayed games in their own panel, apart from value by hours", () => {
+    renderView({});
+    const hours = screen.getByRole("region", { name: "Value by hours" });
+    const unplayed = screen.getByRole("region", { name: "Unplayed" });
+    expect(hours).not.toBe(unplayed);
+    expect(hours).toHaveTextContent("10–50h");
+    expect(hours).not.toHaveTextContent("Unplayed Epic");
+    expect(unplayed).toHaveTextContent("Unplayed Epic");
+    expect(unplayed).not.toHaveTextContent("10–50h");
+  });
+
+  it("fades the hero dots out instead of ending them on a hard edge", () => {
+    renderView({});
+    const dots = screen.getByTestId("cost-hero-dots");
+    expect(dots.className).toContain("[mask-image:radial-gradient");
+    expect(dots).toHaveClass("pointer-events-none");
+  });
+
   it("keeps ranking chrome visible while the list loads", () => {
     const { container } = renderView({
       roi: resource<CostRoiPage>({ empty: true, failed: false }),

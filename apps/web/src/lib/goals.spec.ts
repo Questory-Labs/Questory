@@ -59,10 +59,10 @@ describe("goals lib", () => {
     await fetchGoals({ status: "active" });
     expect(apiMock).toHaveBeenLastCalledWith("/goals?status=active");
 
-    await createGoal({ kind: "game", name: "Hades", domain: "games", timeframe: "month" });
+    await createGoal({ kind: "game", name: "Hades", domain: "games", timeframe: "week" });
     expect(apiMock).toHaveBeenLastCalledWith("/goals", {
       method: "POST",
-      body: JSON.stringify({ kind: "game", name: "Hades", domain: "games", timeframe: "month" }),
+      body: JSON.stringify({ kind: "game", name: "Hades", domain: "games", timeframe: "week" }),
     });
 
     await updateGoal("a/b", { done: true });

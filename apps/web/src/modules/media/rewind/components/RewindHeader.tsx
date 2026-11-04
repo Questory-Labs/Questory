@@ -6,9 +6,9 @@ import { CURRENT_YEAR, MONTHS, REWIND_START_YEAR } from "../media.rewind.constan
 import type { RewindMonth } from "../media.rewind.types";
 
 const pillLabel =
-  "flex min-h-[42px] items-center gap-1.5 rounded-full border border-white/8 bg-black/25 px-3.5 text-[13px] text-muted";
+  "flex min-h-[42px] items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.03] px-3.5 text-[13px] text-muted";
 const pillSelect =
-  "border-0 bg-transparent text-[13px] text-ink outline-none disabled:opacity-50 [&>option]:bg-[var(--bg-1)]";
+  "border-0 bg-transparent text-[13px] text-ink outline-none [field-sizing:content] disabled:opacity-50 [&>option]:bg-[var(--bg-1)]";
 
 export const RewindHeader = ({
   eyebrow,
@@ -39,7 +39,7 @@ export const RewindHeader = ({
   ).reverse();
   return (
     <PageHeader
-      className="!mb-0 px-1 pb-1 pt-2"
+      className="!mb-0 pb-1 pt-2"
       eyebrow={eyebrow}
       title={
         <>

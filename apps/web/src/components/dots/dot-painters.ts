@@ -174,6 +174,11 @@ const drawMorphShape =
 export const morphIndexAt = (time: number) =>
   Math.floor(time / MORPH_PERIOD_SEC) % MORPH_TINTS.length;
 
+const MORPH_MIDPOINT_FRAC = 0.81;
+
+export const morphLabelIndexAt = (time: number) =>
+  Math.floor(time / MORPH_PERIOD_SEC + 1 - MORPH_MIDPOINT_FRAC) % MORPH_TINTS.length;
+
 export const createMorphPainter = (): DotPainter => {
   const { w: W, h: H, step: S } = MORPH_GRID;
   const rnd = seededRandom(W * H, 13);
@@ -260,21 +265,36 @@ export const createLinkPainter =
 
 export const GLYPH_GRID = { w: 64, h: 28, step: 9 } as const;
 
+export const STATUS_GRID = { w: 96, h: 42, step: 9 } as const;
+const STATUS_FONT_FACE = '700 44px "UnifrakturCook"';
+
 export const createGlyphPainter = (text: string, tint: string): DotPainter => {
-  const { w: W, h: H, step: S } = GLYPH_GRID;
+  const { w: W, h: H, step: S } = STATUS_GRID;
   const rnd = seededRandom(W * H * 3, 21);
   let glyph: Float32Array | null = null;
-  let start: number | null = null;
+  let fontPending = true;
+  let fontRequested = false;
   return (ctx, time) => {
+    const fonts = document.fonts;
+    if (fontPending && fonts) {
+      if (fonts.check(STATUS_FONT_FACE, text)) {
+        fontPending = false;
+        glyph = null;
+      } else if (!fontRequested) {
+        fontRequested = true;
+        fonts.load(STATUS_FONT_FACE, text).catch(() => {
+          fontPending = false;
+        });
+      }
+    }
     glyph ??= alphaMask(W, H, (x) => {
       x.fillStyle = "#ffffff";
       x.textAlign = "center";
-      x.textBaseline = "middle";
-      x.font = '700 25px "JetBrains Mono", ui-monospace, monospace';
-      x.fillText(text, W / 2, H / 2 + 1);
+      x.textBaseline = "alphabetic";
+      x.font = `${STATUS_FONT_FACE}, "Outfit", system-ui, sans-serif`;
+      const ink = x.measureText(text);
+      x.fillText(text, W / 2, H / 2 + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2);
     });
-    start ??= time;
-    const age = time - start;
     const cw = ctx.canvas.width;
     const ch = ctx.canvas.height;
     ctx.clearRect(0, 0, cw, ch);
@@ -286,13 +306,13 @@ export const createGlyphPainter = (text: string, tint: string): DotPainter => {
         const px0 = gx * S + S / 2;
         const py0 = gy * S + S / 2;
         if (v < 0.1) {
-          if (r > 0.985) {
+          if (r > 0.9933) {
             const a = 0.08 + 0.12 * Math.max(0, Math.sin(time * 1.2 + r * 700));
             plus(ctx, px0, py0, a, 1.2, DOT_INK, 1.4);
           }
           continue;
         }
-        const k = Math.max(0, Math.min(1, (age - r * 0.5) / 0.9));
+        const k = Math.max(0, Math.min(1, (time - r * 0.5) / 0.9));
         const e = 1 - Math.pow(1 - k, 3);
         const sx = (rnd[i + W * H] - 0.5) * cw * 0.6;
         const sy = (rnd[i + W * H * 2] - 0.5) * ch * 0.9;

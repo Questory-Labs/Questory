@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { CacheService } from "../../cache/cache.service";
+import { resolveAllowedOrigins } from "../../lib/runtime-config";
 import { resolveSessionSecret } from "@questorylabs/shared/session";
 import type { AbuseLimit, AuthChallengeKind } from "@questorylabs/shared";
 
@@ -77,7 +78,7 @@ export class AuthAbuseService {
   }
 
   assertOriginAllowed(originOrReferer: string | undefined): void {
-    const allowed = this.allowedOrigins();
+    const allowed = new Set(resolveAllowedOrigins());
     if (!originOrReferer) {
       this.metrics.originReject += 1;
       throw new ForbiddenException("Invalid origin");
@@ -93,28 +94,6 @@ export class AuthAbuseService {
       this.metrics.originReject += 1;
       throw new ForbiddenException("Invalid origin");
     }
-  }
-
-  private allowedOrigins(): Set<string> {
-    const set = new Set<string>();
-    const web = (process.env.WEB_ORIGIN || "http://localhost:3000").trim();
-    try {
-      set.add(new URL(web).origin);
-    } catch {
-      set.add("http://localhost:3000");
-    }
-    const extras = (process.env.AUTH_ALLOWED_ORIGINS || "")
-      .split(/[,\s]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    for (const e of extras) {
-      try {
-        set.add(new URL(e).origin);
-      } catch {
-        // ignore
-      }
-    }
-    return set;
   }
 
   async issueChallenge(

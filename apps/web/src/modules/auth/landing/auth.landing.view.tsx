@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { useMorphIndex } from "@/components/auth/AuthMorphAside";
+import { useMorphPainter } from "@/components/auth/AuthMorphAside";
 import { BrandMark } from "@/components/BrandMark";
 import { DotCanvas } from "@/components/dots/DotCanvas";
-import { createMorphPainter, MORPH_GRID } from "@/components/dots/dot-painters";
+import { MORPH_GRID } from "@/components/dots/dot-painters";
 import type { LandingViewProps } from "./auth.landing.types";
 
 const WORDS = [
@@ -47,11 +46,11 @@ const ghostCta = "btn btn-ghost min-h-12 px-[22px] text-[15px]";
 
 export const LandingView = (props: Record<string, unknown>) => {
   const { showRegister } = props as LandingViewProps;
-  const paint = useMemo(() => createMorphPainter(), []);
-  const active = WORDS[useMorphIndex(WORDS.length)];
+  const { paint, index } = useMorphPainter();
+  const active = WORDS[index];
 
   return (
-    <div className="min-h-screen bg-[var(--bg-0)] text-[var(--ink)]">
+    <div className="min-h-screen text-[var(--ink)]">
       <div className="sticky top-0 z-20 flex justify-center px-4 pt-4">
         <header className="q-in flex w-full max-w-[1180px] items-center justify-between gap-3 rounded-full border border-white/[0.08] bg-[rgba(20,20,22,0.6)] py-1.5 pr-1.5 pl-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-[18px]">
           <BrandMark href={null} size="sm" wordmarkClassName="text-lg" />

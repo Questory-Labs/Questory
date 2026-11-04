@@ -20,7 +20,11 @@ export const CostHero = ({ summary }: { summary: CostSummary }) => {
       className="panel q-in relative flex flex-wrap items-end gap-7 overflow-hidden bg-[linear-gradient(160deg,rgba(210,210,214,0.16),rgba(255,255,255,0.016)_55%)] px-7 py-[26px]"
       style={{ ["--i" as string]: 1 }}
     >
-      <span aria-hidden="true" className="dot-matrix q-twinkle absolute -right-[60px] -top-20 h-80 w-[480px] opacity-30" />
+      <span
+        aria-hidden="true"
+        data-testid="cost-hero-dots"
+        className="dot-matrix q-twinkle pointer-events-none absolute right-0 top-0 h-[120px] w-[360px] opacity-30 [mask-image:radial-gradient(60%_80%_at_85%_0%,#000,transparent)]"
+      />
       <div className="relative flex-[1_1_300px]">
         <p id="cost-value" className="label-mono text-[var(--muted)]">
           Estimated library value

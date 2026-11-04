@@ -1,19 +1,24 @@
 "use client";
 
+import type { AiGoal } from "@questorylabs/shared";
 import type { GoalSuggestion } from "@/lib/enterprise-types";
 import { GOAL_DOMAIN_COLOR, goalKindLabel } from "@/lib/goals";
 import { formatHours } from "../enterprise.goals.utils";
 
-export const SuggestionRow = ({
+export const SuggestionRow = <T extends GoalSuggestion | AiGoal>({
   suggestion,
   busy,
   disabled,
   onAccept,
+  onReroll,
+  rerolling = false,
 }: {
-  suggestion: GoalSuggestion;
+  suggestion: T;
   busy: boolean;
   disabled: boolean;
-  onAccept: (suggestion: GoalSuggestion) => void;
+  onAccept: (suggestion: T) => void;
+  onReroll?: (suggestion: T) => void;
+  rerolling?: boolean;
 }) => {
   const color = GOAL_DOMAIN_COLOR[suggestion.domain];
   return (
@@ -33,6 +38,17 @@ export const SuggestionRow = ({
         <span className="text-[26px] font-extralight tracking-[-0.03em] text-[var(--muted)]">
           ~{formatHours(suggestion.estimatedTimeMinutes)}
         </span>
+      ) : null}
+      {onReroll ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onReroll(suggestion)}
+          aria-label={`Reroll ${suggestion.name}`}
+          className="min-h-9 rounded-full border border-[var(--line)] px-3.5 text-[13px] text-[var(--muted)] transition-transform duration-500 hover:-translate-y-0.5 disabled:opacity-60"
+        >
+          {rerolling ? "Rerolling…" : "Reroll"}
+        </button>
       ) : null}
       <button
         type="button"

@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { CountUp } from "@questorylabs/ui";
+import { CountUp, cn } from "@questorylabs/ui";
 import { DASHBOARD_CHART } from "../steam.dashboard.constants";
 import type { TimeChartModel, TimePlayedModel } from "../dashboard-time";
 import { ArrowGlyph } from "./NowCard";
@@ -89,10 +89,14 @@ const TimeChart = ({ chart }: { chart: TimeChartModel }) => {
 
 export const TimePlayedHero = ({ model }: { model: TimePlayedModel }) => {
   const delta = model.deltaHours;
+  const compact = !model.chart;
   return (
     <section
       aria-labelledby="dashboard-time"
-      className="panel q-lift q-in flex flex-1 flex-col px-5 pb-4 pt-5"
+      className={cn(
+        "panel q-lift q-in flex flex-col",
+        compact ? "px-5 py-[18px]" : "flex-1 px-5 pb-4 pt-5",
+      )}
       style={{ "--i": 3 } as CSSProperties}
     >
       <div className="flex items-start justify-between">
@@ -107,30 +111,37 @@ export const TimePlayedHero = ({ model }: { model: TimePlayedModel }) => {
           <ArrowGlyph size={14} />
         </Link>
       </div>
-      <p className="mt-1.5 text-[64px] font-extralight leading-none tracking-[-0.04em]">
-        <CountUp value={model.hours} decimals={1} dimDecimals />
-        <span className="ml-1.5 text-base tracking-normal text-[var(--muted)]">h</span>
-      </p>
-      {model.avgPerDayHours != null || delta != null ? (
-        <p className="mt-2.5 text-[13px] text-[var(--muted)]">
-          {model.avgPerDayHours != null ? (
-            <>
-              Average <span className="text-[var(--ink)]">{model.avgPerDayHours} h</span>{" "}
-              {model.avgScope}
-            </>
-          ) : null}
-          {delta != null ? (
-            <>
-              {" · "}
-              <span className={delta >= 0 ? "text-[var(--ok)]" : "text-[var(--muted)]"}>
-                {delta >= 0 ? "+" : "−"}
-                {Math.abs(delta)} h
-              </span>{" "}
-              on last week
-            </>
-          ) : null}
+      <div className={cn(compact && "mt-auto flex flex-wrap items-end justify-between gap-x-4 gap-y-1")}>
+        <p
+          className={cn(
+            "font-extralight leading-none",
+            compact ? "m-0 text-[46px]" : "mt-1.5 text-[64px] tracking-[-0.04em]",
+          )}
+        >
+          <CountUp value={model.hours} decimals={1} dimDecimals />
+          <span className="ml-1.5 text-base tracking-normal text-[var(--muted)]">h</span>
         </p>
-      ) : null}
+        {model.avgPerDayHours != null || delta != null ? (
+          <p className={cn("text-[13px] text-[var(--muted)]", compact ? "m-0" : "mt-2.5")}>
+            {model.avgPerDayHours != null ? (
+              <>
+                Average <span className="text-[var(--ink)]">{model.avgPerDayHours} h</span>{" "}
+                {model.avgScope}
+              </>
+            ) : null}
+            {delta != null ? (
+              <>
+                {" · "}
+                <span className={delta >= 0 ? "text-[var(--ok)]" : "text-[var(--muted)]"}>
+                  {delta >= 0 ? "+" : "−"}
+                  {Math.abs(delta)} h
+                </span>{" "}
+                on last week
+              </>
+            ) : null}
+          </p>
+        ) : null}
+      </div>
       {model.chart ? <TimeChart chart={model.chart} /> : null}
     </section>
   );

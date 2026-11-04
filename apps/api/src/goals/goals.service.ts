@@ -71,7 +71,7 @@ export class GoalsService {
   }
 
   async create(userId: string, input: GoalCreate, now = new Date()): Promise<Goal> {
-    const { start, end } = goalPeriod(input.timeframe, parseTimeZone(input.tz), now);
+    const { start, end } = goalPeriod(parseTimeZone(input.tz), now);
     if (input.targetRef) {
       const existing = await this.prisma.goal.findFirst({
         where: {

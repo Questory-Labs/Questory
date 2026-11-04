@@ -13,9 +13,12 @@ export type RewindRankItem = {
   imageUrl?: string | null;
 };
 
+export type RewindCategory = "games" | "music" | "watch" | "read";
+
 export type RewindRankList = {
   key: string;
   title: string;
+  category: RewindCategory;
   items: RewindRankItem[];
 };
 

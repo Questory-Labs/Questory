@@ -1,7 +1,7 @@
 "use client";
 
 import { ProgressRing } from "@questorylabs/ui";
-import type { Goal, GoalTimeframe } from "@questorylabs/shared";
+import type { Goal } from "@questorylabs/shared";
 import {
   fitsInPeriod,
   formatHours,
@@ -52,13 +52,11 @@ const Summary = ({
 };
 
 export const GoalsProgress = ({
-  timeframe,
   goals,
   period,
   now,
   weeklyHours,
 }: {
-  timeframe: GoalTimeframe;
   goals: Goal[];
   period: GoalPeriod;
   now: Date;
@@ -68,7 +66,7 @@ export const GoalsProgress = ({
   const total = goals.length;
   const elapsed = periodElapsed(period, now);
   const [from, to] = periodEdgeLabels(period);
-  const title = periodTitle(timeframe, period);
+  const title = periodTitle("week", period);
   return (
     <section
       aria-label={`${title} progress`}

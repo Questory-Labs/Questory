@@ -83,7 +83,7 @@ export const AccountMenu = ({
       {open && (
         <div
           role="menu"
-          className={`panel q-pop absolute left-0 right-0 z-50 overflow-hidden rounded-[18px] p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-[18px] ${
+          className={`panel q-menu absolute left-0 right-0 z-50 overflow-hidden rounded-[18px] p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-[18px] ${
             placement === "up" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >

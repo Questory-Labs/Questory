@@ -13,6 +13,10 @@ import { getConfiguredSchedules } from "./cron-schedules";
 import { InternalCronService } from "./internal-cron.service";
 import { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
 import type { FeatureSource } from "@questorylabs/shared";
+import {
+  EnterpriseAiGoalsService,
+  type AiGoalsRefreshResult,
+} from "../enterprise/enterprise-ai-goals.service";
 import { FeatureFlagsService } from "../features/feature-flags.service";
 
 export { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
@@ -29,6 +33,9 @@ export class JobsService implements OnModuleInit {
     @Optional()
     @Inject(WATCH_CRON_SYNC)
     private readonly watchCron: WatchCronSync | null,
+    @Optional()
+    @Inject(EnterpriseAiGoalsService)
+    private readonly aiGoals: EnterpriseAiGoalsService | null = null,
   ) {}
 
   onModuleInit() {
@@ -63,9 +70,10 @@ export class JobsService implements OnModuleInit {
     this.addJob("price-sync", schedules["price-sync"], () =>
       this.runPriceSync(),
     );
+    this.addJob("ai-goals", schedules["ai-goals"], () => this.runAiGoals());
 
     this.logger.log(
-      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]}), price-sync (${schedules["price-sync"]})`,
+      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]}), price-sync (${schedules["price-sync"]}), ai-goals (${schedules["ai-goals"]})`,
     );
   }
 
@@ -118,6 +126,27 @@ export class JobsService implements OnModuleInit {
       () => this.internalCron.syncPricesDaily(),
     );
     this.logger.log(`price-sync done: ${JSON.stringify(result)}`);
+  }
+
+  refreshAiGoals() {
+    if (!this.aiGoals) {
+      return Promise.resolve<AiGoalsRefreshResult>({
+        users: 0,
+        boards: 0,
+        noSources: 0,
+        failed: 0,
+        skipped: "enterprise_unavailable",
+      });
+    }
+    return this.aiGoals.refreshBoards();
+  }
+
+  async runAiGoals() {
+    this.logger.log("Starting ai-goals");
+    const { result } = await this.cronRunner.run("ai-goals", "system", () =>
+      this.refreshAiGoals(),
+    );
+    this.logger.log(`ai-goals done: ${JSON.stringify(result)}`);
   }
 
   async runWatchSync() {

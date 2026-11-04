@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { MORPH_PERIOD_SEC } from "@/components/dots/dot-painters";
 import {
   AuthAlert,
   AuthField,
@@ -79,5 +80,31 @@ describe("AuthMorphAside", () => {
         window.location.host ? `Self-hosted at ${window.location.host}` : "Self-hosted",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("moves the active pill on the canvas clock", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => frames.push(cb));
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValueOnce({
+      canvas: { width: 600, height: 384 },
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+    } as unknown as ReturnType<HTMLCanvasElement["getContext"]>);
+    const start = performance.now();
+    render(<AuthMorphAside />);
+
+    const frameAt = (periods: number) =>
+      act(() => frames.shift()?.(start + periods * MORPH_PERIOD_SEC * 1000));
+
+    frameAt(0.7);
+    expect(screen.getByText("Games").closest("li")).toHaveAttribute("aria-current", "true");
+    frameAt(1.1);
+    expect(screen.getByText("Music").closest("li")).toHaveAttribute("aria-current", "true");
+    frameAt(10.1);
+    expect(screen.getByText("Watch").closest("li")).toHaveAttribute("aria-current", "true");
+
+    spy.mockRestore();
+    vi.unstubAllGlobals();
   });
 });

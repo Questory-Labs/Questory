@@ -434,6 +434,7 @@ describe("DashboardView", () => {
       goals: resource({ empty: false, failed: false, value: { items: [] } }),
     });
     expect(screen.getByRole("heading", { name: "Time played" })).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-summary")).toHaveClass("flex-[1_1_100%]");
     expect(screen.getByText("Sources synced")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Needs you/ })).toHaveAttribute("href", "/sessions");
     expect(screen.getByRole("heading", { name: "Goals" })).toBeInTheDocument();

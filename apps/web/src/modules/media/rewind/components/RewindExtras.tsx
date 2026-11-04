@@ -1,5 +1,5 @@
 import type { RewindCommonExtras } from "@questorylabs/shared";
-import type { RewindRankList, RewindStatTile } from "../media.rewind.summary.types";
+import type { RewindCategory, RewindRankList, RewindStatTile } from "../media.rewind.summary.types";
 import { dayLabel, formatCount as defaultFormat, priorLabel, signedPct } from "../media.rewind.format";
 
 export const rewindExtrasTiles = (
@@ -41,6 +41,7 @@ export const rewindExtrasTiles = (
 };
 
 export const rewindFadedList = (
+  category: RewindCategory,
   stats: RewindCommonExtras,
   period: string,
   unitLabel: string,
@@ -50,6 +51,7 @@ export const rewindFadedList = (
   if (!faded?.length) return null;
   return {
     key: "faded",
+    category,
     title: `Faded out since ${priorLabel(period)}`,
     items: faded.map((item) => ({
       id: item.id,

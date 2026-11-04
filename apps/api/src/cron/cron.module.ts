@@ -1,5 +1,6 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { EnterpriseModule } from "../enterprise/enterprise.module";
 import { SyncModule } from "../sync/sync.module";
 import { SteamModule } from "../steam/steam.module";
 import { WatchModule } from "../watch/watch.module";
@@ -17,6 +18,7 @@ import { JobsService } from "./jobs.service";
     SteamModule,
     forwardRef(() => WatchModule),
     ProfileDataModule,
+    EnterpriseModule,
   ],
   controllers: [InternalCronController],
   providers: [

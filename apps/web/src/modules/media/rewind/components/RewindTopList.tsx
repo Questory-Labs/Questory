@@ -1,13 +1,46 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import type { RewindRankItem } from "../media.rewind.summary.types";
+import { useState, type CSSProperties } from "react";
+import type { RewindCategory, RewindRankItem } from "../media.rewind.summary.types";
+import { RewindPlaceholder } from "./RewindPlaceholder";
+
+const RewindThumb = ({
+  src,
+  category,
+  seed,
+}: {
+  src?: string | null;
+  category: RewindCategory;
+  seed: string;
+}) => {
+  const [settled, setSettled] = useState<{ src: string; status: "loaded" | "failed" } | null>(null);
+  const status = src && settled?.src === src ? settled.status : "pending";
+  const showImage = Boolean(src) && status !== "failed";
+  return (
+    <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-[var(--bg-3)]">
+      {status === "loaded" && showImage ? null : (
+        <RewindPlaceholder category={category} seed={seed} />
+      )}
+      {showImage ? (
+        <img
+          src={src ?? undefined}
+          alt=""
+          onLoad={() => src && setSettled({ src, status: "loaded" })}
+          onError={() => src && setSettled({ src, status: "failed" })}
+          className="absolute inset-0 size-full object-cover"
+        />
+      ) : null}
+    </span>
+  );
+};
 
 export const RewindTopList = ({
   title,
+  category,
   items,
 }: {
   title: string;
+  category: RewindCategory;
   items: RewindRankItem[];
 }) => {
   if (!items?.length) return null;
@@ -27,13 +60,7 @@ export const RewindTopList = ({
             <span className="w-[22px] font-mono text-[10px] text-[var(--dim)]">
               {String(i + 1).padStart(2, "0")}
             </span>
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt=""
-                className="size-8 shrink-0 rounded-lg bg-[var(--bg-3)] object-cover"
-              />
-            ) : null}
+            <RewindThumb src={item.imageUrl} category={category} seed={item.id} />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-normal">{item.name}</span>
               {item.subtitle ? (

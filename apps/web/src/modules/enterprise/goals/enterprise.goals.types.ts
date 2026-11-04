@@ -1,24 +1,34 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type {
+  AiGoal,
+  AiGoalsResponse,
   Goal,
   GoalListResponse,
-  GoalTimeframe,
   PlaySessionStats,
 } from "@questorylabs/shared";
 import type {
   GoalSuggestion,
   RecommendationGoalsResponse,
 } from "@/lib/enterprise-types";
+import type { GoalsTab } from "./enterprise.goals.constants";
 import type { GoalPeriod } from "./enterprise.goals.utils";
 
 export type GoalsViewProps = {
-  timeframe: GoalTimeframe;
-  setTimeframe: (timeframe: GoalTimeframe) => void;
+  tab: GoalsTab;
+  setTab: (tab: GoalsTab) => void;
+  history: UseResourceResult<GoalListResponse>;
+  pastGoals: Goal[];
   targetCount: number;
   setTargetCount: (count: number) => void;
   goals: UseResourceResult<GoalListResponse>;
   suggestions: UseResourceResult<RecommendationGoalsResponse>;
+  aiGoals: UseResourceResult<AiGoalsResponse>;
+  pendingAi: AiGoal[];
+  noSources: boolean;
+  rerollingKey: string | null;
+  rerollError: string | null;
+  onReroll: (goal: AiGoal) => void;
   stats: UseResourceResult<PlaySessionStats>;
   current: Goal[];
   pending: GoalSuggestion[];
@@ -32,7 +42,7 @@ export type GoalsViewProps = {
   setRemoveTarget: Dispatch<SetStateAction<Goal | null>>;
   removing: boolean;
   actionFailed: boolean;
-  onAccept: (suggestion: GoalSuggestion) => void;
+  onAccept: (suggestion: GoalSuggestion | AiGoal) => void;
   onToggle: (goal: Goal) => void;
   onConfirmRemove: () => void;
 };
