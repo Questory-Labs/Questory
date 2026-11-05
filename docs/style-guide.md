@@ -44,7 +44,7 @@ Use [`PageHeader`](../packages/ui/src/PageHeader.tsx) for authenticated pages.
 
 | Surface | Rule |
 |---------|------|
-| Landing `/` | No `AppShell`. Brand-first hero; ambient `LandingBackground`. |
+| Landing `/` | No `AppShell`. Brand-first hero. |
 | Authenticated | Wrap with `AppShell`. Content width comes from shell `main` (`max-w-6xl` + padding). |
 | Nested pages | Do **not** add another `max-w-*` + `px-*` + `py-*` wrapper inside AppShell. |
 

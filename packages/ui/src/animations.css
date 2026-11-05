@@ -1,0 +1,149 @@
+.q-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: q-ripple 2.7s ease-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.9s);
+}
+
+.q-rise {
+  animation: q-rise 3s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -1s);
+}
+
+.q-arm {
+  transform-box: view-box;
+  transform-origin: 186px 12px;
+  animation: q-arm 2.4s ease-in-out infinite alternate;
+}
+
+.q-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: q-pulse 1.4s ease-in-out infinite alternate;
+}
+
+.q-pan {
+  animation: q-pan var(--q-pan-time, 5s) linear infinite;
+}
+
+.q-scan {
+  animation: q-scan 2.6s linear infinite;
+}
+
+.q-page {
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 110px 0;
+  animation: q-page 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -1.2s);
+}
+
+.q-write {
+  stroke-dasharray: 1;
+  animation: q-write 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.45s);
+}
+
+@keyframes q-ripple {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  25% {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes q-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) rotate(-8deg);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-34px) rotate(10deg);
+  }
+}
+
+@keyframes q-arm {
+  from {
+    transform: rotate(-3deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes q-pulse {
+  from {
+    transform: scale(0.88);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes q-pan {
+  to {
+    transform: translateX(var(--q-pan, -66px));
+  }
+}
+
+@keyframes q-scan {
+  from {
+    transform: translateY(-6px);
+  }
+  to {
+    transform: translateY(70px);
+  }
+}
+
+@keyframes q-page {
+  from {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  65% {
+    opacity: 1;
+    transform: scaleX(-1);
+  }
+  80%,
+  to {
+    opacity: 0;
+    transform: scaleX(-1);
+  }
+}
+
+@keyframes q-write {
+  from {
+    stroke-dashoffset: 1;
+  }
+  55%,
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-ripple,
+  .q-rise,
+  .q-arm,
+  .q-pulse,
+  .q-pan,
+  .q-scan,
+  .q-page,
+  .q-write {
+    animation: none;
+  }
+}

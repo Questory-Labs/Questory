@@ -40,6 +40,7 @@ export const MusicListeningController = ({ children }: PropsWithChildren) => {
 
   const recent = useResource({
     id: ["music-recent", page, q, source],
+    keepPrevious: true,
     load: () =>
       musicFetch<MusicRecentPage>(
         recentPath({ page, pageSize: MUSIC_LISTENING_PAGE_SIZE, q, source }),

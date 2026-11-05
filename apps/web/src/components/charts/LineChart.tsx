@@ -1,14 +1,10 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
-import { ChartGrid, ChartHoverCard } from "./ChartGrid";
-import {
-  buildLineLayout,
-  defaultXLabel,
-  monotoneAreaPath,
-  monotoneLinePath,
-  useChartWidth,
-} from "./chart-utils";
+import { useMemo, useRef, useState } from "react";
+import { CHART_LINE_COLOR } from "@/lib/charts";
+import { ChartDot, ChartGrid, ChartHoverCard, ChartHoverMarker } from "./ChartGrid";
+import { bareChartPad, pickPeakPoints, straightLinePath } from "./bare-chart";
+import { buildLineLayout, defaultXLabel, useChartWidth } from "./chart-utils";
 import type { ChartSize, SketchDatum } from "./types";
 
 export type { SketchDatum };
@@ -23,6 +19,7 @@ export function LineChart({
   size = "lg",
   xMode = "index",
   xLabelAngle = 0,
+  showYAxis = true,
 }: {
   data: SketchDatum[];
   ariaLabel?: string;
@@ -33,16 +30,20 @@ export function LineChart({
   size?: ChartSize;
   xMode?: "index" | "time";
   xLabelAngle?: number;
+  showYAxis?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const fillId = useId().replace(/:/g, "");
   const [hover, setHover] = useState<number | null>(null);
   const width = useChartWidth(rootRef);
 
   const layout = useMemo(() => {
     const w = width > 0 ? width : 720;
-    return buildLineLayout(data, w, { size, xMode });
-  }, [data, width, size, xMode]);
+    return buildLineLayout(data, w, {
+      size,
+      xMode,
+      pad: showYAxis ? undefined : bareChartPad(size),
+    });
+  }, [data, width, size, xMode, showYAxis]);
 
   if (data.length < 2) {
     return (
@@ -55,46 +56,44 @@ export function LineChart({
   const { pad } = layout;
   const active = hover != null ? layout.points[hover] : null;
   const xLabelY = layout.baseline + (xLabelAngle !== 0 ? 12 : 16);
-  const lineD = monotoneLinePath(layout.points);
-  const areaD = monotoneAreaPath(layout.points, layout.baseline);
+  const lineD = straightLinePath(layout.points);
+  const peaks = pickPeakPoints(layout.points);
 
   return (
     <div ref={rootRef} className="relative w-full" data-sketch-chart>
       <svg
         viewBox={`0 0 ${chartW} ${H}`}
-        className="w-full select-none"
+        className="w-full select-none overflow-visible"
         style={{ height: H }}
         role="img"
         aria-label={ariaLabel}
         onMouseLeave={() => setHover(null)}
         preserveAspectRatio="none"
       >
-        <defs>
-          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <ChartGrid
-          width={chartW}
-          pad={pad}
-          plotH={layout.plotH}
-          yTicks={layout.yTicks}
-          yMax={layout.yMax}
-          baseline={layout.baseline}
-        />
-        <path d={areaD} fill={`url(#${fillId})`} />
+        {showYAxis ? (
+          <ChartGrid
+            width={chartW}
+            pad={pad}
+            plotH={layout.plotH}
+            yTicks={layout.yTicks}
+            yMax={layout.yMax}
+            baseline={layout.baseline}
+          />
+        ) : null}
         <path
+          className="q-draw"
+          pathLength={1}
           d={lineD}
           fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.75"
+          stroke={CHART_LINE_COLOR}
+          strokeWidth="1.2"
           strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
         />
+        {peaks.map((p, i) => (
+          <ChartDot key={`peak-${i}`} x={p.x} y={p.y} />
+        ))}
 
-        {layout.yTicks.map((tick) => {
+        {(showYAxis ? layout.yTicks : []).map((tick) => {
           const y =
             pad.top + layout.plotH - (tick / layout.yMax) * layout.plotH;
           return (
@@ -145,34 +144,19 @@ export function LineChart({
         ))}
 
         {active ? (
-          <>
-            <line
-              x1={active.x}
-              y1={pad.top}
-              x2={active.x}
-              y2={layout.baseline}
-              stroke="var(--accent)"
-              strokeWidth="1"
-              strokeDasharray="3 4"
-              opacity="0.5"
-              vectorEffect="non-scaling-stroke"
-            />
-            <circle
-              cx={active.x}
-              cy={active.y}
-              r="3.5"
-              fill="var(--bg-1)"
-              stroke="var(--accent)"
-              strokeWidth="1.75"
-            />
-          </>
+          <ChartHoverMarker
+            x={active.x}
+            y={active.y}
+            top={pad.top}
+            bottom={layout.baseline}
+          />
         ) : null}
       </svg>
 
       {active ? (
         <ChartHoverCard xPct={(active.x / chartW) * 100}>
           <div className="text-[var(--muted)]">{formatXLabel(active.label)}</div>
-          <div className="mt-0.5 text-[var(--accent)]">
+          <div className="mt-0.5">
             {formatValue(active.value)} {valueLabel}
           </div>
         </ChartHoverCard>

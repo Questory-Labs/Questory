@@ -31,26 +31,24 @@ export const PartyPicker = ({
   filters,
 }: Pick<MultiplayerViewProps, "friends" | "filters">) => {
   const friendList = friends.value?.friends || [];
-  const { filteredFriends, selected, friendFilter } = filters;
+  const { selected } = filters;
 
-  const visible = useMemo(() => {
+  const { visible, more } = useMemo(() => {
     const selectedSet = new Set(selected);
     const picked = friendList.filter((f) => selectedSet.has(f.steamId));
-    const rest = filteredFriends
+    const rest = friendList
       .filter((f) => !selectedSet.has(f.steamId))
       .sort(
         (a, b) =>
           Number((b.personaState ?? 0) > 0) - Number((a.personaState ?? 0) > 0),
-      )
-      .slice(0, PARTY_PICKER_LIMIT);
-    return [...picked, ...rest];
-  }, [friendList, filteredFriends, selected]);
-
-  const hidden = Math.max(
-    0,
-    filteredFriends.filter((f) => !selected.includes(f.steamId)).length -
-      PARTY_PICKER_LIMIT,
-  );
+      );
+    return {
+      visible: [...picked, ...rest.slice(0, PARTY_PICKER_LIMIT)],
+      more: rest
+        .slice(PARTY_PICKER_LIMIT)
+        .sort((a, b) => a.personaName.localeCompare(b.personaName)),
+    };
+  }, [friendList, selected]);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -98,28 +96,28 @@ export const PartyPicker = ({
               </button>
             );
           })}
-          {friendList.length > 0 ? (
-            <label className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-4 text-[13px] text-[var(--muted)]">
-              <span className="sr-only">Search friends</span>
-              <input
-                type="search"
-                value={friendFilter}
-                onChange={(e) => filters.setFriendFilter(e.target.value)}
-                placeholder={
-                  hidden > 0 ? `Search ${hidden} more friends…` : "Search friends…"
-                }
-                className="w-44 min-w-0 border-0 bg-transparent text-[13px] text-[var(--ink)] outline-0"
-              />
-            </label>
+          {more.length > 0 ? (
+            <select
+              aria-label="Add a friend"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) filters.toggle(e.target.value);
+              }}
+              className="min-h-[42px] max-w-[14rem] cursor-pointer rounded-full border border-white/[0.08] bg-black/25 px-4 text-[13px] text-[var(--muted)] outline-none focus:border-[var(--line-strong)]"
+            >
+              <option value="">
+                {`Add from ${more.length} more ${more.length === 1 ? "friend" : "friends"}…`}
+              </option>
+              {more.map((f: Friend) => (
+                <option key={f.steamId} value={f.steamId}>
+                  {f.personaName}
+                </option>
+              ))}
+            </select>
           ) : null}
           {!friendList.length && (
             <p className="text-xs text-[var(--faint)]">
               Sync friends to intersect libraries.
-            </p>
-          )}
-          {friendList.length > 0 && !filteredFriends.length && (
-            <p className="text-xs text-[var(--faint)]">
-              No friends match “{friendFilter.trim()}”.
             </p>
           )}
         </>

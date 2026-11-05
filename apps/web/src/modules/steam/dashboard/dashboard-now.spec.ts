@@ -16,7 +16,7 @@ describe("dashboard-now", () => {
     expect(card).toMatchObject({ kind: "Continue", badge: "3h", live: false, href: "/library/1" });
   });
 
-  it("uses playing-now for a live music card with progress", () => {
+  it("uses playing-now for a live music card without playback progress", () => {
     const card = musicNowCard({
       playingNow: {
         startedAt: "2026-10-28T11:59:00.000Z",
@@ -30,14 +30,14 @@ describe("dashboard-now", () => {
           durationMs: 120000,
         },
       } as unknown as MusicPlayingNow,
-      now,
     });
-    expect(card).toMatchObject({ live: true, badge: "1:00", sub: "2023", sources: ["Lastfm"] });
-    expect(card?.progress?.pct).toBe(0.5);
+    expect(card).toMatchObject({ live: true, sub: "2023", sources: ["Lastfm"] });
+    expect(card?.badge).toBeUndefined();
+    expect(card).not.toHaveProperty("progress");
   });
 
   it("returns null without playing-now or a recent listen", () => {
-    expect(musicNowCard({ now })).toBeNull();
+    expect(musicNowCard({})).toBeNull();
   });
 
   it("marks partial watches as paused", () => {
@@ -49,11 +49,12 @@ describe("dashboard-now", () => {
       title: { id: "m1", name: "1917", type: "movie" },
       episode: null,
     } as unknown as WatchRecentEvent);
-    expect(card).toMatchObject({ status: "Paused", badge: "40%" });
-    expect(card?.progress?.pct).toBe(0.4);
+    expect(card).toMatchObject({ status: "Paused" });
+    expect(card?.badge).toBeUndefined();
+    expect(card).not.toHaveProperty("progress");
   });
 
-  it("shows chapter progress when the total is known", () => {
+  it("hides chapter progress on read cards", () => {
     const card = readNowCard({
       id: "r1",
       readAt: "2026-10-27T12:00:00.000Z",
@@ -63,8 +64,9 @@ describe("dashboard-now", () => {
       status: "reading",
       title: { id: "b1", name: "Frieren", format: "manga" },
     } as unknown as ReadRecentEvent);
-    expect(card).toMatchObject({ badge: "5 / 20", sub: expect.stringContaining("Chapter 5") });
-    expect(card?.progress?.pct).toBe(0.25);
+    expect(card?.badge).toBeUndefined();
+    expect(card?.sub).not.toContain("Chapter");
+    expect(card).not.toHaveProperty("progress");
     expect(readNowCard(undefined)).toBeNull();
   });
 });

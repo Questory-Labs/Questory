@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { useResource, useStore } from "@questorylabs/qhttp/react";
+import { useResource, useStore, type ResourceStore } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import type { SyncJob } from "@questorylabs/shared";
 
@@ -41,6 +41,59 @@ function isActiveStatus(status: SyncJob["status"] | undefined) {
   return status === "pending" || status === "running";
 }
 
+const STEAM_SYNC_RESOURCES = [
+  ["dashboard"],
+  ["library"],
+  ["wishlist"],
+  ["friends"],
+  ["play-next"],
+  ["me"],
+  ["stores"],
+  ["sync-jobs"],
+];
+const STEAM_INVALIDATION_WINDOW_MS = 5_000;
+
+type SteamInvalidationState = {
+  last: number;
+  sameTurn: boolean;
+  trailing: ReturnType<typeof setTimeout> | null;
+};
+
+const steamInvalidations = new WeakMap<ResourceStore, SteamInvalidationState>();
+
+function touchSteamSyncResources(
+  store: ResourceStore,
+  state: SteamInvalidationState,
+) {
+  state.last = Date.now();
+  state.sameTurn = true;
+  queueMicrotask(() => {
+    state.sameTurn = false;
+  });
+  store.touch(STEAM_SYNC_RESOURCES);
+}
+
+export function invalidateSteamSyncResources(store: ResourceStore) {
+  let state = steamInvalidations.get(store);
+  if (!state) {
+    state = { last: 0, sameTurn: false, trailing: null };
+    steamInvalidations.set(store, state);
+  }
+  if (state.sameTurn || state.trailing !== null) return;
+
+  const elapsed = Date.now() - state.last;
+  if (elapsed >= STEAM_INVALIDATION_WINDOW_MS) {
+    touchSteamSyncResources(store, state);
+    return;
+  }
+
+  const pending = state;
+  pending.trailing = setTimeout(() => {
+    pending.trailing = null;
+    touchSteamSyncResources(store, pending);
+  }, STEAM_INVALIDATION_WINDOW_MS - elapsed);
+}
+
 /** Polls `/sync/jobs` and exposes a per-type checklist while Steam sync runs. */
 export function useSyncJobs(opts?: { enabled?: boolean }) {
   const enabled = opts?.enabled ?? true;
@@ -55,7 +108,7 @@ export function useSyncJobs(opts?: { enabled?: boolean }) {
     freshFor: 1_000,
     refreshEvery: (value) => {
       const jobs = value?.jobs ?? [];
-      return jobs.some((j) => isActiveStatus(j.status)) ? 2_000 : false;
+      return jobs.some((j) => isActiveStatus(j.status)) ? 5_000 : false;
     },
   });
 
@@ -79,13 +132,7 @@ export function useSyncJobs(opts?: { enabled?: boolean }) {
   useEffect(() => {
     if (!enabled) return;
     if (wasActive.current && !active) {
-      void store.touch(["dashboard"]);
-      void store.touch(["library"]);
-      void store.touch(["wishlist"]);
-      void store.touch(["friends"]);
-      void store.touch(["play-next"]);
-      void store.touch(["me"]);
-      void store.touch(["stores"]);
+      invalidateSteamSyncResources(store);
     }
     wasActive.current = active;
   }, [active, enabled, store]);

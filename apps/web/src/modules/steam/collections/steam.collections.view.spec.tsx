@@ -164,4 +164,23 @@ describe("CollectionsView", () => {
     expect(submit).toHaveBeenCalledWith("7");
     expect(screen.getByRole("button", { name: "Roguelikes saved" })).toBeDisabled();
   });
+
+  it("shows taste groups above smart shelves", () => {
+    renderView({
+      tasteAvailable: true,
+      tastePreview: resource<TasteClusterPreview>({
+        empty: false,
+        failed: false,
+        value: {
+          available: true,
+          clusters: [{ id: "7", name: "Cozy sims", gameCount: 1, saved: false }],
+        },
+      }),
+      saveCluster: idleCreate as unknown as CollectionsViewProps["saveCluster"],
+    });
+    const taste = screen.getByRole("heading", { name: "Suggested lists from how you play" });
+    const shelves = screen.getByRole("heading", { name: "Smart shelves" });
+    expect(taste.compareDocumentPosition(shelves) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("game")).toBeInTheDocument();
+  });
 });

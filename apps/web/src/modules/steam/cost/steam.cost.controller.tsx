@@ -28,6 +28,7 @@ export const CostController = ({ children }: PropsWithChildren) => {
   });
   const roi = useResource({
     id: ["cost-roi", sort, valueTab, page],
+    keepPrevious: true,
     load: () =>
       api<CostRoiPage>(
         `/cost/roi?sort=${sort}&value=${valueTab}&page=${page}&pageSize=${COST_ROI_PAGE_SIZE}`,

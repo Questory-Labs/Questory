@@ -36,6 +36,16 @@ body::before {
 a {
   color: inherit;
   text-decoration: none;
+  cursor: pointer;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  [role="link"],
+  summary {
+    cursor: pointer;
+  }
 }
 
 * {

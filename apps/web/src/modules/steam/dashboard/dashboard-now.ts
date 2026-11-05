@@ -19,19 +19,11 @@ export type NowCardModel = {
   sub: string;
   href: string;
   illustration: NowIllustration;
-  badgeKey: string;
-  badge: string;
+  badgeKey?: string;
+  badge?: string;
   status: string;
   live: boolean;
   sources: string[];
-  progress: { from: string; to: string; pct: number } | null;
-};
-
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-
-const clock = (ms: number): string => {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 };
 
 const titleCase = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
@@ -51,23 +43,18 @@ export const gameNowCard = (
   status: "Recent",
   live: false,
   sources: ["Steam"],
-  progress: null,
 });
 
 export const musicNowCard = (input: {
   playingNow?: MusicPlayingNow;
   recent?: MusicRecentListen;
   insights?: MusicInsights;
-  now: Date;
 }): NowCardModel | null => {
-  const { playingNow, recent, insights, now } = input;
+  const { playingNow, recent, insights } = input;
   const listens =
     insights != null ? `${insights.periodListens.toLocaleString()} scrobbles this week` : null;
   if (playingNow) {
     const { track } = playingNow;
-    const started = playingNow.startedAt ? Date.parse(playingNow.startedAt) : NaN;
-    const elapsed = Number.isFinite(started) ? now.getTime() - started : null;
-    const duration = track.durationMs ?? null;
     return {
       key: `music-now-${track.id}`,
       kind: "Listening",
@@ -77,15 +64,9 @@ export const musicNowCard = (input: {
         (track.releaseTitle ?? ""),
       href: `/music/tracks/${track.id}`,
       illustration: "vinyl",
-      badgeKey: "♪",
-      badge: elapsed != null ? clock(duration ? Math.min(elapsed, duration) : elapsed) : "Live",
       status: "Playing",
       live: true,
       sources: playingNow.source ? [titleCase(playingNow.source)] : [],
-      progress:
-        duration && elapsed != null
-          ? { from: "0:00", to: clock(duration), pct: clamp01(elapsed / duration) }
-          : null,
     };
   }
   if (!recent) return null;
@@ -97,14 +78,11 @@ export const musicNowCard = (input: {
     sub: listens ?? `Scrobbled ${formatRelativePlayed(recent.listenedAt)}`,
     href: `/music/tracks/${recent.track.id}`,
     illustration: "vinyl",
-    badgeKey: "♪",
-    badge: formatRelativePlayed(recent.listenedAt),
     status: "Last played",
     live: false,
     sources: [recent.musicService, recent.submissionClient]
       .filter((s): s is string => Boolean(s))
       .slice(0, 2),
-    progress: null,
   };
 };
 
@@ -112,8 +90,7 @@ export const watchNowCard = (event: WatchRecentEvent | undefined): NowCardModel 
   if (!event) return null;
   const ep = event.episode;
   const when = formatRelativePlayed(event.watchedAt);
-  const progress = event.progress;
-  const partial = progress != null && progress < 100;
+  const partial = event.progress != null && event.progress < 100;
   return {
     key: `watch-${event.id}`,
     kind: "Watching",
@@ -122,35 +99,24 @@ export const watchNowCard = (event: WatchRecentEvent | undefined): NowCardModel 
     sub: ep ? `S${ep.seasonNumber} · E${ep.episodeNumber} · ${when}` : when,
     href: `/watch/titles/${event.title.id}`,
     illustration: "tv",
-    badgeKey: ep ? "E" : "▶",
-    badge: progress != null ? `${Math.round(progress)}%` : titleCase(event.title.type),
     status: partial ? "Paused" : "Watched",
     live: false,
     sources: [titleCase(event.source)],
-    progress:
-      progress != null ? { from: "0%", to: "100%", pct: clamp01(progress / 100) } : null,
   };
 };
 
 export const readNowCard = (event: ReadRecentEvent | undefined): NowCardModel | null => {
   if (!event) return null;
-  const when = formatRelativePlayed(event.readAt);
-  const chapter = event.progress > 0 ? event.progress : null;
-  const total = event.titleChapters ?? null;
   return {
     key: `read-${event.id}`,
     kind: "Reading",
     color: NOW_CARD_COLOR.read,
     title: event.title.name,
-    sub: chapter ? `Chapter ${chapter} · ${when}` : when,
+    sub: formatRelativePlayed(event.readAt),
     href: `/read/titles/${event.title.id}`,
     illustration: "book",
-    badgeKey: "C",
-    badge: chapter ? (total ? `${chapter} / ${total}` : `Ch ${chapter}`) : titleCase(event.title.format),
     status: event.status ? titleCase(event.status.replace(/_/g, " ")) : "Reading",
     live: false,
     sources: [titleCase(event.source)],
-    progress:
-      chapter && total ? { from: "Ch 1", to: `Ch ${total}`, pct: clamp01(chapter / total) } : null,
   };
 };

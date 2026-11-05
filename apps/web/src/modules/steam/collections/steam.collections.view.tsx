@@ -88,6 +88,28 @@ export const CollectionsView = (props: Record<string, unknown>) => {
         <p className="text-sm text-[var(--danger)]">Could not create collection.</p>
       ) : null}
 
+      {tasteAvailable && tastePreview && saveCluster ? (
+        <ResourceStatus
+          failed={tastePreview.failed}
+          empty={tastePreview.empty}
+          loading={<SkeletonTileGrid count={2} />}
+          error={
+            <EmptyState
+              title={<span className="text-[var(--danger)]">Could not load taste groups.</span>}
+            />
+          }
+        >
+          {tastePreview.value ? (
+            <TasteGroupsPanel
+              preview={tastePreview.value}
+              saving={saveCluster.busy ? (saveCluster.input ?? null) : null}
+              failed={saveCluster.failed}
+              onSave={(id) => saveCluster.submit(id)}
+            />
+          ) : null}
+        </ResourceStatus>
+      ) : null}
+
       <ResourceStatus
         failed={list.failed}
         empty={list.empty}
@@ -137,28 +159,6 @@ export const CollectionsView = (props: Record<string, unknown>) => {
           <EmptyState title="No collections yet." />
         )}
       </ResourceStatus>
-
-      {tasteAvailable && tastePreview && saveCluster ? (
-        <ResourceStatus
-          failed={tastePreview.failed}
-          empty={tastePreview.empty}
-          loading={<SkeletonTileGrid count={2} />}
-          error={
-            <EmptyState
-              title={<span className="text-[var(--danger)]">Could not load taste groups.</span>}
-            />
-          }
-        >
-          {tastePreview.value ? (
-            <TasteGroupsPanel
-              preview={tastePreview.value}
-              saving={saveCluster.busy ? (saveCluster.input ?? null) : null}
-              failed={saveCluster.failed}
-              onSave={(id) => saveCluster.submit(id)}
-            />
-          ) : null}
-        </ResourceStatus>
-      ) : null}
     </div>
   );
 };

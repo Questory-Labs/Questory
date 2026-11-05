@@ -19,6 +19,7 @@ export const ReadLibraryController = ({ children }: PropsWithChildren) => {
 
   const library = useResource({
     id: ["read-library", page, status, format, category, genre, sort, q],
+    keepPrevious: true,
     load: () => {
       const params = new URLSearchParams({
         page: String(page),

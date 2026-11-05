@@ -101,10 +101,8 @@ export const HourDowSources = ({
         title={sourcesTitle}
         error={sourcesError}
       >
-        <Panel variant="outline" className="p-4">
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-            {sourcesTitle}
-          </h2>
+        <Panel className="q-lift p-5">
+          <h2 className="text-[17px] font-normal">{sourcesTitle}</h2>
           <ul className="mt-3 space-y-3">
             {sourceItems.map((item) => {
               const pct = periodTotal

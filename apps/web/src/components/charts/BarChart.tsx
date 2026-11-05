@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { CHART_LINE_COLOR } from "@/lib/charts";
 import { ChartGrid, ChartHoverCard } from "./ChartGrid";
+import { bareChartPad } from "./bare-chart";
 import {
   buildLineLayout,
   chartHeightClass,
@@ -22,6 +24,7 @@ export function BarChart({
   size = "lg",
   xMode = "index",
   xLabelAngle,
+  showYAxis = true,
 }: {
   data: SketchDatum[];
   ariaLabel?: string;
@@ -32,6 +35,7 @@ export function BarChart({
   size?: ChartSize;
   xMode?: "index" | "time";
   xLabelAngle?: number;
+  showYAxis?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -39,8 +43,13 @@ export function BarChart({
 
   const layout = useMemo(() => {
     const w = width > 0 ? width : 720;
-    return buildLineLayout(data, w, { size, xMode, type: "bar" });
-  }, [data, width, size, xMode]);
+    return buildLineLayout(data, w, {
+      size,
+      xMode,
+      type: "bar",
+      pad: showYAxis ? undefined : bareChartPad(size),
+    });
+  }, [data, width, size, xMode, showYAxis]);
 
   if (data.length === 0) {
     return (
@@ -52,7 +61,7 @@ export function BarChart({
   const H = layout.height;
   const { pad } = layout;
   const active = hover != null ? layout.points[hover] : null;
-  const maxBarWidth = Math.min(layout.bandW * 0.62, 36);
+  const maxBarWidth = Math.min(layout.bandW * 0.4, 20);
 
   const maxLabelLength = Math.max(
     ...data.map((d) => formatXLabel(d.label).length),
@@ -94,7 +103,7 @@ export function BarChart({
           width={chartW}
           pad={pad}
           plotH={layout.plotH}
-          yTicks={layout.yTicks}
+          yTicks={showYAxis ? layout.yTicks : []}
           yMax={layout.yMax}
           baseline={layout.baseline}
         />
@@ -111,13 +120,13 @@ export function BarChart({
               y={pt.y}
               width={maxBarWidth}
               height={barHeight}
-              fill="var(--accent)"
-              opacity={on ? 1 : 0.72}
+              rx={2}
+              fill={on ? "#ffffff" : CHART_LINE_COLOR}
             />
           );
         })}
 
-        {layout.yTicks.map((tick) => {
+        {(showYAxis ? layout.yTicks : []).map((tick) => {
           const y =
             pad.top + layout.plotH - (tick / layout.yMax) * layout.plotH;
           return (
@@ -157,9 +166,9 @@ export function BarChart({
         {layout.points.map((pt, i) => (
           <rect
             key={`band-${i}`}
-            x={pt.x - maxBarWidth / 2}
+            x={pt.x - layout.bandW / 2}
             y={pad.top}
-            width={maxBarWidth}
+            width={layout.bandW}
             height={layout.plotH}
             fill="transparent"
             onMouseEnter={() => setHover(i)}
@@ -170,7 +179,7 @@ export function BarChart({
       {active ? (
         <ChartHoverCard xPct={(active.x / chartW) * 100}>
           <div className="text-[var(--muted)]">{active.label}</div>
-          <div className="mt-0.5 text-[var(--accent)]">
+          <div className="mt-0.5">
             {formatValue(active.value)} {valueLabel}
           </div>
         </ChartHoverCard>

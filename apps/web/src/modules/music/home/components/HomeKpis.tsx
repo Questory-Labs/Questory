@@ -29,7 +29,10 @@ export const HomeKpis = ({
   const longest = insights.longestStreakDays;
 
   return (
-    <div className="q-in grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5 [--i:2]">
+    <div
+      data-testid="music-kpis"
+      className="q-in grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5 [--i:2] sm:grid-cols-3 sm:[&>:nth-child(5):last-child]:col-span-2"
+    >
       <MusicKpiTile
         label="Listens"
         value={<CountUp value={insights.periodListens} />}

@@ -1,3 +1,4 @@
+import { useId, type CSSProperties } from "react";
 import type { NowIllustration as Kind } from "../dashboard-now";
 
 const svgProps = {
@@ -10,7 +11,26 @@ const svgProps = {
   strokeWidth: 1,
 } as const;
 
-export const NowIllustration = ({ kind }: { kind: Kind }) => {
+const order = (i: number) => ({ "--i": i }) as CSSProperties;
+
+const NOTES = [
+  { x: 12, y: 74, i: 0 },
+  { x: 30, y: 84, i: 1 },
+  { x: 20, y: 64, i: 2 },
+];
+
+const EQ_BARS = [0, 1, 2, 3, 4];
+
+const SPARKS = [
+  { x: 96, y: 18, i: 0 },
+  { x: 124, y: 14, i: 1 },
+  { x: 110, y: 8, i: 2 },
+];
+
+const RIGHT_PAGE = "M110 22c18-12 44-14 70-8v80c-26-6-52-4-70 8z";
+
+export const NowIllustration = ({ kind, color = "#d4d4d8" }: { kind: Kind; color?: string }) => {
+  const screenId = useId();
   if (kind === "vinyl") {
     return (
       <svg {...svgProps}>
@@ -22,8 +42,43 @@ export const NowIllustration = ({ kind }: { kind: Kind }) => {
           <path d="M96 40v6" strokeWidth="2" />
           <circle cx="96" cy="55" r="2" fill="#d4d4d8" />
         </g>
-        <path d="M186 10v14l-30 56-8 4" strokeLinecap="round" />
-        <circle cx="186" cy="12" r="6" />
+        {[0, 1, 2].map((i) => (
+          <circle
+            key={i}
+            className="q-ripple"
+            style={order(i)}
+            cx="96"
+            cy="55"
+            r="48"
+            stroke={color}
+          />
+        ))}
+        {NOTES.map((n) => (
+          <g key={n.i} transform={`translate(${n.x} ${n.y})`}>
+            <g className="q-rise" style={order(n.i)} stroke={color} strokeWidth="1.4">
+              <circle cx="0" cy="8" r="2.5" fill={color} />
+              <path d="M2.5 8V-2l6 2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </g>
+        ))}
+        <g className="q-arm">
+          <path d="M186 10v14l-30 56-8 4" strokeLinecap="round" />
+          <circle cx="186" cy="12" r="6" />
+        </g>
+        {EQ_BARS.map((i) => (
+          <rect
+            key={i}
+            className="q-eq [transform-box:fill-box]"
+            style={order(i * 2)}
+            x={182 + i * 7}
+            y={72 + (i % 2) * 8}
+            width="3"
+            height={30 - (i % 2) * 8}
+            rx="1.5"
+            fill={color}
+            stroke="none"
+          />
+        ))}
       </svg>
     );
   }
@@ -32,8 +87,35 @@ export const NowIllustration = ({ kind }: { kind: Kind }) => {
       <svg {...svgProps}>
         <rect className="q-draw" pathLength={1} x="34" y="8" width="152" height="84" rx="8" />
         <rect x="44" y="18" width="132" height="64" rx="3" strokeOpacity="0.35" />
+        <clipPath id={screenId}>
+          <rect x="44" y="18" width="132" height="64" rx="3" />
+        </clipPath>
+        <g clipPath={`url(#${screenId})`}>
+          <circle className="q-twinkle" style={order(0)} cx="62" cy="30" r="1" fill={color} stroke="none" />
+          <circle className="q-twinkle" style={order(3)} cx="152" cy="28" r="1" fill={color} stroke="none" />
+          <circle className="q-twinkle" style={order(5)} cx="86" cy="26" r="1" fill={color} stroke="none" />
+          <path
+            className="q-pan"
+            style={{ "--q-pan": "-66px", "--q-pan-time": "6s" } as CSSProperties}
+            d="M44 66q16.5-16 33 0t33 0 33 0 33 0 33 0 33 0"
+            strokeOpacity="0.4"
+          />
+          <path
+            className="q-pan"
+            style={{ "--q-pan": "-44px", "--q-pan-time": "2.8s" } as CSSProperties}
+            d="M44 74q11-8 22 0t22 0 22 0 22 0 22 0 22 0 22 0"
+            stroke={color}
+          />
+          <rect className="q-scan" x="44" y="18" width="132" height="2" fill={color} fillOpacity="0.28" stroke="none" />
+        </g>
+        <circle className="q-ripple" style={order(0)} cx="110" cy="50" r="24" stroke={color} />
+        <circle className="q-ripple" style={order(1.5)} cx="110" cy="50" r="24" stroke={color} />
+        <g className="q-pulse">
+          <circle cx="110" cy="50" r="12" fill="#141416" />
+          <path d="M106 44v12l10-6z" fill={color} stroke={color} strokeLinejoin="round" />
+        </g>
         <path d="M92 102h36M110 92v10" />
-        <path d="M100 38v24l20-12z" strokeLinejoin="round" />
+        <circle className="q-live" cx="176" cy="87" r="1.5" fill={color} stroke="none" />
       </svg>
     );
   }
@@ -45,10 +127,39 @@ export const NowIllustration = ({ kind }: { kind: Kind }) => {
           pathLength={1}
           d="M110 22c-18-12-44-14-70-8v80c26-6 52-4 70 8 18-12 44-14 70-8V14c-26-6-52-4-70 8zM110 22v80"
         />
-        <path
-          d="M54 34c14-2 28 0 42 6M54 48c14-2 28 0 42 6M54 62c14-2 28 0 42 6M124 40c14-6 28-8 42-6M124 54c14-6 28-8 42-6"
-          strokeOpacity="0.35"
-        />
+        {[
+          "M54 34c14-2 28 0 42 6",
+          "M54 48c14-2 28 0 42 6",
+          "M54 62c14-2 28 0 42 6",
+          "M124 40c14-6 28-8 42-6",
+          "M124 54c14-6 28-8 42-6",
+          "M124 68c14-6 28-8 42-6",
+        ].map((d, i) => (
+          <path key={d} className="q-write" style={order(i)} pathLength={1} d={d} strokeOpacity="0.5" />
+        ))}
+        {[0, 1, 2].map((i) => (
+          <path
+            key={i}
+            className="q-page"
+            style={order(i)}
+            d={RIGHT_PAGE}
+            fill="#161618"
+            stroke={color}
+            strokeLinejoin="round"
+          />
+        ))}
+        <path d="M110 22v80" />
+        {SPARKS.map((p) => (
+          <g key={p.i} transform={`translate(${p.x} ${p.y + 14})`}>
+            <path
+              className="q-rise"
+              style={order(p.i)}
+              d="M0-3v6M-3 0h6"
+              stroke={color}
+              strokeLinecap="round"
+            />
+          </g>
+        ))}
       </svg>
     );
   }

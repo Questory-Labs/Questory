@@ -10,6 +10,7 @@ import {
   SYNC_STAGES,
   type SyncStage,
   type SyncStageType,
+  invalidateSteamSyncResources,
 } from "@/hooks/useSyncJobs";
 import type { SyncJob } from "@questorylabs/shared";
 
@@ -228,14 +229,7 @@ export function useShellSyncStatus(opts?: {
     if (!enabled || !data) return;
 
     if (wasActive.current.steam && !steamActive) {
-      void store.touch(["dashboard"]);
-      void store.touch(["library"]);
-      void store.touch(["wishlist"]);
-      void store.touch(["friends"]);
-      void store.touch(["play-next"]);
-      void store.touch(["me"]);
-      void store.touch(["stores"]);
-      void store.touch(["sync-jobs"]);
+      invalidateSteamSyncResources(store);
     }
     if (wasActive.current.music && !musicActive) {
       void store.touch(["music-overview"]);

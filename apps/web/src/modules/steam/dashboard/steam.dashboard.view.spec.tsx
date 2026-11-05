@@ -178,14 +178,12 @@ describe("DashboardView", () => {
     expect(screen.getByText("Friends")).toBeInTheDocument();
   });
 
-  it("renders a 2-slice mix legend, not a third near-complete arc", () => {
+  it("does not render the library mix chart", () => {
     renderView({});
-    expect(screen.getByRole("list")).toHaveTextContent("Played: 8");
-    expect(screen.getByRole("list")).toHaveTextContent("Unplayed: 2");
-    expect(screen.queryByText(/not a third slice/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Library mix" })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: "Library played versus unplayed" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("img", { name: "Library played versus unplayed" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Near completion" })).not.toBeInTheDocument();
   });
 

@@ -22,6 +22,7 @@ export const MediaHistoryController = <TItem,>({
   const setPage = (next: number) => setPaging({ filterKey, page: next });
   const recent = useResource({
     id: [resourceKey, filterKey, page],
+    keepPrevious: true,
     load: () => load(page),
   });
 
