@@ -39,6 +39,15 @@ a {
   cursor: pointer;
 }
 
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  [role="link"],
+  summary {
+    cursor: pointer;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

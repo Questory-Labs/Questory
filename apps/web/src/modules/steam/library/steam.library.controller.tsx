@@ -62,8 +62,9 @@ export const LibraryController = ({ children }: PropsWithChildren) => {
   const sync = useSyncJobs();
   const library = useResource({
     id: ["library", params],
+    keepPrevious: true,
     load: () => api<LibraryListResponse>(`/library?${params}`),
-    refreshEvery: sync.active ? 3_000 : false,
+    refreshEvery: sync.active ? 15_000 : false,
   });
   const collections = useResource({
     id: ["collections"],

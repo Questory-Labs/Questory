@@ -29,6 +29,7 @@ export const FriendsController = ({ children }: PropsWithChildren) => {
 
   const friends = useResource({
     id: ["friends", page, search],
+    keepPrevious: true,
     load: () => {
       const qs = new URLSearchParams({
         page: String(page),

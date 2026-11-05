@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { useResource, useStore } from "@questorylabs/qhttp/react";
+import { useResource, useStore, type ResourceStore } from "@questorylabs/qhttp/react";
 import { api } from "@/lib/api";
 import type { SyncJob } from "@questorylabs/shared";
 
@@ -41,6 +41,27 @@ function isActiveStatus(status: SyncJob["status"] | undefined) {
   return status === "pending" || status === "running";
 }
 
+const STEAM_SYNC_RESOURCES = [
+  ["dashboard"],
+  ["library"],
+  ["wishlist"],
+  ["friends"],
+  ["play-next"],
+  ["me"],
+  ["stores"],
+  ["sync-jobs"],
+];
+const STEAM_INVALIDATION_WINDOW_MS = 5_000;
+const lastSteamInvalidation = new WeakMap<ResourceStore, number>();
+
+export function invalidateSteamSyncResources(store: ResourceStore) {
+  const now = Date.now();
+  const last = lastSteamInvalidation.get(store);
+  if (last !== undefined && now - last < STEAM_INVALIDATION_WINDOW_MS) return;
+  lastSteamInvalidation.set(store, now);
+  store.touch(STEAM_SYNC_RESOURCES);
+}
+
 /** Polls `/sync/jobs` and exposes a per-type checklist while Steam sync runs. */
 export function useSyncJobs(opts?: { enabled?: boolean }) {
   const enabled = opts?.enabled ?? true;
@@ -55,7 +76,7 @@ export function useSyncJobs(opts?: { enabled?: boolean }) {
     freshFor: 1_000,
     refreshEvery: (value) => {
       const jobs = value?.jobs ?? [];
-      return jobs.some((j) => isActiveStatus(j.status)) ? 2_000 : false;
+      return jobs.some((j) => isActiveStatus(j.status)) ? 5_000 : false;
     },
   });
 
@@ -79,13 +100,7 @@ export function useSyncJobs(opts?: { enabled?: boolean }) {
   useEffect(() => {
     if (!enabled) return;
     if (wasActive.current && !active) {
-      void store.touch(["dashboard"]);
-      void store.touch(["library"]);
-      void store.touch(["wishlist"]);
-      void store.touch(["friends"]);
-      void store.touch(["play-next"]);
-      void store.touch(["me"]);
-      void store.touch(["stores"]);
+      invalidateSteamSyncResources(store);
     }
     wasActive.current = active;
   }, [active, enabled, store]);

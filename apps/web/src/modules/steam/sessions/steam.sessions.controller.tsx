@@ -18,6 +18,7 @@ export const SessionsController = ({ children }: PropsWithChildren) => {
   });
   const sessions = useResource({
     id: ["play-sessions", page],
+    keepPrevious: true,
     load: () =>
       api<PlaySessionPage>(
         `/play-sessions?page=${page}&pageSize=${PLAY_SESSIONS_PAGE_SIZE}`,

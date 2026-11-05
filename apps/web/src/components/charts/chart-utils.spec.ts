@@ -10,6 +10,7 @@ import {
   heatmapLevel,
   monotoneAreaPath,
   monotoneLinePath,
+  pickPeakPoints,
 } from "./chart-utils";
 import { CHART_X_TICK_MIN_GAP_PX } from "@/lib/charts";
 
@@ -204,5 +205,13 @@ describe("fractionalTicks", () => {
   it("covers the max and handles an empty scale", () => {
     expect(fractionalTicks(120).at(-1)).toBeGreaterThanOrEqual(120);
     expect(fractionalTicks(0)).toEqual([0, 1]);
+  });
+});
+
+describe("pickPeakPoints", () => {
+  it("returns the highest non-zero points without mutating the input", () => {
+    const points = [{ value: 0 }, { value: 2 }, { value: 9 }, { value: 4 }, { value: 1 }];
+    expect(pickPeakPoints(points).map((p) => p.value)).toEqual([9, 4, 2]);
+    expect(points[0].value).toBe(0);
   });
 });

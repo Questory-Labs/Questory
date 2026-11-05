@@ -21,7 +21,7 @@ export const MultiplayerController = ({ children }: PropsWithChildren) => {
   const [initialSelected] = useState(() =>
     parseFriendsParam(searchParams.get("friends")),
   );
-  const filters = useMultiplayerPlanFilters(friendList, initialSelected);
+  const filters = useMultiplayerPlanFilters(initialSelected);
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
 

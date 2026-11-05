@@ -16,7 +16,6 @@ export const SketchChartPanel = ({
   xLabelAngle,
   formatXLabel,
   formatValue,
-  formatYTick,
   className,
 }: {
   title: string;
@@ -29,7 +28,6 @@ export const SketchChartPanel = ({
   xLabelAngle?: number;
   formatXLabel?: (label: string) => string;
   formatValue?: (n: number) => string;
-  formatYTick?: (n: number) => string;
   className?: string;
 }) => {
   const chartData: SketchDatum[] = data.map((d) => ({
@@ -39,10 +37,8 @@ export const SketchChartPanel = ({
   const Chart = variant === "bar" ? BarChart : LineChart;
 
   return (
-    <Panel className={className ?? "p-5"}>
-      <h2 className="label-mono">
-        {title}
-      </h2>
+    <Panel className={className ?? "q-lift p-5"}>
+      <h2 className="text-[17px] font-normal">{title}</h2>
       {chartData.length === 0 ? (
         <p className="mt-3 text-sm text-[var(--muted)]">{emptyMessage}</p>
       ) : (
@@ -52,12 +48,10 @@ export const SketchChartPanel = ({
             valueLabel={valueLabel}
             ariaLabel={ariaLabel ?? title}
             size={size}
-            xLabelAngle={
-              xLabelAngle ?? (variant === "bar" ? undefined : data.length > 12 ? -40 : 0)
-            }
+            xLabelAngle={xLabelAngle}
+            showYAxis={false}
             formatXLabel={formatXLabel ?? ((l) => l)}
             formatValue={formatValue}
-            formatYTick={formatYTick}
           />
         </div>
       )}

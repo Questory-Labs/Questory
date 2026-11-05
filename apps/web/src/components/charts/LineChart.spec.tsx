@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LineChart } from "./LineChart";
 
 describe("LineChart", () => {
@@ -22,7 +22,7 @@ describe("LineChart", () => {
     expect(screen.getByText("Not enough activity yet.")).toBeInTheDocument();
   });
 
-  it("renders a smooth area and stroke, not a hatch sketch", () => {
+  it("renders a single straight stroke with peak dots and no area fill", () => {
     const { container } = render(
       <LineChart
         data={[
@@ -34,8 +34,47 @@ describe("LineChart", () => {
       />,
     );
     const svg = screen.getByRole("img", { name: "Hour of day" });
-    expect(svg.querySelectorAll("path").length).toBeGreaterThanOrEqual(2);
-    expect(container.innerHTML).not.toContain("rough");
+    const paths = svg.querySelectorAll("path");
+    expect(paths).toHaveLength(1);
+    expect(paths[0].getAttribute("d")).toMatch(/^M[^C]*L[^C]*$/);
+    expect(paths[0].getAttribute("fill")).toBe("none");
+    expect(svg.querySelectorAll("circle")).toHaveLength(3);
+    expect(container.querySelector("linearGradient")).toBeNull();
+  });
+
+  it("shows a tooltip for the hovered point and clears it on leave", () => {
+    const { container } = render(
+      <LineChart
+        data={[
+          { label: "a", value: 2 },
+          { label: "b", value: 8 },
+        ]}
+        ariaLabel="Hours"
+        valueLabel="listens"
+        formatXLabel={(l) => l}
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Hours" });
+    fireEvent.mouseEnter(container.querySelectorAll("rect")[1]);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("b8 listens");
+    fireEvent.mouseLeave(svg);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("hides the y axis and grid when showYAxis is false", () => {
+    const { container } = render(
+      <LineChart
+        data={[
+          { label: "a", value: 2 },
+          { label: "b", value: 8 },
+        ]}
+        ariaLabel="Hours"
+        formatXLabel={(l) => l}
+        showYAxis={false}
+      />,
+    );
+    expect(container.querySelectorAll("line")).toHaveLength(0);
+    expect(container.querySelectorAll("text")).toHaveLength(2);
   });
 
   it("sizes the svg to the layout height so labels are not stretched", () => {

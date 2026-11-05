@@ -41,7 +41,8 @@ function useNotificationsState(): NotificationsValue {
     load: () => api<UnreadCount>("/notifications/unread-count"),
     when: isAuthenticated,
     retries: false,
-    refreshEvery: 30_000,
+    refreshEvery: 120_000,
+    refreshOnFocus: true,
   });
 
   const list = useResource({

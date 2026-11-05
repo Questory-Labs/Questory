@@ -12,6 +12,10 @@ export const CHART_TOOLTIP_GAP_PX = 8;
 /** Minimum pixel gap between time-mode X-axis labels. */
 export const CHART_X_TICK_MIN_GAP_PX = 72;
 
+export const CHART_LINE_COLOR = "#bdbdc2";
+
+export const CHART_PEAK_COUNT = 3;
+
 /** Space between week columns inside a month. */
 export const CALENDAR_WEEK_GAP_CLASS = "ml-0.5";
 

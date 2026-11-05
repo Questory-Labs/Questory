@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import type { UseResourceResult } from "@questorylabs/qhttp/react";
 import type { Friend, FriendsListResponse } from "@questorylabs/shared";
 import { PartyPicker } from "./PartyPicker";
+import { PARTY_PICKER_LIMIT } from "../steam.multiplayer.constants";
 import type { MultiplayerViewProps } from "../steam.multiplayer.types";
 
 const list: Friend[] = [
@@ -33,9 +40,6 @@ const friends = {
 const filtersWith = (patch: Record<string, unknown>) =>
   ({
     selected: [],
-    friendFilter: "",
-    setFriendFilter: () => undefined,
-    filteredFriends: list,
     toggle: () => undefined,
     ...patch,
   }) as unknown as MultiplayerViewProps["filters"];
@@ -55,13 +59,41 @@ describe("PartyPicker", () => {
     expect(toggle).toHaveBeenCalledWith("2");
   });
 
-  it("shows a no-match hint", () => {
+  it("omits the select when every friend has a chip", () => {
+    render(<PartyPicker friends={friends} filters={filtersWith({})} />);
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("lists overflow friends alphabetically in a select and toggles the pick", () => {
+    const toggle = vi.fn();
+    const many: Friend[] = Array.from(
+      { length: PARTY_PICKER_LIMIT },
+      (_, i) => ({
+        steamId: `online-${i}`,
+        personaName: `Online ${i}`,
+        avatarUrl: null,
+        personaState: 1,
+      }),
+    ).concat([
+      { steamId: "z", personaName: "zed", avatarUrl: null, personaState: 0 },
+      { steamId: "a", personaName: "Amy", avatarUrl: null, personaState: 0 },
+    ]);
     render(
       <PartyPicker
-        friends={friends}
-        filters={filtersWith({ filteredFriends: [], friendFilter: "zz" })}
+        friends={
+          { ...friends, value: { ...friends.value, friends: many } } as typeof friends
+        }
+        filters={filtersWith({ toggle })}
       />,
     );
-    expect(screen.getByText("No friends match “zz”.")).toBeInTheDocument();
+    const select = screen.getByRole("combobox", { name: "Add a friend" });
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Add from 2 more friends…", "Amy", "zed"]);
+    fireEvent.change(select, { target: { value: "z" } });
+    expect(toggle).toHaveBeenCalledWith("z");
+    expect(select).toHaveValue("");
   });
 });

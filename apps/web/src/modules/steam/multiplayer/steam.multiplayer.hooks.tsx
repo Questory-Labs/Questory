@@ -1,6 +1,6 @@
 "use client";
 
-import type { Friend, MultiplayerPlanSort } from "@questorylabs/shared";
+import type { MultiplayerPlanSort } from "@questorylabs/shared";
 import { useMemo, useState } from "react";
 import {
   YEAR_MAX,
@@ -8,12 +8,8 @@ import {
   type MultiplayerMode,
 } from "./steam.multiplayer.constants";
 
-export const useMultiplayerPlanFilters = (
-  friendList: Friend[],
-  initialSelected: string[] = [],
-) => {
+export const useMultiplayerPlanFilters = (initialSelected: string[] = []) => {
   const [selected, setSelected] = useState<string[]>(initialSelected);
-  const [friendFilter, setFriendFilter] = useState("");
   const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [minYear, setMinYear] = useState(YEAR_MIN);
@@ -23,15 +19,6 @@ export const useMultiplayerPlanFilters = (
   const [sortBy, setSortBy] = useState<MultiplayerPlanSort>("popularity");
   const [suggested, setSuggested] = useState(false);
   const [strictLibraryMatching, setStrictLibraryMatching] = useState(false);
-
-  const filteredFriends = useMemo(() => {
-    const q = friendFilter.trim().toLowerCase();
-    if (!q) return friendList;
-    return friendList.filter(
-      (f) =>
-        f.personaName.toLowerCase().includes(q) || f.steamId.includes(q),
-    );
-  }, [friendList, friendFilter]);
 
   const body = useMemo(
     () => ({
@@ -68,8 +55,6 @@ export const useMultiplayerPlanFilters = (
 
   return {
     selected,
-    friendFilter,
-    setFriendFilter,
     minPlayers,
     setMinPlayers,
     maxPlayers,
@@ -88,7 +73,6 @@ export const useMultiplayerPlanFilters = (
     setSuggested,
     strictLibraryMatching,
     setStrictLibraryMatching,
-    filteredFriends,
     body,
     toggle,
   };

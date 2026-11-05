@@ -29,6 +29,7 @@ export const WishlistController = ({ children }: PropsWithChildren) => {
 
   const list = useResource({
     id: ["wishlist", storeFilter, page],
+    keepPrevious: true,
     load: () => api<WishlistResponse>(listPath),
   });
   const recommendations = useResource({

@@ -33,8 +33,6 @@ const resource = <T,>(
 
 const idleFilters = {
   selected: [],
-  friendFilter: "",
-  setFriendFilter: () => undefined,
   minPlayers: 2,
   setMinPlayers: () => undefined,
   maxPlayers: 8,
@@ -53,7 +51,6 @@ const idleFilters = {
   setSuggested: () => undefined,
   strictLibraryMatching: false,
   setStrictLibraryMatching: () => undefined,
-  filteredFriends: [],
   body: {
     friendSteamIds: [],
     minPlayers: 2,

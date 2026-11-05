@@ -52,6 +52,42 @@ export const ChartGrid = ({
   );
 };
 
+export const ChartDot = ({ x, y }: { x: number; y: number }) => (
+  <circle
+    cx={x}
+    cy={y}
+    r="3.6"
+    fill="#ffffff"
+    className="drop-shadow-[0_0_6px_rgba(255,255,255,0.9)]"
+  />
+);
+
+export const ChartHoverMarker = ({
+  x,
+  y,
+  top,
+  bottom,
+}: {
+  x: number;
+  y: number;
+  top: number;
+  bottom: number;
+}) => (
+  <>
+    <line
+      x1={x}
+      y1={top}
+      x2={x}
+      y2={bottom}
+      stroke="var(--ink)"
+      strokeOpacity="0.3"
+      strokeDasharray="3 4"
+      vectorEffect="non-scaling-stroke"
+    />
+    <ChartDot x={x} y={y} />
+  </>
+);
+
 export const ChartHoverCard = ({
   xPct,
   children,
@@ -63,10 +99,11 @@ export const ChartHoverCard = ({
     <div
       role="tooltip"
       className="pointer-events-none absolute top-1 z-10 rounded-[10px] border border-[var(--line-strong)] bg-[var(--bg-1)]/95 px-3 py-2 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.8)] backdrop-blur-md font-mono text-[10px] text-[var(--ink)]"
-      style={{
-        left: `${Math.min(Math.max(xPct, 14), 86)}%`,
-        transform: "translateX(-50%)",
-      }}
+      style={
+        xPct < 50
+          ? { left: `calc(${xPct}% + 12px)` }
+          : { left: `calc(${xPct}% - 12px)`, transform: "translateX(-100%)" }
+      }
     >
       {children}
     </div>

@@ -19,7 +19,6 @@ import { DashboardHeader } from "./components/DashboardHeader";
 import { GlanceMediaCards } from "./components/GlanceMediaCards";
 import { GlanceStats } from "./components/GlanceStats";
 import { GoalsCard } from "./components/GoalsCard";
-import { LibraryMix } from "./components/LibraryMix";
 import { NowCard } from "./components/NowCard";
 import { PlayNextSection } from "./components/PlayNextSection";
 import { RecsSnippet } from "./components/RecsSnippet";
@@ -251,7 +250,6 @@ export const DashboardView = (props: Record<string, unknown>) => {
         </section>
       )}
 
-      {value && value.librarySize > 0 ? <LibraryMix value={value} /> : null}
     </div>
   );
 };
