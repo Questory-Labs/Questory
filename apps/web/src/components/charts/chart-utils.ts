@@ -3,7 +3,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import {
   CALENDAR_HEATMAP_MAX_WEEKS,
-  CHART_PEAK_COUNT,
   CHART_X_TICK_MIN_GAP_PX,
 } from "@/lib/charts";
 import type { ChartPadding, ChartSize, LinePoint, SketchDatum } from "./types";
@@ -19,24 +18,6 @@ export const CHART_PAD: Record<ChartSize, ChartPadding> = {
   md: { top: 16, right: 28, bottom: 48, left: 52 },
   lg: { top: 20, right: 36, bottom: 56, left: 60 },
 };
-
-export function bareChartPad(size: ChartSize): ChartPadding {
-  return { top: CHART_PAD[size].top, right: 6, bottom: 32, left: 6 };
-}
-
-export function straightLinePath(points: { x: number; y: number }[]): string {
-  return points.map((p, i) => `${i ? "L" : "M"}${p.x} ${p.y}`).join(" ");
-}
-
-export function pickPeakPoints<T extends { value: number }>(
-  points: T[],
-  count = CHART_PEAK_COUNT,
-): T[] {
-  return points
-    .filter((p) => p.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, count);
-}
 
 export function niceTicks(max: number, count = 4): number[] {
   if (max <= 0) return [0];

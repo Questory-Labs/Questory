@@ -9,7 +9,8 @@ describe("invalidateSteamSyncResources", () => {
     vi.useRealTimers();
   });
 
-  it("refetches once when several sync watchers finish together", () => {
+  it("refetches once when several sync watchers finish together", async () => {
+    vi.useFakeTimers();
     const store = fakeStore();
     invalidateSteamSyncResources(store);
     invalidateSteamSyncResources(store);
@@ -18,14 +19,36 @@ describe("invalidateSteamSyncResources", () => {
     expect(store.touch).toHaveBeenCalledWith(
       expect.arrayContaining([["library"], ["me"], ["dashboard"]]),
     );
+    await Promise.resolve();
+    vi.advanceTimersByTime(10_000);
+    expect(store.touch).toHaveBeenCalledTimes(1);
   });
 
-  it("refetches again for a later sync", () => {
+  it("refetches again for a later sync", async () => {
     vi.useFakeTimers();
     const store = fakeStore();
     invalidateSteamSyncResources(store);
+    await Promise.resolve();
     vi.advanceTimersByTime(5_000);
     invalidateSteamSyncResources(store);
+    expect(store.touch).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloads after the window when a later sync finishes inside it", async () => {
+    vi.useFakeTimers();
+    const store = fakeStore();
+    invalidateSteamSyncResources(store);
+    await Promise.resolve();
+    vi.advanceTimersByTime(2_000);
+    invalidateSteamSyncResources(store);
+    invalidateSteamSyncResources(store);
+    expect(store.touch).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(2_999);
+    expect(store.touch).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(store.touch).toHaveBeenCalledTimes(2);
+    await Promise.resolve();
+    vi.advanceTimersByTime(10_000);
     expect(store.touch).toHaveBeenCalledTimes(2);
   });
 

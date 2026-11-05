@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LineChart } from "./LineChart";
 
@@ -40,6 +40,26 @@ describe("LineChart", () => {
     expect(paths[0].getAttribute("fill")).toBe("none");
     expect(svg.querySelectorAll("circle")).toHaveLength(3);
     expect(container.querySelector("linearGradient")).toBeNull();
+  });
+
+  it("renders a peak dot per point when timestamps repeat", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <LineChart
+        data={[
+          { label: "2026-01-01T10:00:00", value: 1 },
+          { label: "2026-01-02T10:00:00", value: 5 },
+          { label: "2026-01-02T10:00:00", value: 7 },
+          { label: "2026-01-03T10:00:00", value: 3 },
+        ]}
+        ariaLabel="Repeats"
+        xMode="time"
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Repeats" });
+    expect(svg.querySelectorAll("circle")).toHaveLength(3);
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 
   it("shows a tooltip for the hovered point and clears it on leave", () => {

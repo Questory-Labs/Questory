@@ -3,8 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { CHART_LINE_COLOR } from "@/lib/charts";
 import { ChartGrid, ChartHoverCard } from "./ChartGrid";
+import { bareChartPad } from "./bare-chart";
 import {
-  bareChartPad,
   buildLineLayout,
   chartHeightClass,
   defaultXLabel,

@@ -3,14 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { CHART_LINE_COLOR } from "@/lib/charts";
 import { ChartDot, ChartGrid, ChartHoverCard, ChartHoverMarker } from "./ChartGrid";
-import {
-  bareChartPad,
-  buildLineLayout,
-  defaultXLabel,
-  pickPeakPoints,
-  straightLinePath,
-  useChartWidth,
-} from "./chart-utils";
+import { bareChartPad, pickPeakPoints, straightLinePath } from "./bare-chart";
+import { buildLineLayout, defaultXLabel, useChartWidth } from "./chart-utils";
 import type { ChartSize, SketchDatum } from "./types";
 
 export type { SketchDatum };
@@ -95,8 +89,8 @@ export function LineChart({
           strokeWidth="1.2"
           strokeLinejoin="round"
         />
-        {peaks.map((p) => (
-          <ChartDot key={`peak-${p.x}`} x={p.x} y={p.y} />
+        {peaks.map((p, i) => (
+          <ChartDot key={`peak-${i}`} x={p.x} y={p.y} />
         ))}
 
         {(showYAxis ? layout.yTicks : []).map((tick) => {
