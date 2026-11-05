@@ -539,7 +539,7 @@ test.describe("redesign public", () => {
 });
 
 test.describe("redesign authed", () => {
-  test("dashboard mix legend, rail labels, and glance", async ({ page }) => {
+  test("dashboard rail labels and glance", async ({ page }) => {
     await mockRedesignApi(page);
     await page.goto("/dashboard");
     await expect(page.getByRole("navigation", { name: "Primary" })).toContainText(
@@ -548,9 +548,7 @@ test.describe("redesign authed", () => {
     );
     await expect(page.getByRole("heading", { name: "Continue" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Up next" })).toBeVisible();
-    await expect(page.getByText("Played: 8", { exact: true })).toBeVisible();
-    await expect(page.getByText("Unplayed: 2", { exact: true })).toBeVisible();
-    await expect(page.getByRole("img", { name: "Library played versus unplayed" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Library played versus unplayed" })).toHaveCount(0);
     await expect(page.getByText("Near complete")).toBeVisible();
     await expect(page.getByText("Cost / hour")).toBeVisible();
     await assertNoGlassCrash(page);
