@@ -62,6 +62,13 @@ describe("music home components", () => {
     expect(screen.queryByText("Streak")).not.toBeInTheDocument();
   });
 
+  it("lays KPIs out in three columns so no tile is orphaned", () => {
+    render(<HomeKpis range="week" insights={insights} overview={undefined} spark={[]} />);
+    const grid = screen.getByTestId("music-kpis");
+    expect(grid).toHaveClass("sm:grid-cols-3", "sm:[&>:nth-child(5):last-child]:col-span-2");
+    expect(grid.children).toHaveLength(5);
+  });
+
   it("renders the now playing hero with a progress scrubber", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-01T10:01:00.000Z"));

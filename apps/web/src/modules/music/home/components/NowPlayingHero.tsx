@@ -19,7 +19,7 @@ export const NowPlayingHero = ({
   const source = playingSourceLabel(playing.source);
 
   return (
-    <Panel size="lg" wrapperClassName="q-in [--i:1]" className="relative overflow-hidden p-0">
+    <Panel size="lg" wrapperClassName="q-in mb-3.5 [--i:1]" className="relative overflow-hidden p-0">
       <section
         aria-labelledby="music-now-playing"
         className="flex flex-wrap items-center gap-6 bg-[linear-gradient(150deg,rgba(220,214,216,0.18),rgba(255,255,255,0.02)_55%)] px-[26px] py-[22px]"

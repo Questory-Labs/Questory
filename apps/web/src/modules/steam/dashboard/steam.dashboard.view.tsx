@@ -114,7 +114,6 @@ export const DashboardView = (props: Record<string, unknown>) => {
           playingNow: musicPlayingNow ?? undefined,
           recent: musicRecent?.value?.items[0],
           insights: musicInsights?.value,
-          now,
         })
       : null,
     showWatch ? watchNowCard(watchRecent?.value?.items[0]) : null,

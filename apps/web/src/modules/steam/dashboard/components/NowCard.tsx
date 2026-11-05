@@ -59,16 +59,18 @@ export const NowCard = ({
       </span>
     </div>
     <div className="relative grid h-[118px] place-items-center">
-      <NowIllustration kind={card.illustration} />
-      <span className="absolute inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-[rgba(20,20,22,0.85)] py-1 pl-1 pr-3 text-[13px] font-normal backdrop-blur-[8px]">
-        <span
-          aria-hidden="true"
-          className="grid size-[22px] place-items-center rounded-full border border-white/40 text-[11px]"
-        >
-          {card.badgeKey}
+      <NowIllustration kind={card.illustration} color={card.color} />
+      {card.badge ? (
+        <span className="absolute inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-[rgba(20,20,22,0.85)] py-1 pl-1 pr-3 text-[13px] font-normal backdrop-blur-[8px]">
+          <span
+            aria-hidden="true"
+            className="grid size-[22px] place-items-center rounded-full border border-white/40 text-[11px]"
+          >
+            {card.badgeKey}
+          </span>
+          {card.badge}
         </span>
-        {card.badge}
-      </span>
+      ) : null}
     </div>
     <div className="flex items-center gap-2.5 text-xs text-[#a1a1a6]">
       <span
@@ -88,27 +90,5 @@ export const NowCard = ({
         <span className="text-[var(--faint)]">{card.sources[1]}</span>
       ) : null}
     </div>
-    {card.progress ? (
-      <div className="relative h-[54px] overflow-hidden rounded-2xl border border-white/[0.05] bg-black/30">
-        <span className="absolute left-3 top-[7px] font-mono text-[9px] text-[var(--faint)]">
-          {card.progress.from}
-        </span>
-        <span className="absolute right-3 top-[7px] font-mono text-[9px] text-[var(--faint)]">
-          {card.progress.to}
-        </span>
-        <span aria-hidden="true" className="tick-track absolute inset-x-3.5 bottom-3 h-3.5" />
-        <span
-          aria-hidden="true"
-          className="tick-fill absolute bottom-3 left-3.5 h-3.5"
-          style={{ width: `calc((100% - 28px) * ${card.progress.pct})` }}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute bottom-[9px] -ml-2.5 size-5 rounded-full bg-[var(--ink)] shadow-[0_0_12px_rgba(255,255,255,0.5)]"
-          style={{ left: `calc(14px + (100% - 28px) * ${card.progress.pct})` }}
-        />
-        <span className="sr-only">{Math.round(card.progress.pct * 100)}% through</span>
-      </div>
-    ) : null}
   </Link>
 );
