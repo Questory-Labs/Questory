@@ -43,27 +43,15 @@ Boot checks live in the API. On a bad config the API (and the scrobbler worker) 
 
 - **Set by the profile, not `.env`:** `DATABASE_PROVIDER`, `DATABASE_URL`, `REDIS_URL`, `USE_INLINE_SYNC` and `API_PORT` are literal values per service. Changing them in `.env` has no effect, including the `CHANGE_ME` in `DATABASE_URL` of `.env.production.example`.
 - **Mapped:** `FEATURE_MUSIC|WATCH|READ` come from `NEXT_PUBLIC_ENABLE_*`. A `FEATURE_*` line in `.env` has no effect.
-- **Not forwarded at all:** `ADMIN_EMAILS`, `TRUST_PROXY`, `TRUST_CLOUDFLARE`, `COOKIE_SECURE`, `AUTH_BLOCKED_EMAIL_DOMAINS`, `AUTH_ALLOW_EMAIL_PLUS`, `AUTH_MIN_FILL_MS`, `AUTH_CHALLENGE_SECRET`, `QMONITOR_TOKEN_SECRET`, `MAL_*`, `SHIKIMORI_*`, `BANGUMI_*`, `TWITCH_*`, `CRON_RECAP_SCHEDULE`, `CRON_FRIENDS_SCHEDULE`.
+- **Not forwarded:** `CRON_FRIENDS_SCHEDULE` (legacy; use `CRON_PRICE_SCHEDULE`). `docker-compose.yml` sets the price schedule, so the legacy name never applies.
 
-To use a variable from the last group, add a `docker-compose.override.yml` next to `docker-compose.yml`. Compose merges it automatically unless you pass `-f`, and the `${VAR}` references let `.env` stay the single place for values. Use the service `api-lite` for lite and `api` for full / production:
+Every other API variable in this guide reaches the container from `.env`, except `ENTERPRISE_*`, which only `docker-compose.enterprise.yml` sets. For anything else, such as the port changes below, add a `docker-compose.override.yml` next to `docker-compose.yml`. Compose merges it automatically unless you pass `-f`.
 
-```yaml
-services:
-  api-lite:
-    environment:
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
-      TRUST_PROXY: ${TRUST_PROXY:-}
-      TRUST_CLOUDFLARE: ${TRUST_CLOUDFLARE:-}
-      MAL_CLIENT_ID: ${MAL_CLIENT_ID:-}
-      MAL_CLIENT_SECRET: ${MAL_CLIENT_SECRET:-}
-      MAL_REDIRECT_URI: ${MAL_REDIRECT_URI:-}
-```
-
-Without `ADMIN_EMAILS` forwarded this way, nobody becomes admin on a default Compose install: Admin → Settings stays unreachable and signup stays open. `docker-compose.enterprise.yml` already forwards `ADMIN_EMAILS` and reads `DATABASE_URL` from `.env`.
+`docker-compose.enterprise.yml` keeps its own, shorter list. It forwards `ADMIN_EMAILS` and reads `DATABASE_URL` from `.env`, but not `TRUST_PROXY`, `TRUST_CLOUDFLARE`, `COOKIE_SECURE`, `AUTH_*` or the `MAL_*`, `SHIKIMORI_*` and `BANGUMI_*` groups.
 
 ### Lock down Postgres, Redis and the password
 
-The full and production profiles publish Postgres on `5432` and Redis on `6379` on **all host interfaces**. Redis has no password, and Postgres uses `questorylabs` / `questorylabs`. Docker-published ports can bypass host firewalls such as `ufw`. On any host reachable from an untrusted network, remove them and change the password in the override (`!reset` needs Compose 2.24+):
+The full and production profiles publish Postgres on `5432` and Redis on `6379` on **all host interfaces**. Redis has no password, and Postgres uses `questorylabs` / `questorylabs`. Docker-published ports can bypass host firewalls such as `ufw`. On any host reachable from an untrusted network, remove them and change the password in a `docker-compose.override.yml` (`!reset` needs Compose 2.24+):
 
 ```yaml
 services:
@@ -178,7 +166,7 @@ The `pnpm docker:*` shortcuts run `docker compose --profile <profile> up -d --pu
 
 ### First run
 
-1. Forward `ADMIN_EMAILS` ([override](#how-compose-reads-env)) and start the stack.
+1. Set `ADMIN_EMAILS` in `.env` and start the stack.
 2. Register at the web UI with an email listed in `ADMIN_EMAILS`.
 3. Link Steam in **Settings → Connections**.
 4. In **Admin → Settings**, turn on Music, Watch or Read as needed, and close signup if the instance is private.
@@ -193,14 +181,14 @@ docker compose --profile selfhosted down                # stop; keeps volumes
 
 Use the profile you deployed. `down -v` **deletes your database volume**.
 
-Host ports `3000` and `4000` are fixed in `docker-compose.yml`. To change or restrict them, use the override, for example `ports: !override ["127.0.0.1:4000:4000"]` on the API service.
+Host ports `3000` and `4000` are fixed in `docker-compose.yml`. To change or restrict them, use a `docker-compose.override.yml`, for example `ports: !override ["127.0.0.1:4000:4000"]` on the API service.
 
 ### Optional data keys
 
 | Variable | Used for | Without it |
 |----------|----------|------------|
 | `ITAD_API_KEY` | [IsThereAnyDeal](https://isthereanydeal.com/) prices and price history | Those price features are unavailable |
-| `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` | IGDB game data such as multiplayer modes (Twitch developer credentials; `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` are accepted outside Compose) | IGDB lookups are skipped |
+| `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` | IGDB game data such as multiplayer modes (Twitch developer credentials; `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` are also accepted) | IGDB lookups are skipped |
 | `MUSICBRAINZ_USER_AGENT` | Identifies your instance to MusicBrainz, e.g. `QuestoryLabs-Music/0.1 (you@example.com)` | A built-in default is sent |
 
 ## Music analytics (optional)
@@ -299,7 +287,7 @@ TMDB_API_KEY=...   # TMDB API key or v4 read token
 # (default redirects: http://localhost:4000/v1/watch/{mal,shikimori,bangumi}/callback)
 ```
 
-MyAnimeList, Shikimori and Bangumi need the [Compose override](#how-compose-reads-env); without those variables, connecting returns `*_CLIENT_ID/SECRET not configured`. Set each `*_REDIRECT_URI` to your public API origin and register the same URL with the provider.
+Without the MyAnimeList, Shikimori or Bangumi variables, connecting that provider returns `*_CLIENT_ID/SECRET not configured`. Set each `*_REDIRECT_URI` to your public API origin and register the same URL with the provider.
 
 Watch session APIs live at `/v1/watch/*` on the API origin; webhooks at `/webhooks/*` (same process and port as Steam).
 
@@ -384,13 +372,13 @@ Read nav appears from the on-load `GET /v1/status` snapshot (`read.enabled`). Re
 
 Sign-up and sign-in use **email + password only**. Steam OpenID is link-only from **Connections** (requires an existing session).
 
-- `ADMIN_EMAILS` — comma-separated emails granted `isAdmin` on register/login (also checked at request time). The first user is **not** admin unless listed here. Needs the [Compose override](#how-compose-reads-env).
+- `ADMIN_EMAILS` — comma-separated emails granted `isAdmin` on register/login (also checked at request time). The first user is **not** admin unless listed here.
 - Signup is always open while `count(isAdmin)=0`. After that, admins toggle signup in **Admin → Settings** (`AppConfig.signupEnabled`).
 - Abuse protection: signed challenges, honeypots, min form-fill time, IP/email rate limits, login lockout, Origin checks. Prefer Redis (`REDIS_URL`) for multi-instance rate limits.
-- `TRUST_PROXY=true` when behind a reverse proxy so client IP / rate limits use `X-Forwarded-For`. Without it, all users share the proxy's IP for rate limiting. Only enable it when the API is reachable solely through a proxy that sets the header itself: the first `X-Forwarded-For` value is trusted, so direct clients could spoof it. Needs the override.
-- `TRUST_CLOUDFLARE=true` when Cloudflare proxies the API, so client IP / rate limits use `CF-Connecting-IP`. It takes priority over `TRUST_PROXY`. Only enable it once the origin accepts traffic solely from Cloudflare, because anyone reaching the origin directly can set this header. Needs the override.
+- `TRUST_PROXY=true` when behind a reverse proxy so client IP / rate limits use `X-Forwarded-For`. Without it, all users share the proxy's IP for rate limiting. Only enable it when the API is reachable solely through a proxy that sets the header itself: the first `X-Forwarded-For` value is trusted, so direct clients could spoof it.
+- `TRUST_CLOUDFLARE=true` when Cloudflare proxies the API, so client IP / rate limits use `CF-Connecting-IP`. It takes priority over `TRUST_PROXY`. Only enable it once the origin accepts traffic solely from Cloudflare, because anyone reaching the origin directly can set this header.
 - `AUTH_BLOCKED_EMAIL_DOMAINS` — extra disposable domains to reject on signup.
-- `AUTH_MIN_FILL_MS` — minimum form-fill time (default `2000`). `AUTH_ALLOW_EMAIL_PLUS=false` rejects `+` addressing (allowed by default). `AUTH_CHALLENGE_SECRET` signs challenges (default: `SESSION_SECRET`). All need the override.
+- `AUTH_MIN_FILL_MS` — minimum form-fill time (default `2000`). `AUTH_ALLOW_EMAIL_PLUS=false` rejects `+` addressing (allowed by default). `AUTH_CHALLENGE_SECRET` signs challenges (default: `SESSION_SECRET`).
 
 ## Steam ID allowlist (linking)
 
@@ -499,7 +487,7 @@ Cron runs **in-process** inside the API by default (opt out with `CRON_ENABLED=f
 | `catalog-sync` | `0 4 * * *` | `CRON_CATALOG_SCHEDULE` | Refresh the game catalog |
 | `price-sync` | `0 5 * * *` | `CRON_PRICE_SCHEDULE` | Enqueue `metadata-refresh` for every Steam-linked user (prices for owned + friend-cached games) |
 | `ai-goals` | `30 6 * * *` | `CRON_AI_GOALS_SCHEDULE` | Generate AI goals (QEngine) |
-| `monthly-recap` | `0 6 1 * *` | `CRON_RECAP_SCHEDULE` (needs the override) | Generate monthly recaps |
+| `monthly-recap` | `0 6 1 * *` | `CRON_RECAP_SCHEDULE` | Generate monthly recaps |
 
 Scheduled ticks and admin/HTTP triggers write `CronRun` rows (`triggeredBy`: `system` | `admin` | `cron`) visible under `/admin/cron`.
 

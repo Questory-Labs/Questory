@@ -123,7 +123,7 @@ pnpm docker:selfhosted
 # Full setup (Postgres + Redis)
 pnpm docker:selfhosted-full  # (Alias: pnpm docker:up)
 ```
-> **Pro-Tip:** Prefer building from source using `-- --build`. Compose may pull prebuilt images when configured.
+> **Pro-Tip:** Prefer building from source using `--build`. Compose may pull prebuilt images when configured.
 
 ### 3. Production (Public HTTPS)
 
