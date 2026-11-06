@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useResource, type UseResourceResult } from "@questorylabs/qhttp/react";
 import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
 import { isEnterpriseFlagEnabled } from "@/lib/enterprise";
+import { useUser } from "./UserProvider";
 
 type EnterpriseStatusData = Awaited<ReturnType<typeof fetchEnterpriseStatus>>;
 
@@ -24,7 +25,8 @@ const EnterpriseEnabledContext = createContext<EnterpriseEnabledValue | null>(
 );
 
 function useEnterpriseEnabledState(): EnterpriseEnabledValue {
-  const flagOn = isEnterpriseFlagEnabled();
+  const { user } = useUser();
+  const flagOn = isEnterpriseFlagEnabled() || user?.isDemo === true;
   const status = useResource({
     id: ["enterprise-status"],
     load: fetchEnterpriseStatus,

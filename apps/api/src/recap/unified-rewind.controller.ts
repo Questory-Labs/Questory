@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
-import { Request } from "express";
+import type { Request } from "express";
 import type { RewindAllStats, RewindInsightResponse } from "@questorylabs/shared";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { RewindAiService } from "../rewind/rewind-ai.service";

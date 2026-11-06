@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LandingView } from "./auth.landing.view";
 import type { LandingViewProps } from "./auth.landing.types";
 
@@ -33,6 +33,18 @@ describe("LandingView", () => {
     expect(
       screen.queryByRole("link", { name: "Create account" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides View demo unless enabled", () => {
+    renderView({});
+    expect(screen.queryByRole("button", { name: "View demo" })).toBeNull();
+  });
+
+  it("starts the demo from View demo", () => {
+    const startDemo = vi.fn();
+    renderView({ showDemo: true, startDemo });
+    fireEvent.click(screen.getByRole("button", { name: "View demo" }));
+    expect(startDemo).toHaveBeenCalledTimes(1);
   });
 
   it("numbers the four domains", () => {

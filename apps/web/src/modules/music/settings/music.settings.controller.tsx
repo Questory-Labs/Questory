@@ -1,5 +1,6 @@
 "use client";
 
+import { assertDemoWriteAllowed } from "@/lib/demo-mode";
 import {
   useEffect,
   useRef,
@@ -149,6 +150,7 @@ export const MusicSettingsController = ({ children }: PropsWithChildren) => {
     const body = new FormData();
     body.append("file", file);
     try {
+      assertDemoWriteAllowed("POST", musicUrl("/imports"));
       const res = await fetch(musicUrl("/imports"), {
         method: "POST",
         body,

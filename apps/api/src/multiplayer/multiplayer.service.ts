@@ -140,6 +140,7 @@ export class MultiplayerService {
     const friendNames = new Map(
       friendships.map((f) => [f.friendSteamId, f.personaName]),
     );
+    const friendSteamIds = input.friendSteamIds.filter((id) => friendNames.has(id));
 
     const viewer = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -149,7 +150,7 @@ export class MultiplayerService {
 
     const friendOwned = new Map<string, Set<number>>();
     const friendMinutes = new Map<number, number>();
-    for (const friendSteamId of input.friendSteamIds) {
+    for (const friendSteamId of friendSteamIds) {
       const rows = await this.prisma.friendLibraryCache.findMany({
         where: { ownerSteamId: friendSteamId },
         select: { gameAppId: true, playtimeForever: true },
@@ -239,14 +240,14 @@ export class MultiplayerService {
       ) {
         continue;
       }
-      const ownedByFriends = input.friendSteamIds
+      const ownedByFriends = friendSteamIds
         .filter((id) => friendOwned.get(id)?.has(e.game.appId))
         .map((id) => friendNames.get(id) || id);
-      const missingFriends = input.friendSteamIds
+      const missingFriends = friendSteamIds
         .filter((id) => !friendOwned.get(id)?.has(e.game.appId))
         .map((id) => friendNames.get(id) || id);
       const allFriendsOwn =
-        input.friendSteamIds.length === 0 || missingFriends.length === 0;
+        friendSteamIds.length === 0 || missingFriends.length === 0;
       // Library candidates are always owned by you.
       const ownership: PlanGame["ownership"] = allFriendsOwn
         ? "shared"
@@ -375,15 +376,15 @@ export class MultiplayerService {
         }
 
         const ownedByYou = yourAppIds.has(item.appId);
-        const ownedByFriends = input.friendSteamIds
+        const ownedByFriends = friendSteamIds
           .filter((id) => friendOwned.get(id)?.has(item.appId))
           .map((id) => friendNames.get(id) || id);
-        const missingFriends = input.friendSteamIds
+        const missingFriends = friendSteamIds
           .filter((id) => !friendOwned.get(id)?.has(item.appId))
           .map((id) => friendNames.get(id) || id);
 
         const allFriendsOwn =
-          input.friendSteamIds.length === 0 || missingFriends.length === 0;
+          friendSteamIds.length === 0 || missingFriends.length === 0;
         const ownership: PlanGame["ownership"] =
           ownedByYou && allFriendsOwn
             ? "shared"
@@ -438,7 +439,7 @@ export class MultiplayerService {
       minYear,
       maxYear,
       sortBy: input.sortBy,
-      friendCount: input.friendSteamIds.length,
+      friendCount: friendSteamIds.length,
       games: games
         .slice(0, 60)
         .map(

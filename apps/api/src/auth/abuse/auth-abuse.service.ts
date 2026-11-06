@@ -27,6 +27,8 @@ const LIMITS = {
   loginIp: { max: 20, ttl: 900 },
   loginEmail: { max: 8, ttl: 900 },
   challengeIp: { max: 40, ttl: 900 },
+  demoIp: { max: 20, ttl: 900 },
+  demoRequestIp: { max: 600, ttl: 60 },
 } as const;
 
 export const LOGIN_LOCKOUT_TIERS = [
@@ -232,6 +234,22 @@ export class AuthAbuseService {
       `auth:register:email:d:${emailH}`,
       LIMITS.registerEmailDay.max,
       LIMITS.registerEmailDay.ttl,
+    );
+  }
+
+  async assertDemoLimits(ip: string): Promise<void> {
+    await this.hitLimit(
+      `auth:demo:ip:${this.hashIp(ip)}`,
+      LIMITS.demoIp.max,
+      LIMITS.demoIp.ttl,
+    );
+  }
+
+  async assertDemoRequestLimits(ip: string): Promise<void> {
+    await this.hitLimit(
+      `auth:demo:req:${this.hashIp(ip)}`,
+      LIMITS.demoRequestIp.max,
+      LIMITS.demoRequestIp.ttl,
     );
   }
 

@@ -1,3 +1,5 @@
+import { isDemoModeActive } from "@/lib/demo-mode";
+
 type SseHandlers = {
   onMessage: (data: string) => void;
   onError?: (error: unknown) => void;
@@ -221,7 +223,9 @@ export async function subscribeSse(
   if (!signal || signal.aborted) return;
 
   await new Promise<void>((resolve) => {
-    acquireSharedConnection(url, handlers.onMessage, signal);
+    if (!isDemoModeActive()) {
+      acquireSharedConnection(url, handlers.onMessage, signal);
+    }
     signal.addEventListener("abort", () => resolve(), { once: true });
   });
 }

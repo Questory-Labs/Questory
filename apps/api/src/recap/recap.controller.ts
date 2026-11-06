@@ -11,7 +11,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { Request } from "express";
+import type { Request } from "express";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { AdminGuard } from "../auth/admin.guard";
 import { CronRunnerService } from "../cron/cron-runner.service";

@@ -1,5 +1,6 @@
 "use client";
 
+import { useStartDemo } from "@/hooks/useStartDemo";
 import { useUser } from "@/hooks/useUser";
 import { fetchSignupStatus } from "@/lib/auth-api";
 import { useResource } from "@questorylabs/qhttp/react";
@@ -10,6 +11,7 @@ import { PropsWithChildren, useEffect } from "react";
 export const LandingController = ({ children }: PropsWithChildren) => {
   const router = useRouter();
   const { isAuthenticated } = useUser();
+  const demo = useStartDemo();
   const signup = useResource({
     id: ["signup-status"],
     load: fetchSignupStatus,
@@ -27,5 +29,6 @@ export const LandingController = ({ children }: PropsWithChildren) => {
 
   return cloneElements(children, {
     showRegister: signup.value?.open !== false,
+    ...demo,
   });
 };

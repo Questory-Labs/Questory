@@ -3,6 +3,9 @@ import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
 import { loadEnvFiles } from "./load-env";
 import { AppModule } from "./app.module";
+import { AuthAbuseService } from "./auth/abuse/auth-abuse.service";
+import { createDemoMiddleware } from "./demo/demo.middleware";
+import { FeatureFlagsService } from "./features/feature-flags.service";
 import { RequestIdExceptionFilter, requestIdMiddleware } from "./lib/request-id";
 import {
   assertModeConfig,
@@ -34,6 +37,9 @@ async function bootstrap() {
     origin: resolveAllowedOrigins(),
     credentials: true,
   });
+  app.use(
+    createDemoMiddleware(app.get(FeatureFlagsService), app.get(AuthAbuseService)),
+  );
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: "1",

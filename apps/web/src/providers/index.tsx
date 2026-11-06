@@ -1,6 +1,7 @@
 "use client";
 
 import { ResourceProvider } from "@questorylabs/qhttp/react";
+import { DemoSession } from "@/components/demo/DemoSession";
 import { DropEpochProvider, StatusProvider } from "./StatusProvider";
 import { EnterpriseEnabledProvider } from "./EnterpriseEnabledProvider";
 import { NotificationProvider } from "./NotificationProvider";
@@ -18,7 +19,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <UserProvider>
           <StatusProvider>
             <EnterpriseEnabledProvider>
-              <NotificationProvider>{children}</NotificationProvider>
+              <NotificationProvider>
+                {children}
+                <DemoSession />
+              </NotificationProvider>
             </EnterpriseEnabledProvider>
           </StatusProvider>
         </UserProvider>

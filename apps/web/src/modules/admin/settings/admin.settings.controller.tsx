@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
+import { APP_STATUS_RESOURCE_ID } from "@/lib/app-status";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import { cloneElements } from "@questorylabs/ui";
 import type { PatchFeatureFlags } from "@questorylabs/shared";
@@ -24,6 +25,7 @@ export const AdminSettingsController = ({ children }: PropsWithChildren) => {
       store.touch(["admin-settings"]);
       store.touch(["admin-overview"]);
       store.touch(["signup-status"]);
+      store.touch([...APP_STATUS_RESOURCE_ID]);
     },
   });
 

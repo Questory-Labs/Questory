@@ -6,6 +6,11 @@ vi.mock("@/lib/enterprise-api", () => ({
   fetchEnterpriseStatus: vi.fn(),
 }));
 
+let mockUser: { isDemo?: boolean } | null = null;
+vi.mock("./UserProvider", () => ({
+  useUser: () => ({ user: mockUser }),
+}));
+
 import { fetchEnterpriseStatus } from "@/lib/enterprise-api";
 import {
   EnterpriseEnabledProvider,
@@ -32,6 +37,21 @@ describe("useEnterpriseEnabled", () => {
 
   beforeEach(() => {
     vi.mocked(fetchEnterpriseStatus).mockReset();
+    mockUser = null;
+  });
+
+  it("turns on for the demo user when ENTERPRISE is not set", async () => {
+    delete process.env.ENTERPRISE;
+    mockUser = { isDemo: true };
+    vi.mocked(fetchEnterpriseStatus).mockResolvedValue({
+      available: true,
+      service: { ok: true },
+    });
+
+    const { result } = renderHook(() => useEnterpriseEnabled(), { wrapper });
+
+    expect(result.current.flagOn).toBe(true);
+    await waitFor(() => expect(result.current.enabled).toBe(true));
   });
 
   it("is disabled when ENTERPRISE is not set (skips status fetch)", () => {

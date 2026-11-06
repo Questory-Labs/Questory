@@ -46,6 +46,8 @@ export const UserSchema = z.object({
   currency: z.string().optional(),
   priceRegionLocked: z.boolean().optional(),
   createdAt: z.string().optional(),
+  isDemo: z.boolean().optional(),
+  sessionExpiresAt: z.string().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -1977,6 +1979,7 @@ export {
 
 export * from "./music-scrobbler";
 export * from "./feature-flags";
+export * from "./demo";
 
 // Server-only crypto helpers: import from `@questorylabs/shared/session`
 // or `@questorylabs/shared/oauth-state` — never from this browser-safe barrel.

@@ -14,6 +14,7 @@ import {
 } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import {
+  DEMO_ENABLED_CONFIG_KEY,
   FEATURE_FLAGS_TTL_MS,
   featureConfigKey,
   sourceConfigKey,
@@ -22,6 +23,7 @@ import {
 export type ResolvedFlags = {
   domains: AdminDomainFlags;
   sources: AdminSourceFlags;
+  demo: { enabled: boolean };
 };
 
 function parseEnvBool(raw: string | undefined): boolean | undefined {
@@ -104,7 +106,23 @@ export class FeatureFlagsService {
       watch: { enabled: snap.domains.watch.enabled },
       read: { enabled: snap.domains.read.enabled },
       sources,
+      demo: { enabled: snap.demo.enabled },
     };
+  }
+
+  async isDemoEnabled(): Promise<boolean> {
+    const snap = await this.getSnapshot();
+    return snap.demo.enabled;
+  }
+
+  async setDemoEnabled(enabled: boolean): Promise<void> {
+    await this.upsert(DEMO_ENABLED_CONFIG_KEY, enabled);
+    if (!this.snapshot) {
+      this.snapshot = this.resolve({});
+    }
+    this.snapshot.demo = { enabled };
+    this.loadedAt = Date.now();
+    this.emitChange();
   }
 
   async getAdminFlags(): Promise<ResolvedFlags> {
@@ -136,6 +154,7 @@ export class FeatureFlagsService {
           OR: [
             { key: { startsWith: "feature." } },
             { key: { startsWith: "source." } },
+            { key: DEMO_ENABLED_CONFIG_KEY },
           ],
         },
       });
@@ -200,7 +219,11 @@ export class FeatureFlagsService {
     for (const source of FEATURE_SOURCES) {
       sources[source] = this.resolveSource(map[sourceConfigKey(source)]);
     }
-    return { domains, sources };
+    return {
+      domains,
+      sources,
+      demo: { enabled: map[DEMO_ENABLED_CONFIG_KEY] === "true" },
+    };
   }
 
   private resolveDomain(

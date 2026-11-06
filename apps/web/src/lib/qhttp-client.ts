@@ -7,6 +7,7 @@ import {
   type HttpMethod,
   type RequestBody,
 } from "@questorylabs/qhttp";
+import { assertDemoWriteAllowed } from "@/lib/demo-mode";
 import { jsonRequestHeaders } from "@/lib/json-fetch";
 
 /** Session cookie fetch — credentials + no-store (not qHttp TTL cache). */
@@ -115,6 +116,7 @@ async function requestJsonWithRetry<T>(
   retries: number | undefined,
 ): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase() as HttpMethod;
+  assertDemoWriteAllowed(method, url);
   let client = sessionHttp
     .clone()
     .setUrl(url)

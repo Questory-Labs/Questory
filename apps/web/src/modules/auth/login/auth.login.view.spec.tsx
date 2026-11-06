@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { AuthChallenge } from "@/lib/auth-api";
 import { LoginView } from "./auth.login.view";
 import type { LoginViewProps } from "./auth.login.types";
@@ -29,6 +29,16 @@ const renderView = (patch: Partial<LoginViewProps>) =>
 
 describe("LoginView", () => {
   afterEach(cleanup);
+
+  it("shows View demo only when enabled", () => {
+    const startDemo = vi.fn();
+    renderView({});
+    expect(screen.queryByRole("button", { name: "View demo" })).toBeNull();
+    cleanup();
+    renderView({ showDemo: true, startDemo });
+    fireEvent.click(screen.getByRole("button", { name: "View demo" }));
+    expect(startDemo).toHaveBeenCalledTimes(1);
+  });
 
   it("shows the Sign in heading", () => {
     renderView({});

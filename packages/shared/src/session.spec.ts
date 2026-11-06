@@ -27,6 +27,48 @@ describe("session cookies", () => {
     expect(parsed?.steamId).toBeNull();
   });
 
+  it("keeps the demo claim and its expiry", () => {
+    const exp = Date.now() + 60_000;
+    const raw = encodeSessionCookie(
+      { userId: "demo", steamId: null, exp, demo: true },
+      SECRET,
+    );
+    const parsed = parseSessionCookie(raw, SECRET);
+    expect(parsed?.demo).toBe(true);
+    expect(parsed?.exp).toBe(exp);
+  });
+
+  it("does not add a demo claim to normal sessions", () => {
+    const raw = encodeSessionCookie({ userId: "u1", steamId: null }, SECRET);
+    const parsed = parseSessionCookie(raw, SECRET);
+    expect(parsed).not.toBeNull();
+    expect("demo" in parsed!).toBe(false);
+  });
+
+  it("ignores a non-true demo claim", () => {
+    const body = Buffer.from(
+      JSON.stringify({
+        userId: "u1",
+        steamId: null,
+        exp: Date.now() + 60_000,
+        demo: "true",
+      }),
+      "utf8",
+    ).toString("base64url");
+    const raw = `${body}.${signSessionBody(body, SECRET)}`;
+    const parsed = parseSessionCookie(raw, SECRET);
+    expect(parsed?.userId).toBe("u1");
+    expect("demo" in parsed!).toBe(false);
+  });
+
+  it("rejects an expired demo session", () => {
+    const raw = encodeSessionCookie(
+      { userId: "demo", steamId: null, exp: Date.now() - 1, demo: true },
+      SECRET,
+    );
+    expect(parseSessionCookie(raw, SECRET)).toBeNull();
+  });
+
   it("rejects tampered body", () => {
     const raw = encodeSessionCookie(
       { userId: "u1", steamId: "76561198000000000" },

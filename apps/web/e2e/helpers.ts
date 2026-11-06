@@ -31,6 +31,7 @@ export const E2E_USER: E2EUser = {
 };
 
 export const E2E_APP_STATUS = {
+  demo: { enabled: false },
   music: { enabled: true },
   watch: { enabled: true },
   read: { enabled: true },

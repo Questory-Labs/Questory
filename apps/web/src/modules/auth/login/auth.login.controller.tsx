@@ -1,6 +1,7 @@
 "use client";
 
 import { readAbuseFields } from "@/components/auth/AuthFormAbuseFields";
+import { useStartDemo } from "@/hooks/useStartDemo";
 import { useUser } from "@/hooks/useUser";
 import {
   fetchLoginChallenge,
@@ -26,6 +27,7 @@ import { loginFailure, safeNextPath } from "./auth.login.utils";
 export const LoginController = ({ children }: PropsWithChildren) => {
   const router = useRouter();
   const store = useStore();
+  const demo = useStartDemo();
   const search = useSearchParams();
   const nextPath = safeNextPath(search.get("next"));
   const [challenge, setChallenge] = useState<AuthChallenge | null>(null);
@@ -146,5 +148,6 @@ export const LoginController = ({ children }: PropsWithChildren) => {
     lockSecondsLeft: lockUntil == null ? 0 : lockSecondsLeft,
     refreshChallenge,
     onSubmit,
+    ...demo,
   });
 };

@@ -45,7 +45,8 @@ const silverCta = "btn btn-primary min-h-12 px-[22px] text-[15px]";
 const ghostCta = "btn btn-ghost min-h-12 px-[22px] text-[15px]";
 
 export const LandingView = (props: Record<string, unknown>) => {
-  const { showRegister } = props as LandingViewProps;
+  const { showRegister, showDemo, demoPending, demoError, startDemo } =
+    props as LandingViewProps;
   const { paint, index } = useMorphPainter();
   const active = WORDS[index];
 
@@ -113,7 +114,22 @@ export const LandingView = (props: Record<string, unknown>) => {
               Create account
             </Link>
           ) : null}
+          {showDemo ? (
+            <button
+              type="button"
+              className={ghostCta}
+              disabled={demoPending}
+              onClick={startDemo}
+            >
+              {demoPending ? "Starting demo…" : "View demo"}
+            </button>
+          ) : null}
         </div>
+        {demoError ? (
+          <p role="alert" className="relative mt-3 mb-0 text-sm text-[var(--warm)]">
+            {demoError}
+          </p>
+        ) : null}
         <p className="q-in relative mt-14 mb-0 font-serif text-lg text-[var(--faint)] [--i:5]">
           play. listen. watch. read.
         </p>

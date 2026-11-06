@@ -29,6 +29,7 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
     peekHeuristics,
     setPeekHeuristics,
     curated,
+    demoQuestion,
     fromCache,
     votes,
     fading,
@@ -105,7 +106,13 @@ export const RecommendationsView = (props: Record<string, unknown>) => {
         onClose={() => setSettingsOpen(false)}
       />
 
-      <MoodBar busy={jobRunning} onCurate={curate} onUseCached={useCached} />
+      <MoodBar
+        key={demoQuestion ?? "mood"}
+        busy={jobRunning}
+        initialText={demoQuestion}
+        onCurate={curate}
+        onUseCached={useCached}
+      />
       {(curated?.moodSummary || (fromCache && curated)) && !jobRunning && (
         <p className="flex flex-wrap items-center gap-2 px-1 font-serif text-[17px] text-[#cfcfd3]">
           {curated?.moodSummary ? `“${curated.moodSummary}”` : null}

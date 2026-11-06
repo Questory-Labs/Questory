@@ -9,6 +9,12 @@ import {
 import { ResourceStore, ResourceProvider } from "@questorylabs/qhttp/react";
 import { RecommendationsController } from "./enterprise.recommendations.controller";
 import { RecommendationsView } from "./enterprise.recommendations.view";
+import { DEMO_CURATE_QUESTIONS } from "@questorylabs/shared";
+
+let mockUser: { isDemo?: boolean } | null = null;
+vi.mock("@/hooks/useUser", () => ({
+  useUser: () => ({ user: mockUser }),
+}));
 
 const heuristicResponse = {
   available: true,
@@ -104,6 +110,36 @@ describe("RecommendationsController", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    mockUser = null;
+  });
+
+  it("prefills a sample question and curates once for the demo user", async () => {
+    mockUser = { isDemo: true };
+    renderPanel();
+
+    const input = await screen.findByRole("textbox", { name: "Mood" });
+    await waitFor(() =>
+      expect(DEMO_CURATE_QUESTIONS).toContain((input as HTMLInputElement).value),
+    );
+    await waitFor(() => {
+      const posts = calls.filter(
+        (c) =>
+          c.url.endsWith("/v1/recommendations/curate") &&
+          c.init?.method === "POST",
+      );
+      expect(posts).toHaveLength(1);
+      const body = JSON.parse(posts[0].init?.body as string);
+      expect(body.context.mood).toBe((input as HTMLInputElement).value);
+    });
+  });
+
+  it("does not auto-curate for normal users", async () => {
+    renderPanel();
+    await screen.findByText("Hades");
+    expect(
+      calls.some((c) => c.url.endsWith("/v1/recommendations/curate")),
+    ).toBe(false);
+    expect(screen.getByRole("textbox", { name: "Mood" })).toHaveValue("");
   });
 
   it("mood submit starts a curation job and shows the progress view", async () => {

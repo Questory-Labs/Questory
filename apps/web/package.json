@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "node ./scripts/write-runtime-env.mjs && next start -p 3000",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "screenshots:demo": "playwright test -c playwright.screenshots.config.ts"
   },
   "dependencies": {
     "@questorylabs/qhttp": "^0.4.0",

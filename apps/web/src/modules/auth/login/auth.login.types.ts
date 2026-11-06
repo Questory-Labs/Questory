@@ -11,4 +11,8 @@ export type LoginViewProps = {
   challengeLoading: boolean;
   refreshChallenge: () => Promise<AuthChallenge | null>;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  showDemo?: boolean;
+  demoPending?: boolean;
+  demoError?: string | null;
+  startDemo?: () => void;
 };

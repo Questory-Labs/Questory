@@ -15,6 +15,7 @@ export const AdminSettingsView = (props: Record<string, unknown>) => {
   const { settings, patch } = props as AdminSettingsViewProps;
   const s = settings.value;
   const signupOn = s?.signupEnabled === true;
+  const demoOn = s?.demo?.enabled === true;
 
   return (
     <ResourceStatus
@@ -47,6 +48,14 @@ export const AdminSettingsView = (props: Record<string, unknown>) => {
                 busy={patch.busy}
                 dotClassName="text-[var(--faint)]"
                 onToggle={() => patch.submit({ signupEnabled: !signupOn })}
+              />
+              <FlagToggle
+                label="Enable demo user"
+                hint="Shows a View demo button on the landing and sign-in pages. Visitors get a read-only, one-hour session with sample data."
+                enabled={demoOn}
+                busy={patch.busy}
+                dotClassName="text-[var(--faint)]"
+                onToggle={() => patch.submit({ demo: { enabled: !demoOn } })}
               />
               {FEATURE_FLAG_ROWS.map((row) => {
                 const flag = s?.features[row.id];

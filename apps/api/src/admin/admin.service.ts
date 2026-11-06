@@ -35,6 +35,7 @@ import {
   isSignupOpen,
   setSignupEnabled,
 } from "../auth/signup-policy";
+import { isDemoEmail } from "@questorylabs/shared";
 import type { FeatureSource, PatchFeatureFlags } from "@questorylabs/shared";
 import { FeatureFlagsService } from "../features/feature-flags.service";
 import { EnterpriseProxyService } from "../enterprise/enterprise-proxy.service";
@@ -155,6 +156,7 @@ export class AdminService {
       limits: this.abuse.getLimits(),
       features: flags.domains,
       sources: flags.sources,
+      demo: flags.demo,
     };
   }
 
@@ -176,6 +178,9 @@ export class AdminService {
           await this.flags.setSource(source as FeatureSource, enabled);
         }
       }
+    }
+    if (body.demo) {
+      await this.flags.setDemoEnabled(body.demo.enabled);
     }
     return this.getSettings();
   }
@@ -234,6 +239,9 @@ export class AdminService {
     password: string;
   }) {
     const email = normalizeEmail(body.email);
+    if (isDemoEmail(email)) {
+      throw new BadRequestException("This email is reserved");
+    }
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new BadRequestException("Email already in use");
@@ -294,6 +302,9 @@ export class AdminService {
 
     if (typeof body.email === "string") {
       data.email = normalizeEmail(body.email);
+      if (isDemoEmail(data.email)) {
+        throw new BadRequestException("This email is reserved");
+      }
     }
     if (typeof body.password === "string") {
       if (body.password.length < 10 || body.password.length > 128) {
