@@ -24,6 +24,7 @@ export type RecommendationsViewProps = {
   peekHeuristics: boolean;
   setPeekHeuristics: Dispatch<SetStateAction<boolean>>;
   curated: RecommendationResponse | null;
+  demoQuestion?: string;
   fromCache: boolean;
   votes: Record<string, FeedbackAction>;
   fading: Set<string>;

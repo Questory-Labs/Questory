@@ -1,8 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState, type PropsWithChildren } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from "react";
 import { useResource, useStore } from "@questorylabs/qhttp/react";
+import { DEMO_CURATE_QUESTIONS } from "@questorylabs/shared";
 import { cloneElements } from "@questorylabs/ui";
+import { useUser } from "@/hooks/useUser";
 import {
   fetchRecommendations,
   fetchSettings,
@@ -27,6 +35,10 @@ import { dayPartLabel } from "./enterprise.recommendations.utils";
 
 export const RecommendationsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
+  const { user } = useUser();
+  const isDemo = user?.isDemo === true;
+  const demoStarted = useRef(false);
+  const [demoQuestion, setDemoQuestion] = useState<string | undefined>();
   const [tab, setTab] = useState<RecsTab>("all");
   const [dayPart] = useState(() => dayPartLabel(new Date()));
   const [jobId, setJobId] = useState<string | null>(null);
@@ -98,6 +110,17 @@ export const RecommendationsController = ({ children }: PropsWithChildren) => {
       .catch(() => setJobId(null));
   }, []);
 
+  useEffect(() => {
+    if (!isDemo || demoStarted.current) return;
+    demoStarted.current = true;
+    const question =
+      DEMO_CURATE_QUESTIONS[
+        Math.floor(Math.random() * DEMO_CURATE_QUESTIONS.length)
+      ];
+    setDemoQuestion(question);
+    curate(question, { force: false });
+  }, [isDemo, curate]);
+
   const useCached = useCallback((mood: string | undefined) => {
     setLastMood(mood);
     setPeekHeuristics(false);
@@ -154,6 +177,7 @@ export const RecommendationsController = ({ children }: PropsWithChildren) => {
     peekHeuristics,
     setPeekHeuristics,
     curated,
+    demoQuestion,
     fromCache,
     votes,
     fading,

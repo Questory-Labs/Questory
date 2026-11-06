@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAction, useStore } from "@questorylabs/qhttp/react";
 import { BrandMark } from "@/components/BrandMark";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 import { LoadingPage } from "@/components/LoadingPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SyncStatusBar } from "@/components/SyncStatusBar";
@@ -65,9 +66,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         music: showMusicNav,
         watch: showWatchNav,
         read: showReadNav,
-        admin: Boolean(user?.isAdmin),
+        admin: Boolean(user?.isAdmin || user?.isDemo),
       }),
-    [showMusicNav, showWatchNav, showReadNav, user?.isAdmin],
+    [showMusicNav, showWatchNav, showReadNav, user?.isAdmin, user?.isDemo],
   );
 
   const navCountsQuery = useNavCounts({ enabled: isAuthenticated });
@@ -126,8 +127,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[17rem_1fr]">
-      <aside className="sticky top-0 hidden h-screen p-3 pr-0 lg:block">
-        <div className="panel flex h-full flex-col overflow-hidden">
+      <aside className="sticky top-0 z-30 hidden h-screen p-3 pr-0 lg:block">
+        <div className="panel flex h-full flex-col">
           <div className="flex shrink-0 items-center px-4 pb-2 pt-4">
             <BrandMark
               href="/dashboard"
@@ -244,7 +245,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           />
         ) : null}
 
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">
+          <DemoBanner />
+          {children}
+        </main>
       </div>
     </div>
   );

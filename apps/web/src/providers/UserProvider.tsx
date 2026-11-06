@@ -1,9 +1,16 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useResource, type UseResourceResult } from "@questorylabs/qhttp/react";
 import type { MeResponse, User } from "@questorylabs/shared";
 import { fetchMe, ME_RESOURCE_ID } from "@/lib/auth-api";
+import { setDemoModeActive } from "@/lib/demo-mode";
 
 export type UserValue = {
   user: User | null;
@@ -24,6 +31,11 @@ function useUserState(): UserValue {
     retries: false,
   });
   const user = me.value?.user ?? null;
+  const isDemo = user?.isDemo === true;
+
+  useLayoutEffect(() => {
+    setDemoModeActive(isDemo);
+  }, [isDemo]);
 
   return useMemo(
     () => ({

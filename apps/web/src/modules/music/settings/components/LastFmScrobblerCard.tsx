@@ -1,5 +1,6 @@
 "use client";
 
+import { isDemoModeActive, notifyDemoBlocked } from "@/lib/demo-mode";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
 import type { MusicScrobblerStatus } from "@questorylabs/shared";
 import { useState } from "react";
@@ -106,6 +107,11 @@ export const LastFmScrobblerCard = () => {
           </Button>
           <Button
             onClick={() => {
+              if (isDemoModeActive()) {
+                notifyDemoBlocked();
+                setConfirm(null);
+                return;
+              }
               window.location.href = musicUrl("/scrobbler/lastfm/authorize");
             }}
           >

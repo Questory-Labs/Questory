@@ -24,6 +24,8 @@ export type PublicUser = {
   profileUrl?: string | null;
   countryCode?: string | null;
   currency?: string;
+  isDemo?: boolean;
+  sessionExpiresAt?: string;
 };
 
 export function fetchRegisterChallenge() {

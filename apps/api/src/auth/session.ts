@@ -23,14 +23,17 @@ function cookieHintsFromRequest(req?: Request) {
 
 export function setSession(
   res: Response,
-  payload: Omit<SessionPayload, "exp">,
+  payload: Omit<SessionPayload, "exp"> & { exp?: number },
   req?: Request,
 ) {
   const value = encodeSessionCookie(payload);
   const opts = sessionCookieOptions(cookieHintsFromRequest(req)) as CookieOptions;
   res.cookie(SESSION_COOKIE_NAME, value, {
     ...opts,
-    maxAge: SESSION_MAX_AGE_MS,
+    maxAge:
+      payload.exp === undefined
+        ? SESSION_MAX_AGE_MS
+        : Math.max(0, payload.exp - Date.now()),
   });
 }
 

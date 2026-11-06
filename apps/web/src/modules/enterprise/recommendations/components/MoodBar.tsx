@@ -13,13 +13,15 @@ export const MoodBar = ({
   busy,
   onCurate,
   onUseCached,
+  initialText,
 }: {
   busy: boolean;
+  initialText?: string;
   onCurate: (mood: string | undefined, options: CurateOptions) => void;
   onUseCached: (mood: string | undefined) => void;
 }) => {
   const inputId = useId();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
   const [cacheAvailable, setCacheAvailable] = useState(false);
 
   useEffect(() => {

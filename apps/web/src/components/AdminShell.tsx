@@ -4,10 +4,16 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 import { LoadingPage } from "@/components/LoadingPage";
 import { useEnterpriseEnabled } from "@/hooks/useEnterpriseEnabled";
 import { useUser } from "@/hooks/useUser";
-import { buildAdminNavGroups } from "@/modules/admin/shared/admin.nav";
+import {
+  buildAdminNavGroups,
+  DEMO_ADMIN_HOME,
+  DEMO_ADMIN_NAV_GROUPS,
+  isDemoAdminPath,
+} from "@/modules/admin/shared/admin.nav";
 import { AdminNavLinks } from "@/modules/admin/shared/components/AdminNavLinks";
 import { LlmBudgetBanner } from "@/modules/enterprise/telemetry/components/LlmBudgetBanner";
 
@@ -21,19 +27,23 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { user, authReady } = useUser();
 
   const showEnterpriseNav = Boolean(enterpriseEnabled) && !enterpriseLoading;
+  const isDemo = user?.isDemo === true;
+  const demoAllowed = isDemo && isDemoAdminPath(pathname);
   const groups = useMemo(
-    () => buildAdminNavGroups(showEnterpriseNav),
-    [showEnterpriseNav],
+    () => (isDemo ? DEMO_ADMIN_NAV_GROUPS : buildAdminNavGroups(showEnterpriseNav)),
+    [isDemo, showEnterpriseNav],
   );
 
   useEffect(() => {
     if (!authReady) return;
     if (!user) {
       router.replace("/login");
+    } else if (user.isDemo === true) {
+      if (!isDemoAdminPath(pathname)) router.replace(DEMO_ADMIN_HOME);
     } else if (!user.isAdmin) {
       router.replace("/dashboard");
     }
-  }, [authReady, user, router]);
+  }, [authReady, user, router, pathname]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -69,7 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user.isAdmin) {
+  if (!user.isAdmin && !demoAllowed) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="panel q-in w-full max-w-sm p-6 text-center">
@@ -164,6 +174,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         )}
 
         <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10">
+          <DemoBanner />
           {showEnterpriseNav ? <LlmBudgetBanner /> : null}
           {children}
         </main>

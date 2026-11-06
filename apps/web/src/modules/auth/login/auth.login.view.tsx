@@ -23,6 +23,10 @@ export const LoginView = (props: Record<string, unknown>) => {
     challengeLoading,
     refreshChallenge,
     onSubmit,
+    showDemo,
+    demoPending,
+    demoError,
+    startDemo,
   } = props as LoginViewProps;
   const locked = lockSecondsLeft > 0;
 
@@ -89,6 +93,22 @@ export const LoginView = (props: Record<string, unknown>) => {
             {lockoutTiersCopy()}
           </p>
         </form>
+        {showDemo ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-3 min-h-[50px] w-full"
+            disabled={demoPending}
+            onClick={startDemo}
+          >
+            {demoPending ? "Starting demo…" : "View demo"}
+          </Button>
+        ) : null}
+        {demoError ? (
+          <div className="mt-3">
+            <AuthAlert id="demo-error">{demoError}</AuthAlert>
+          </div>
+        ) : null}
         <p className="q-in mt-5 text-center text-sm text-[var(--muted)] [--i:5]">
           No account?{" "}
           <Link

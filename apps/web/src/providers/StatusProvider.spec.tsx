@@ -66,6 +66,7 @@ describe("useStatus", () => {
 
   it("enables nav from GET /v1/status", async () => {
     vi.mocked(fetchAppStatus).mockResolvedValue({
+      demo: { enabled: false },
       music: { enabled: true },
       watch: { enabled: true },
       read: { enabled: false },
@@ -91,6 +92,7 @@ describe("useStatus", () => {
 
   it("fetches status once for multiple consumers", async () => {
     vi.mocked(fetchAppStatus).mockResolvedValue({
+      demo: { enabled: false },
       music: { enabled: true },
       watch: { enabled: false },
       read: { enabled: false },
@@ -132,6 +134,7 @@ describe("useStatus", () => {
       </ResourceProvider>
     );
     vi.mocked(fetchAppStatus).mockResolvedValue({
+      demo: { enabled: false },
       music: { enabled: true },
       watch: { enabled: false },
       read: { enabled: false },
@@ -147,6 +150,7 @@ describe("useStatus", () => {
     await waitFor(() => expect(result.current.music.showMusicNav).toBe(true));
     vi.mocked(fetchAppStatus).mockClear();
     vi.mocked(fetchAppStatus).mockResolvedValue({
+      demo: { enabled: false },
       music: { enabled: false },
       watch: { enabled: false },
       read: { enabled: false },

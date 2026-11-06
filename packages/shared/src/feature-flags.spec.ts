@@ -8,6 +8,7 @@ import {
 describe("AppStatusSchema", () => {
   it("accepts a full status payload", () => {
     const parsed = AppStatusSchema.safeParse({
+      demo: { enabled: false },
       music: { enabled: true },
       watch: { enabled: false },
       read: { enabled: true },

@@ -554,6 +554,23 @@ test.describe("redesign authed", () => {
     await assertNoGlassCrash(page);
   });
 
+  test("sidebar alerts list is not clipped by the rail", async ({ page }) => {
+    await mockRedesignApi(page);
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Notifications" }).first().click();
+    const list = page.getByText("Alerts", { exact: true }).first().locator("../..");
+    await expect(list).toBeVisible();
+    await expect
+      .poll(() =>
+        list.evaluate((el) => {
+          const rect = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.right - 8, rect.top + 16);
+          return hit !== null && el.contains(hit);
+        }),
+      )
+      .toBe(true);
+  });
+
   test("cost page hero, unplayed list, and one ranking", async ({ page }) => {
     await mockRedesignApi(page);
     await page.goto("/cost");

@@ -8,6 +8,7 @@ export type SessionPayload = {
   /** Linked SteamID64 when present; null for email-only users. */
   steamId: string | null;
   exp: number;
+  demo?: true;
 };
 
 export function resolveSessionSecret(
@@ -31,6 +32,7 @@ export function encodeSessionCookie(
     userId: payload.userId,
     steamId: payload.steamId ?? null,
     exp: payload.exp ?? Date.now() + SESSION_MAX_AGE_MS,
+    ...(payload.demo === true ? { demo: true as const } : {}),
   };
   const body = Buffer.from(JSON.stringify(full)).toString("base64url");
   const sig = signSessionBody(body, secret);
@@ -62,6 +64,7 @@ export function parseSessionCookie(
           ? payload.steamId
           : null,
       exp: payload.exp,
+      ...(payload.demo === true ? { demo: true as const } : {}),
     };
   } catch {
     return null;

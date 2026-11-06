@@ -60,6 +60,7 @@ export const AppStatusSchema = z.object({
   watch: z.object({ enabled: z.boolean() }),
   read: z.object({ enabled: z.boolean() }),
   sources: SourceFlagsSchema,
+  demo: z.object({ enabled: z.boolean() }),
 });
 export type AppStatus = z.infer<typeof AppStatusSchema>;
 
@@ -100,6 +101,7 @@ export const PatchFeatureFlagsSchema = z.object({
   signupEnabled: z.boolean().optional(),
   features: DomainFlagsSchema.partial().strict().optional(),
   sources: SourceFlagsSchema.partial().strict().optional(),
+  demo: z.object({ enabled: z.boolean() }).strict().optional(),
 });
 export type PatchFeatureFlags = z.infer<typeof PatchFeatureFlagsSchema>;
 
@@ -117,6 +119,7 @@ export const AdminInstanceSettingsSchema = z.object({
   limits: z.array(AbuseLimitSchema),
   features: AdminDomainFlagsSchema,
   sources: AdminSourceFlagsSchema,
+  demo: z.object({ enabled: z.boolean() }),
 });
 export type AdminInstanceSettings = z.infer<typeof AdminInstanceSettingsSchema>;
 

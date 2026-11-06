@@ -47,6 +47,15 @@ describe("FeatureFlagsService", () => {
     expect(status.sources.anilist).toBe(true);
   });
 
+  it("keeps demo off unless AppConfig enables it", async () => {
+    expect(await service.isDemoEnabled()).toBe(false);
+    expect((await service.getPublicStatus()).demo.enabled).toBe(false);
+    service.invalidate();
+    findMany.mockResolvedValue([{ key: "demo.enabled", value: "true" }]);
+    expect(await service.isDemoEnabled()).toBe(true);
+    expect((await service.getPublicStatus()).demo.enabled).toBe(true);
+  });
+
   it("prefers AppConfig over env", async () => {
     process.env.FEATURE_MUSIC = "true";
     findMany.mockResolvedValue([

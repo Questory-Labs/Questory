@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   forwardRef,
 } from "@nestjs/common";
+import { isDemoEmail } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamApiService } from "../steam/steam-api.service";
 import { SyncService } from "../sync/sync.service";
@@ -160,6 +161,10 @@ export class AuthService {
       throw new BadRequestException("Unable to create account");
     }
 
+    if (isDemoEmail(email)) {
+      throw new BadRequestException("Unable to create account");
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new BadRequestException("Unable to create account");
@@ -185,6 +190,10 @@ export class AuthService {
 
   async login(emailRaw: string, password: string) {
     const email = normalizeEmail(emailRaw);
+    if (isDemoEmail(email)) {
+      await dummyPasswordVerify(password);
+      throw new UnauthorizedException("Invalid email or password");
+    }
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user?.passwordHash) {

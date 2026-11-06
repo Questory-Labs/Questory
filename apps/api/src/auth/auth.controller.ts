@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Get,
   HttpCode,
+  NotFoundException,
   Post,
   Req,
   Res,
@@ -11,11 +12,13 @@ import {
   UseGuards,
   VERSION_NEUTRAL,
 } from "@nestjs/common";
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {
   AuthRegisterSchema,
   AuthCredentialsSchema,
   ChangePasswordSchema,
+  DEMO_SESSION_TTL_MS,
+  DEMO_USER_ID,
 } from "@questorylabs/shared";
 import { AuthService } from "./auth.service";
 import { AuthAbuseService } from "./abuse/auth-abuse.service";
@@ -26,12 +29,15 @@ import { openIdQueryFromRequest } from "./openid-query";
 import { currencyFromCountry } from "../lib/currency";
 import { isSteamIdAllowed } from "../lib/runtime-config";
 import { clientIpFromRequest } from "./abuse/client-ip";
+import { FeatureFlagsService } from "../features/feature-flags.service";
+import { demoUser } from "../demo/demo-user";
 
 @Controller({ path: "auth", version: VERSION_NEUTRAL })
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly abuse: AuthAbuseService,
+    private readonly flags: FeatureFlagsService,
   ) {}
 
   @Get("signup-status")
@@ -169,6 +175,26 @@ export class AuthController {
       }
       throw err;
     }
+  }
+
+  @Post("demo")
+  @HttpCode(200)
+  async demo(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    if (!(await this.flags.isDemoEnabled())) {
+      throw new NotFoundException();
+    }
+    this.abuse.assertOriginAllowed(
+      (req.headers.origin as string | undefined) ||
+        (req.headers.referer as string | undefined),
+    );
+    await this.abuse.assertDemoLimits(clientIpFromRequest(req));
+    const exp = Date.now() + DEMO_SESSION_TTL_MS;
+    setSession(
+      res,
+      { userId: DEMO_USER_ID, steamId: null, exp, demo: true },
+      req,
+    );
+    return { ok: true, user: demoUser(exp) };
   }
 
   @Post("password")

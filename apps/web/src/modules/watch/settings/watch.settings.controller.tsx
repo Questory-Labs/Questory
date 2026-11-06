@@ -1,5 +1,6 @@
 "use client";
 
+import { assertDemoWriteAllowed } from "@/lib/demo-mode";
 import {
   useEffect,
   useRef,
@@ -142,6 +143,7 @@ export const WatchSettingsController = ({ children }: PropsWithChildren) => {
     body.append("file", file);
     body.append("include", selected.join(","));
     try {
+      assertDemoWriteAllowed("POST", watchUrl("/imports/letterboxd"));
       const res = await fetch(watchUrl("/imports/letterboxd"), {
         method: "POST",
         body,

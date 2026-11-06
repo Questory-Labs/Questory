@@ -98,6 +98,20 @@ describe("MoodBar", () => {
     expect(onUseCached).not.toHaveBeenCalled();
   });
 
+  it("prefills the input from initialText", () => {
+    render(
+      <MoodBar
+        busy={false}
+        initialText="A cozy weekend game"
+        onCurate={vi.fn()}
+        onUseCached={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("textbox", { name: "Mood" })).toHaveValue(
+      "A cozy weekend game",
+    );
+  });
+
   it("disables everything while a job runs", () => {
     render(
       <MoodBar busy onCurate={vi.fn()} onUseCached={vi.fn()} />,
