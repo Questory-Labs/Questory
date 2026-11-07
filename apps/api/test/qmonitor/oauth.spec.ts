@@ -53,7 +53,7 @@ describe("GET /api/health", () => {
       type: VersioningType.URI,
       defaultVersion: "1",
     });
-    await app.init();
+    await app.listen(0, "127.0.0.1");
   });
 
   afterAll(async () => {
@@ -211,7 +211,7 @@ describe("qmonitor oauth token flow", () => {
       defaultVersion: "1",
     });
     app.use(cookieParser(secret));
-    await app.init();
+    await app.listen(0, "127.0.0.1");
   });
 
   beforeEach(() => {

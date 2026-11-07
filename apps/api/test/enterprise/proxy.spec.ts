@@ -64,7 +64,7 @@ describe("Enterprise proxy", () => {
       defaultVersion: "1",
     });
     app.use(cookieParser(SECRET));
-    await app.init();
+    await app.listen(0, "127.0.0.1");
   });
 
   afterAll(async () => {
