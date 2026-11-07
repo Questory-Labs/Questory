@@ -22,7 +22,10 @@ export class WebhooksController {
     let parsed: Record<string, unknown> = {};
     if (body && typeof body === "object" && "payload" in body && typeof body.payload === "string") {
       try {
-        parsed = JSON.parse(body.payload) as Record<string, unknown>;
+        const payload: unknown = JSON.parse(body.payload);
+        parsed = (
+          payload && typeof payload === "object" ? payload : body
+        ) as Record<string, unknown>;
       } catch {
         parsed = body as Record<string, unknown>;
       }

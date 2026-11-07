@@ -1,3 +1,15 @@
+const BANGUMI_COLLECTION_TYPE_NAMES = new Map<unknown, string>([
+  [1, "wish"],
+  [2, "collect"],
+  [3, "do"],
+  [4, "on_hold"],
+  [5, "dropped"],
+]);
+
+export function bangumiCollectionTypeName(type: unknown): string | null {
+  return BANGUMI_COLLECTION_TYPE_NAMES.get(type) ?? null;
+}
+
 export function mapBangumiCollectionType(type: string): string {
   switch (type.toLowerCase()) {
     case "do":

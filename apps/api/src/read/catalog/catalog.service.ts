@@ -34,6 +34,7 @@ export type RecordReadProgressInput = {
   precision?: string;
   rawPayload?: string | null;
   chaptersDelta?: number;
+  chaptersTotal?: number;
 };
 
 @Injectable()
@@ -226,7 +227,31 @@ export class ReadCatalogService {
     }
   }
 
+  private async resolveChaptersDelta(input: RecordReadProgressInput) {
+    if (input.chaptersTotal == null) return input.chaptersDelta ?? 0;
+    const prior = await this.prisma.readEvent.aggregate({
+      where: {
+        userId: input.userId,
+        readTitleId: input.readTitleId,
+        source: input.source,
+      },
+      _max: { chaptersRead: true },
+    });
+    return Math.max(0, input.chaptersTotal - (prior._max.chaptersRead ?? 0));
+  }
+
   async recordProgress(input: RecordReadProgressInput) {
+    const existing = await this.prisma.readEvent.findUnique({
+      where: {
+        userId_dedupeKey: {
+          userId: input.userId,
+          dedupeKey: input.dedupeKey,
+        },
+      },
+      select: { id: true },
+    });
+    const chaptersDelta = existing ? 0 : await this.resolveChaptersDelta(input);
+
     const event = await this.prisma.readEvent.upsert({
       where: {
         userId_dedupeKey: {
@@ -258,11 +283,9 @@ export class ReadCatalogService {
       },
     });
 
-    await this.bumpHourBucket(
-      input.userId,
-      input.readAt,
-      input.chaptersDelta ?? 0,
-    );
+    if (!existing) {
+      await this.bumpHourBucket(input.userId, input.readAt, chaptersDelta);
+    }
     return event;
   }
 

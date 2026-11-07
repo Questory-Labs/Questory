@@ -1,6 +1,8 @@
 import { Worker } from "node:worker_threads";
 import { join } from "path";
-import type { ImportSource, ParsedListen } from "./parsers/types";
+import { ImportParseError, type ImportSource, type ParsedListen } from "./parsers/types";
+
+const WORKER_MAX_HEAP_MB = 2048;
 
 type WorkerMsg =
   | {
@@ -18,6 +20,7 @@ export function parseImportInWorker(
     let settled = false;
     const worker = new Worker(join(__dirname, "parse-worker.js"), {
       workerData: { source, stagedPath },
+      resourceLimits: { maxOldGenerationSizeMb: WORKER_MAX_HEAP_MB },
     });
 
     const succeed = (listens: ParsedListen[]) => {
@@ -39,7 +42,7 @@ export function parseImportInWorker(
         return;
       }
       if (!msg.ok) {
-        fail(new Error(msg.error || "Parse failed"));
+        fail(new ImportParseError(msg.error || "Parse failed"));
         return;
       }
       succeed(
@@ -49,11 +52,21 @@ export function parseImportInWorker(
         })),
       );
     });
-    worker.on("error", (err) => fail(err));
+    worker.on("error", (err: NodeJS.ErrnoException) => {
+      fail(
+        err.code === "ERR_WORKER_OUT_OF_MEMORY"
+          ? new ImportParseError("Import file is too large to parse")
+          : err,
+      );
+    });
     worker.on("exit", (code) => {
-      if (code !== 0) {
-        fail(new Error(`Parse worker exited with code ${code}`));
-      }
+      fail(
+        new Error(
+          code === 0
+            ? "Parse worker exited without a result"
+            : `Parse worker exited with code ${code}`,
+        ),
+      );
     });
   });
 }

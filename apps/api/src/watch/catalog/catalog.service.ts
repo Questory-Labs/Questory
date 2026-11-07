@@ -17,6 +17,7 @@ export type UpsertTitleInput = {
   imdbId?: string | null;
   anilistId?: number | null;
   malId?: number | null;
+  typeFromProvider?: boolean;
   kitsuId?: number | null;
   bangumiId?: number | null;
   shikimoriId?: number | null;
@@ -149,6 +150,11 @@ export class CatalogService {
       kitsuId: idMerge.kitsuId ?? existing.kitsuId,
       bangumiId: idMerge.bangumiId ?? existing.bangumiId,
       shikimoriId: idMerge.shikimoriId ?? existing.shikimoriId,
+      ...(input.typeFromProvider &&
+      existing.tmdbId == null &&
+      existing.traktId == null
+        ? { type: input.type }
+        : {}),
     });
 
     if (input.tmdbId != null) {
@@ -334,6 +340,16 @@ export class CatalogService {
   }
 
   async recordWatch(input: RecordWatchInput) {
+    const existing = await this.prisma.watchEvent.findUnique({
+      where: {
+        userId_dedupeKey: {
+          userId: input.userId,
+          dedupeKey: input.dedupeKey,
+        },
+      },
+      select: { id: true },
+    });
+
     const event = await this.prisma.watchEvent.upsert({
       where: {
         userId_dedupeKey: {
@@ -361,6 +377,8 @@ export class CatalogService {
         runtimeMinutes: input.runtimeMinutes ?? undefined,
       },
     });
+
+    if (existing) return event;
 
     const minutes =
       input.runtimeMinutes ??

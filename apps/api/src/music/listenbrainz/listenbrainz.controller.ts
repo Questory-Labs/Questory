@@ -37,7 +37,7 @@ export class ListenBrainzController {
     @Req() req: AuthedRequest,
     @Body() body: unknown,
   ) {
-    return this.lb.submitListens(req.musicUser!.id, body as any);
+    return this.lb.submitListens(req.musicUser!.id, body);
   }
 
   @Get("user/:user/listens")

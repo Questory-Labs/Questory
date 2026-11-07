@@ -1,5 +1,17 @@
 import { unzipSync, strFromU8 } from "fflate";
-import { cleanMbid, type ParsedListen } from "./types";
+import { cleanMbid, cleanText, parseListenedAt, type ParsedListen } from "./types";
+
+const MAX_INFLATED_BYTES = 1024 * 1024 * 1024;
+
+function cleanMbids(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(cleanMbid).filter((x): x is string => !!x);
+}
+
+function isListensEntry(name: string): boolean {
+  const normalized = name.replace(/\\/g, "/");
+  return normalized.includes("listens/") && normalized.endsWith(".jsonl");
+}
 
 type LbLine = {
   listened_at?: number;
@@ -40,23 +52,24 @@ function parseJsonl(text: string): ParsedListen[] {
       continue;
     }
 
-    const meta = payload.track_metadata;
-    const artistName = (meta?.artist_name || "").trim();
-    const trackName = (meta?.track_name || "").trim();
+    const meta = payload?.track_metadata;
+    const artistName = cleanText(meta?.artist_name);
+    const trackName = cleanText(meta?.track_name);
     if (!artistName || !trackName) continue;
 
-    const unix =
-      typeof payload.listened_at === "number" ? payload.listened_at : NaN;
-    if (!Number.isFinite(unix)) continue;
-    const listenedAt = new Date(unix * 1000);
-    if (Number.isNaN(listenedAt.getTime())) continue;
+    const listenedAt =
+      typeof payload.listened_at === "number"
+        ? parseListenedAt(payload.listened_at)
+        : null;
+    if (!listenedAt) continue;
 
     const info = meta?.additional_info;
     const mapping = meta?.mbid_mapping;
 
-    const artistMbids = (info?.artist_mbids || mapping?.artist_mbids || [])
-      .map(cleanMbid)
-      .filter((x): x is string => !!x);
+    const infoArtistMbids = cleanMbids(info?.artist_mbids);
+    const artistMbids = infoArtistMbids.length
+      ? infoArtistMbids
+      : cleanMbids(mapping?.artist_mbids);
 
     const recordingMbid =
       cleanMbid(info?.recording_mbid) || cleanMbid(mapping?.recording_mbid);
@@ -73,7 +86,7 @@ function parseJsonl(text: string): ParsedListen[] {
     out.push({
       artistName,
       trackName,
-      releaseName: (meta?.release_name || "").trim() || null,
+      releaseName: cleanText(meta?.release_name) || null,
       listenedAt,
       recordingMbid,
       releaseMbid,
@@ -89,15 +102,21 @@ function parseJsonl(text: string): ParsedListen[] {
 
 /** ListenBrainz website export zip (listens/…/*.jsonl). */
 export function parseListenBrainzZip(buffer: Buffer): ParsedListen[] {
-  const files = unzipSync(new Uint8Array(buffer));
+  let declaredBytes = 0;
+  const files = unzipSync(new Uint8Array(buffer), {
+    filter: (entry) => {
+      if (!isListensEntry(entry.name)) return false;
+      declaredBytes += entry.compression === 0 ? entry.size : entry.originalSize;
+      if (declaredBytes > MAX_INFLATED_BYTES) {
+        throw new Error("ListenBrainz export is too large to import");
+      }
+      return true;
+    },
+  });
   const out: ParsedListen[] = [];
 
-  for (const [name, data] of Object.entries(files)) {
-    const normalized = name.replace(/\\/g, "/");
-    if (!normalized.includes("listens/") || !normalized.endsWith(".jsonl")) {
-      continue;
-    }
-    out.push(...parseJsonl(strFromU8(data)));
+  for (const data of Object.values(files)) {
+    for (const listen of parseJsonl(strFromU8(data))) out.push(listen);
   }
 
   if (!out.length) {

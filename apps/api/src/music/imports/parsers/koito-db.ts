@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import Database from "better-sqlite3";
-import { cleanMbid, type ParsedListen } from "./types";
+import { cleanMbid, cleanText, parseListenedAt, type ParsedListen } from "./types";
 
 type KoitoRow = {
   listened_at: number;
@@ -93,12 +93,14 @@ function parseKoitoDbPath(path: string): ParsedListen[] {
     const rows = db.prepare(LISTEN_SQL).all() as KoitoRow[];
     const out: ParsedListen[] = [];
     for (const row of rows) {
-      const trackName = (row.track_name || "").trim();
-      const artistName = (row.artist_name || "").trim();
+      const trackName = cleanText(row.track_name);
+      const artistName = cleanText(row.artist_name);
       if (!trackName || !artistName) continue;
-      if (!Number.isFinite(row.listened_at)) continue;
-      const listenedAt = new Date(row.listened_at * 1000);
-      if (Number.isNaN(listenedAt.getTime())) continue;
+      const listenedAt =
+        typeof row.listened_at === "number"
+          ? parseListenedAt(row.listened_at)
+          : null;
+      if (!listenedAt) continue;
 
       const artistMbid = cleanMbid(row.artist_mbid);
       const durationSec =
@@ -109,13 +111,13 @@ function parseKoitoDbPath(path: string): ParsedListen[] {
       out.push({
         artistName,
         trackName,
-        releaseName: (row.release_name || "").trim() || null,
+        releaseName: cleanText(row.release_name) || null,
         listenedAt,
         recordingMbid: cleanMbid(row.recording_mbid),
         releaseMbid: cleanMbid(row.release_mbid),
         artistMbids: artistMbid ? [artistMbid] : undefined,
         durationMs: durationSec > 0 ? durationSec * 1000 : null,
-        musicService: (row.client || "").trim() || "koito",
+        musicService: cleanText(row.client) || "koito",
         submissionClient: "koito_import",
       });
     }

@@ -252,6 +252,11 @@ export class AdminController {
     return this.migrations.listMigrations();
   }
 
+  @Post("migrations/:key/preview")
+  previewMigration(@Param("key") key: string) {
+    return this.migrations.previewMigration(key);
+  }
+
   @Post("migrations/:key/run")
   runMigration(
     @Param("key") key: string,

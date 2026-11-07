@@ -1,4 +1,4 @@
-import type { ParsedListen } from "./types";
+import { cleanText, parseListenedAt, type ParsedListen } from "./types";
 
 type SpotifyItem = {
   ts?: string;
@@ -18,13 +18,13 @@ export function parseSpotifyJson(text: string): ParsedListen[] {
 
   const out: ParsedListen[] = [];
   for (const item of data) {
-    if (item.reason_end !== "trackdone") continue;
-    const trackName = (item.master_metadata_track_name || "").trim();
-    const artistName = (item.master_metadata_album_artist_name || "").trim();
+    if (item?.reason_end !== "trackdone") continue;
+    const trackName = cleanText(item.master_metadata_track_name);
+    const artistName = cleanText(item.master_metadata_album_artist_name);
     if (!trackName || !artistName) continue;
 
-    const listenedAt = item.ts ? new Date(item.ts) : null;
-    if (!listenedAt || Number.isNaN(listenedAt.getTime())) continue;
+    const listenedAt = parseListenedAt(item.ts);
+    if (!listenedAt) continue;
 
     const msPlayed =
       typeof item.ms_played === "number" && item.ms_played > 0
@@ -34,7 +34,7 @@ export function parseSpotifyJson(text: string): ParsedListen[] {
     out.push({
       artistName,
       trackName,
-      releaseName: (item.master_metadata_album_album_name || "").trim() || null,
+      releaseName: cleanText(item.master_metadata_album_album_name) || null,
       listenedAt,
       durationMs: msPlayed,
       musicService: "spotify",

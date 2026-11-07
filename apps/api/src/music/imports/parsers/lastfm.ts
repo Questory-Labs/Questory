@@ -1,13 +1,15 @@
-import { cleanMbid, type ParsedListen } from "./types";
+import { cleanMbid, cleanText, parseListenedAt, type ParsedListen } from "./types";
 
 type LastFmPage = {
-  track?: Array<{
-    artist?: { mbid?: string; "#text"?: string };
-    album?: { mbid?: string; "#text"?: string };
-    mbid?: string;
-    name?: string;
-    date?: { uts?: string; "#text"?: string };
-  }>;
+  track?: LastFmTrack[] | LastFmTrack;
+};
+
+type LastFmTrack = {
+  artist?: { mbid?: string; "#text"?: string };
+  album?: { mbid?: string; "#text"?: string };
+  mbid?: string;
+  name?: string;
+  date?: { uts?: string; "#text"?: string };
 };
 
 /** Last.fm JSON from https://lastfm.ghan.nl/export/ (Koito-compatible). */
@@ -19,25 +21,30 @@ export function parseLastFmJson(text: string): ParsedListen[] {
 
   const out: ParsedListen[] = [];
   for (const page of pages) {
-    for (const track of page.track || []) {
-      const trackName = (track.name || "").trim();
-      const artistName = (track.artist?.["#text"] || "").trim();
+    const rawTracks = page?.track;
+    const tracks = Array.isArray(rawTracks)
+      ? rawTracks
+      : rawTracks
+        ? [rawTracks]
+        : [];
+    for (const track of tracks) {
+      const trackName = cleanText(track?.name);
+      const artistName = cleanText(track?.artist?.["#text"]);
       if (!trackName || !artistName) continue;
 
       let listenedAt: Date | null = null;
       const uts = track.date?.uts ? Number(track.date.uts) : NaN;
       if (Number.isFinite(uts)) {
-        listenedAt = new Date(uts * 1000);
-      } else if (track.date?.["#text"]) {
+        listenedAt = parseListenedAt(uts);
+      } else {
         // e.g. "02 Jan 2006, 15:04"
-        const parsed = Date.parse(
-          track.date["#text"].replace(",", ""),
+        listenedAt = parseListenedAt(
+          cleanText(track.date?.["#text"]).replace(",", ""),
         );
-        if (Number.isFinite(parsed)) listenedAt = new Date(parsed);
       }
-      if (!listenedAt || Number.isNaN(listenedAt.getTime())) continue;
+      if (!listenedAt) continue;
 
-      const album = (track.album?.["#text"] || "").trim() || trackName;
+      const album = cleanText(track.album?.["#text"]) || trackName;
       const artistMbid = cleanMbid(track.artist?.mbid);
       const recordingMbid = cleanMbid(track.mbid);
       const releaseMbid = cleanMbid(track.album?.mbid);

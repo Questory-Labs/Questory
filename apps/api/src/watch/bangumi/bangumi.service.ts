@@ -12,6 +12,7 @@ import { UsersService } from "../users/users.service";
 import { ReadCatalogService } from "../../read/catalog/catalog.service";
 import {
   bangumiAnimeProgress,
+  bangumiCollectionTypeName,
   bangumiMangaProgress,
   mapBangumiCollectionType,
 } from "../../read/bangumi/bangumi-map";
@@ -30,8 +31,7 @@ import { isDroppedListStatus } from "../catalog/list-status";
 import { disconnectSourceConnection } from "../lib/disconnect";
 
 type BangumiCollection = {
-  id: number;
-  type: string;
+  type: number;
   rate?: number;
   ep_status?: number;
   vol_status?: number;
@@ -51,7 +51,7 @@ type BangumiCollection = {
 export class BangumiService {
   private readonly logger = new Logger(BangumiService.name);
   private readonly api = "https://api.bgm.tv/v0";
-  private readonly syncingUsers = new Set<string>();
+  private readonly syncingUsers = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -109,7 +109,7 @@ export class BangumiService {
     });
     if (!res.ok) {
       throw new BadRequestException(
-        `Bangumi token exchange failed: ${await res.text()}`,
+        `Bangumi token exchange failed: ${(await res.text()).slice(0, 200)}`,
       );
     }
     const data = (await res.json()) as {
@@ -117,6 +117,11 @@ export class BangumiService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      throw new BadRequestException(
+        "Bangumi token exchange returned no access token",
+      );
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -192,14 +197,15 @@ export class BangumiService {
     });
     if (!conn) throw new BadRequestException("Bangumi not connected");
 
-    this.syncingUsers.add(user.id);
+    this.syncingUsers.set(user.id, (this.syncingUsers.get(user.id) ?? 0) + 1);
     try {
       const token = await this.ensureAccessToken(user.id);
+      const username = await this.fetchUsername(token);
       const animeAccepted = halves.watch
-        ? await this.syncCollections(user.id, token, 2)
+        ? await this.syncCollections(user.id, token, username, 2)
         : 0;
       const mangaAccepted = halves.read
-        ? await this.syncCollections(user.id, token, 1)
+        ? await this.syncCollections(user.id, token, username, 1)
         : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
@@ -212,7 +218,9 @@ export class BangumiService {
         userId: user.id,
       };
     } finally {
-      this.syncingUsers.delete(user.id);
+      const running = (this.syncingUsers.get(user.id) ?? 1) - 1;
+      if (running > 0) this.syncingUsers.set(user.id, running);
+      else this.syncingUsers.delete(user.id);
     }
   }
 
@@ -257,6 +265,10 @@ export class BangumiService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      this.logger.warn("Bangumi refresh returned no access token");
+      return conn.accessToken;
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -272,9 +284,24 @@ export class BangumiService {
     return data.access_token;
   }
 
+  private async fetchUsername(token: string): Promise<string> {
+    const res = await providerFetch(`${this.api}/me`, {
+      headers: this.headers(token),
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Bangumi me: ${res.status} ${(await res.text()).slice(0, 200)}`,
+      );
+    }
+    const me = (await res.json()) as { username?: string } | null;
+    if (!me?.username) throw new BadRequestException("Bangumi user missing");
+    return me.username;
+  }
+
   private async syncCollections(
     userId: string,
     token: string,
+    username: string,
     subjectType: number,
   ): Promise<number> {
     let offset = 0;
@@ -283,7 +310,7 @@ export class BangumiService {
 
     while (true) {
       const res = await providerFetch(
-        `${this.api}/users/-/collections?subject_type=${subjectType}&limit=100&offset=${offset}`,
+        `${this.api}/users/${encodeURIComponent(username)}/collections?subject_type=${subjectType}&limit=100&offset=${offset}`,
         { headers: this.headers(token) },
       );
       if (!res.ok) {
@@ -300,7 +327,8 @@ export class BangumiService {
 
       for (const entry of entries) {
         const subject = entry.subject;
-        if (!subject) continue;
+        const collectionType = bangumiCollectionTypeName(entry.type);
+        if (!subject || !collectionType) continue;
         const name = subject.name_cn || subject.name;
         const year = subject.date
           ? Number.parseInt(subject.date.slice(0, 4), 10)
@@ -322,9 +350,13 @@ export class BangumiService {
               subject.images?.common ||
               null,
           });
-          const dedupeKey = `bangumi:list:${entry.id}:${entry.type}:${epStatus}`;
+          const dedupeKey = `bangumi:list:${subject.id}:${collectionType}:${epStatus}`;
 
-          if (entry.type === "do" || entry.type === "collect" || epStatus > 0) {
+          if (
+            collectionType === "do" ||
+            collectionType === "collect" ||
+            epStatus > 0
+          ) {
             await this.catalog.recordWatch({
               userId,
               titleId: title.id,
@@ -335,7 +367,7 @@ export class BangumiService {
               progress: bangumiAnimeProgress(
                 epStatus,
                 subject.eps,
-                entry.type,
+                collectionType,
               ),
               rating: entry.rate || null,
               precision: "unknown",
@@ -358,14 +390,14 @@ export class BangumiService {
             userId,
             titleId: title.id,
             source: "bangumi",
-            dropped: isDroppedListStatus(entry.type),
+            dropped: isDroppedListStatus(collectionType),
             listedAt: updatedAt,
           });
 
           this.enrichment.enqueueTitle(title.id);
         } else {
           const volStatus = entry.vol_status ?? 0;
-          const listStatus = mapBangumiCollectionType(entry.type);
+          const listStatus = mapBangumiCollectionType(collectionType);
           const readTitle = await this.readCatalog.upsertTitle({
             format: "manga",
             name,
@@ -390,13 +422,17 @@ export class BangumiService {
             listedAt: updatedAt,
           });
 
-          if (entry.type === "wish") {
+          if (collectionType === "wish") {
             accepted += 1;
             continue;
           }
 
-          if (entry.type === "do" || entry.type === "collect" || volStatus > 0) {
-            const dedupeKey = `bangumi:manga:${entry.id}:${entry.type}:${volStatus}`;
+          if (
+            collectionType === "do" ||
+            collectionType === "collect" ||
+            volStatus > 0
+          ) {
+            const dedupeKey = `bangumi:manga:${subject.id}:${collectionType}:${volStatus}`;
             await this.readCatalog.recordProgress({
               userId,
               readTitleId: readTitle.id,
@@ -404,12 +440,12 @@ export class BangumiService {
               source: "bangumi",
               dedupeKey,
               action: "import",
-              status: entry.type,
+              status: collectionType,
               volumesRead: volStatus || null,
               progress: bangumiMangaProgress(
                 volStatus,
                 subject.volumes,
-                entry.type,
+                collectionType,
               ),
               rating: entry.rate || null,
               precision: "unknown",

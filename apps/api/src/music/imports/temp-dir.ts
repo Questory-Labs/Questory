@@ -17,6 +17,9 @@ export function resolveRepoTempDir() {
 
 /** Per-job staging dir under `temp/music-imports/<jobId>/`. */
 export async function createImportStagingDir(jobId: string) {
+  if (!/^[A-Za-z0-9_-]+$/.test(jobId)) {
+    throw new Error("Invalid import job id");
+  }
   const dir = join(resolveRepoTempDir(), "music-imports", jobId);
   await mkdir(dir, { recursive: true });
   return dir;

@@ -5,6 +5,7 @@ export function normalizeLetterboxdName(name: string): string {
 export function watchedAtDayUtc(dateStr: string): Date | null {
   const watchedAt = new Date(`${dateStr}T12:00:00.000Z`);
   if (Number.isNaN(watchedAt.getTime())) return null;
+  if (watchedAt.toISOString().slice(0, 10) !== dateStr) return null;
   return watchedAt;
 }
 

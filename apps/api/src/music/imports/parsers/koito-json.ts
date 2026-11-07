@@ -1,4 +1,10 @@
-import { cleanMbid, primaryAlias, type ParsedListen } from "./types";
+import {
+  cleanMbid,
+  cleanText,
+  parseListenedAt,
+  primaryAlias,
+  type ParsedListen,
+} from "./types";
 
 type KoitoExportListen = {
   listened_at?: string;
@@ -32,18 +38,18 @@ export function parseKoitoJson(text: string): ParsedListen[] {
   const out: ParsedListen[] = [];
 
   for (const item of listens) {
-    const trackName = primaryAlias(item.track?.aliases);
-    const artists = Array.isArray(item.artists) ? item.artists : [];
+    const trackName = primaryAlias(item?.track?.aliases);
+    const artists = Array.isArray(item?.artists) ? item.artists : [];
     const primaryArtist =
-      artists.find((a) => a.is_primary) || artists[0] || null;
+      artists.find((a) => a?.is_primary) || artists[0] || null;
     const artistName = primaryAlias(primaryArtist?.aliases);
     if (!trackName || !artistName) continue;
 
-    const listenedAt = item.listened_at ? new Date(item.listened_at) : null;
-    if (!listenedAt || Number.isNaN(listenedAt.getTime())) continue;
+    const listenedAt = parseListenedAt(item.listened_at);
+    if (!listenedAt) continue;
 
     const artistMbids = artists
-      .map((a) => cleanMbid(a.mbid))
+      .map((a) => cleanMbid(a?.mbid))
       .filter((x): x is string => !!x);
 
     const durationSec =
@@ -58,7 +64,7 @@ export function parseKoitoJson(text: string): ParsedListen[] {
       releaseMbid: cleanMbid(item.album?.mbid),
       artistMbids: artistMbids.length ? artistMbids : undefined,
       durationMs: durationSec > 0 ? durationSec * 1000 : null,
-      musicService: (item.client || "").trim() || "koito",
+      musicService: cleanText(item.client) || "koito",
       submissionClient: "koito_import",
     });
   }

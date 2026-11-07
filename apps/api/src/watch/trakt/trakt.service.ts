@@ -16,6 +16,7 @@ import {
 import { providerFetch } from "../../lib/qhttp-outbound";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
 import { disconnectSourceConnection } from "../lib/disconnect";
+import { TRAKT_MAX_PAGES, TRAKT_REQUEST_TIMEOUT_MS } from "./trakt.constants";
 
 type TraktIds = {
   trakt?: number;
@@ -102,6 +103,7 @@ export class TraktService {
         redirect_uri: resolveTraktRedirectUri(),
         grant_type: "authorization_code",
       }),
+      signal: AbortSignal.timeout(TRAKT_REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -113,6 +115,9 @@ export class TraktService {
       expires_in?: number;
       created_at?: number;
     };
+    if (!data.access_token) {
+      throw new BadRequestException("Trakt token exchange returned no access token");
+    }
 
     const expiresAt =
       data.expires_in != null
@@ -205,6 +210,7 @@ export class TraktService {
         redirect_uri: resolveTraktRedirectUri(),
         grant_type: "refresh_token",
       }),
+      signal: AbortSignal.timeout(TRAKT_REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       this.logger.warn(`Trakt refresh failed: ${res.status}`);
@@ -215,6 +221,10 @@ export class TraktService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      this.logger.warn("Trakt refresh returned no access token");
+      return conn.accessToken;
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -245,6 +255,7 @@ export class TraktService {
         "trakt-api-key": resolveTraktClientId(),
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: AbortSignal.timeout(TRAKT_REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -253,6 +264,35 @@ export class TraktService {
     const pageCount = Number(res.headers.get("x-pagination-page-count") || "1");
     const data = (await res.json()) as T;
     return { data, pageCount };
+  }
+
+  private async forEachPage<T>(
+    path: string,
+    accessToken: string,
+    query: Record<string, string>,
+    onPage: (rows: T[]) => Promise<void>,
+  ): Promise<{ truncated: boolean }> {
+    let page = 1;
+    let pageCount = 1;
+    while (page <= pageCount && page <= TRAKT_MAX_PAGES) {
+      const { data, pageCount: pc } = await this.traktGet<T[]>(path, accessToken, {
+        ...query,
+        page: String(page),
+      });
+      pageCount = pc || 1;
+      await onPage(data);
+      page += 1;
+      if (page <= pageCount && page <= TRAKT_MAX_PAGES) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+    const truncated = pageCount > TRAKT_MAX_PAGES;
+    if (truncated) {
+      this.logger.warn(
+        `Trakt GET ${path}: stopped at ${TRAKT_MAX_PAGES} of ${pageCount} pages`,
+      );
+    }
+    return { truncated };
   }
 
   async syncHistory(userId?: string) {
@@ -273,34 +313,25 @@ export class TraktService {
         where: { userId_provider: { userId: user.id, provider: "trakt" } },
       });
 
-      let page = 1;
-      let pageCount = 1;
       let accepted = 0;
       const startAt = conn?.syncCursor || undefined;
+      const query: Record<string, string> = {
+        limit: "100",
+        extended: "full",
+      };
+      if (startAt) query.start_at = startAt;
 
-      while (page <= pageCount) {
-        const query: Record<string, string> = {
-          page: String(page),
-          limit: "100",
-          extended: "full",
-        };
-        if (startAt) query.start_at = startAt;
-
-        const { data, pageCount: pc } = await this.traktGet<TraktHistoryItem[]>(
-          "/sync/history",
-          accessToken,
-          query,
-        );
-        pageCount = pc || 1;
-
-        for (const item of data) {
-          const ok = await this.ingestHistoryItem(user.id, item);
-          if (ok) accepted += 1;
-        }
-
-        page += 1;
-        await new Promise((r) => setTimeout(r, 200));
-      }
+      const { truncated } = await this.forEachPage<TraktHistoryItem>(
+        "/sync/history",
+        accessToken,
+        query,
+        async (rows) => {
+          for (const item of rows) {
+            const ok = await this.ingestHistoryItem(user.id, item);
+            if (ok) accepted += 1;
+          }
+        },
+      );
 
       // Also pull ratings + watchlist for future recs (list state, not events)
       await this.syncRatings(user.id, accessToken).catch((e) =>
@@ -319,7 +350,9 @@ export class TraktService {
         where: { userId_provider: { userId: user.id, provider: "trakt" } },
         data: {
           lastSyncedAt: new Date(),
-          syncCursor: newest?.watchedAt.toISOString() ?? conn?.syncCursor,
+          syncCursor: truncated
+            ? conn?.syncCursor
+            : (newest?.watchedAt.toISOString() ?? conn?.syncCursor),
         },
       });
 
@@ -335,8 +368,8 @@ export class TraktService {
     if (Number.isNaN(watchedAt.getTime())) return false;
 
     if (item.type === "movie" || item.movie) {
-      const m = item.movie!;
-      if (!m.title) return false;
+      const m = item.movie;
+      if (!m?.title) return false;
       const title = await this.catalog.upsertTitle({
         type: "movie",
         name: m.title,
@@ -402,58 +435,65 @@ export class TraktService {
 
   private async syncRatings(userId: string, accessToken: string) {
     for (const type of ["movies", "shows"] as const) {
-      const { data } = await this.traktGet<
-        { rated_at?: string; rating?: number; movie?: TraktMovie; show?: TraktShow }[]
-      >(`/sync/ratings/${type}`, accessToken, { limit: "100" });
-      for (const row of data) {
-        const entity = type === "movies" ? row.movie : row.show;
-        if (!entity?.title) continue;
-        const title = await this.catalog.upsertTitle({
-          type: type === "movies" ? "movie" : "show",
-          name: entity.title,
-          year: entity.year ?? null,
-          traktId: entity.ids?.trakt ?? null,
-          tmdbId: entity.ids?.tmdb ?? null,
-          imdbId: entity.ids?.imdb ?? null,
-        });
-        await this.catalog.upsertListState({
-          userId,
-          titleId: title.id,
-          listType: "rating",
-          source: "trakt",
-          rating: row.rating ?? null,
-          listedAt: row.rated_at ? new Date(row.rated_at) : null,
-        });
-        this.enrichment.enqueueTitle(title.id);
-      }
+      await this.forEachPage<{
+        rated_at?: string;
+        rating?: number;
+        movie?: TraktMovie;
+        show?: TraktShow;
+      }>(`/sync/ratings/${type}`, accessToken, { limit: "100" }, async (rows) => {
+        for (const row of rows) {
+          const entity = type === "movies" ? row.movie : row.show;
+          if (!entity?.title) continue;
+          const title = await this.catalog.upsertTitle({
+            type: type === "movies" ? "movie" : "show",
+            name: entity.title,
+            year: entity.year ?? null,
+            traktId: entity.ids?.trakt ?? null,
+            tmdbId: entity.ids?.tmdb ?? null,
+            imdbId: entity.ids?.imdb ?? null,
+          });
+          await this.catalog.upsertListState({
+            userId,
+            titleId: title.id,
+            listType: "rating",
+            source: "trakt",
+            rating: row.rating ?? null,
+            listedAt: row.rated_at ? new Date(row.rated_at) : null,
+          });
+          this.enrichment.enqueueTitle(title.id);
+        }
+      });
     }
   }
 
   private async syncWatchlist(userId: string, accessToken: string) {
     for (const type of ["movies", "shows"] as const) {
-      const { data } = await this.traktGet<
-        { listed_at?: string; movie?: TraktMovie; show?: TraktShow }[]
-      >(`/sync/watchlist/${type}`, accessToken, { limit: "100" });
-      for (const row of data) {
-        const entity = type === "movies" ? row.movie : row.show;
-        if (!entity?.title) continue;
-        const title = await this.catalog.upsertTitle({
-          type: type === "movies" ? "movie" : "show",
-          name: entity.title,
-          year: entity.year ?? null,
-          traktId: entity.ids?.trakt ?? null,
-          tmdbId: entity.ids?.tmdb ?? null,
-          imdbId: entity.ids?.imdb ?? null,
-        });
-        await this.catalog.upsertListState({
-          userId,
-          titleId: title.id,
-          listType: "watchlist",
-          source: "trakt",
-          listedAt: row.listed_at ? new Date(row.listed_at) : null,
-        });
-        this.enrichment.enqueueTitle(title.id);
-      }
+      await this.forEachPage<{
+        listed_at?: string;
+        movie?: TraktMovie;
+        show?: TraktShow;
+      }>(`/sync/watchlist/${type}`, accessToken, { limit: "100" }, async (rows) => {
+        for (const row of rows) {
+          const entity = type === "movies" ? row.movie : row.show;
+          if (!entity?.title) continue;
+          const title = await this.catalog.upsertTitle({
+            type: type === "movies" ? "movie" : "show",
+            name: entity.title,
+            year: entity.year ?? null,
+            traktId: entity.ids?.trakt ?? null,
+            tmdbId: entity.ids?.tmdb ?? null,
+            imdbId: entity.ids?.imdb ?? null,
+          });
+          await this.catalog.upsertListState({
+            userId,
+            titleId: title.id,
+            listType: "watchlist",
+            source: "trakt",
+            listedAt: row.listed_at ? new Date(row.listed_at) : null,
+          });
+          this.enrichment.enqueueTitle(title.id);
+        }
+      });
     }
   }
 }

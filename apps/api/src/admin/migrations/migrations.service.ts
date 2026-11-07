@@ -8,9 +8,13 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { LetterboxdService } from "../../watch/imports/letterboxd.service";
 import {
+  BANGUMI_DEDUPE_KEYS_MIGRATION_KEY,
   getMigrationDefinition,
   MIGRATION_DEFINITIONS,
+  WATCH_HOUR_BUCKETS_MIGRATION_KEY,
+  WEBHOOK_MUSIC_EVENTS_MIGRATION_KEY,
 } from "./migration-definitions";
+import { SourceDataRepairService } from "./source-data-repair.service";
 
 @Injectable()
 export class MigrationsService {
@@ -19,6 +23,7 @@ export class MigrationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly letterboxd: LetterboxdService,
+    private readonly sourceRepair: SourceDataRepairService,
   ) {}
 
   async listMigrations() {
@@ -45,6 +50,17 @@ export class MigrationsService {
         };
       }),
     };
+  }
+
+  async previewMigration(key: string) {
+    if (!getMigrationDefinition(key)) {
+      throw new NotFoundException(`Unknown migration: ${key}`);
+    }
+    const result = await this.runSourceRepair(key, false);
+    if (!result) {
+      throw new BadRequestException(`Migration ${key} has no preview`);
+    }
+    return { ok: true, key, result };
   }
 
   async runMigration(key: string, adminUserId: string) {
@@ -112,8 +128,24 @@ export class MigrationsService {
     switch (key) {
       case "letterboxd_watch_dedupe_v1":
         return this.letterboxd.repairLetterboxdDuplicates();
-      default:
+      default: {
+        const result = await this.runSourceRepair(key, true);
+        if (result) return result;
         throw new BadRequestException(`No handler for migration: ${key}`);
+      }
+    }
+  }
+
+  private runSourceRepair(key: string, apply: boolean) {
+    switch (key) {
+      case BANGUMI_DEDUPE_KEYS_MIGRATION_KEY:
+        return this.sourceRepair.repairBangumiKeys(apply);
+      case WEBHOOK_MUSIC_EVENTS_MIGRATION_KEY:
+        return this.sourceRepair.repairWebhookMusic(apply);
+      case WATCH_HOUR_BUCKETS_MIGRATION_KEY:
+        return this.sourceRepair.rebuildWatchBuckets(apply);
+      default:
+        return null;
     }
   }
 }

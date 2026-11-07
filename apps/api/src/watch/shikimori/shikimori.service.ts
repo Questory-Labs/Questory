@@ -58,7 +58,7 @@ type ShikimoriMedia = {
 export class ShikimoriService {
   private readonly logger = new Logger(ShikimoriService.name);
   private readonly api = "https://shikimori.one";
-  private readonly syncingUsers = new Set<string>();
+  private readonly syncingUsers = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -116,7 +116,7 @@ export class ShikimoriService {
     });
     if (!res.ok) {
       throw new BadRequestException(
-        `Shikimori token exchange failed: ${await res.text()}`,
+        `Shikimori token exchange failed: ${(await res.text()).slice(0, 200)}`,
       );
     }
     const data = (await res.json()) as {
@@ -124,6 +124,11 @@ export class ShikimoriService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      throw new BadRequestException(
+        "Shikimori token exchange returned no access token",
+      );
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -199,24 +204,26 @@ export class ShikimoriService {
     });
     if (!conn) throw new BadRequestException("Shikimori not connected");
 
-    this.syncingUsers.add(user.id);
+    this.syncingUsers.set(user.id, (this.syncingUsers.get(user.id) ?? 0) + 1);
     try {
       const token = await this.ensureAccessToken(user.id);
-      const profile = await this.apiGet<{ id: number }>(
+      const profile = await this.apiGet<{ id?: number } | null>(
         "/api/users/whoami",
         token,
       );
+      const profileId = profile?.id;
+      if (!profileId) throw new BadRequestException("Shikimori user missing");
       const animeAccepted = halves.watch
-        ? await this.syncAnimeRates(user.id, token, profile.id)
+        ? await this.syncAnimeRates(user.id, token, profileId)
         : 0;
       const mangaAccepted = halves.read
-        ? await this.syncMangaRates(user.id, token, profile.id)
+        ? await this.syncMangaRates(user.id, token, profileId)
         : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
         data: {
           lastSyncedAt: new Date(),
-          externalUserId: String(profile.id),
+          externalUserId: String(profileId),
         },
       });
       return {
@@ -226,7 +233,9 @@ export class ShikimoriService {
         userId: user.id,
       };
     } finally {
-      this.syncingUsers.delete(user.id);
+      const running = (this.syncingUsers.get(user.id) ?? 1) - 1;
+      if (running > 0) this.syncingUsers.set(user.id, running);
+      else this.syncingUsers.delete(user.id);
     }
   }
 
@@ -283,6 +292,10 @@ export class ShikimoriService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      this.logger.warn("Shikimori refresh returned no access token");
+      return conn.accessToken;
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -468,7 +481,7 @@ export class ShikimoriService {
             ),
             rating: rate.score || null,
             precision: "unknown",
-            chaptersDelta: chaptersRead,
+            chaptersTotal: chaptersRead,
           });
           accepted += 1;
         }

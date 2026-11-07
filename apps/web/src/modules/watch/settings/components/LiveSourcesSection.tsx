@@ -42,7 +42,7 @@ export const LiveSourcesSection = ({
   setAddOpen,
   selectSource,
   showLetterboxdScrape,
-}: LiveProps) => (
+}: LiveProps) => !showingLive && chooserOptions.length === 0 && showLetterboxdScrape === false ? null : (
   <section className="mb-10">
     <SourcesSectionHeading
       eyebrow="Live"
@@ -61,7 +61,7 @@ export const LiveSourcesSection = ({
       }
     />
 
-    {!showingLive ? (
+    {!showingLive && chooserOptions.length > 0 ? (
       <Panel className="p-5">
         <p className="text-sm text-[var(--ink)]">No live source yet.</p>
         <p className="mt-1 text-sm text-[var(--muted)]">
@@ -194,8 +194,12 @@ export const LiveSourcesSection = ({
             />
           </SourceCard>
         ) : null}
+      </div>
+    ) : null}
 
-        {showLetterboxdScrape !== false ? <LetterboxdConnectCard /> : null}
+    {showLetterboxdScrape !== false ? (
+      <div className={showingLive || chooserOptions.length > 0 ? "mt-2.5" : undefined}>
+        <LetterboxdConnectCard />
       </div>
     ) : null}
   </section>

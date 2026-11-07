@@ -6,7 +6,7 @@ import { parseLastFmJson } from "./parsers/lastfm";
 import { parseListenBrainzZip } from "./parsers/listenbrainz";
 import { parseMalojaJson } from "./parsers/maloja";
 import { parseSpotifyJson } from "./parsers/spotify";
-import type { ImportSource, ParsedListen } from "./parsers/types";
+import { isFsError, type ImportSource, type ParsedListen } from "./parsers/types";
 
 type WorkerInput = {
   source: ImportSource;
@@ -20,6 +20,10 @@ type WorkerOk = {
 
 type WorkerErr = { ok: false; error: string };
 
+async function readText(path: string): Promise<string> {
+  return (await readFile(path, "utf8")).replace(/^\uFEFF/, "");
+}
+
 async function parseAll(
   source: ImportSource,
   stagedPath: string,
@@ -28,13 +32,13 @@ async function parseAll(
     case "koito_db":
       return parseKoitoDbFile(stagedPath);
     case "koito_json":
-      return parseKoitoJson(await readFile(stagedPath, "utf8"));
+      return parseKoitoJson(await readText(stagedPath));
     case "spotify_json":
-      return parseSpotifyJson(await readFile(stagedPath, "utf8"));
+      return parseSpotifyJson(await readText(stagedPath));
     case "maloja_json":
-      return parseMalojaJson(await readFile(stagedPath, "utf8"));
+      return parseMalojaJson(await readText(stagedPath));
     case "lastfm_json":
-      return parseLastFmJson(await readFile(stagedPath, "utf8"));
+      return parseLastFmJson(await readText(stagedPath));
     case "listenbrainz_zip":
       return parseListenBrainzZip(await readFile(stagedPath));
     default: {
@@ -61,7 +65,11 @@ async function main() {
 main().catch((err) => {
   const payload: WorkerErr = {
     ok: false,
-    error: err instanceof Error ? err.message : String(err),
+    error: isFsError(err)
+      ? "Failed to read the import file"
+      : err instanceof Error
+        ? err.message
+        : String(err),
   };
   parentPort?.postMessage(payload);
 });

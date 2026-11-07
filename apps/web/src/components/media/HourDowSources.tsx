@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { ChartStatus } from "@/components/charts/ChartStatus";
 import { SketchChartPanel } from "@/components/charts/SketchChartPanel";
 import { Panel } from "@/components/ui";
@@ -49,7 +48,6 @@ export const HourDowSources = ({
   valueLabel: string;
   periodTotal: number;
   formatShare: (count: number, total: number) => string;
-  extraPanel?: ReactNode;
 }) => {
   const toChart = (rows: CountRow[]) =>
     rows.map((b) => ({ label: b.label ?? b.key ?? "", count: b.count }));

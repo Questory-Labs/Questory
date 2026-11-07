@@ -47,8 +47,10 @@ export const ListProviderRow = ({
 
   const connected = Boolean(status.value?.connected);
   const syncing = Boolean(status.value?.syncing);
-  const tone = syncing ? "warn" : connected ? "ok" : "idle";
-  const showPassword = provider.passwordConnect && !connected;
+  const statusUnknown = status.failed && !status.value;
+  const checking = status.empty && !status.failed;
+  const tone = syncing || statusUnknown ? "warn" : connected ? "ok" : "idle";
+  const showPassword = provider.passwordConnect && !connected && !statusUnknown;
 
   return (
     <SourceRow
@@ -56,16 +58,30 @@ export const ListProviderRow = ({
       tone={tone}
       status={
         <SourceStatusPill tone={tone}>
-          {syncing ? "Syncing" : connected ? "Connected" : "Not connected"}
+          {statusUnknown
+            ? "Status unavailable"
+            : checking
+              ? "Checking…"
+              : syncing
+                ? "Syncing"
+                : connected
+                  ? "Connected"
+                  : "Not connected"}
         </SourceStatusPill>
       }
       blurb={
-        connected
+        statusUnknown
+          ? `Could not check ${provider.title} right now.`
+          : connected
           ? `Connected · last sync ${status.value?.lastSyncedAt ? formatDateTime(status.value.lastSyncedAt) : "never"}`
           : provider.blurb
       }
       action={
-        connected ? (
+        statusUnknown ? (
+          <Button type="button" variant="secondary" onClick={() => void status.reload().catch(() => undefined)}>
+            Retry
+          </Button>
+        ) : connected ? (
           <>
             {provider.authorizePath ? (
               <a href={urlFn(provider.authorizePath)} className="btn btn-secondary">

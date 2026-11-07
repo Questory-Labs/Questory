@@ -33,6 +33,9 @@ import {
 import { isDroppedListStatus } from "../catalog/list-status";
 import { disconnectSourceConnection } from "../lib/disconnect";
 
+const MAL_LIST_MAX_OFFSET = 50_000;
+const SYNC_ERROR_MAX = 300;
+
 type MalListEntry<T> = {
   node: T;
   list_status?: {
@@ -52,6 +55,7 @@ type MalAnimeNode = {
   main_picture?: { medium?: string; large?: string };
   start_date?: string;
   num_episodes?: number;
+  media_type?: string;
 };
 
 type MalMangaNode = {
@@ -80,22 +84,6 @@ export class MalService {
 
   configured() {
     return Boolean(resolveMalClientId() && resolveMalClientSecret());
-  }
-
-  authUrl(state: string) {
-    if (!this.configured()) {
-      throw new BadRequestException("MAL_CLIENT_ID/SECRET not configured");
-    }
-    const { codeChallenge } = generateMalPkce();
-    const params = new URLSearchParams({
-      response_type: "code",
-      client_id: resolveMalClientId(),
-      redirect_uri: resolveMalRedirectUri(),
-      code_challenge: codeChallenge,
-      code_challenge_method: "plain",
-      state,
-    });
-    return `https://myanimelist.net/v1/oauth2/authorize?${params}`;
   }
 
   buildAuthState(userId: string) {
@@ -142,16 +130,21 @@ export class MalService {
       body,
     });
     if (!res.ok) {
-      throw new BadRequestException(
-        `MAL token exchange failed: ${await res.text()}`,
+      this.logger.warn(
+        `MAL token exchange failed (${res.status}): ${(await res.text()).slice(0, 200)}`,
       );
+      throw new BadRequestException(`MAL token exchange failed (${res.status})`);
     }
 
-    const data = (await res.json()) as {
-      access_token: string;
+    const data = (await res.json().catch(() => null)) as {
+      access_token?: string;
       refresh_token?: string;
       expires_in?: number;
-    };
+    } | null;
+    const accessToken = data?.access_token;
+    if (!data || !accessToken) {
+      throw new BadRequestException("MAL token response missing access_token");
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -170,14 +163,15 @@ export class MalService {
       create: {
         userId: verified.userId,
         provider: "mal",
-        accessToken: data.access_token,
+        accessToken,
         refreshToken: data.refresh_token ?? null,
         expiresAt,
       },
       update: {
-        accessToken: data.access_token,
+        accessToken,
         refreshToken: data.refresh_token ?? undefined,
         expiresAt,
+        lastError: null,
       },
     });
 
@@ -238,12 +232,32 @@ export class MalService {
         : 0;
       await this.prisma.sourceConnection.update({
         where: { id: conn.id },
-        data: { lastSyncedAt: new Date() },
+        data: { lastSyncedAt: new Date(), lastError: null },
       });
       return { ok: true, accepted: animeAccepted, mangaAccepted, userId: user.id };
+    } catch (err) {
+      await this.recordSyncFailure(conn.id, err);
+      throw err;
     } finally {
       this.syncingUsers.delete(user.id);
     }
+  }
+
+  private async recordSyncFailure(connectionId: string, err: unknown) {
+    const message =
+      err instanceof Error && !err.name.startsWith("PrismaClient")
+        ? err.message
+        : "Sync failed";
+    await this.prisma.sourceConnection
+      .update({
+        where: { id: connectionId },
+        data: { lastError: message.slice(0, SYNC_ERROR_MAX) },
+      })
+      .catch((e) =>
+        this.logger.warn(
+          `MAL lastError write failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
   }
 
   private async ensureAccessToken(userId: string): Promise<string> {
@@ -272,11 +286,15 @@ export class MalService {
       this.logger.warn(`MAL refresh failed: ${res.status}`);
       return conn.accessToken;
     }
-    const data = (await res.json()) as {
-      access_token: string;
+    const data = (await res.json().catch(() => null)) as {
+      access_token?: string;
       refresh_token?: string;
       expires_in?: number;
-    };
+    } | null;
+    if (!data?.access_token) {
+      this.logger.warn("MAL refresh failed: missing access_token");
+      return conn.accessToken;
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -306,7 +324,7 @@ export class MalService {
     let offset = 0;
     let accepted = 0;
     const fields =
-      "list_status{status,score,num_episodes_watched,updated_at,finish_date},num_episodes,main_picture,start_date";
+      "list_status{status,score,num_episodes_watched,updated_at,finish_date},num_episodes,media_type,main_picture,start_date";
 
     while (true) {
       const json = await this.malGet<{
@@ -329,10 +347,11 @@ export class MalService {
           : null;
 
         const title = await this.catalog.upsertTitle({
-          type: "show",
+          type: media.media_type === "movie" ? "movie" : "show",
           name: media.title,
           year: Number.isFinite(year) ? year : null,
           malId: media.id,
+          ...(media.media_type === "movie" ? { typeFromProvider: true } : {}),
           posterUrl:
             media.main_picture?.large || media.main_picture?.medium || null,
           runtimeMinutes: null,
@@ -391,6 +410,9 @@ export class MalService {
 
       if (!json.paging?.next) break;
       offset += 100;
+      if (offset >= MAL_LIST_MAX_OFFSET) {
+        throw new Error("MAL list pagination limit reached");
+      }
     }
 
     return accepted;
@@ -479,7 +501,7 @@ export class MalService {
             ),
             rating: score || null,
             precision: entry.list_status?.finish_date ? "day" : "unknown",
-            chaptersDelta: chaptersRead,
+            chaptersTotal: chaptersRead,
           });
           accepted += 1;
         }
@@ -487,6 +509,9 @@ export class MalService {
 
       if (!json.paging?.next) break;
       offset += 100;
+      if (offset >= MAL_LIST_MAX_OFFSET) {
+        throw new Error("MAL list pagination limit reached");
+      }
     }
 
     return accepted;

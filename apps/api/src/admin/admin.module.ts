@@ -3,6 +3,8 @@ import { AdminController } from "./admin.controller";
 import { AdminService } from "./admin.service";
 import { AdminUserOpsService } from "./admin-user-ops.service";
 import { MigrationsService } from "./migrations/migrations.service";
+import { SourceDataRepairService } from "./migrations/source-data-repair.service";
+import { CatalogModule as WatchCatalogModule } from "../watch/catalog/catalog.module";
 import { EnrichmentModule as MusicEnrichmentModule } from "../music/enrichment/enrichment.module";
 import { AnilistModule } from "../watch/anilist/anilist.module";
 import { BangumiModule } from "../watch/bangumi/bangumi.module";
@@ -45,6 +47,7 @@ import { AdminEnrichmentService } from "./admin-enrichment.service";
     BangumiModule,
     ShikimoriModule,
     LetterboxdModule,
+    WatchCatalogModule,
     EnterpriseModule,
     WatchEnrichmentModule,
     RecapModule,
@@ -54,6 +57,7 @@ import { AdminEnrichmentService } from "./admin-enrichment.service";
     AdminService,
     AdminUserOpsService,
     MigrationsService,
+    SourceDataRepairService,
     AdminEnrichmentService,
   ],
   exports: [AdminService],
