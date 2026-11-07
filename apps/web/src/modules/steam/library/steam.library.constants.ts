@@ -7,6 +7,7 @@ import type {
 export const LIBRARY_STATUS_LABELS: Record<LibraryUserStatus, string> = {
   playing: "Playing",
   backlog: "Backlog",
+  shelved: "Shelved",
   finished: "Finished",
   dropped: "Dropped",
 };
@@ -14,6 +15,7 @@ export const LIBRARY_STATUS_LABELS: Record<LibraryUserStatus, string> = {
 export const LIBRARY_STATUS_TONE: Record<LibraryUserStatus, string> = {
   playing: "text-[var(--ok)]",
   backlog: "text-[var(--muted)]",
+  shelved: "text-[var(--faint)]",
   finished: "text-[var(--ink)]",
   dropped: "text-[var(--warn)]",
 };
@@ -25,6 +27,7 @@ export const LIBRARY_STATUS_FILTERS: readonly {
   { value: "all", label: "All" },
   { value: "playing", label: "Playing" },
   { value: "backlog", label: "Backlog" },
+  { value: "shelved", label: "Shelved" },
   { value: "finished", label: "Finished" },
   { value: "dropped", label: "Dropped" },
   { value: "neverPlayed", label: "Never played" },

@@ -14,7 +14,8 @@ export const LibraryStatusChips = ({
     {LIBRARY_STATUS_FILTERS.map((f) => {
       const on = f.value === value;
       const count = facets ? facets[f.value] : null;
-      if (f.value === "dropped" && !on && !count) return null;
+      if ((f.value === "dropped" || f.value === "shelved") && !on && !count)
+        return null;
       return (
         <button
           key={f.value}

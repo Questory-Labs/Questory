@@ -10,6 +10,7 @@ import { CronRunnerService } from "./cron-runner.service";
 import { InternalCronController } from "./internal-cron.controller";
 import { InternalCronService } from "./internal-cron.service";
 import { JobsService } from "./jobs.service";
+import { HltbBackfillService } from "./hltb-backfill.service";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { JobsService } from "./jobs.service";
     CronRunnerService,
     CronSecretGuard,
     JobsService,
+    HltbBackfillService,
   ],
   exports: [InternalCronService, CronRunnerService, JobsService],
 })

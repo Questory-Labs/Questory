@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type {
-  LibraryFacets,
-  LibrarySort,
-  LibraryStatusFilter,
-  LibraryUserStatus,
+import {
+  GOAL_KIND_BACKLOG_CLEAR,
+  type LibraryFacets,
+  type LibrarySort,
+  type LibraryStatusFilter,
+  type LibraryUserStatus,
 } from "@questorylabs/shared";
 import { Prisma } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import {
   containsIgnoreCase,
   includesIgnoreCase,
@@ -41,6 +43,7 @@ export type LibraryFilters = {
 const USER_STATUSES: LibraryUserStatus[] = [
   "playing",
   "backlog",
+  "shelved",
   "finished",
   "dropped",
 ];
@@ -61,7 +64,10 @@ function asUserStatus(value: string | null): LibraryUserStatus | null {
 
 @Injectable()
 export class LibraryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async list(userId: string, filters: LibraryFilters) {
     const page = Math.max(1, filters.page || 1);
@@ -155,6 +161,7 @@ export class LibraryService {
       neverPlayed: 0,
       playing: 0,
       backlog: 0,
+      shelved: 0,
       finished: 0,
       dropped: 0,
     };
@@ -235,18 +242,54 @@ export class LibraryService {
   ) {
     const entry = await this.prisma.libraryEntry.findFirst({
       where: { userId, gameId },
-      select: { id: true },
+      select: { id: true, userStatus: true },
     });
     if (!entry) throw new NotFoundException("Game not in your library");
+    const now = new Date();
     const updated = await this.prisma.libraryEntry.update({
       where: { id: entry.id },
-      data: { userStatus: status, userStatusAt: status ? new Date() : null },
+      data: { userStatus: status, userStatusAt: status ? now : null },
       include: {
         game: { include: { storeListings: true } },
         ownerships: { include: { listing: true } },
       },
     });
+    if (status === "finished" && entry.userStatus !== "finished") {
+      await this.bumpBacklogGoals(userId, now);
+    }
     return this.mapEntry(updated);
+  }
+
+  private async bumpBacklogGoals(userId: string, now: Date) {
+    const goals = await this.prisma.goal.findMany({
+      where: {
+        userId,
+        domain: "games",
+        kind: GOAL_KIND_BACKLOG_CLEAR,
+        doneAt: null,
+        periodStart: { lte: now },
+        periodEnd: { gte: now },
+      },
+      select: { id: true, name: true, domain: true, progressValue: true, targetValue: true },
+      take: 20,
+    });
+    for (const goal of goals) {
+      const progressValue = goal.progressValue + 1;
+      const done = goal.targetValue != null && progressValue >= goal.targetValue;
+      await this.prisma.goal.update({
+        where: { id: goal.id },
+        data: { progressValue, ...(done ? { doneAt: now } : {}) },
+      });
+      if (done) {
+        await this.notifications.create(userId, {
+          type: "goal-completed",
+          title: "Goal completed",
+          body: `You finished "${goal.name}".`,
+          href: "/recommendations/goals",
+          meta: { goalId: goal.id, domain: goal.domain },
+        });
+      }
+    }
   }
 
   async getOne(userId: string, gameId: string) {
