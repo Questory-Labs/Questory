@@ -499,6 +499,7 @@ Cron runs **in-process** inside the API by default (opt out with `CRON_ENABLED=f
 | `catalog-sync` | `0 4 * * *` | `CRON_CATALOG_SCHEDULE` | Refresh the game catalog |
 | `price-sync` | `0 5 * * *` | `CRON_PRICE_SCHEDULE` | Enqueue `metadata-refresh` for every Steam-linked user (prices for owned + friend-cached games) |
 | `ai-goals` | `30 6 * * *` | `CRON_AI_GOALS_SCHEDULE` | Generate AI goals (QEngine) |
+| `hltb-backfill` | `15 2 * * *` | `CRON_HLTB_BACKFILL_SCHEDULE` | Fill in HowLongToBeat hours for games marked playing, backlog or shelved (200 per run) |
 | `monthly-recap` | `0 6 1 * *` | `CRON_RECAP_SCHEDULE` | Generate monthly recaps |
 
 Scheduled ticks and admin/HTTP triggers write `CronRun` rows (`triggeredBy`: `system` | `admin` | `cron`) visible under `/admin/cron`.

@@ -5,6 +5,7 @@ import { loadEnvFiles } from "./load-env";
 import { AppModule } from "./app.module";
 import { AuthAbuseService } from "./auth/abuse/auth-abuse.service";
 import { createDemoMiddleware } from "./demo/demo.middleware";
+import { publicApiCorsMiddleware } from "./public-api/public-api-cors.middleware";
 import { FeatureFlagsService } from "./features/feature-flags.service";
 import { RequestIdExceptionFilter, requestIdMiddleware } from "./lib/request-id";
 import {
@@ -33,6 +34,7 @@ async function bootstrap() {
   app.use(requestIdMiddleware);
   app.useGlobalFilters(new RequestIdExceptionFilter());
   app.use(cookieParser(process.env.SESSION_SECRET || "dev-secret"));
+  app.use(publicApiCorsMiddleware);
   app.enableCors({
     origin: resolveAllowedOrigins(),
     credentials: true,

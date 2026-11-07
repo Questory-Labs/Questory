@@ -9,6 +9,7 @@ export type WishlistResponse = {
   page: number;
   pageSize: number;
   items: WishlistItem[];
+  backlogHint?: { count: number; hours: number };
 };
 
 export type WishlistViewProps = {

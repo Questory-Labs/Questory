@@ -28,6 +28,7 @@ describe("ApiKeysService music_ingest mutex", () => {
   it("allows minting when native scrobbling is off", async () => {
     hasNative.mockResolvedValue(false);
     const prisma = {
+      $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
       user: { findUnique },
       apiKey: {
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),

@@ -32,6 +32,7 @@ import { truncateToUtcHour } from "./play-activity";
 import { steamPlatforms, steamPriceFacts } from "./steam-appdetails";
 import { orderFriendsForLibraryCache } from "../friends/friend-library-cache";
 import { friendPresenceFromSummary } from "../friends/friend-presence";
+import { wishlistBacklogPenalty } from "../library/backlog.service";
 import {
   GAMES_PER_FRIEND_LIMIT,
   LIBRARY_CACHE_ATTEMPT_LIMIT,
@@ -767,6 +768,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
         genreAffinity.set(genre, (genreAffinity.get(genre) || 0) + 1);
       }
     }
+    const backlogPenalty = wishlistBacklogPenalty(library);
 
     for (const item of items) {
       const details = await this.steam.getAppDetails(item.appId, countryCode);
@@ -789,9 +791,17 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       const ageDays = item.dateAdded
         ? (Date.now() - item.dateAdded.getTime()) / (1000 * 60 * 60 * 24)
         : 0;
-      const shouldBuyScore = Math.min(
-        100,
-        Math.round(discountDepth * 0.5 + Math.min(ageDays, 90) * 0.3 + affinity * 2),
+      const shouldBuyScore = Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            discountDepth * 0.5 +
+              Math.min(ageDays, 90) * 0.3 +
+              affinity * 2 -
+              backlogPenalty,
+          ),
+        ),
       );
 
       const name = details?.name || `App ${item.appId}`;

@@ -43,6 +43,7 @@
 - 🎧 **Music & Media (Optional)**: Ingest and analyze music via ListenBrainz, movies/TV via Trakt/TMDB, and reading via AniList.
 - ⚡ **Modern Stack**: Built for speed and scale with Next.js 16 App Router, NestJS, and Prisma.
 - 🛠️ **Flexible Deployment**: Run locally with SQLite or scale up with Postgres + Redis via Docker Compose.
+- 🔑 **Public API**: Read-only `/public/v1` endpoints with scoped, user-created API keys — see [docs/public-api.md](docs/public-api.md).
 
 ---
 

@@ -6,6 +6,9 @@ import type {
   MeResponse,
   ProfileExportStatus,
   ProfileImportJob,
+  PublicApiKey,
+  PublicApiKeyCreate,
+  PublicApiKeyCreated,
   User,
 } from "@questorylabs/shared";
 import type { NotificationChannelsState } from "../settings-notifications/steam.settings-notifications.types";
@@ -60,6 +63,17 @@ export type ProfileApiKeys = {
   error: string | null;
 };
 
+export type ProfilePublicApiKeys = {
+  keys: UseResourceResult<PublicApiKey[]>;
+  created: PublicApiKeyCreated | null;
+  dismissCreated: () => void;
+  create: UseActionResult<PublicApiKeyCreated, PublicApiKeyCreate>;
+  revoke: UseActionResult<unknown, string>;
+  copy: () => void;
+  copied: boolean;
+  error: string | null;
+};
+
 export type ProfileRecap = {
   settings: UseResourceResult<RecapSettings>;
   save: UseActionResult<RecapSettings, boolean>;
@@ -108,6 +122,7 @@ export type ProfileSettingsViewProps = {
   onCloseImportConfirm: () => void;
   runImport: UseActionResult<ProfileImportJob, File>;
   apiKeys: ProfileApiKeys;
+  publicApiKeys?: ProfilePublicApiKeys;
   recap: ProfileRecap;
   channels?: NotificationChannelsState;
   changePassword: ProfileChangePassword;

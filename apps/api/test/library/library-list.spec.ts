@@ -63,8 +63,10 @@ function makeService(rows: ReturnType<typeof entry>[]) {
     },
     purchase: { findMany: vi.fn().mockResolvedValue([]) },
     user: { findUnique: vi.fn().mockResolvedValue({ countryCode: "US" }) },
+    goal: { findMany: vi.fn().mockResolvedValue([]), update: vi.fn() },
   };
-  return { prisma, service: new LibraryService(prisma as never) };
+  const notifications = { create: vi.fn().mockResolvedValue(undefined) };
+  return { prisma, notifications, service: new LibraryService(prisma as never, notifications as never) };
 }
 
 describe("LibraryService.list", () => {
@@ -73,16 +75,18 @@ describe("LibraryService.list", () => {
     entry("e2", { playtimeForever: 1200, userStatus: "playing", name: "alpha", tags: ["Roguelike"] }),
     entry("e3", { playtimeForever: 60, userStatus: "finished", name: "Mid", publishers: ["Devolver"] }),
     entry("e4", { playtimeForever: 300, name: "Beta" }),
+    entry("e5", { playtimeForever: 30, userStatus: "shelved", name: "Parked" }),
   ];
 
   it("returns facet counts, achievements, status and value fields", async () => {
     const { service } = makeService(rows);
     const res = await service.list("u1", { page: 1, pageSize: 24 });
     expect(res.facets).toEqual({
-      all: 4,
+      all: 5,
       neverPlayed: 1,
       playing: 1,
       backlog: 1,
+      shelved: 1,
       finished: 1,
       dropped: 0,
     });
@@ -103,7 +107,9 @@ describe("LibraryService.list", () => {
     const res = await service.list("u1", { status: "neverPlayed" });
     expect(res.items.map((i) => i.id)).toEqual(["e1"]);
     expect(res.total).toBe(1);
-    expect(res.facets.all).toBe(4);
+    expect(res.facets.all).toBe(5);
+    const shelved = await service.list("u1", { status: "shelved" });
+    expect(shelved.items.map((i) => i.id)).toEqual(["e5"]);
     const playing = await service.list("u1", { status: "playing" });
     expect(playing.items.map((i) => i.id)).toEqual(["e2"]);
   });
@@ -112,13 +118,13 @@ describe("LibraryService.list", () => {
     const { service } = makeService(rows);
     expect(
       (await service.list("u1", { sort: "hours" })).items.map((i) => i.id),
-    ).toEqual(["e2", "e4", "e3", "e1"]);
+    ).toEqual(["e2", "e4", "e3", "e5", "e1"]);
     expect(
       (await service.list("u1", { sort: "name" })).items.map((i) => i.id),
-    ).toEqual(["e2", "e4", "e3", "e1"]);
+    ).toEqual(["e2", "e4", "e3", "e5", "e1"]);
     expect(
       (await service.list("u1", { sort: "valuePerHour" })).items.map((i) => i.id),
-    ).toEqual(["e2", "e4", "e3", "e1"]);
+    ).toEqual(["e2", "e4", "e3", "e5", "e1"]);
   });
 
   it("matches q against tags and publishers", async () => {
@@ -148,7 +154,7 @@ describe("LibraryService.setStatus", () => {
 
   it("sets and clears status with timestamp", async () => {
     const { service, prisma } = makeService([]);
-    prisma.libraryEntry.findFirst.mockResolvedValue({ id: "e1" });
+    prisma.libraryEntry.findFirst.mockResolvedValue({ id: "e1", userStatus: null });
     prisma.libraryEntry.update.mockResolvedValue(entry("e1", { userStatus: "finished" }));
     const res = await service.setStatus("u1", "g-e1", "finished");
     expect(res.userStatus).toBe("finished");
@@ -163,6 +169,38 @@ describe("LibraryService.setStatus", () => {
       userStatusAt: null,
     });
   });
+
+  it("bumps active backlog_clear goals when a game is finished", async () => {
+    const { service, prisma, notifications } = makeService([]);
+    prisma.libraryEntry.findFirst.mockResolvedValue({ id: "e1", userStatus: "backlog" });
+    prisma.libraryEntry.update.mockResolvedValue(entry("e1", { userStatus: "finished" }));
+    prisma.goal.findMany.mockResolvedValue([
+      { id: "g1", name: "Clear two", domain: "games", progressValue: 1, targetValue: 2 },
+      { id: "g2", name: "Clear five", domain: "games", progressValue: 0, targetValue: 5 },
+    ]);
+    await service.setStatus("u1", "g-e1", "finished");
+    expect(prisma.goal.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: "u1", kind: "backlog_clear", doneAt: null }),
+      }),
+    );
+    expect(prisma.goal.update.mock.calls[0][0].data).toMatchObject({ progressValue: 2 });
+    expect(prisma.goal.update.mock.calls[0][0].data.doneAt).toBeInstanceOf(Date);
+    expect(prisma.goal.update.mock.calls[1][0].data).toEqual({ progressValue: 1 });
+    expect(notifications.create).toHaveBeenCalledTimes(1);
+    expect(notifications.create).toHaveBeenCalledWith(
+      "u1",
+      expect.objectContaining({ type: "goal-completed", meta: { goalId: "g1", domain: "games" } }),
+    );
+  });
+
+  it("does not bump goals when the game was already finished", async () => {
+    const { service, prisma } = makeService([]);
+    prisma.libraryEntry.findFirst.mockResolvedValue({ id: "e1", userStatus: "finished" });
+    prisma.libraryEntry.update.mockResolvedValue(entry("e1", { userStatus: "finished" }));
+    await service.setStatus("u1", "g-e1", "finished");
+    expect(prisma.goal.findMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("LibraryController validation", () => {
@@ -171,7 +209,7 @@ describe("LibraryController validation", () => {
     setStatus: vi.fn().mockResolvedValue({}),
     getOneByAppId: vi.fn(),
   };
-  const controller = new LibraryController(library as never);
+  const controller = new LibraryController(library as never, {} as never);
   const user = { userId: "u1" };
 
   it("rejects unknown sort and status values", () => {

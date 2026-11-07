@@ -20,6 +20,7 @@ import {
   useChangePassword,
   useDeleteAccount,
   useProfileApiKeys,
+  useProfilePublicApiKeys,
   useRecapSettings,
 } from "./steam.settings-profile.hooks";
 import type { PriceRegion } from "./steam.settings-profile.types";
@@ -37,6 +38,7 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
   const apiKeys = useProfileApiKeys();
+  const publicApiKeys = useProfilePublicApiKeys();
   const recap = useRecapSettings();
   const channels = useNotificationChannels();
   const changePassword = useChangePassword();
@@ -189,6 +191,7 @@ export const ProfileSettingsController = ({ children }: PropsWithChildren) => {
     onCloseImportConfirm: () => setImportConfirmOpen(false),
     runImport,
     apiKeys,
+    publicApiKeys,
     recap,
     channels,
     changePassword,

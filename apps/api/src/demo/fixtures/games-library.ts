@@ -162,6 +162,7 @@ function facetsFor(entries: LibraryEntry[]): LibraryFacets {
     neverPlayed: entries.filter((entry) => entry.playtimeForever === 0).length,
     playing: countStatus("playing"),
     backlog: countStatus("backlog"),
+    shelved: countStatus("shelved"),
     finished: countStatus("finished"),
     dropped: countStatus("dropped"),
   };

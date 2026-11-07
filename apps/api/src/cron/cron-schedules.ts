@@ -5,6 +5,7 @@ export const CRON_JOB_NAMES = [
   "catalog-sync",
   "price-sync",
   "ai-goals",
+  "hltb-backfill",
 ] as const;
 
 export type CronJobName = (typeof CRON_JOB_NAMES)[number];
@@ -17,6 +18,7 @@ export const SCHEDULED_CRON_JOBS = [
   "catalog-sync",
   "price-sync",
   "ai-goals",
+  "hltb-backfill",
 ] as const;
 
 export type ScheduledCronJobName = (typeof SCHEDULED_CRON_JOBS)[number];
@@ -28,6 +30,7 @@ const DEFAULT_SCHEDULES: Record<ScheduledCronJobName, string> = {
   "catalog-sync": "0 4 * * *",
   "price-sync": "0 5 * * *",
   "ai-goals": "30 6 * * *",
+  "hltb-backfill": "15 2 * * *",
 };
 
 export function getCronSchedule(name: ScheduledCronJobName): string {
@@ -48,6 +51,10 @@ export function getCronSchedule(name: ScheduledCronJobName): string {
       );
     case "ai-goals":
       return process.env.CRON_AI_GOALS_SCHEDULE || DEFAULT_SCHEDULES[name];
+    case "hltb-backfill":
+      return (
+        process.env.CRON_HLTB_BACKFILL_SCHEDULE || DEFAULT_SCHEDULES[name]
+      );
   }
 }
 
@@ -62,5 +69,6 @@ export function getConfiguredSchedules(): Record<
     "catalog-sync": getCronSchedule("catalog-sync"),
     "price-sync": getCronSchedule("price-sync"),
     "ai-goals": getCronSchedule("ai-goals"),
+    "hltb-backfill": getCronSchedule("hltb-backfill"),
   };
 }

@@ -87,6 +87,11 @@ describe("WishlistService.list item fields", () => {
         ]),
       },
       user: { findUnique: vi.fn().mockResolvedValue({ countryCode: "US" }) },
+      libraryEntry: {
+        findMany: vi.fn().mockResolvedValue([
+          { userStatus: "backlog", playtimeForever: 0, game: { hltbMainHours: 7 } },
+        ]),
+      },
     };
     const service = new WishlistService(prisma as never);
     const res = await service.list("u1");

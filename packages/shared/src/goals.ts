@@ -13,6 +13,7 @@ export const GoalStatusSchema = z.enum(GOAL_STATUSES);
 export type GoalStatus = z.infer<typeof GoalStatusSchema>;
 
 export const GOAL_KIND_DAILY_LISTENS = "daily_listens";
+export const GOAL_KIND_BACKLOG_CLEAR = "backlog_clear";
 export const GOAL_LIST_DEFAULT_LIMIT = 50;
 export const GOAL_LIST_MAX_LIMIT = 100;
 
