@@ -47,7 +47,7 @@ export function matchFeatureRoute(url: string): FeatureHttpRequirement | null {
   if (path.startsWith("/v1/music/trending")) {
     return { domain: "music", source: "listenbrainzApi" };
   }
-  if (path.startsWith("/v1/music")) {
+  if (path.startsWith("/v1/music") || path.startsWith("/public/v1/music")) {
     return { domain: "music" };
   }
 
@@ -89,7 +89,7 @@ export function matchFeatureRoute(url: string): FeatureHttpRequirement | null {
   if (path.startsWith("/v1/watch/trending")) {
     return { domain: "watch", source: "tmdb" };
   }
-  if (path.startsWith("/v1/watch")) {
+  if (path.startsWith("/v1/watch") || path.startsWith("/public/v1/watch")) {
     return { domain: "watch" };
   }
 
@@ -111,7 +111,7 @@ export function matchFeatureRoute(url: string): FeatureHttpRequirement | null {
   if (path.startsWith("/v1/read/trending")) {
     return { domain: "read", source: "anilist" };
   }
-  if (path.startsWith("/v1/read")) {
+  if (path.startsWith("/v1/read") || path.startsWith("/public/v1/read")) {
     return { domain: "read" };
   }
 

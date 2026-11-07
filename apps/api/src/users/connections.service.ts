@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { ConnectionsOverview, SourceDomain } from "@questorylabs/shared";
+import { API_KEY_TYPE } from "../accounts/account.constants";
 import { PrismaService } from "../prisma/prisma.service";
 import { SOURCE_DOMAIN_PROVIDERS } from "../sources/sources.constants";
 import { CONNECTIONS_ROW_LIMIT } from "./connections.constants";
@@ -34,7 +35,7 @@ export class ConnectionsService {
           take: CONNECTIONS_ROW_LIMIT,
         }),
         this.prisma.apiKey.findMany({
-          where: { userId, revokedAt: null },
+          where: { userId, revokedAt: null, type: { not: API_KEY_TYPE.public } },
           select: {
             id: true,
             type: true,
