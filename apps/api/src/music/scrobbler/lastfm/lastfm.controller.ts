@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Query,
   Res,
   UseGuards,
@@ -21,6 +22,8 @@ function webOrigin(): string {
 
 @Controller("music/scrobbler/lastfm")
 export class LastFmController {
+  private readonly logger = new Logger(LastFmController.name);
+
   constructor(private readonly lastfm: LastFmAuth) {}
 
   @Get("status")
@@ -52,14 +55,15 @@ export class LastFmController {
 
     if (!token) return fail("missing_token");
 
-    const userId = await this.lastfm.resolveUserIdFromToken(token);
-    if (!userId) return fail("invalid_state");
-
     try {
+      const userId = await this.lastfm.resolveUserIdFromToken(token);
+      if (!userId) return fail("invalid_state");
       await this.lastfm.complete(token, userId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "callback_failed";
-      return fail(message);
+      this.logger.warn(
+        `Last.fm callback failed: ${err instanceof Error ? err.name : "unknown"}`,
+      );
+      return fail("callback_failed");
     }
     return res.redirect(`${web}/sources?tab=music&lastfm=connected`);
   }

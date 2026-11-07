@@ -11,6 +11,7 @@ import { TmdbService } from "../tmdb/tmdb.service";
 import { UsersService } from "../users/users.service";
 import {
   letterboxdAdjacentScrapeCsvPair,
+  letterboxdDateStrFromDedupeKey,
   letterboxdRepairGroupKey,
   letterboxdWatchDedupeKey,
   normalizeLetterboxdName,
@@ -27,6 +28,10 @@ import {
 
 const PROGRESS_EVERY = 5;
 const YIELD_EVERY = 25;
+const REPAIR_BATCH_SIZE = 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MIN_CSV_RATING = 0.5;
+const MAX_CSV_RATING = 5;
 const WATCH_KINDS = new Set<LetterboxdCsvKind>(["diary", "watched"]);
 
 function watchCsvFilesForImport(
@@ -123,8 +128,24 @@ type LetterboxdWatchEvent = {
   rating: number | null;
   source: string;
   createdAt: Date;
+  rawPayload?: string | null;
   title: { name: string; year: number | null };
 };
+
+function parseCsvNumber(raw: string | undefined): number | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseCsvRating(raw: string | undefined): number | null {
+  const value = parseCsvNumber(raw);
+  if (value == null || value < MIN_CSV_RATING || value > MAX_CSV_RATING) {
+    return null;
+  }
+  return value;
+}
 
 function mapColumns(header: string[]): CsvColumns {
   const idx = (name: string) => header.indexOf(name);
@@ -170,6 +191,57 @@ function repairDateStr(event: LetterboxdWatchEvent): string {
   const legacy = parseLegacyLetterboxdDedupeKey(event.dedupeKey);
   if (legacy) return legacy.dateStr;
   return watchedAtDateStr(event.watchedAt);
+}
+
+function scrapedDayOfMonth(event: LetterboxdWatchEvent): number | null {
+  if (!event.rawPayload) return null;
+  try {
+    const payload = JSON.parse(event.rawPayload) as { day?: unknown } | null;
+    const day = typeof payload?.day === "string" ? payload.day.trim() : "";
+    return /^\d{1,2}$/.test(day) ? Number(day) : null;
+  } catch {
+    return null;
+  }
+}
+
+function eventDayMs(event: LetterboxdWatchEvent): number {
+  const dateStr = letterboxdDateStrFromDedupeKey(
+    event.dedupeKey,
+    event.watchedAt,
+  );
+  return watchedAtDayUtc(dateStr)?.getTime() ?? event.watchedAt.getTime();
+}
+
+function adjacentPairIsSameWatch(
+  a: LetterboxdWatchEvent,
+  b: LetterboxdWatchEvent,
+  bucketEvents: LetterboxdWatchEvent[],
+): boolean {
+  if (!letterboxdAdjacentScrapeCsvPair(a, b)) return false;
+  if (a.title.year != null && b.title.year != null && a.title.year !== b.title.year) {
+    return false;
+  }
+  if (a.rating != null && b.rating != null && a.rating !== b.rating) {
+    return false;
+  }
+
+  const scrape = a.source === "letterboxd" ? a : b;
+  const csv = scrape === a ? b : a;
+  const scrapedDay = scrapedDayOfMonth(scrape);
+  if (
+    scrapedDay != null &&
+    scrapedDay !== new Date(eventDayMs(csv)).getUTCDate()
+  ) {
+    return false;
+  }
+
+  const aDay = eventDayMs(a);
+  const bDay = eventDayMs(b);
+  return !bucketEvents.some((event) => {
+    if (event.id === a.id || event.id === b.id) return false;
+    const day = eventDayMs(event);
+    return Math.abs(day - aDay) <= DAY_MS || Math.abs(day - bDay) <= DAY_MS;
+  });
 }
 
 @Injectable()
@@ -227,19 +299,28 @@ export class LetterboxdService {
   }
 
   async repairLetterboxdDuplicates(userId?: string) {
-    const events = await this.prisma.watchEvent.findMany({
-      where: {
-        OR: [
-          { source: { in: ["letterboxd", "letterboxd_csv"] } },
-          { dedupeKey: { startsWith: "letterboxd_csv:" } },
-        ],
-        ...(userId ? { userId } : {}),
-      },
-      include: {
-        title: { select: { name: true, year: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    });
+    const events: LetterboxdWatchEvent[] = [];
+    let cursorId: string | undefined;
+    for (;;) {
+      const page = await this.prisma.watchEvent.findMany({
+        where: {
+          OR: [
+            { source: { in: ["letterboxd", "letterboxd_csv"] } },
+            { dedupeKey: { startsWith: "letterboxd_csv:" } },
+          ],
+          ...(userId ? { userId } : {}),
+        },
+        include: {
+          title: { select: { name: true, year: true } },
+        },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: REPAIR_BATCH_SIZE,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      });
+      events.push(...page);
+      if (page.length < REPAIR_BATCH_SIZE) break;
+      cursorId = page[page.length - 1].id;
+    }
 
     let legacyKeys = 0;
     let alreadyCanonical = 0;
@@ -261,8 +342,8 @@ export class LetterboxdService {
         for (let j = i + 1; j < bucketEvents.length; j++) {
           const b = bucketEvents[j];
           if (assigned.has(b.id)) continue;
-          if (!letterboxdAdjacentScrapeCsvPair(a, b)) continue;
-          groups.set(`${bucket}:adjacent`, [a, b]);
+          if (!adjacentPairIsSameWatch(a, b, bucketEvents)) continue;
+          groups.set(`${bucket}:adjacent:${a.id}`, [a, b]);
           assigned.add(a.id);
           assigned.add(b.id);
           break;
@@ -598,8 +679,7 @@ export class LetterboxdService {
       for (const row of rows.slice(1)) {
         try {
           const outcome = this.mergeWatchRow(file.kind, row, cols, intents);
-          if (outcome === "accepted") accepted += 1;
-          else skipped += 1;
+          if (outcome !== "accepted") skipped += 1;
         } catch {
           skipped += 1;
         }
@@ -611,11 +691,19 @@ export class LetterboxdService {
     }
 
     let processed = 0;
+    let written = 0;
     const totalIntents = intents.size;
     for (const intent of intents.values()) {
       try {
-        await this.writeWatchIntent(intent, userId);
+        const outcome = await this.writeWatchIntent(intent, userId);
+        if (outcome === "accepted") {
+          accepted += 1;
+          written += 1;
+        } else {
+          skipped += 1;
+        }
       } catch (err) {
+        skipped += 1;
         this.logger.debug(`Skip watch intent: ${errMessage(err)}`);
       }
 
@@ -634,6 +722,10 @@ export class LetterboxdService {
       }
     }
 
+    if (totalIntents > 0 && written === 0) {
+      throw new BadRequestException("No watches could be saved");
+    }
+
     return { accepted, skipped };
   }
 
@@ -646,15 +738,8 @@ export class LetterboxdService {
     const name = (row[cols.nameI] || "").trim();
     if (!name) return "skipped";
 
-    const yearRaw =
-      cols.yearI >= 0 && row[cols.yearI] ? Number(row[cols.yearI]) : null;
-    const year = Number.isFinite(yearRaw as number) ? yearRaw : null;
-
-    const ratingRaw =
-      cols.ratingI >= 0 && row[cols.ratingI]
-        ? Number(row[cols.ratingI])
-        : null;
-    const rating = Number.isFinite(ratingRaw as number) ? ratingRaw : null;
+    const year = parseCsvNumber(row[cols.yearI]);
+    const rating = parseCsvRating(row[cols.ratingI]);
 
     const dateStr = (
       (kind === "diary"
@@ -690,7 +775,7 @@ export class LetterboxdService {
         rating: existing.rating ?? rating,
       });
     }
-    return "accepted";
+    return "skipped";
   }
 
   private mergeRatingsIntoIntents(
@@ -716,15 +801,8 @@ export class LetterboxdService {
       const name = (row[cols.nameI] || "").trim();
       if (!name) continue;
 
-      const yearRaw =
-        cols.yearI >= 0 && row[cols.yearI] ? Number(row[cols.yearI]) : null;
-      const year = Number.isFinite(yearRaw as number) ? yearRaw : null;
-
-      const ratingRaw =
-        cols.ratingI >= 0 && row[cols.ratingI]
-          ? Number(row[cols.ratingI])
-          : null;
-      const rating = Number.isFinite(ratingRaw as number) ? ratingRaw : null;
+      const year = parseCsvNumber(row[cols.yearI]);
+      const rating = parseCsvRating(row[cols.ratingI]);
       if (rating == null) continue;
 
       const key = `${normalizeLetterboxdName(name)}:${year ?? ""}`;
@@ -883,15 +961,9 @@ export class LetterboxdService {
     const name = (row[cols.nameI] || "").trim();
     if (!name) return "skipped";
 
-    const yearRaw =
-      cols.yearI >= 0 && row[cols.yearI] ? Number(row[cols.yearI]) : null;
-    const year = Number.isFinite(yearRaw as number) ? yearRaw : null;
-
-    const ratingRaw =
-      cols.ratingI >= 0 && row[cols.ratingI]
-        ? Number(row[cols.ratingI])
-        : null;
-    const rating = Number.isFinite(ratingRaw as number) ? ratingRaw : null;
+    const year = parseCsvNumber(row[cols.yearI]);
+    const rating = parseCsvRating(row[cols.ratingI]);
+    if (kind === "ratings" && rating == null) return "skipped";
 
     const dateStr = (
       row[cols.dateI >= 0 ? cols.dateI : cols.watchedDateI] || ""

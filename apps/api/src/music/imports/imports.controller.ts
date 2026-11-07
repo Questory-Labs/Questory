@@ -1,11 +1,15 @@
 import {
   BadRequestException,
+  Catch,
   Controller,
+  type ArgumentsHost,
+  type ExceptionFilter,
   Get,
   Param,
   Post,
   Query,
   UploadedFile,
+  UseFilters,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
@@ -13,7 +17,8 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { randomUUID } from "crypto";
 import { mkdirSync } from "fs";
 import { rm } from "fs/promises";
-import { diskStorage } from "multer";
+import type { Response } from "express";
+import { diskStorage, MulterError } from "multer";
 import { join } from "path";
 import { MULTER_SECURITY_LIMITS } from "../../lib/multer.constants";
 import { CurrentMusicUser } from "../auth/current-music-user.decorator";
@@ -31,12 +36,31 @@ const SOURCES: ImportSource[] = [
   "listenbrainz_zip",
 ];
 
+@Catch(MulterError)
+export class ImportUploadErrorFilter implements ExceptionFilter {
+  catch(err: MulterError, host: ArgumentsHost) {
+    host
+      .switchToHttp()
+      .getResponse<Response>()
+      .status(400)
+      .json({
+        statusCode: 400,
+        error: "Bad Request",
+        message:
+          err.code === "LIMIT_UNEXPECTED_FILE"
+            ? "Upload an import file as multipart field `file`"
+            : err.message,
+      });
+  }
+}
+
 @Controller("music/imports")
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
   @Post()
   @UseGuards(SessionUserGuard)
+  @UseFilters(ImportUploadErrorFilter)
   @UseInterceptors(
     FileInterceptor("file", {
       storage: diskStorage({
@@ -78,16 +102,16 @@ export class ImportsController {
       /[/\\]/g,
       "_",
     );
-    let source: ImportSource | undefined;
-    if (sourceRaw) {
-      if (!SOURCES.includes(sourceRaw as ImportSource)) {
-        throw new BadRequestException(
-          `Unknown source. Use one of: ${SOURCES.join(", ")}`,
-        );
-      }
-      source = sourceRaw as ImportSource;
-    }
     try {
+      let source: ImportSource | undefined;
+      if (sourceRaw) {
+        if (!SOURCES.includes(sourceRaw as ImportSource)) {
+          throw new BadRequestException(
+            `Unknown source. Use one of: ${SOURCES.join(", ")}`,
+          );
+        }
+        source = sourceRaw as ImportSource;
+      }
       return await this.imports.startImport(
         file.path,
         name,

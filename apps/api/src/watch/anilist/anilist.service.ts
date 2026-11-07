@@ -26,6 +26,8 @@ import type { ListSyncScope } from "@questorylabs/shared";
 import { isDroppedListStatus } from "../catalog/list-status";
 import { disconnectSourceConnection } from "../lib/disconnect";
 
+const SYNC_ERROR_MAX = 300;
+
 @Injectable()
 export class AnilistService {
   private readonly logger = new Logger(AnilistService.name);
@@ -81,11 +83,22 @@ export class AnilistService {
       }),
     });
     if (!res.ok) {
+      this.logger.warn(
+        `AniList token exchange failed (${res.status}): ${(await res.text()).slice(0, 200)}`,
+      );
       throw new BadRequestException(
-        `AniList token exchange failed: ${await res.text()}`,
+        `AniList token exchange failed (${res.status})`,
       );
     }
-    const data = (await res.json()) as { access_token: string };
+    const data = (await res.json().catch(() => null)) as {
+      access_token?: string;
+    } | null;
+    const accessToken = data?.access_token;
+    if (!accessToken) {
+      throw new BadRequestException(
+        "AniList token response missing access_token",
+      );
+    }
 
     const existing = await this.prisma.sourceConnection.findUnique({
       where: {
@@ -100,9 +113,9 @@ export class AnilistService {
       create: {
         userId: user.id,
         provider: "anilist",
-        accessToken: data.access_token,
+        accessToken,
       },
-      update: { accessToken: data.access_token },
+      update: { accessToken, lastError: null },
     });
 
     if (!existing) {
@@ -154,9 +167,38 @@ export class AnilistService {
     this.syncingUsers.add(user.id);
     try {
       return await this.runSyncList(user.id, conn, halves);
+    } catch (err) {
+      await this.recordSyncFailure(conn.id, err);
+      throw err;
     } finally {
       this.syncingUsers.delete(user.id);
     }
+  }
+
+  private async recordSyncFailure(connectionId: string, err: unknown) {
+    const message =
+      err instanceof Error && !err.name.startsWith("PrismaClient")
+        ? err.message
+        : "Sync failed";
+    await this.prisma.sourceConnection
+      .update({
+        where: { id: connectionId },
+        data: { lastError: message.slice(0, SYNC_ERROR_MAX) },
+      })
+      .catch((e) =>
+        this.logger.warn(
+          `AniList lastError write failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
+  }
+
+  private async readGql<T>(res: Response, label: string): Promise<T> {
+    if (!res.ok) {
+      throw new BadRequestException(
+        `AniList ${label} request failed (${res.status}): ${(await res.text()).slice(0, 200)}`,
+      );
+    }
+    return (await res.json()) as T;
   }
 
   private async runSyncList(
@@ -170,7 +212,7 @@ export class AnilistService {
         MediaListCollection(type: ANIME, userId: 0, status_not: PLANNING) {
           lists {
             entries {
-              id status score progress
+              id status score(format: POINT_10_DECIMAL) progress
               updatedAt
               completedAt { year month day }
               startedAt { year month day }
@@ -199,9 +241,9 @@ export class AnilistService {
         query: `{ Viewer { id name } }`,
       }),
     });
-    const viewerJson = (await viewerRes.json()) as {
+    const viewerJson = await this.readGql<{
       data?: { Viewer?: { id: number; name: string } };
-    };
+    }>(viewerRes, "viewer");
     const viewerId = viewerJson.data?.Viewer?.id;
     if (!viewerId) throw new BadRequestException("AniList Viewer missing");
 
@@ -218,7 +260,7 @@ export class AnilistService {
         query: query.replace("userId: 0", `userId: ${viewerId}`),
       }),
     });
-    const listJson = (await listRes.json()) as {
+    const listJson = await this.readGql<{
       data?: {
         MediaListCollection?: {
           lists: {
@@ -244,17 +286,23 @@ export class AnilistService {
         };
       };
       errors?: unknown;
-    };
+    }>(listRes, "anime list");
 
     if (listJson.errors) {
       throw new BadRequestException(
         `AniList GraphQL error: ${JSON.stringify(listJson.errors).slice(0, 300)}`,
       );
     }
+    if (!listJson.data) {
+      throw new BadRequestException("AniList anime list response missing data");
+    }
 
-    const lists = listJson.data?.MediaListCollection?.lists || [];
+    const lists = listJson.data.MediaListCollection?.lists || [];
+    const seen = new Set<number>();
     for (const list of lists) {
       for (const entry of list.entries) {
+        if (seen.has(entry.id)) continue;
+        seen.add(entry.id);
         const media = entry.media;
         const name =
           media.title.english ||
@@ -281,6 +329,7 @@ export class AnilistService {
         if (
           entry.status === "COMPLETED" ||
           entry.status === "CURRENT" ||
+          entry.status === "REPEATING" ||
           entry.progress > 0
         ) {
           await this.catalog.recordWatch({
@@ -291,13 +340,13 @@ export class AnilistService {
             dedupeKey,
             action: "import",
             progress:
-              media.episodes && media.episodes > 0
-                ? Math.min(
-                    100,
-                    Math.round((entry.progress / media.episodes) * 100),
-                  )
-                : entry.status === "COMPLETED"
-                  ? 100
+              entry.status === "COMPLETED"
+                ? 100
+                : media.episodes && media.episodes > 0
+                  ? Math.min(
+                      100,
+                      Math.round((entry.progress / media.episodes) * 100),
+                    )
                   : 50,
             rating: entry.score || null,
             precision,
@@ -338,6 +387,7 @@ export class AnilistService {
       where: { id: conn.id },
       data: {
         lastSyncedAt: new Date(),
+        lastError: null,
         externalUserId: String(viewerId),
       },
     });
@@ -355,7 +405,7 @@ export class AnilistService {
         MediaListCollection(type: MANGA, userId: ${viewerId}) {
           lists {
             entries {
-              id status score progress progressVolumes
+              id status score(format: POINT_10_DECIMAL) progress progressVolumes
               updatedAt
               completedAt { year month day }
               startedAt { year month day }
@@ -385,7 +435,7 @@ export class AnilistService {
       },
       body: JSON.stringify({ query }),
     });
-    const listJson = (await listRes.json()) as {
+    const listJson = await this.readGql<{
       data?: {
         MediaListCollection?: {
           lists: {
@@ -415,19 +465,24 @@ export class AnilistService {
         };
       };
       errors?: unknown;
-    };
+    }>(listRes, "manga list");
 
     if (listJson.errors) {
-      this.logger.warn(
+      throw new BadRequestException(
         `AniList manga GraphQL error: ${JSON.stringify(listJson.errors).slice(0, 300)}`,
       );
-      return 0;
+    }
+    if (!listJson.data) {
+      throw new BadRequestException("AniList manga list response missing data");
     }
 
     let accepted = 0;
-    const lists = listJson.data?.MediaListCollection?.lists || [];
+    const lists = listJson.data.MediaListCollection?.lists || [];
+    const seen = new Set<number>();
     for (const list of lists) {
       for (const entry of list.entries) {
+        if (seen.has(entry.id)) continue;
+        seen.add(entry.id);
         const media = entry.media;
         const name =
           media.title.english ||
@@ -499,7 +554,7 @@ export class AnilistService {
             ),
             rating: entry.score || null,
             precision,
-            chaptersDelta: entry.progress ?? 0,
+            chaptersTotal: entry.progress ?? 0,
           });
           accepted += 1;
         }

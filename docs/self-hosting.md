@@ -291,7 +291,7 @@ Without the MyAnimeList, Shikimori or Bangumi variables, connecting that provide
 
 Watch session APIs live at `/v1/watch/*` on the API origin; webhooks at `/webhooks/*` (same process and port as Steam).
 
-**Plex / Jellyfin:** mint a `watch_webhook` ApiKey in **Settings → Watch** (or Profile). Send it as header `x-watch-webhook-secret` — there is no global `WATCH_WEBHOOK_SECRET` env.
+**Plex / Jellyfin:** mint a `watch_webhook` ApiKey in **Settings → Watch** (or Profile). Send it as header `x-watch-webhook-secret` — there is no global `WATCH_WEBHOOK_SECRET` env. Jellyfin templates must include `NotificationType` and `PlayedToCompletion`: only a `PlaybackStop` with `PlayedToCompletion` true records a watch, and anything else returns `ok: true` with `ignored: true`.
 
 **Multi-user / non-local:** serve API + web under a common site (or `COOKIE_DOMAIN`) so the browser sends `questorylabs_session` to the API. Trakt/AniList/Letterboxd routes require that session (or sole-user fallback only in `local`/`selfhosted` with exactly one user and no `userId` query).
 

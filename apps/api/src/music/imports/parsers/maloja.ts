@@ -1,4 +1,4 @@
-import type { ParsedListen } from "./types";
+import { cleanText, parseListenedAt, type ParsedListen } from "./types";
 
 type MalojaItem = {
   time?: number;
@@ -19,10 +19,10 @@ export function parseMalojaJson(text: string): ParsedListen[] {
   const out: ParsedListen[] = [];
 
   for (const item of scrobbles) {
-    const rawArtists = Array.isArray(item.track?.artists)
-      ? [...item.track.artists]
+    const rawArtists = Array.isArray(item?.track?.artists)
+      ? item.track.artists.filter((a) => typeof a === "string")
       : [];
-    const title = (item.track?.title || "").trim();
+    const title = cleanText(item?.track?.title);
     if (!rawArtists.length || !title) continue;
 
     // Prefer the entry that contains " • " (main • features), then split.
@@ -43,15 +43,14 @@ export function parseMalojaJson(text: string): ParsedListen[] {
     }
     if (!artists.length) continue;
 
-    const unix = typeof item.time === "number" ? item.time : NaN;
-    if (!Number.isFinite(unix)) continue;
-    const listenedAt = new Date(unix * 1000);
-    if (Number.isNaN(listenedAt.getTime())) continue;
+    const listenedAt =
+      typeof item.time === "number" ? parseListenedAt(item.time) : null;
+    if (!listenedAt) continue;
 
     out.push({
       artistName: artists[0],
       trackName: title,
-      releaseName: (item.track?.album?.albumtitle || "").trim() || null,
+      releaseName: cleanText(item.track?.album?.albumtitle) || null,
       listenedAt,
       musicService: "maloja",
       submissionClient: "maloja_import",

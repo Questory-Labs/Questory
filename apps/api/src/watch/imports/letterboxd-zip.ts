@@ -1,4 +1,4 @@
-import { unzipSync, strFromU8 } from "fflate";
+import { Unzip, UnzipInflate, strFromU8, unzipSync } from "fflate";
 
 export const LETTERBOXD_CSV_KINDS = [
   "diary",
@@ -17,6 +17,9 @@ const SKIP_PATH_PARTS = new Set(["deleted", "orphaned", "__macosx"]);
 const MAX_ENTRIES = 256;
 const MAX_UNCOMPRESSED_BYTES = 40 * 1024 * 1024;
 const MAX_SINGLE_FILE_BYTES = 15 * 1024 * 1024;
+const INFLATE_CHUNK_BYTES = 16 * 1024;
+
+class ZipLimitError extends Error {}
 
 export type ExtractedLetterboxdCsv = {
   kind: LetterboxdCsvKind;
@@ -61,64 +64,22 @@ export function extractLetterboxdCsvs(
     include?.length ? include : [...LETTERBOXD_CSV_KINDS],
   );
 
-  let files: Record<string, Uint8Array>;
-  try {
-    files = unzipSync(new Uint8Array(buffer), {
-      filter(file) {
-        return !file.originalSize || file.originalSize <= MAX_SINGLE_FILE_BYTES;
-      },
-    });
-  } catch {
-    throw new Error("Invalid or corrupted zip archive");
+  const bytes = new Uint8Array(buffer);
+  const best = selectZipEntries(bytes, want);
+  if (!best.size) {
+    throw new Error(
+      "Zip contained none of diary.csv, ratings.csv, watched.csv, watchlist.csv",
+    );
   }
 
-  const entries = Object.entries(files);
-  if (entries.length > MAX_ENTRIES) {
-    throw new Error(`Zip has too many entries (max ${MAX_ENTRIES})`);
-  }
-
-  let totalBytes = 0;
-  /** Prefer shallowest non-skipped path per kind. */
-  const best = new Map<
-    LetterboxdCsvKind,
-    { path: string; data: Uint8Array; depth: number }
-  >();
-
-  for (const [rawName, data] of entries) {
-    const path = normalizeZipPath(rawName);
-    if (!isSafeZipPath(path)) continue;
-    if (shouldSkipPath(path)) continue;
-    if (path.endsWith("/")) continue;
-
-    const basename = path.split("/").pop() || "";
-    const kind = kindFromBasename(basename);
-    if (!kind || !want.has(kind)) continue;
-
-    totalBytes += data.byteLength;
-    if (totalBytes > MAX_UNCOMPRESSED_BYTES) {
-      throw new Error("Zip uncompressed size exceeds limit");
-    }
-    if (data.byteLength > MAX_SINGLE_FILE_BYTES) {
-      throw new Error(`${basename} exceeds size limit`);
-    }
-
-    const depth = path.split("/").length;
-    const prev = best.get(kind);
-    if (!prev || depth < prev.depth) {
-      best.set(kind, { path, data, depth });
-    }
-  }
+  const texts = inflateZipEntries(bytes, best);
 
   const out: ExtractedLetterboxdCsv[] = [];
   for (const kind of LETTERBOXD_CSV_KINDS) {
-    if (!want.has(kind)) continue;
     const hit = best.get(kind);
-    if (!hit) continue;
-    out.push({
-      kind,
-      path: hit.path,
-      text: strFromU8(hit.data),
-    });
+    const text = hit && texts.get(hit.rawName);
+    if (!hit || text === undefined) continue;
+    out.push({ kind, path: hit.path, text });
   }
 
   if (!out.length) {
@@ -127,6 +88,115 @@ export function extractLetterboxdCsvs(
     );
   }
   return out;
+}
+
+type ZipSelection = { rawName: string; path: string; depth: number };
+
+function selectZipEntries(
+  bytes: Uint8Array,
+  want: Set<LetterboxdCsvKind>,
+): Map<LetterboxdCsvKind, ZipSelection> {
+  const best = new Map<LetterboxdCsvKind, ZipSelection>();
+  let entryCount = 0;
+  let declaredBytes = 0;
+
+  try {
+    unzipSync(bytes, {
+      filter(file) {
+        entryCount += 1;
+        if (entryCount > MAX_ENTRIES) {
+          throw new ZipLimitError(
+            `Zip has too many entries (max ${MAX_ENTRIES})`,
+          );
+        }
+
+        const path = normalizeZipPath(file.name);
+        if (!isSafeZipPath(path)) return false;
+        if (shouldSkipPath(path)) return false;
+        if (path.endsWith("/")) return false;
+        if (file.originalSize > MAX_SINGLE_FILE_BYTES) return false;
+
+        const basename = path.split("/").pop() || "";
+        const kind = kindFromBasename(basename);
+        if (!kind || !want.has(kind)) return false;
+
+        declaredBytes += file.originalSize;
+        if (declaredBytes > MAX_UNCOMPRESSED_BYTES) {
+          throw new ZipLimitError("Zip uncompressed size exceeds limit");
+        }
+
+        const depth = path.split("/").length;
+        const prev = best.get(kind);
+        if (!prev || depth < prev.depth) {
+          best.set(kind, { rawName: file.name, path, depth });
+        }
+        return false;
+      },
+    });
+  } catch (err) {
+    if (err instanceof ZipLimitError) throw err;
+    throw new Error("Invalid or corrupted zip archive");
+  }
+  return best;
+}
+
+function inflateZipEntries(
+  bytes: Uint8Array,
+  selected: Map<LetterboxdCsvKind, ZipSelection>,
+): Map<string, string> {
+  const pending = new Set([...selected.values()].map((s) => s.rawName));
+  const texts = new Map<string, string>();
+  let failure: Error | null = null;
+  let totalBytes = 0;
+
+  const unzip = new Unzip((file) => {
+    if (!pending.delete(file.name)) return;
+    const basename = normalizeZipPath(file.name).split("/").pop() || "";
+    const chunks: Uint8Array[] = [];
+    let fileBytes = 0;
+
+    file.ondata = (err, data, final) => {
+      if (failure) return;
+      if (err) {
+        failure = new Error("Invalid or corrupted zip archive");
+        return;
+      }
+      fileBytes += data.byteLength;
+      totalBytes += data.byteLength;
+      if (fileBytes > MAX_SINGLE_FILE_BYTES) {
+        failure = new ZipLimitError(`${basename} exceeds size limit`);
+      } else if (totalBytes > MAX_UNCOMPRESSED_BYTES) {
+        failure = new ZipLimitError("Zip uncompressed size exceeds limit");
+      }
+      if (failure) {
+        chunks.length = 0;
+        file.terminate();
+        return;
+      }
+      chunks.push(data);
+      if (final) texts.set(file.name, strFromU8(Buffer.concat(chunks)));
+    };
+    file.start();
+  });
+  unzip.register(UnzipInflate);
+
+  try {
+    for (
+      let offset = 0;
+      offset < bytes.length && !failure;
+      offset += INFLATE_CHUNK_BYTES
+    ) {
+      const end = offset + INFLATE_CHUNK_BYTES;
+      unzip.push(bytes.subarray(offset, end), end >= bytes.length);
+    }
+  } catch {
+    failure ??= new Error("Invalid or corrupted zip archive");
+  }
+  if (failure) throw failure;
+  if (pending.size || texts.size < selected.size) {
+    throw new Error("Invalid or corrupted zip archive");
+  }
+  return texts;
 }
 
 /** Infer CSV kind from a bare upload filename; default diary. */

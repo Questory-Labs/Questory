@@ -20,26 +20,48 @@ export async function detectImportSourceFromPath(
   }
 }
 
+function scanJsonKeys(sample: string) {
+  const keys = new Set<string>();
+  const rootKeys = new Set<string>();
+  let depth = 0;
+  let i = 0;
+  while (i < sample.length) {
+    const ch = sample[i];
+    if (ch === '"') {
+      let end = i + 1;
+      while (end < sample.length && sample[end] !== '"') {
+        end += sample[end] === "\\" ? 2 : 1;
+      }
+      if (end >= sample.length) break;
+      let next = end + 1;
+      while (next < sample.length && /\s/.test(sample[next])) next += 1;
+      if (sample[next] === ":") {
+        const key = sample.slice(i + 1, end);
+        keys.add(key);
+        if (depth === 1) rootKeys.add(key);
+      }
+      i = end + 1;
+      continue;
+    }
+    if (ch === "{" || ch === "[") depth += 1;
+    else if (ch === "}" || ch === "]") depth -= 1;
+    i += 1;
+  }
+  return { keys, rootKeys };
+}
+
 function sniffJsonSample(sample: string): ImportSource | null {
-  if (
-    sample.includes("master_metadata_track_name") ||
-    sample.includes("ms_played")
-  ) {
+  const { keys, rootKeys } = scanJsonKeys(sample);
+  if (keys.has("master_metadata_track_name") || keys.has("ms_played")) {
     return "spotify_json";
   }
-  if (sample.includes('"scrobbles"') || sample.includes('"scrobbles":')) {
+  if (rootKeys.has("scrobbles")) {
     return "maloja_json";
   }
-  if (
-    (sample.includes('"version"') || sample.includes('"version":')) &&
-    sample.includes('"listens"')
-  ) {
+  if (rootKeys.has("version") && rootKeys.has("listens")) {
     return "koito_json";
   }
-  if (
-    sample.includes("recenttracks") ||
-    (sample.includes('"track"') && sample.includes("#text"))
-  ) {
+  if (keys.has("recenttracks") || (keys.has("track") && keys.has("#text"))) {
     return "lastfm_json";
   }
   return null;

@@ -44,6 +44,13 @@ export class LetterboxdConnectService {
       throw new BadRequestException("Invalid Letterboxd username");
     }
 
+    const existing = await this.prisma.sourceConnection.findUnique({
+      where: { userId_provider: { userId, provider: PROVIDER } },
+      select: { externalUserId: true },
+    });
+    const usernameChanged =
+      existing != null && existing.externalUserId !== normalized;
+
     const conn = await this.prisma.sourceConnection.upsert({
       where: { userId_provider: { userId, provider: PROVIDER } },
       create: {
@@ -54,6 +61,7 @@ export class LetterboxdConnectService {
       },
       update: {
         externalUserId: normalized,
+        ...(usernameChanged ? { syncCursor: null, lastSyncedAt: null } : {}),
       },
     });
 

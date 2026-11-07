@@ -31,7 +31,7 @@ type KitsuLibraryEntry = {
     finishedAt?: string | null;
     updatedAt: string;
   };
-  relationships: {
+  relationships?: {
     anime?: { data?: { id: string; type: string } | null };
     manga?: { data?: { id: string; type: string } | null };
   };
@@ -54,7 +54,7 @@ type KitsuMedia = {
 export class KitsuService {
   private readonly logger = new Logger(KitsuService.name);
   private readonly api = "https://kitsu.io/api/edge";
-  private readonly syncingUsers = new Set<string>();
+  private readonly syncingUsers = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -96,6 +96,11 @@ export class KitsuService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      throw new BadRequestException(
+        "Kitsu authentication returned no access token",
+      );
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -171,7 +176,7 @@ export class KitsuService {
     });
     if (!conn) throw new BadRequestException("Kitsu not connected");
 
-    this.syncingUsers.add(user.id);
+    this.syncingUsers.set(user.id, (this.syncingUsers.get(user.id) ?? 0) + 1);
     try {
       const token = await this.ensureAccessToken(user.id);
       const profile = await this.apiGet<{ data: Array<{ id: string }> }>(
@@ -201,7 +206,9 @@ export class KitsuService {
         userId: user.id,
       };
     } finally {
-      this.syncingUsers.delete(user.id);
+      const running = (this.syncingUsers.get(user.id) ?? 1) - 1;
+      if (running > 0) this.syncingUsers.set(user.id, running);
+      else this.syncingUsers.delete(user.id);
     }
   }
 
@@ -234,6 +241,10 @@ export class KitsuService {
       refresh_token?: string;
       expires_in?: number;
     };
+    if (!data.access_token) {
+      this.logger.warn("Kitsu refresh returned no access token");
+      return conn.accessToken;
+    }
     const expiresAt =
       data.expires_in != null
         ? new Date(Date.now() + data.expires_in * 1000)
@@ -303,8 +314,8 @@ export class KitsuService {
       for (const entry of entries) {
         const rel =
           kind === "anime"
-            ? entry.relationships.anime?.data
-            : entry.relationships.manga?.data;
+            ? entry.relationships?.anime?.data
+            : entry.relationships?.manga?.data;
         if (!rel?.id) continue;
         const media = mediaMap.get(rel.id);
         if (!media) continue;
@@ -425,7 +436,7 @@ export class KitsuService {
               ),
               rating,
               precision: entry.attributes.finishedAt ? "day" : "unknown",
-              chaptersDelta: progress,
+              chaptersTotal: progress,
             });
             accepted += 1;
           }

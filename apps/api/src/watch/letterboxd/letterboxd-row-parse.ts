@@ -1,3 +1,5 @@
+import { watchedAtDayUtc } from "../imports/letterboxd-keys";
+
 const MONTHS: Record<string, string> = {
   jan: "01",
   feb: "02",
@@ -15,7 +17,14 @@ const MONTHS: Record<string, string> = {
 
 export function yearFromFilmPath(href: string | null | undefined): number | null {
   if (!href) return null;
-  const path = href.startsWith("http") ? new URL(href).pathname : href;
+  let path = href;
+  if (href.startsWith("http")) {
+    try {
+      path = new URL(href).pathname;
+    } catch {
+      return null;
+    }
+  }
   const match = path.match(/-(\d{4})\/?$/);
   if (!match) return null;
   const year = Number(match[1]);
@@ -34,7 +43,8 @@ export function letterboxdDateFromParts(
   const year = yearLabel.trim();
   const day = dayLabel.trim().padStart(2, "0");
   if (!month || !/^\d{4}$/.test(year)) return null;
-  return `${year}-${month}-${day}`;
+  const iso = `${year}-${month}-${day}`;
+  return watchedAtDayUtc(iso) ? iso : null;
 }
 
 /** Merge month/year headers across diary rows and build ISO dates. */

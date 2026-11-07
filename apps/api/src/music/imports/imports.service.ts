@@ -12,12 +12,19 @@ import {
   createImportEntityCache,
 } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isPrismaAdmissionConflict } from "../../profile-data/profile-data.locks";
 import { UsersService } from "../users/users.service";
 import { FeatureFlagsService } from "../../features/feature-flags.service";
+import { resolveDbProvider } from "../lib/runtime-config";
 import { parseImportInWorker } from "./parse-in-worker";
 import { detectImportSourceFromPath } from "./parsers/detect";
-import type { ImportSource } from "./parsers/types";
+import {
+  ImportParseError,
+  isFsError,
+  type ImportSource,
+} from "./parsers/types";
 import { resolveRepoTempDir } from "./temp-dir";
 
 const PROGRESS_EVERY = 25;
@@ -35,6 +42,15 @@ const MUSIC_IMPORT_SOURCES: ImportSource[] = [
 
 function yieldEventLoop() {
   return new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+function importInProgress(jobId?: string) {
+  return new ConflictException({
+    statusCode: 409,
+    error: "Conflict",
+    message: "An import is already in progress",
+    jobId,
+  });
 }
 
 function serializeJob(job: {
@@ -115,22 +131,8 @@ export class ImportsService implements OnModuleInit {
     const user = await this.users.findById(userId);
     if (!user) throw new BadRequestException("No user for import");
 
-    const active = await this.prisma.importJob.findFirst({
-      where: {
-        userId: user.id,
-        status: "running",
-        source: { in: [...MUSIC_IMPORT_SOURCES] },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    if (active) {
-      throw new ConflictException({
-        statusCode: 409,
-        error: "Conflict",
-        message: "An import is already in progress",
-        jobId: active.id,
-      });
-    }
+    const active = await this.findRunningJob(user.id);
+    if (active) throw importInProgress(active.id);
 
     let source: ImportSource;
     try {
@@ -138,6 +140,10 @@ export class ImportsService implements OnModuleInit {
         sourceOverride ??
         (await detectImportSourceFromPath(fileName, uploadPath));
     } catch (err) {
+      if (isFsError(err)) {
+        this.logger.warn(`Failed to read upload: ${String(err)}`);
+        throw new BadRequestException("Failed to read upload");
+      }
       throw new BadRequestException(
         err instanceof Error ? err.message : "Unrecognized import file",
       );
@@ -146,14 +152,7 @@ export class ImportsService implements OnModuleInit {
       await this.flags.assertSourceEnabled("spotify");
     }
 
-    const job = await this.prisma.importJob.create({
-      data: {
-        userId: user.id,
-        source,
-        status: "running",
-        fileName: fileName || null,
-      },
-    });
+    const job = await this.admitJob(user.id, source, fileName);
 
     const uploadDir = dirname(uploadPath);
     const stagingParent = join(resolveRepoTempDir(), "music-imports");
@@ -174,13 +173,16 @@ export class ImportsService implements OnModuleInit {
           completedAt: new Date(),
         },
       });
-      throw new BadRequestException(
-        err instanceof Error ? err.message : "Failed to stage upload",
-      );
+      this.logger.warn(`Failed to stage upload: ${String(err)}`);
+      throw new BadRequestException("Failed to stage upload");
     }
 
     // Parse + upsert off the request path; worker keeps /health responsive.
-    void this.runJob(job.id, user.id, source, stagedPath, stagingDir, fileName);
+    this.runJob(job.id, user.id, source, stagedPath, stagingDir, fileName).catch(
+      (err) => {
+        this.logger.error(`Import ${job.id} could not be finalized: ${String(err)}`);
+      },
+    );
 
     return {
       ok: true as const,
@@ -200,8 +202,11 @@ export class ImportsService implements OnModuleInit {
     };
   }
 
-  async getActiveJob(userId: string) {
-    const job = await this.prisma.importJob.findFirst({
+  private findRunningJob(
+    userId: string,
+    client: Pick<Prisma.TransactionClient, "importJob"> = this.prisma,
+  ) {
+    return client.importJob.findFirst({
       where: {
         userId,
         status: "running",
@@ -209,6 +214,36 @@ export class ImportsService implements OnModuleInit {
       },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  private async admitJob(userId: string, source: ImportSource, fileName: string) {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const active = await this.findRunningJob(userId, tx);
+          if (active) throw importInProgress(active.id);
+          return tx.importJob.create({
+            data: {
+              userId,
+              source,
+              status: "running",
+              fileName: fileName || null,
+            },
+          });
+        },
+        resolveDbProvider() === "postgresql"
+          ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+          : undefined,
+      );
+    } catch (err) {
+      if (!isPrismaAdmissionConflict(err)) throw err;
+      const winner = await this.findRunningJob(userId);
+      throw importInProgress(winner?.id);
+    }
+  }
+
+  async getActiveJob(userId: string) {
+    const job = await this.findRunningJob(userId);
     return job ? serializeJob(job) : null;
   }
 
@@ -218,6 +253,20 @@ export class ImportsService implements OnModuleInit {
     });
     if (!job) throw new BadRequestException("Import job not found");
     return serializeJob(job);
+  }
+
+  private async queueEnrichment(trackId: string) {
+    const logFailure = (err: unknown) => {
+      this.logger.warn(`Enrichment failed for track ${trackId}: ${String(err)}`);
+    };
+    try {
+      // Re-import of existing listens still fills gaps (tags/year/cover).
+      if (await this.enrichment.trackNeedsEnrichment(trackId)) {
+        void this.enrichment.enqueueTrack(trackId).catch(logFailure);
+      }
+    } catch (err) {
+      logFailure(err);
+    }
   }
 
   private async runJob(
@@ -270,10 +319,7 @@ export class ImportsService implements OnModuleInit {
             Boolean(item.recordingMbid) || Boolean(item.artistMbids?.[0]);
           if (hasMbid && !enrichmentChecked.has(result.track.id)) {
             enrichmentChecked.add(result.track.id);
-            // Re-import of existing listens still fills gaps (tags/year/cover).
-            if (await this.enrichment.trackNeedsEnrichment(result.track.id)) {
-              void this.enrichment.enqueueTrack(result.track.id);
-            }
+            await this.queueEnrichment(result.track.id);
           }
         } catch (err) {
           skipped += 1;
@@ -318,7 +364,10 @@ export class ImportsService implements OnModuleInit {
         where: { id: jobId },
         data: {
           status: "failed",
-          lastError: message.slice(0, 500),
+          lastError:
+            err instanceof ImportParseError
+              ? message.slice(0, 500)
+              : "Import failed",
           completedAt: new Date(),
         },
       });

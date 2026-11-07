@@ -34,6 +34,17 @@ export const SOURCES_FLASH_PROVIDERS: Record<string, string> = {
   shikimori: "Shikimori",
 };
 
+const SOURCES_FLASH_REASONS = new Map([
+  ["denied", "denied"],
+  ["access_denied", "access denied"],
+  ["missing_token", "the provider returned no token"],
+  ["invalid_state", "the sign-in link is invalid or expired"],
+  ["callback_failed", "the provider callback failed"],
+]);
+
+export const sourcesFlashReason = (reason: string | null) =>
+  SOURCES_FLASH_REASONS.get(reason ?? "");
+
 export type SourcesFlashMessage = { provider: string; ok: boolean; text: string };
 
 export const sourcesFlash = (params: URLSearchParams): SourcesFlashMessage[] =>
@@ -41,7 +52,7 @@ export const sourcesFlash = (params: URLSearchParams): SourcesFlashMessage[] =>
     const value = params.get(key);
     if (value === "connected") return [{ provider: key, ok: true, text: `${label} connected.` }];
     if (value === "error") {
-      const reason = params.get("reason");
+      const reason = sourcesFlashReason(params.get("reason"));
       return [{ provider: key, ok: false, text: `Could not connect ${label}${reason ? `: ${reason}` : ""}.` }];
     }
     return [];

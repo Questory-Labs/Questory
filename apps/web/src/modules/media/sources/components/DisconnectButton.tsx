@@ -33,7 +33,10 @@ export const DisconnectButton = ({
 
   return (
     <>
-      <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
+      <Button type="button" variant="secondary" onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}>
         Disconnect
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title={`Disconnect ${title}?`}>

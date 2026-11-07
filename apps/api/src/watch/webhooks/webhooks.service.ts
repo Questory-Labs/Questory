@@ -4,6 +4,17 @@ import { EnrichmentService } from "../enrichment/enrichment.service";
 import { UsersService } from "../users/users.service";
 import { isWebhookSecretRequired } from "../lib/runtime-config";
 
+function finiteNumber(value: unknown): number | null {
+  if (value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function roundedMinutes(value: unknown, unitsPerMinute: number): number | null {
+  const n = finiteNumber(value);
+  return n == null ? null : Math.round(n / unitsPerMinute);
+}
+
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
@@ -67,6 +78,9 @@ export class WebhooksService {
 
     const year = metadata.year != null ? Number(metadata.year) : null;
     const isMovie = type === "movie";
+    if (!isMovie && type !== "episode") {
+      return { ok: true, ignored: true, reason: "unsupported type" };
+    }
     const title = await this.catalog.upsertTitle({
       type: isMovie ? "movie" : "show",
       name: isMovie
@@ -77,17 +91,14 @@ export class WebhooksService {
 
     let episodeId: string | undefined;
     if (!isMovie) {
-      const season = Number(metadata.parentIndex ?? metadata.seasonNumber ?? 0);
-      const ep = Number(metadata.index ?? metadata.episodeNumber ?? 0);
+      const season = finiteNumber(metadata.parentIndex ?? metadata.seasonNumber) ?? 0;
+      const ep = finiteNumber(metadata.index ?? metadata.episodeNumber) ?? 0;
       const episode = await this.catalog.upsertEpisode({
         titleId: title.id,
         seasonNumber: season,
         episodeNumber: ep,
         name: String(metadata.title || "") || null,
-        runtimeMinutes:
-          metadata.duration != null
-            ? Math.round(Number(metadata.duration) / 60000)
-            : null,
+        runtimeMinutes: roundedMinutes(metadata.duration, 60_000),
       });
       episodeId = episode.id;
     }
@@ -104,10 +115,7 @@ export class WebhooksService {
       dedupeKey,
       action: "scrobble",
       precision: "second",
-      runtimeMinutes:
-        metadata.duration != null
-          ? Math.round(Number(metadata.duration) / 60000)
-          : null,
+      runtimeMinutes: roundedMinutes(metadata.duration, 60_000),
       rawPayload: JSON.stringify(body).slice(0, 4000),
     });
     this.enrichment.enqueueTitle(title.id);
@@ -126,16 +134,13 @@ export class WebhooksService {
     const notificationType = String(
       body.NotificationType || body.notification_type || body.Event || "",
     ).toLowerCase();
+    const playedToCompletion =
+      String(body.PlayedToCompletion ?? "").toLowerCase() === "true";
     if (
-      !notificationType.includes("playback") &&
       !notificationType.includes("scrobble") &&
-      notificationType !== "play" &&
-      !String(body.ItemType || "")
+      !(notificationType.includes("playbackstop") && playedToCompletion)
     ) {
-      // Still try if Item present
-      if (!body.Item && !body.Name) {
-        return { ok: true, ignored: true, notificationType };
-      }
+      return { ok: true, ignored: true, notificationType };
     }
 
     const item = (body.Item || body) as Record<string, unknown>;
@@ -147,6 +152,9 @@ export class WebhooksService {
     const movieName = String(item.Name || body.Name || "");
     const name = isMovie ? movieName : seriesName || movieName;
     if (!name) return { ok: true, ignored: true, reason: "no title" };
+    if (!isMovie && !/episode/i.test(itemType)) {
+      return { ok: true, ignored: true, reason: "unsupported type" };
+    }
 
     const year = item.ProductionYear != null ? Number(item.ProductionYear) : null;
     const title = await this.catalog.upsertTitle({
@@ -157,17 +165,14 @@ export class WebhooksService {
 
     let episodeId: string | undefined;
     if (!isMovie) {
-      const season = Number(item.ParentIndexNumber ?? item.SeasonNumber ?? 0);
-      const ep = Number(item.IndexNumber ?? item.EpisodeNumber ?? 0);
+      const season = finiteNumber(item.ParentIndexNumber ?? item.SeasonNumber) ?? 0;
+      const ep = finiteNumber(item.IndexNumber ?? item.EpisodeNumber) ?? 0;
       const episode = await this.catalog.upsertEpisode({
         titleId: title.id,
         seasonNumber: season,
         episodeNumber: ep,
         name: movieName || null,
-        runtimeMinutes:
-          item.RunTimeTicks != null
-            ? Math.round(Number(item.RunTimeTicks) / 10_000_000 / 60)
-            : null,
+        runtimeMinutes: roundedMinutes(item.RunTimeTicks, 600_000_000),
       });
       episodeId = episode.id;
     }

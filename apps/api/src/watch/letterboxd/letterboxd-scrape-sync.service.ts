@@ -73,21 +73,31 @@ export class LetterboxdScrapeSyncService {
     let imported = 0;
     let skipped = 0;
     let stopped = 0;
+    let users = 0;
 
     for (const conn of connections) {
       if (!conn.externalUserId) continue;
-      const result = await this.syncUser(
-        conn.userId,
-        conn.externalUserId,
-        config,
-      );
-      imported += result.imported;
-      skipped += result.skipped;
-      if (result.stoppedEarly) stopped += 1;
+      users += 1;
+      try {
+        const result = await this.syncUser(
+          conn.userId,
+          conn.externalUserId,
+          config,
+        );
+        imported += result.imported;
+        skipped += result.skipped;
+        if (result.stoppedEarly) stopped += 1;
+      } catch (err) {
+        this.logger.warn(
+          `letterboxd scrape failed for user ${conn.userId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
     }
 
     return {
-      users: connections.length,
+      users,
       imported,
       skipped,
       stopped,

@@ -20,7 +20,7 @@ import type {
   ImportJob,
   ImportStart,
 } from "./music.settings.types";
-import { isMusicImportFile } from "./music.settings.utils";
+import { isMusicImportFile, lastfmFlashFromParams } from "./music.settings.utils";
 
 export const MusicSettingsController = ({ children }: PropsWithChildren) => {
   const store = useStore();
@@ -131,9 +131,8 @@ export const MusicSettingsController = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const lastfm = params.get("lastfm");
-    if (lastfm === "connected") setLastfmFlash("connected");
-    if (lastfm === "error") setLastfmFlash(params.get("reason") || "error");
+    const flash = lastfmFlashFromParams(params);
+    if (flash) setLastfmFlash(flash);
   }, []);
 
   const busy =

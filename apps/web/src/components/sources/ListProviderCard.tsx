@@ -61,7 +61,7 @@ function eyebrowLabel(
   eyebrow?: ListProviderCardProps["eyebrow"],
 ) {
   if (eyebrow === "live") return "Live";
-  if (eyebrow === "credentials" || provider.passwordConnect) return "Credentials";
+  if (eyebrow === "credentials" || (!eyebrow && provider.passwordConnect)) return "Credentials";
   return "OAuth";
 }
 
@@ -94,6 +94,7 @@ export function ListProviderCard({
       setPassword("");
       void store.touch([`${queryKeyPrefix}-${provider.id}-status`]);
       void store.touch(["shell-sync-status"]);
+      void store.touch(["sources-overview"]);
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Connect failed");
@@ -102,6 +103,7 @@ export function ListProviderCard({
 
   const connected = Boolean(status.value?.connected);
   const syncing = Boolean(status.value?.syncing);
+  const statusUnknown = status.failed && !status.value;
 
   return (
     <Panel wrapperClassName="h-full" className="flex h-full flex-col p-5">
@@ -109,8 +111,8 @@ export function ListProviderCard({
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
           {eyebrowLabel(provider, eyebrow)}
         </span>
-        <StatusPill tone={syncing ? "warn" : connected ? "ok" : "idle"}>
-          {syncing ? "Syncing" : connected ? "Connected" : "Connect"}
+        <StatusPill tone={syncing || statusUnknown ? "warn" : connected ? "ok" : "idle"}>
+          {statusUnknown ? "Status unavailable" : syncing ? "Syncing" : connected ? "Connected" : "Connect"}
         </StatusPill>
       </div>
       <h3
@@ -120,12 +122,18 @@ export function ListProviderCard({
         {provider.title}
       </h3>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-        {connected
+        {statusUnknown
+          ? `Could not check ${provider.title} right now.`
+          : connected
           ? `Connected · last sync ${formatLastSync(status.value?.lastSyncedAt)}`
           : provider.blurb}
       </p>
       <div className="mt-auto flex flex-col gap-2 pt-5">
-        {provider.passwordConnect && !connected ? (
+        {statusUnknown ? (
+          <button type="button" className="btn btn-secondary" onClick={() => void status.reload().catch(() => undefined)}>
+            Retry
+          </button>
+        ) : provider.passwordConnect && !connected ? (
           <>
             <input
               type="email"
@@ -155,20 +163,15 @@ export function ListProviderCard({
               {connect.busy ? "Connecting…" : "Connect Kitsu"}
             </button>
           </>
-        ) : (
+        ) : provider.authorizePath ? (
           <div className="flex flex-wrap gap-3">
-            <a
-              href={
-                provider.authorizePath ? urlFn(provider.authorizePath) : "#"
-              }
-              className="btn btn-secondary"
-            >
+            <a href={urlFn(provider.authorizePath)} className="btn btn-secondary">
               {connected
                 ? `Reconnect ${provider.title}`
                 : `Connect ${provider.title}`}
             </a>
           </div>
-        )}
+        ) : null}
       </div>
     </Panel>
   );

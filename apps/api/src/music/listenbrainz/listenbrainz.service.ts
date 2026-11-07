@@ -1,46 +1,32 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { EnrichmentService } from "../enrichment/enrichment.service";
 import { PlayingNowService } from "../playing-now/playing-now.service";
 import { UsersService } from "../users/users.service";
 import { hashToken } from "../lib/tokens";
+import { ListenItemSchema, SubmitListensSchema } from "./listenbrainz.schema";
 
-type LbAdditionalInfo = {
-  artist_mbids?: string[];
-  release_mbid?: string;
-  recording_mbid?: string;
-  track_mbid?: string;
-  isrc?: string;
-  spotify_id?: string;
-  duration_ms?: number;
-  duration?: number;
-  tags?: string[];
-  media_player?: string;
-  submission_client?: string;
-  music_service?: string;
-  [key: string]: unknown;
-};
+const MAX_DURATION_MS = 2_147_483_647;
 
-type LbTrackMetadata = {
-  artist_name?: string;
-  track_name?: string;
-  release_name?: string;
-  additional_info?: LbAdditionalInfo;
-};
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value ? value : null;
+}
 
-type LbPayloadItem = {
-  listened_at?: number;
-  track_metadata?: LbTrackMetadata;
-};
-
-type SubmitBody = {
-  listen_type?: string;
-  payload?: LbPayloadItem[];
-};
+function toDurationMs(info: Record<string, unknown>): number | null {
+  const ms =
+    typeof info.duration_ms === "number"
+      ? info.duration_ms
+      : typeof info.duration === "number"
+        ? info.duration * 1000
+        : null;
+  return ms != null && ms >= 0 && ms <= MAX_DURATION_MS ? Math.round(ms) : null;
+}
 
 @Injectable()
 export class ListenBrainzService {
+  private readonly logger = new Logger(ListenBrainzService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
@@ -65,9 +51,18 @@ export class ListenBrainzService {
     };
   }
 
-  async submitListens(userId: string, body: SubmitBody) {
-    const listenType = (body.listen_type || "single").toLowerCase();
-    const payload = Array.isArray(body.payload) ? body.payload : [];
+  async submitListens(userId: string, body: unknown) {
+    const parsed = SubmitListensSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 400,
+        error: "Invalid request body",
+      });
+    }
+    const listenType = (parsed.data.listen_type || "single").toLowerCase();
+    const payload = Array.isArray(parsed.data.payload)
+      ? (parsed.data.payload as unknown[])
+      : [];
     if (!payload.length) {
       throw new BadRequestException({
         code: 400,
@@ -101,12 +96,26 @@ export class ListenBrainzService {
       });
     }
 
+    const metas = payload.map((item) => this.parseItem(item, listenType));
+    const invalidIndex = metas.findIndex((meta) => !meta);
+    if (invalidIndex !== -1) {
+      throw new BadRequestException({
+        code: 400,
+        error: `Invalid listen at payload index ${invalidIndex}`,
+      });
+    }
+
     let accepted = 0;
-    for (const item of payload) {
-      const meta = this.parseItem(item, listenType);
+    for (const meta of metas) {
       if (!meta) continue;
       const result = await this.catalog.upsertListen(userId, meta);
-      void this.enrichment.enqueueTrack(result.track.id);
+      void this.enrichment.enqueueTrack(result.track.id).catch((err: unknown) => {
+        this.logger.warn(
+          `Failed to enqueue enrichment for track ${result.track.id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
       accepted += 1;
     }
 
@@ -125,7 +134,11 @@ export class ListenBrainzService {
     const user = await this.users.findByUsername(username);
     if (!user) return null;
 
-    const count = Math.min(Math.max(opts.count ?? 25, 1), 1000);
+    const requested =
+      opts.count != null && Number.isFinite(opts.count)
+        ? Math.trunc(opts.count)
+        : 25;
+    const count = Math.min(Math.max(requested, 1), 1000);
     const minTs =
       opts.minTs != null && Number.isFinite(opts.minTs) ? opts.minTs : undefined;
     const maxTs =
@@ -221,16 +234,18 @@ export class ListenBrainzService {
     };
   }
 
-  private parseItem(item: LbPayloadItem, listenType: string) {
+  private parseItem(raw: unknown, listenType: string) {
+    const parsed = ListenItemSchema.safeParse(raw);
+    if (!parsed.success) return null;
+    const item = parsed.data;
     const tm = item.track_metadata;
-    if (!tm?.artist_name?.trim() || !tm?.track_name?.trim()) return null;
 
     const info = tm.additional_info || {};
     const listenedAt =
       listenType === "playing_now"
         ? new Date()
         : item.listened_at
-          ? new Date(item.listened_at * 1000)
+          ? new Date(Number(item.listened_at) * 1000)
           : new Date();
 
     if (Number.isNaN(listenedAt.getTime())) return null;
@@ -241,28 +256,21 @@ export class ListenBrainzService {
       spotifyId = m?.[1] || info.spotify_id;
     }
 
-    const durationMs =
-      typeof info.duration_ms === "number"
-        ? info.duration_ms
-        : typeof info.duration === "number"
-          ? info.duration * 1000
-          : null;
-
     return {
-      artistName: tm.artist_name.trim(),
-      trackName: tm.track_name.trim(),
+      artistName: tm.artist_name,
+      trackName: tm.track_name,
       releaseName: tm.release_name?.trim() || null,
       listenedAt,
       listenType,
-      recordingMbid: info.recording_mbid || null,
-      trackMbid: info.track_mbid || null,
-      releaseMbid: info.release_mbid || null,
+      recordingMbid: stringOrNull(info.recording_mbid),
+      trackMbid: stringOrNull(info.track_mbid),
+      releaseMbid: stringOrNull(info.release_mbid),
       artistMbids: Array.isArray(info.artist_mbids)
         ? info.artist_mbids.filter((x): x is string => typeof x === "string")
         : [],
       isrc: typeof info.isrc === "string" ? info.isrc : null,
       spotifyId,
-      durationMs,
+      durationMs: toDurationMs(info),
       tags: Array.isArray(info.tags)
         ? info.tags.filter((x): x is string => typeof x === "string")
         : [],
@@ -274,7 +282,7 @@ export class ListenBrainzService {
           : null,
       musicService:
         typeof info.music_service === "string" ? info.music_service : null,
-      rawPayload: JSON.stringify(item),
+      rawPayload: JSON.stringify(raw),
     };
   }
 }
