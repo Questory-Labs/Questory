@@ -5,6 +5,10 @@ import { CronModule } from "../cron/cron.module";
 import { CronRunnerService } from "../cron/cron-runner.service";
 import { isCronEnabled } from "../cron/cron-enabled";
 import { RewindModule } from "../rewind/rewind.module";
+import { RewindShareController } from "../rewind/rewind-share.controller";
+import { RewindSharePublicController } from "../rewind/rewind-share-public.controller";
+import { RewindShareService } from "../rewind/rewind-share.service";
+import { AuthModule } from "../auth/auth.module";
 import { AnalyticsModule as MusicAnalyticsModule } from "../music/analytics/analytics.module";
 import { AnalyticsModule as WatchAnalyticsModule } from "../watch/analytics/analytics.module";
 import { ReadAnalyticsModule } from "../read/analytics/analytics.module";
@@ -20,6 +24,7 @@ export { DEFAULT_RECAP_SCHEDULE };
 @Module({
   imports: [
     CronModule,
+    AuthModule,
     RewindModule,
     MusicAnalyticsModule,
     WatchAnalyticsModule,
@@ -27,8 +32,8 @@ export { DEFAULT_RECAP_SCHEDULE };
     GamesModule,
     NotificationsModule,
   ],
-  controllers: [RecapController, UnifiedRewindController],
-  providers: [MonthlyRecapService],
+  controllers: [RecapController, UnifiedRewindController, RewindShareController, RewindSharePublicController],
+  providers: [MonthlyRecapService, RewindShareService],
   exports: [MonthlyRecapService],
 })
 export class RecapModule implements OnModuleInit {

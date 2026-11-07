@@ -231,3 +231,75 @@ export function getRewindAiPeriodError(period: string, now = new Date()): string
   }
   return null;
 }
+
+/* ── Rewind shares (public read-only links) ── */
+
+export const REWIND_SHARE_DOMAINS = ["all", "games", "music", "watch", "read"] as const;
+export const RewindShareDomainSchema = z.enum(REWIND_SHARE_DOMAINS);
+export type RewindShareDomain = z.infer<typeof RewindShareDomainSchema>;
+
+export const RewindShareCreateSchema = z.object({
+  domain: RewindShareDomainSchema,
+  period: z.string().regex(/^\d{4}(-\d{2})?$/, "Period must be YYYY or YYYY-MM"),
+  tz: z.string().trim().min(1).max(64).optional(),
+  includeAi: z.boolean().optional().default(false),
+  theme: z.string().trim().min(1).max(64).nullable().optional(),
+});
+export type RewindShareCreate = z.infer<typeof RewindShareCreateSchema>;
+
+export const RewindShareSchema = z.object({
+  id: z.string(),
+  domain: RewindShareDomainSchema,
+  period: z.string(),
+  tokenPrefix: z.string(),
+  theme: z.string().nullable(),
+  includesAi: z.boolean(),
+  viewCount: z.number().int(),
+  createdAt: z.string(),
+  url: z.string(),
+});
+export type RewindShare = z.infer<typeof RewindShareSchema>;
+
+export const RewindShareCreatedSchema = RewindShareSchema.extend({
+  /** Plaintext share token — returned once. */
+  token: z.string(),
+});
+export type RewindShareCreated = z.infer<typeof RewindShareCreatedSchema>;
+
+export const RewindShareListResponseSchema = z.object({
+  items: z.array(RewindShareSchema),
+});
+export type RewindShareListResponse = z.infer<typeof RewindShareListResponseSchema>;
+
+export interface PublicRewindShare {
+  domain: RewindShareDomain;
+  period: string;
+  theme: string | null;
+  stats: RewindStatsResponse;
+  ai: { content: string; generatedAt: string } | null;
+  owner: { personaName: string; avatarUrl: string | null };
+  createdAt: string;
+}
+
+export const RewindBadgeSchema = z.object({
+  id: z.string(),
+  tokenPrefix: z.string(),
+  viewCount: z.number().int(),
+  createdAt: z.string(),
+  svgUrl: z.string(),
+  markdown: z.string(),
+});
+export type RewindBadge = z.infer<typeof RewindBadgeSchema>;
+
+export const RewindBadgeCreatedSchema = RewindBadgeSchema.extend({
+  token: z.string(),
+});
+export type RewindBadgeCreated = z.infer<typeof RewindBadgeCreatedSchema>;
+
+export const RewindBadgeListResponseSchema = z.object({
+  items: z.array(RewindBadgeSchema),
+});
+export type RewindBadgeListResponse = z.infer<typeof RewindBadgeListResponseSchema>;
+
+export const RewindShareDeleteResultSchema = z.object({ ok: z.literal(true) });
+export type RewindShareDeleteResult = z.infer<typeof RewindShareDeleteResultSchema>;
