@@ -16,6 +16,7 @@ export const AdminSettingsView = (props: Record<string, unknown>) => {
   const s = settings.value;
   const signupOn = s?.signupEnabled === true;
   const demoOn = s?.demo?.enabled === true;
+  const deliveryOn = s?.notifications?.deliveryEnabled !== false;
 
   return (
     <ResourceStatus
@@ -56,6 +57,20 @@ export const AdminSettingsView = (props: Record<string, unknown>) => {
                 busy={patch.busy}
                 dotClassName="text-[var(--faint)]"
                 onToggle={() => patch.submit({ demo: { enabled: !demoOn } })}
+              />
+              <FlagToggle
+                label="Outbound notifications"
+                hint={`Lets users forward notifications to Discord, ntfy${
+                  s?.notifications?.smtpConfigured ? " and email" : ""
+                }. In-app notifications stay on regardless.${
+                  s?.notifications?.smtpConfigured ? "" : " Set SMTP_URL to enable email."
+                }`}
+                enabled={deliveryOn}
+                busy={patch.busy}
+                dotClassName="text-[var(--faint)]"
+                onToggle={() =>
+                  patch.submit({ notifications: { deliveryEnabled: !deliveryOn } })
+                }
               />
               {FEATURE_FLAG_ROWS.map((row) => {
                 const flag = s?.features[row.id];

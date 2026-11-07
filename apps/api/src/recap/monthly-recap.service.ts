@@ -8,6 +8,7 @@ import { AnalyticsService as MusicAnalyticsService } from "../music/analytics/an
 import { AnalyticsService as WatchAnalyticsService } from "../watch/analytics/analytics.service";
 import { ReadAnalyticsService } from "../read/analytics/analytics.service";
 import { GamesRewindService } from "../games/rewind/games-rewind.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { previousRewindPeriod } from "@questorylabs/shared";
 import { zonedPeriodBounds } from "../lib/rewind-stats";
 import { busiestSincePeriod, combineDaily } from "./rewind-combined";
@@ -87,6 +88,7 @@ export class MonthlyRecapService {
     private readonly watch: WatchAnalyticsService,
     private readonly read: ReadAnalyticsService,
     private readonly games: GamesRewindService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async isGloballyEnabled(): Promise<boolean> {
@@ -332,15 +334,12 @@ export class MonthlyRecapService {
     const parts = domains.map((d) => DOMAIN_LABEL[d]);
     const list =
       parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
-    await this.prisma.notification.create({
-      data: {
-        userId,
-        type: RECAP_NOTIFICATION_TYPE,
-        title: `Your ${month} recap is ready`,
-        body: `See how your month of ${list} went.`,
-        href: DOMAIN_HREF[domains[0]],
-        meta: JSON.stringify({ period, domains }),
-      },
+    await this.notifications.create(userId, {
+      type: RECAP_NOTIFICATION_TYPE,
+      title: `Your ${month} recap is ready`,
+      body: `See how your month of ${list} went.`,
+      href: DOMAIN_HREF[domains[0]],
+      meta: { period, domains },
     });
     return true;
   }

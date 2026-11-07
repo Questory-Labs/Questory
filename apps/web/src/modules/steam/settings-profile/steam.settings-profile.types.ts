@@ -8,6 +8,7 @@ import type {
   ProfileImportJob,
   User,
 } from "@questorylabs/shared";
+import type { NotificationChannelsState } from "../settings-notifications/steam.settings-notifications.types";
 
 export type PriceRegion = {
   countryCode: string;
@@ -108,6 +109,7 @@ export type ProfileSettingsViewProps = {
   runImport: UseActionResult<ProfileImportJob, File>;
   apiKeys: ProfileApiKeys;
   recap: ProfileRecap;
+  channels?: NotificationChannelsState;
   changePassword: ProfileChangePassword;
   deleteAccount: ProfileDeleteAccount;
 };

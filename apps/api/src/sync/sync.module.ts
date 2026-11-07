@@ -7,11 +7,13 @@ import { SteamModule } from "../steam/steam.module";
 import { CollectionsModule } from "../collections/collections.module";
 import { StoresModule } from "../stores/stores.module";
 import { AccountsModule } from "../accounts/accounts.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
     SteamModule,
     AccountsModule,
+    NotificationsModule,
     forwardRef(() => CollectionsModule),
     forwardRef(() => StoresModule),
   ],

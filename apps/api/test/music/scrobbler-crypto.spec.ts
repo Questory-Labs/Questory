@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   decryptSecret,
   encryptSecret,
-} from "../../src/music/scrobbler/scrobbler-crypto";
+} from "../../src/lib/secret-crypto";
 
 describe("scrobbler-crypto", () => {
   const prev = process.env.SESSION_SECRET;

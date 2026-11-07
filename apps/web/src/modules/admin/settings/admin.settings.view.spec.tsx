@@ -46,6 +46,7 @@ const flag = (enabled: boolean, origin: FeatureFlagOrigin = "default") => ({
 
 const settingsValue: Settings = {
   demo: { enabled: false },
+  notifications: { deliveryEnabled: true, smtpConfigured: false },
   signupEnabled: true,
   signupOpen: true,
   abuse: { loginLockout: 2 },
@@ -104,7 +105,7 @@ describe("AdminSettingsView", () => {
     expect(screen.getByText("Login lockouts")).toBeInTheDocument();
     expect(screen.getByText("From environment")).toBeInTheDocument();
     expect(screen.getByText("Saved in Admin")).toBeInTheDocument();
-    expect(screen.getAllByRole("switch")).toHaveLength(2 + 3 + FEATURE_SOURCES.length);
+    expect(screen.getAllByRole("switch")).toHaveLength(3 + 3 + FEATURE_SOURCES.length);
   });
 
   it("patches signup, features and sources through the switches", () => {

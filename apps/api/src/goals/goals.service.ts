@@ -7,6 +7,7 @@ import type {
 } from "@questorylabs/shared";
 import type { Prisma } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { parseTimeZone } from "../lib/timezone";
 import { goalPeriod } from "./goals.period";
 
@@ -50,7 +51,10 @@ export function toGoal(row: GoalRow): Goal {
 
 @Injectable()
 export class GoalsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async list(userId: string, query: GoalListQuery, now = new Date()) {
     const where: Prisma.GoalWhereInput = { userId };
@@ -111,7 +115,7 @@ export class GoalsService {
   ): Promise<Goal> {
     const existing = await this.prisma.goal.findFirst({
       where: { id, userId },
-      select: { id: true },
+      select: { id: true, doneAt: true },
     });
     if (!existing) throw new NotFoundException("Goal not found");
     const row = await this.prisma.goal.update({
@@ -123,6 +127,15 @@ export class GoalsService {
           : {}),
       },
     });
+    if (input.done && !existing.doneAt) {
+      await this.notifications.create(userId, {
+        type: "goal-completed",
+        title: "Goal completed",
+        body: `You finished "${row.name}".`,
+        href: "/recommendations/goals",
+        meta: { goalId: row.id, domain: row.domain },
+      });
+    }
     return toGoal(row);
   }
 

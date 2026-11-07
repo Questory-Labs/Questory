@@ -102,6 +102,7 @@ export const PatchFeatureFlagsSchema = z.object({
   features: DomainFlagsSchema.partial().strict().optional(),
   sources: SourceFlagsSchema.partial().strict().optional(),
   demo: z.object({ enabled: z.boolean() }).strict().optional(),
+  notifications: z.object({ deliveryEnabled: z.boolean() }).strict().optional(),
 });
 export type PatchFeatureFlags = z.infer<typeof PatchFeatureFlagsSchema>;
 
@@ -120,6 +121,7 @@ export const AdminInstanceSettingsSchema = z.object({
   features: AdminDomainFlagsSchema,
   sources: AdminSourceFlagsSchema,
   demo: z.object({ enabled: z.boolean() }),
+  notifications: z.object({ deliveryEnabled: z.boolean(), smtpConfigured: z.boolean() }),
 });
 export type AdminInstanceSettings = z.infer<typeof AdminInstanceSettingsSchema>;
 

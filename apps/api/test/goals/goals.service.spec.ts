@@ -36,8 +36,12 @@ function make() {
     update: vi.fn().mockImplementation(async ({ data }) => row(data)),
     deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
   };
-  const service = new GoalsService({ goal } as unknown as PrismaService);
-  return { service, goal };
+  const notify = vi.fn().mockResolvedValue({});
+  const service = new GoalsService(
+    { goal } as unknown as PrismaService,
+    { create: notify } as never,
+  );
+  return { service, goal, notify };
 }
 
 describe("goalPeriod", () => {
@@ -113,15 +117,26 @@ describe("GoalsService", () => {
   });
 
   it("checks off and undoes only the caller goal", async () => {
-    const { service, goal } = make();
-    goal.findFirst.mockResolvedValue({ id: "g1" });
+    const { service, goal, notify } = make();
+    goal.findFirst.mockResolvedValue({ id: "g1", doneAt: null });
     const done = await service.update("u1", "g1", { done: true }, now);
     expect(goal.findFirst.mock.calls[0]![0].where).toEqual({ id: "g1", userId: "u1" });
     expect(done.doneAt).toBe(now.toISOString());
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0]![0]).toBe("u1");
+    expect(notify.mock.calls[0]![1]).toMatchObject({ type: "goal-completed", title: "Goal completed" });
     const undone = await service.update("u1", "g1", { done: false }, now);
     expect(undone.doneAt).toBeNull();
     await service.update("u1", "g1", { progressValue: 3 }, now);
     expect(goal.update.mock.calls[2]![0].data).toEqual({ progressValue: 3 });
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-notify a goal that was already done", async () => {
+    const { service, goal, notify } = make();
+    goal.findFirst.mockResolvedValue({ id: "g1", doneAt: now });
+    await service.update("u1", "g1", { done: true }, now);
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it("404s when updating or deleting another user goal", async () => {
