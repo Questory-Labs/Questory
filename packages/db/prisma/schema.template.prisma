@@ -61,6 +61,7 @@ model User {
   qmonitorAuthCodes       QmonitorAuthCode[]
   profileExportJobs       ProfileExportJob[]
   goals                   Goal[]
+  rewindShares            RewindShare[]
   notificationChannels    NotificationChannel[]
 }
 
@@ -181,6 +182,30 @@ model ApiKey {
 
   @@index([userId, type])
   @@index([type, tokenHash])
+}
+
+/** Public read-only share of a rewind snapshot or a live badge. */
+model RewindShare {
+  id          String    @id @default(cuid())
+  userId      String
+  /** rewind | badge */
+  kind        String    @default("rewind")
+  /** all | games | music | watch | read (rewind); now_playing | recent (badge) */
+  domain      String
+  /** YYYY or YYYY-MM for rewind; empty for badge. */
+  period      String    @default("")
+  tokenHash   String    @unique
+  tokenPrefix String
+  /** JSON: frozen stats (+ optional AI content) captured at publish time. */
+  snapshot    String    @default("{}")
+  theme       String?
+  viewCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
 }
 
 /** Outbound delivery target for in-app notifications. */
