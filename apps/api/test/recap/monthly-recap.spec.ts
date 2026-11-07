@@ -89,6 +89,7 @@ function make(opts: Opts) {
     {} as never,
     {} as never,
     games as never,
+    { create: notificationCreate } as never,
   );
   return { service, serve, notificationCreate, music };
 }
@@ -106,8 +107,8 @@ describe("monthly recap", () => {
     expect(result).toMatchObject({ period: "2026-09", users: 1, generated: 1, notified: 1 });
     expect(serve).toHaveBeenCalledTimes(1);
     expect(serve.mock.calls[0][0]).toMatchObject({ userId: "u1", domain: "music", period: "2026-09", forceRedo: false });
-    expect(notificationCreate.mock.calls[0][0].data).toMatchObject({
-      userId: "u1",
+    expect(notificationCreate.mock.calls[0][0]).toBe("u1");
+    expect(notificationCreate.mock.calls[0][1]).toMatchObject({
       type: "monthly-recap",
       title: "Your September recap is ready",
       href: "/music/rewind",

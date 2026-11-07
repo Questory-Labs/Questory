@@ -17,6 +17,8 @@ import { CollectionsService } from "../collections/collections.service";
 import { GameMergeService } from "../stores/game-merge.service";
 import { StoresService } from "../stores/stores.service";
 import { AccountsService } from "../accounts/accounts.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { SYNC_FAILED_DEDUPE_MS } from "../notifications/delivery/notification-delivery.constants";
 import {
   parseStringArray,
   stringifyStringArray,
@@ -89,6 +91,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     private readonly merge: GameMergeService,
     @Inject(forwardRef(() => StoresService))
     private readonly stores: StoresService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -242,8 +245,27 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
         where: { id: syncJobId },
         data: { status: "failed", finishedAt: new Date(), error: message },
       });
+      await this.notifySyncFailed(userId, type, message).catch((e: unknown) => {
+        this.logger.warn(`sync-failed notice skipped: ${e instanceof Error ? e.message : e}`);
+      });
       throw err;
     }
+  }
+
+  private async notifySyncFailed(userId: string, type: SyncJobType, message: string) {
+    const since = new Date(Date.now() - SYNC_FAILED_DEDUPE_MS);
+    const existing = await this.prisma.notification.findFirst({
+      where: { userId, type: "sync-failed", createdAt: { gte: since } },
+      select: { id: true },
+    });
+    if (existing) return;
+    await this.notifications.create(userId, {
+      type: "sync-failed",
+      title: "Steam sync failed",
+      body: `${type} stopped with: ${message.slice(0, 160)}`,
+      href: "/settings/connections",
+      meta: { jobType: type },
+    });
   }
 
   private async syncLibrary(
@@ -898,20 +920,17 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       strong_score: "Strong buy signal",
     } as const;
 
-    await this.prisma.notification.create({
-      data: {
-        userId,
-        type: "deal",
-        title: titles[reason],
-        body: `${item.name} looks like a good buy right now.`,
-        href: "/wishlist",
-        meta: JSON.stringify({
-          appId: item.appId ?? null,
-          store: item.store ?? "steam",
-          externalId: item.externalId ?? null,
-          reason,
-          currentPrice: item.currentPrice,
-        }),
+    await this.notifications.create(userId, {
+      type: "deal",
+      title: titles[reason],
+      body: `${item.name} looks like a good buy right now.`,
+      href: "/wishlist",
+      meta: {
+        appId: item.appId ?? null,
+        store: item.store ?? "steam",
+        externalId: item.externalId ?? null,
+        reason,
+        currentPrice: item.currentPrice,
       },
     });
   }

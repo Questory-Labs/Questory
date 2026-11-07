@@ -4,6 +4,7 @@ export * from "./profile-archive";
 export * from "./media-trending";
 export * from "./weekly-digest";
 export * from "./goals";
+export * from "./notifications";
 
 
 /** URI version segment for Nest apps (api / music / watch). */

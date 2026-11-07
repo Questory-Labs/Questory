@@ -9,6 +9,7 @@ import { AnalyticsModule as MusicAnalyticsModule } from "../music/analytics/anal
 import { AnalyticsModule as WatchAnalyticsModule } from "../watch/analytics/analytics.module";
 import { ReadAnalyticsModule } from "../read/analytics/analytics.module";
 import { GamesModule } from "../games/games.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { MonthlyRecapService } from "./monthly-recap.service";
 import { DEFAULT_RECAP_SCHEDULE } from "./recap.constants";
 import { RecapController } from "./recap.controller";
@@ -24,6 +25,7 @@ export { DEFAULT_RECAP_SCHEDULE };
     WatchAnalyticsModule,
     ReadAnalyticsModule,
     GamesModule,
+    NotificationsModule,
   ],
   controllers: [RecapController, UnifiedRewindController],
   providers: [MonthlyRecapService],

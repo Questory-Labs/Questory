@@ -380,6 +380,18 @@ Sign-up and sign-in use **email + password only**. Steam OpenID is link-only fro
 - `AUTH_BLOCKED_EMAIL_DOMAINS` — extra disposable domains to reject on signup.
 - `AUTH_MIN_FILL_MS` — minimum form-fill time (default `2000`). `AUTH_ALLOW_EMAIL_PLUS=false` rejects `+` addressing (allowed by default). `AUTH_CHALLENGE_SECRET` signs challenges (default: `SESSION_SECRET`).
 
+## Outbound notifications (optional)
+
+In-app notifications always work. Users can also forward them from **Settings → Profile → Notifications** to Discord webhooks, [ntfy](https://ntfy.sh) topics, and, when the server has SMTP, email. Each channel picks which notification types it receives (wishlist deals, monthly recap, sync failures, goal completions). Channel secrets are encrypted at rest with `MUSIC_CREDS_KEY` (default: `SESSION_SECRET`).
+
+- Email channels must be confirmed before they receive anything: adding one emails a link to `/notifications/verify/<token>` (valid 24 hours, resendable from settings), and the user presses Confirm on that page.
+- `SMTP_URL` — e.g. `smtps://user:pass@smtp.example.com:465` or `smtp://user:pass@host:587`. Unset = the email option is hidden.
+- `SMTP_FROM` — sender address, e.g. `Questory <no-reply@example.com>`.
+- `NOTIFICATIONS_ALLOW_PRIVATE_HOSTS` — set `true` to let ntfy deliver to a server on a private, LAN, or loopback address. By default, delivery refuses those addresses and any redirect.
+- `PUBLIC_WEB_URL` — base URL for links in messages (falls back to `NEXT_PUBLIC_WEB_URL`, then `WEB_ORIGIN`).
+- Admins can switch all outbound delivery off in **Admin → Settings** (`AppConfig.notifications.delivery.enabled`).
+- Delivery uses the BullMQ queue when `REDIS_URL` is set; otherwise it runs inline with a 10s timeout per channel.
+
 ## Steam ID allowlist (linking)
 
 Set `ALLOWED_STEAM_IDS` to a comma-separated list of 17-digit SteamIDs (find yours via [steamid.io](https://steamid.io) or similar):

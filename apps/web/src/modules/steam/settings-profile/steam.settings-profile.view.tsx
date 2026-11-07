@@ -17,6 +17,7 @@ import {
 import { ProfileDangerZone } from "./components/ProfileDangerZone";
 import { ProfileRecapSection } from "./components/ProfileRecapSection";
 import { ProfileSection } from "./components/ProfileSection";
+import { NotificationChannelsSection } from "../settings-notifications/steam.settings-notifications.view";
 import {
   DEFAULT_PRICE_REGIONS,
   PROFILE_INPUT_CLASS,
@@ -49,6 +50,7 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
     runImport,
     apiKeys,
     recap,
+    channels,
     changePassword,
     deleteAccount,
   } = props as ProfileSettingsViewProps;
@@ -176,6 +178,8 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
       <ProfileApiKeysSection rows={keyRows} apiKeys={apiKeys} />
 
       <ProfileRecapSection recap={recap} />
+
+      {channels ? <NotificationChannelsSection state={channels} /> : null}
 
       <ProfileDataPanel
         exportStatus={exportStatus}

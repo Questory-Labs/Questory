@@ -44,6 +44,10 @@ import {
   MonthlyRecapService,
 } from "../recap/monthly-recap.service";
 import { DEFAULT_RECAP_SCHEDULE } from "../recap/recap.constants";
+import {
+  NOTIFICATION_DELIVERY_ENABLED_KEY,
+  smtpConfigured,
+} from "../notifications/delivery/notification-delivery.constants";
 import { deleteUserAccount } from "../users/account-deletion";
 import {
   domainHealth,
@@ -149,6 +153,9 @@ export class AdminService {
     const signupEnabled = await getSignupEnabledSetting(this.prisma);
     const signupOpen = await isSignupOpen(this.prisma);
     const flags = await this.flags.getAdminFlags();
+    const delivery = await this.prisma.appConfig.findUnique({
+      where: { key: NOTIFICATION_DELIVERY_ENABLED_KEY },
+    });
     return {
       signupEnabled,
       signupOpen,
@@ -157,6 +164,10 @@ export class AdminService {
       features: flags.domains,
       sources: flags.sources,
       demo: flags.demo,
+      notifications: {
+        deliveryEnabled: delivery?.value !== "false",
+        smtpConfigured: smtpConfigured(),
+      },
     };
   }
 
@@ -181,6 +192,14 @@ export class AdminService {
     }
     if (body.demo) {
       await this.flags.setDemoEnabled(body.demo.enabled);
+    }
+    if (body.notifications) {
+      const value = body.notifications.deliveryEnabled ? "true" : "false";
+      await this.prisma.appConfig.upsert({
+        where: { key: NOTIFICATION_DELIVERY_ENABLED_KEY },
+        create: { key: NOTIFICATION_DELIVERY_ENABLED_KEY, value },
+        update: { value },
+      });
     }
     return this.getSettings();
   }
