@@ -80,14 +80,22 @@ export const LibraryView = (props: Record<string, unknown>) => {
             ) : null}
           </h1>
         </div>
-        {setLayout ? (
-          <SegmentedControl
-            label="View"
-            value={layout}
-            onChange={setLayout}
-            options={LIBRARY_LAYOUT_OPTIONS}
-          />
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/library/backlog"
+            className="inline-flex min-h-11 items-center rounded-full border border-white/[0.08] bg-black/20 px-4 text-[13px] text-[var(--muted)] transition-colors duration-300 hover:border-white/20 hover:text-[var(--ink)]"
+          >
+            Backlog
+          </Link>
+          {setLayout ? (
+            <SegmentedControl
+              label="View"
+              value={layout}
+              onChange={setLayout}
+              options={LIBRARY_LAYOUT_OPTIONS}
+            />
+          ) : null}
+        </div>
       </header>
 
       <div className="q-in flex flex-wrap items-center gap-2" style={{ ["--i" as string]: 1 }}>

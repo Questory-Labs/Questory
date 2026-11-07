@@ -18,6 +18,7 @@ import {
   type AiGoalsRefreshResult,
 } from "../enterprise/enterprise-ai-goals.service";
 import { FeatureFlagsService } from "../features/feature-flags.service";
+import { HltbBackfillService } from "./hltb-backfill.service";
 
 export { WATCH_CRON_SYNC, type WatchCronSync } from "./watch-cron.token";
 
@@ -36,6 +37,9 @@ export class JobsService implements OnModuleInit {
     @Optional()
     @Inject(EnterpriseAiGoalsService)
     private readonly aiGoals: EnterpriseAiGoalsService | null = null,
+    @Optional()
+    @Inject(HltbBackfillService)
+    private readonly hltbBackfill: HltbBackfillService | null = null,
   ) {}
 
   onModuleInit() {
@@ -71,9 +75,12 @@ export class JobsService implements OnModuleInit {
       this.runPriceSync(),
     );
     this.addJob("ai-goals", schedules["ai-goals"], () => this.runAiGoals());
+    this.addJob("hltb-backfill", schedules["hltb-backfill"], () =>
+      this.runHltbBackfill(),
+    );
 
     this.logger.log(
-      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]}), price-sync (${schedules["price-sync"]}), ai-goals (${schedules["ai-goals"]})`,
+      `Scheduled daily-refresh (${schedules["daily-refresh"]}), recover-failed-sync (${schedules["recover-failed-sync"]}), watch-sync (${schedules["watch-sync"]}), catalog-sync (${schedules["catalog-sync"]}), price-sync (${schedules["price-sync"]}), ai-goals (${schedules["ai-goals"]}), hltb-backfill (${schedules["hltb-backfill"]})`,
     );
   }
 
@@ -147,6 +154,18 @@ export class JobsService implements OnModuleInit {
       this.refreshAiGoals(),
     );
     this.logger.log(`ai-goals done: ${JSON.stringify(result)}`);
+  }
+
+  async runHltbBackfill() {
+    if (!this.hltbBackfill) {
+      this.logger.debug("hltb-backfill skipped (service not available)");
+      return;
+    }
+    this.logger.log("Starting hltb-backfill");
+    const { result } = await this.cronRunner.run("hltb-backfill", "system", () =>
+      this.hltbBackfill!.run(),
+    );
+    this.logger.log(`hltb-backfill done: ${JSON.stringify(result)}`);
   }
 
   async runWatchSync() {
