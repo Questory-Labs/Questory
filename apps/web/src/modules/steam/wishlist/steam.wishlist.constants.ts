@@ -15,3 +15,4 @@ export const WISHLIST_STORE_LABELS: Record<Store, string> = {
 export const WISHLIST_DEAL_ALERT_LIMIT = 6;
 export const WISHLIST_REC_LIMIT = 8;
 export const WISHLIST_REASON_LIMIT = 2;
+export const WISHLIST_BACKLOG_HINT_MIN = 5;

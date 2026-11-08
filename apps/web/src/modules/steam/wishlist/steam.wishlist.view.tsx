@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StoreChipRow } from "@/components/StoreChipRow";
 import { useUser } from "@/hooks/useUser";
 import { WISHLIST_PAGE_SIZE } from "@/lib/pagination";
@@ -14,6 +15,7 @@ import { DealAlerts } from "./components/DealAlerts";
 import { RecsShelf } from "./components/RecsShelf";
 import { WishlistTable } from "./components/WishlistTable";
 import type { WishlistViewProps } from "./steam.wishlist.types";
+import { WISHLIST_BACKLOG_HINT_MIN } from "./steam.wishlist.constants";
 
 export const WishlistView = (props: Record<string, unknown>) => {
   const {
@@ -42,6 +44,8 @@ export const WishlistView = (props: Record<string, unknown>) => {
   const items = list.value?.items ?? [];
   const dealList = filteredDeals ?? [];
   const recList = filteredRecs ?? [];
+  const backlogHint = list.value?.backlogHint;
+  const showBacklogHint = (backlogHint?.count ?? 0) >= WISHLIST_BACKLOG_HINT_MIN;
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-[18px]">
@@ -64,6 +68,16 @@ export const WishlistView = (props: Record<string, unknown>) => {
         </div>
         <StoreChipRow value={storeFilter} onChange={setStoreFilter} />
       </header>
+
+      {showBacklogHint && backlogHint ? (
+        <p className="q-in px-1 text-[13px] text-[var(--muted)]">
+          You have {backlogHint.count} unplayed games
+          {backlogHint.hours > 0 ? ` (~${backlogHint.hours} h)` : ""}.{" "}
+          <Link href="/library/backlog" className="underline decoration-white/20 underline-offset-4 hover:text-[var(--ink)]">
+            See your backlog
+          </Link>
+        </p>
+      ) : null}
 
       <ResourceStatus
         failed={deals.failed}

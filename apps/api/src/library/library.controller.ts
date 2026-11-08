@@ -15,13 +15,18 @@ import {
   LibraryStatusUpdateSchema,
 } from "@questorylabs/shared";
 import { LibraryService } from "./library.service";
+import { BacklogService } from "./backlog.service";
+import { parseTimeZone } from "../lib/timezone";
 import { SteamAuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 
 @Controller("library")
 @UseGuards(SteamAuthGuard)
 export class LibraryController {
-  constructor(private readonly library: LibraryService) {}
+  constructor(
+    private readonly library: LibraryService,
+    private readonly backlog: BacklogService,
+  ) {}
 
   @Get()
   list(
@@ -75,6 +80,14 @@ export class LibraryController {
       page: page ? Number(page) : 1,
       pageSize: pageSize ? Number(pageSize) : 24,
     });
+  }
+
+  @Get("backlog")
+  backlogSummary(
+    @CurrentUser() user: { userId: string },
+    @Query("tz") tz?: string,
+  ) {
+    return this.backlog.summary(user.userId, parseTimeZone(tz));
   }
 
   @Get(":id")

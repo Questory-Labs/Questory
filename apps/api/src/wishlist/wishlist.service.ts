@@ -4,6 +4,7 @@ import { parseStringArray } from "../lib/json-arrays";
 import { currencyFromCountry } from "../lib/currency";
 import { isStoreId, StoreId } from "../stores/store.constants";
 import { WISHLIST_PAGE_SIZE } from "./wishlist.constants";
+import { backlogHint } from "../library/backlog.service";
 
 const LISTING_PRICE_SELECT = {
   game: {
@@ -117,7 +118,7 @@ export class WishlistService {
     const safePage = Math.max(opts.page ?? 1, 1);
     const skip = (safePage - 1) * take;
 
-    const [total, rows, user] = await Promise.all([
+    const [total, rows, user, library] = await Promise.all([
       this.prisma.wishlistItem.count({ where }),
       this.prisma.wishlistItem.findMany({
         where,
@@ -130,6 +131,14 @@ export class WishlistService {
         where: { id: userId },
         select: { countryCode: true },
       }),
+      this.prisma.libraryEntry.findMany({
+        where: { userId, hidden: false },
+        select: {
+          userStatus: true,
+          playtimeForever: true,
+          game: { select: { hltbMainHours: true } },
+        },
+      }),
     ]);
     const currency = currencyFromCountry(user?.countryCode);
 
@@ -138,6 +147,7 @@ export class WishlistService {
       page: safePage,
       pageSize: take,
       items: rows.map((w) => this.mapItem(w, currency)),
+      backlogHint: backlogHint(library),
     };
   }
 

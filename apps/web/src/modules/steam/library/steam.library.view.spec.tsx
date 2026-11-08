@@ -56,6 +56,7 @@ const listValue: LibraryListResponse = {
     neverPlayed: 3,
     playing: 2,
     backlog: 4,
+    shelved: 0,
     finished: 1,
     dropped: 0,
   },

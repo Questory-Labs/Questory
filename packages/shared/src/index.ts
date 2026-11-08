@@ -5,6 +5,7 @@ export * from "./media-trending";
 export * from "./weekly-digest";
 export * from "./goals";
 export * from "./notifications";
+export * from "./backlog";
 
 
 /** URI version segment for Nest apps (api / music / watch). */
@@ -186,7 +187,7 @@ export const LibraryEntrySchema = z.object({
   achievementUnlocked: z.number().nullable().optional(),
   achievementTotal: z.number().nullable().optional(),
   achievementPct: z.number().nullable().optional(),
-  userStatus: z.enum(["playing", "backlog", "finished", "dropped"]).nullable().optional(),
+  userStatus: z.enum(["playing", "backlog", "finished", "dropped", "shelved"]).nullable().optional(),
   userStatusAt: z.string().nullable().optional(),
   valueAmount: z.number().nullable().optional(),
   costPerHour: z.number().nullable().optional(),
@@ -199,6 +200,7 @@ export const LibraryUserStatusSchema = z.enum([
   "backlog",
   "finished",
   "dropped",
+  "shelved",
 ]);
 export type LibraryUserStatus = z.infer<typeof LibraryUserStatusSchema>;
 
@@ -207,6 +209,7 @@ export const LibraryStatusFilterSchema = z.enum([
   "backlog",
   "finished",
   "dropped",
+  "shelved",
   "neverPlayed",
 ]);
 export type LibraryStatusFilter = z.infer<typeof LibraryStatusFilterSchema>;
@@ -229,6 +232,7 @@ export const LibraryFacetsSchema = z.object({
   neverPlayed: z.number(),
   playing: z.number(),
   backlog: z.number(),
+  shelved: z.number(),
   finished: z.number(),
   dropped: z.number(),
 });
