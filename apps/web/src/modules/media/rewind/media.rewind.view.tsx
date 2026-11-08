@@ -8,6 +8,7 @@ import { RewindDomainTabs } from "./components/RewindDomainTabs";
 import { RewindHeader } from "./components/RewindHeader";
 import { RewindHero } from "./components/RewindHero";
 import { RewindShareButton } from "./components/RewindShareButton";
+import { RewindShareDialog } from "./components/RewindShareDialog";
 import { RewindStatCard } from "./components/RewindStatCard";
 import { RewindTopList } from "./components/RewindTopList";
 import {
@@ -66,11 +67,14 @@ export const RewindView = (props: Record<string, unknown>) => {
         onYearChange={handleYearChange}
         onMonthChange={setMonth}
         share={
-          <RewindShareButton
-            title={`My ${periodName} ${domain === "all" ? "" : `${titleLead} `}Rewind`}
-            fileName={`questory-rewind-${domain}-${period}.png`}
-            tiles={summary?.stats ?? []}
-          />
+          <>
+            <RewindShareButton
+              title={`My ${periodName} ${domain === "all" ? "" : `${titleLead} `}Rewind`}
+              fileName={`questory-rewind-${domain}-${period}.png`}
+              tiles={summary?.stats ?? []}
+            />
+            <RewindShareDialog domain={domain} period={period} />
+          </>
         }
       />
 

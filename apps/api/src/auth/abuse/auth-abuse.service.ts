@@ -29,6 +29,7 @@ const LIMITS = {
   challengeIp: { max: 40, ttl: 900 },
   demoIp: { max: 20, ttl: 900 },
   demoRequestIp: { max: 600, ttl: 60 },
+  shareMiss: { max: 30, ttl: 60 },
 } as const;
 
 export const LOGIN_LOCKOUT_TIERS = [
@@ -359,6 +360,21 @@ export class AuthAbuseService {
     return cooldown;
   }
 
+  async assertShareMissBudget(ip: string): Promise<void> {
+    const raw = await this.cache.getString(this.shareMissKey(ip));
+    if (Number(raw || "0") >= LIMITS.shareMiss.max) {
+      this.throwRateLimited(LIMITS.shareMiss.ttl);
+    }
+  }
+
+  async recordShareMiss(ip: string): Promise<void> {
+    await this.cache.incr(this.shareMissKey(ip), LIMITS.shareMiss.ttl);
+  }
+
+  private shareMissKey(ip: string): string {
+    return `share:miss:ip:${this.hashIp(ip)}`;
+  }
+
   private attemptsBeforeLockout(fails: number): number {
     const next = LOGIN_LOCKOUT_TIERS.find((t) => fails < t.fails);
     return next ? next.fails - fails : 0;
@@ -370,18 +386,20 @@ export class AuthAbuseService {
     ttlSeconds: number,
   ): Promise<void> {
     const count = await this.cache.incr(key, ttlSeconds);
-    if (count > max) {
-      this.metrics.rateLimited += 1;
-      throw new HttpException(
-        {
-          statusCode: 429,
-          message: "Too many attempts, try again later",
-          retryAfter: ttlSeconds,
-          retryAfterSec: ttlSeconds,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    if (count > max) this.throwRateLimited(ttlSeconds);
+  }
+
+  private throwRateLimited(ttlSeconds: number): never {
+    this.metrics.rateLimited += 1;
+    throw new HttpException(
+      {
+        statusCode: 429,
+        message: "Too many attempts, try again later",
+        retryAfter: ttlSeconds,
+        retryAfterSec: ttlSeconds,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   private signChallenge(payload: {

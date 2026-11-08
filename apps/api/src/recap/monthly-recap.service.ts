@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { RewindAllStats, RewindStatsResponse } from "@questorylabs/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { FeatureFlagsService } from "../features/feature-flags.service";
@@ -203,6 +203,20 @@ export class MonthlyRecapService {
           ? await this.busiestSince(userId, period, timeZone, enabled)
           : null,
     };
+  }
+
+  async statsForDomain(
+    domain: RecapDomain | "all",
+    userId: string,
+    period: string,
+    timeZone: string,
+  ): Promise<RewindStatsResponse> {
+    if (domain === "all") return this.combinedStats(userId, period, timeZone);
+    const enabled = await this.enabledDomains();
+    if (!enabled.includes(domain)) {
+      throw new NotFoundException(`${domain} rewind is not enabled`);
+    }
+    return this.loadStats(domain, userId, period, timeZone);
   }
 
   private async busiestSince(
