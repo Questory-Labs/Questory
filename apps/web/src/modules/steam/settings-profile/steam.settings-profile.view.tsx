@@ -15,6 +15,7 @@ import {
   type ProfileApiKeyRow,
 } from "./components/ProfileApiKeysSection";
 import { ProfileDangerZone } from "./components/ProfileDangerZone";
+import { ProfilePublicApiKeysSection } from "./components/ProfilePublicApiKeysSection";
 import { ProfileRecapSection } from "./components/ProfileRecapSection";
 import { ProfileSection } from "./components/ProfileSection";
 import { NotificationChannelsSection } from "../settings-notifications/steam.settings-notifications.view";
@@ -49,6 +50,7 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
     onCloseImportConfirm,
     runImport,
     apiKeys,
+    publicApiKeys,
     recap,
     channels,
     changePassword,
@@ -176,6 +178,8 @@ export const ProfileSettingsView = (props: Record<string, unknown>) => {
       </ProfileSection>
 
       <ProfileApiKeysSection rows={keyRows} apiKeys={apiKeys} />
+
+      {publicApiKeys ? <ProfilePublicApiKeysSection publicKeys={publicApiKeys} /> : null}
 
       <ProfileRecapSection recap={recap} />
 

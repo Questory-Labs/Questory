@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction, useResource, useStore } from "@questorylabs/qhttp/react";
-import { DELETE_ACCOUNT_CONFIRMATION } from "@questorylabs/shared";
+import {
+  DELETE_ACCOUNT_CONFIRMATION,
+  type PublicApiKey,
+  type PublicApiKeyCreate,
+  type PublicApiKeyCreated,
+} from "@questorylabs/shared";
 import { api, apiOnce } from "@/lib/api";
 import { parseApiError } from "@/lib/auth-api";
 import { useDropEpochBump } from "@/providers/StatusProvider";
@@ -15,6 +20,7 @@ import type {
   ProfileApiKeys,
   ProfileChangePassword,
   ProfileDeleteAccount,
+  ProfilePublicApiKeys,
   ProfileRecap,
   RecapSettings,
 } from "./steam.settings-profile.types";
@@ -85,6 +91,72 @@ export function useProfileApiKeys(): ProfileApiKeys {
   };
 
   return { identity, plainToken, create, revoke, copy, copied, error };
+}
+
+export function useProfilePublicApiKeys(): ProfilePublicApiKeys {
+  const store = useStore();
+  const [created, setCreated] = useState<PublicApiKeyCreated | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const keys = useResource({
+    id: ["api-keys-public"],
+    load: () => api<PublicApiKey[]>("/api-keys/public"),
+  });
+
+  const create = useAction({
+    run: (input: PublicApiKeyCreate) =>
+      api<PublicApiKeyCreated>("/api-keys/public", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: (data) => {
+      setError(null);
+      setCopied(false);
+      setCreated(data);
+      void store.touch(["api-keys-public"]);
+    },
+    onError: (err: Error) => {
+      setCreated(null);
+      setError(parseApiError(err).message || "Failed to create key");
+    },
+  });
+
+  const revoke = useAction({
+    run: (id: string) => api<unknown>(`/api-keys/${id}`, { method: "DELETE" }),
+    onSuccess: (_data, id) => {
+      setError(null);
+      setCreated((prev) => (prev?.id === id ? null : prev));
+      void store.touch(["api-keys-public"]);
+    },
+    onError: (err: Error) => {
+      setError(parseApiError(err).message || "Failed to revoke key");
+    },
+  });
+
+  const copy = () => {
+    if (!created) return;
+    const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
+    if (!clip) {
+      setError(CLIPBOARD_ERROR);
+      return;
+    }
+    clip.writeText(created.token).then(
+      () => setCopied(true),
+      () => setError(CLIPBOARD_ERROR),
+    );
+  };
+
+  return {
+    keys,
+    created,
+    dismissCreated: () => setCreated(null),
+    create,
+    revoke,
+    copy,
+    copied,
+    error,
+  };
 }
 
 export function useRecapSettings(): ProfileRecap {

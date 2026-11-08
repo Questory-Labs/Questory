@@ -9,6 +9,7 @@ export type AccountProvider =
 export const API_KEY_TYPE = {
   musicIngest: "music_ingest",
   watchWebhook: "watch_webhook",
+  public: "public",
 } as const;
 
 export type ApiKeyType = (typeof API_KEY_TYPE)[keyof typeof API_KEY_TYPE];

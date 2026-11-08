@@ -24,6 +24,7 @@ import { CronModule } from "./cron/cron.module";
 import { AdminModule } from "./admin/admin.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { ApiKeysModule } from "./api-keys/api-keys.module";
+import { PublicApiModule } from "./public-api/public-api.module";
 import { MusicModule } from "./music/music.module";
 import { WatchModule } from "./watch/watch.module";
 import { ReadModule } from "./read/read.module";
@@ -55,6 +56,7 @@ const localEnv = resolve(process.cwd(), ".env");
     SteamModule,
     AccountsModule,
     ApiKeysModule,
+    PublicApiModule,
     AuthModule,
     SyncModule,
     UsersModule,

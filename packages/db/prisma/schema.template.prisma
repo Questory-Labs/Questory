@@ -168,12 +168,14 @@ model Account {
 model ApiKey {
   id          String    @id @default(cuid())
   userId      String
-  /** music_ingest | watch_webhook */
+  /** music_ingest | watch_webhook | public */
   type        String
   tokenHash   String    @unique
   /** First characters for UI identification (never enough to auth). */
   tokenPrefix String
   label       String?
+  /** JSON array of public API scopes; null for non-public key types. */
+  scopes      String?
   createdAt   DateTime  @default(now())
   lastUsedAt  DateTime?
   revokedAt   DateTime?

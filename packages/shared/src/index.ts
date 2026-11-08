@@ -5,6 +5,7 @@ export * from "./media-trending";
 export * from "./weekly-digest";
 export * from "./goals";
 export * from "./notifications";
+export * from "./public-api";
 export * from "./backlog";
 
 
